@@ -1,15 +1,14 @@
 import { describe, it, expect, vi } from "vitest";
 
 // Mock all heavy dependencies so bundles can register without real DB/services
+// Phase 7 Mock Density Exception: This file tests a complex composition root or integration pipeline and legitimately requires extensive boundary mocking for external services (auth, db, observability, etc.).
 vi.mock("@/lib/db", () => ({ getDb: vi.fn(() => ({ prepare: vi.fn(() => ({ run: vi.fn(), get: vi.fn(), all: vi.fn() })) })) }));
-vi.mock("@/adapters/RepositoryFactory", () => ({
-  getCorpusRepository: vi.fn(() => ({ search: vi.fn(), getSection: vi.fn(), getSummary: vi.fn() })),
-  getBlogAssetRepository: vi.fn(() => ({})),
-  getBlogPostRepository: vi.fn(() => ({})),
-  getBlogPostRevisionRepository: vi.fn(() => ({})),
-  getJournalEditorialMutationRepository: vi.fn(() => ({})),
-  getJobStatusQuery: vi.fn(() => ({ getStatus: vi.fn(), list: vi.fn() })),
-}));
+vi.mock("@/adapters/RepositoryFactory", async () => {
+  const { createMockRepositoryFactory } = await import("@/__test-utils__");
+  return createMockRepositoryFactory({
+    getCorpusRepository: () => ({ search: vi.fn(), getSection: vi.fn(), getSummary: vi.fn() }),
+  });
+});
 vi.mock("@/adapters/LocalEmbedder", () => ({ localEmbedder: { embed: vi.fn(() => [0]) } }));
 vi.mock("@/adapters/SQLiteVectorStore", () => ({
   SQLiteVectorStore: class { search = vi.fn() },
@@ -61,8 +60,8 @@ describe("Spec 14: Composition Root Decomposition", () => {
       const reg = freshRegistry();
       registerCalculatorTools(reg);
       const names = reg.getToolNames();
-      expect(names).toEqual(expect.arrayContaining(["calculator", "generate_chart", "generate_graph", "generate_audio"]));
-      expect(names).toHaveLength(4);
+      expect(names).toEqual(expect.arrayContaining(["calculator"]));
+      expect(names).toHaveLength(1);
     });
 
     it("registerThemeTools adds expected tool names", () => {

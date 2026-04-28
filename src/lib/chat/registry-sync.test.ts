@@ -18,18 +18,7 @@ import {
   BROWSER_CAPABILITY_TOOL_NAMES,
   getBrowserCapabilityDescriptor,
 } from "@/lib/media/browser-runtime/browser-capability-registry";
-
-// Import all tool bundles to register them without hitting the DB
-import { registerCalculatorTools } from "./tool-bundles/calculator-tools";
-import { registerThemeTools } from "./tool-bundles/theme-tools";
-import { registerProfileTools } from "./tool-bundles/profile-tools";
-import { registerAffiliateAnalyticsTools } from "./tool-bundles/affiliate-tools";
-import { registerMediaTools } from "./tool-bundles/media-tools";
-import { registerConversationTools } from "./tool-bundles/conversation-tools";
-import { registerAdminTools } from "./tool-bundles/admin-tools";
-import { registerBlogTools } from "./tool-bundles/blog-tools";
-import { registerJobTools } from "./tool-bundles/job-tools";
-import { registerNavigationTools } from "./tool-bundles/navigation-tools";
+import { TOOL_BUNDLE_COMPOSITIONS } from "./tool-bundle-composition";
 
 /**
  * Cross-registry validation: Ensures the three registries
@@ -42,17 +31,15 @@ import { registerNavigationTools } from "./tool-bundles/navigation-tools";
 
 function createTestRegistry(): ToolRegistry {
   const reg = new ToolRegistry(new RoleAwareSearchFormatter());
-  // Register all bundles except corpus (which needs DB)
-  registerCalculatorTools(reg);
-  registerThemeTools(reg);
-  registerProfileTools(reg);
-  registerAffiliateAnalyticsTools(reg);
-  registerMediaTools(reg);
-  registerConversationTools(reg);
-  registerAdminTools(reg);
-  registerBlogTools(reg);
-  registerJobTools(reg);
-  registerNavigationTools(reg);
+
+  for (const registration of TOOL_BUNDLE_COMPOSITIONS) {
+    if (registration.bundle.id === "corpus") {
+      continue;
+    }
+
+    registration.register(reg, {} as never);
+  }
+
   return reg;
 }
 
@@ -197,11 +184,11 @@ describe("Cross-registry synchronization", () => {
     expect(composePres.executionMode).toBe("hybrid");
     expect(composePres.artifactKinds).toEqual(["video", "audio"]);
 
-    // Verify admin_web_search is inline (no deferred defaults)
+    // Verify admin_web_search stays aligned with the current catalog runtime defaults.
     const searchPres = getCapabilityPresentationDescriptor("admin_web_search")!;
     expect(searchPres.family).toBe("search");
-    expect(searchPres.executionMode).toBe("inline");
-    expect(searchPres.supportsRetry).toBe("none");
+    expect(searchPres.executionMode).toBe("deferred");
+    expect(searchPres.supportsRetry).toBe("whole_job");
   });
 });
 

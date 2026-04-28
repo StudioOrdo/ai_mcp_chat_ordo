@@ -33,10 +33,11 @@ export class PinoLogger implements Logger {
  */
 export function createLogger(options?: { level?: string }): Logger {
   const isProduction = process.env.NODE_ENV === "production";
+  const isTest = process.env.NODE_ENV === "test";
 
   const instance = pino({
-    level: options?.level ?? "info",
-    ...(isProduction
+    level: isTest ? "silent" : options?.level ?? "info",
+    ...(isProduction || isTest
       ? {}
       : {
           transport: {
@@ -56,11 +57,12 @@ export function createLogger(options?: { level?: string }): Logger {
  */
 export function createRawPinoInstance(options?: { level?: string }): pino.Logger {
   const isProduction = process.env.NODE_ENV === "production";
+  const isTest = process.env.NODE_ENV === "test";
 
   return pino({
-    level: options?.level ?? "info",
+    level: isTest ? "silent" : options?.level ?? "info",
     timestamp: pino.stdTimeFunctions.isoTime,
-    ...(isProduction
+    ...(isProduction || isTest
       ? {}
       : {
           transport: {

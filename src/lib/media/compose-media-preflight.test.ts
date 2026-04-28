@@ -61,6 +61,21 @@ describe("compose-media preflight", () => {
     });
   });
 
+  it("rejects pending assets with a specific pending failure code to allow retry", () => {
+    const failure = evaluateComposeMediaAssetReadiness({
+      plan: createPlan(),
+      assetsById: new Map([
+        ["asset_image_1", { assetId: "asset_image_1", status: "ready", assetKind: "image", conversationId: "conv_1" }],
+        ["asset_audio_1", { assetId: "asset_audio_1", status: "pending", assetKind: "audio", conversationId: "conv_1" }],
+      ]),
+    });
+
+    expect(failure).toMatchObject({
+      code: "asset_pending",
+      assetId: "asset_audio_1",
+    });
+  });
+
   it("rejects stored asset kind mismatches", () => {
     const failure = evaluateComposeMediaAssetReadiness({
       plan: createPlan(),

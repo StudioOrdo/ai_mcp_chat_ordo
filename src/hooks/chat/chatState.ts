@@ -21,18 +21,23 @@ export type { GenerationStatusUpdate };
 
 export type ChatAction =
   | { type: "REPLACE_ALL"; messages: ChatMessage[] }
+  | { type: "APPEND_MESSAGES"; messages: ChatMessage[] }
   | { type: "APPEND_TEXT"; index: number; delta: string }
   | {
       type: "APPEND_TOOL_CALL";
       index: number;
       name: string;
       args: Record<string, unknown>;
+      toolInvocationId?: string;
     }
   | {
       type: "APPEND_TOOL_RESULT";
       index: number;
       name: string;
       result: unknown;
+      toolInvocationId?: string;
+      sourceMessageId?: string;
+      contentHash?: string;
     }
   | {
       type: "UPSERT_JOB_STATUS";
@@ -144,9 +149,61 @@ export function chatReducer(
   state: ChatMessage[],
   action: ChatAction,
 ): ChatMessage[] {
+  const shouldAppendToolResult = (
+    message: ChatMessage,
+    name: string,
+    result: unknown,
+    toolInvocationId?: string,
+  ): boolean => {
+    const parts = message.parts ?? [];
+    if (toolInvocationId) {
+      const matchingCalls = parts.filter((part) =>
+        part.type === "tool_call"
+        && part.name === name
+        && part.toolInvocationId === toolInvocationId,
+      ).length;
+      const matchingResults = parts.filter((part) =>
+        part.type === "tool_result"
+        && part.name === name
+        && part.toolInvocationId === toolInvocationId,
+      ).length;
+
+      return matchingResults < Math.max(matchingCalls, 1);
+    }
+
+    const matchingToolCalls = parts.filter((part) => part.type === "tool_call" && part.name === name).length;
+    const matchingToolResults = parts.filter((part) => part.type === "tool_result" && part.name === name).length;
+
+    if (matchingToolCalls > matchingToolResults) {
+      return true;
+    }
+
+    for (const part of parts) {
+      if (part.type !== "tool_result" || part.name !== name) {
+        continue;
+      }
+
+      if (Object.is(part.result, result)) {
+        return false;
+      }
+
+      try {
+        if (JSON.stringify(part.result) === JSON.stringify(result)) {
+          return false;
+        }
+      } catch {
+        // Ignore serialization failures and fall back to appending.
+      }
+    }
+
+    return true;
+  };
+
   switch (action.type) {
     case "REPLACE_ALL":
       return action.messages;
+    case "APPEND_MESSAGES":
+      return [...state, ...action.messages];
     case "APPEND_TEXT":
       return updateMessageAtIndex(state, action.index, (message) => appendTextDelta(message, action.delta));
     case "APPEND_TOOL_CALL":
@@ -154,13 +211,21 @@ export function chatReducer(
         type: "tool_call" as const,
         name: action.name,
         args: action.args,
+        ...(action.toolInvocationId ? { toolInvocationId: action.toolInvocationId } : {}),
       }));
     case "APPEND_TOOL_RESULT":
-      return updateMessageAtIndex(state, action.index, (message) => appendPart(message, {
-        type: "tool_result" as const,
-        name: action.name,
-        result: action.result,
-      }));
+      return updateMessageAtIndex(state, action.index, (message) => {
+        if (!shouldAppendToolResult(message, action.name, action.result, action.toolInvocationId)) {
+          return message;
+        }
+
+        return appendPart(message, {
+          type: "tool_result" as const,
+          name: action.name,
+          result: action.result,
+          ...(action.toolInvocationId ? { toolInvocationId: action.toolInvocationId } : {}),
+        });
+      });
     case "UPSERT_JOB_STATUS":
       return upsertJobStatusMessage(state, action.part, action.messageId);
     case "UPSERT_GENERATION_STATUS":

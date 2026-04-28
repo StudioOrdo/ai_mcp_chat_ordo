@@ -4,7 +4,11 @@ import type {
   JobRequest,
 } from "@/core/entities/job";
 import type { JobQueueRepository } from "@/core/use-cases/JobQueueRepository";
-import { normalizeMediaCompositionPlan, validatePlanConstraints } from "@/lib/media/ffmpeg/media-composition-plan";
+import {
+  normalizeMediaCompositionPlan,
+  validateMediaCompositionAssetReferences,
+  validatePlanConstraints,
+} from "@/lib/media/ffmpeg/media-composition-plan";
 import { appendRuntimeAuditLog } from "@/lib/observability/runtime-audit-log";
 
 import type { DeferredJobResultPayload } from "./deferred-job-result";
@@ -39,7 +43,7 @@ export interface EnqueueComposeMediaDeferredJobResult {
 export async function enqueueComposeMediaDeferredJob(
   options: EnqueueComposeMediaDeferredJobOptions,
 ): Promise<EnqueueComposeMediaDeferredJobResult> {
-  const plan = normalizeMediaCompositionPlan(options.plan);
+  const plan = normalizeMediaCompositionPlan(options.plan, options.conversationId);
   if (!plan) {
     throw new InvalidComposeMediaDeferredJobError("Invalid or incomplete media composition plan");
   }
@@ -47,6 +51,11 @@ export async function enqueueComposeMediaDeferredJob(
   const constraintError = validatePlanConstraints(plan);
   if (constraintError) {
     throw new InvalidComposeMediaDeferredJobError(constraintError);
+  }
+
+  const assetReferenceError = validateMediaCompositionAssetReferences(plan);
+  if (assetReferenceError) {
+    throw new InvalidComposeMediaDeferredJobError(assetReferenceError);
   }
 
   const dedupeKey = `compose_media:${plan.id}`;

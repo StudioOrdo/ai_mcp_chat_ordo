@@ -14,12 +14,8 @@ import {
   projectJobCapability,
 } from "@/core/capability-catalog/catalog";
 import type {
-  JobArtifactPolicy,
   JobCapabilityDefinition,
   JobCapabilityPresentation,
-  JobFamily,
-  JobRetryPolicy,
-  JobSurface,
 } from "@/lib/jobs/job-capability-types";
 
 export type {

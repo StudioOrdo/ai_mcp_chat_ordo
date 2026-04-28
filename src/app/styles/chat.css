@@ -260,6 +260,37 @@
     color: color-mix(in oklab, var(--foreground) 78%, transparent);
   }
 
+  .ui-system-job-compact-row {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+  }
+
+  .ui-system-job-label {
+    min-width: 0;
+    font-weight: 600;
+    color: color-mix(in oklab, var(--foreground) 88%, transparent);
+  }
+
+  .ui-system-job-meta {
+    grid-column: 1 / 2;
+    min-width: 0;
+    font-size: 0.8rem;
+    color: color-mix(in oklab, var(--foreground) 60%, transparent);
+  }
+
+  .ui-system-job-status {
+    grid-column: 2 / 3;
+    grid-row: 1 / span 2;
+    justify-self: end;
+    white-space: nowrap;
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: color-mix(in oklab, var(--foreground) 74%, transparent);
+  }
+
   .ui-chat-progress-strip-list-item {
     display: flex;
     align-items: center;

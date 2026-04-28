@@ -17,13 +17,19 @@ import {
   type ComposeMediaAssetReadinessEntry,
   evaluateComposeMediaAssetReadiness,
 } from "@/lib/media/compose-media-preflight";
+import { validateExecutablePlanConstraints } from "@/lib/media/ffmpeg/media-composition-plan";
 import { projectUserFileToMediaAssetDescriptor } from "@/lib/media/media-asset-projection";
+import { materializeServerComposePlan } from "@/lib/media/server/compose-media-plan-materialization";
 import { UserFileSystem } from "@/lib/user-files";
+import { getBlogAssetRepository } from "@/adapters/RepositoryFactory";
+import { resolveBlogAssetDiskPath } from "@/lib/blog/blog-asset-storage";
+import { appendRuntimeAuditLog } from "@/lib/observability/runtime-audit-log";
 
 export interface ExecuteComposeMediaRemotelyParams {
   plan: MediaCompositionPlan;
   userId: string;
   conversationId: string | null;
+  toolInvocationId?: string;
   onProgress?: (update: ToolProgressUpdate) => void;
 }
 
@@ -50,6 +56,7 @@ function buildPersistedArtifacts(
   outputFormat: string,
   conversationId: string | null,
   resolution?: { width: number; height: number } | null,
+  toolInvocationId?: string,
 ): CapabilityArtifactRef[] {
   return [
     {
@@ -62,6 +69,7 @@ function buildPersistedArtifacts(
       height: resolution?.height,
       retentionClass: conversationId ? "conversation" : "ephemeral",
       source: "generated",
+      ...(toolInvocationId ? { toolInvocationId } : {}),
     },
   ];
 }
@@ -75,21 +83,152 @@ function getPayloadOutputPath(envelope: CapabilityResultEnvelope): string {
   return outputPath;
 }
 
+function summarizePlan(plan: MediaCompositionPlan): Record<string, unknown> {
+  return {
+    id: plan.id,
+    conversationId: plan.conversationId,
+    profile: plan.profile,
+    outputFormat: plan.outputFormat,
+    visualClips: plan.visualClips.map((clip) => ({
+      assetId: clip.assetId,
+      kind: clip.kind,
+      sourceAssetId: clip.sourceAssetId ?? null,
+    })),
+    audioClips: plan.audioClips.map((clip) => ({
+      assetId: clip.assetId,
+      kind: clip.kind,
+      sourceAssetId: clip.sourceAssetId ?? null,
+    })),
+  };
+}
+
+function summarizeStoredAssetRecord(
+  stored: Awaited<ReturnType<UserFileSystem["getById"]>>,
+): Record<string, unknown> | null {
+  if (!stored) {
+    return null;
+  }
+
+  return {
+    assetId: stored.file.id,
+    fileType: stored.file.fileType,
+    status: stored.file.status,
+    conversationId: stored.file.conversationId,
+    source: stored.file.metadata.source ?? null,
+    derivativeOfAssetId: stored.file.metadata.derivativeOfAssetId ?? null,
+    toolName: stored.file.metadata.toolName ?? null,
+    toolInvocationId: stored.file.metadata.toolInvocationId ?? null,
+  };
+}
+
+function summarizeAssetReadinessMap(
+  assetsById: Map<string, ComposeMediaAssetReadinessEntry>,
+): Array<Record<string, unknown>> {
+  return [...assetsById.values()].map((asset) => ({
+    assetId: asset.assetId,
+    status: asset.status,
+    assetKind: asset.assetKind ?? null,
+    conversationId: asset.conversationId ?? null,
+    derivativeOfAssetId: asset.derivativeOfAssetId ?? null,
+  }));
+}
+
 export async function executeComposeMediaRemotely(
   params: ExecuteComposeMediaRemotelyParams,
 ): Promise<CapabilityResultEnvelope> {
   const repo = getUserFileDataMapper();
   const userFiles = new UserFileSystem(repo);
   const executor = new FfmpegServerExecutor();
-  const assetIds = [...new Set([
+  const initialAssetIds = [...new Set([
     ...params.plan.visualClips.map((clip) => clip.assetId),
     ...params.plan.audioClips.map((clip) => clip.assetId),
+  ])];
+  const storedAssets = new Map<string, Awaited<ReturnType<UserFileSystem["getById"]>>>();
+
+  for (const assetId of initialAssetIds) {
+    if (assetId.startsWith("blogasset_")) {
+      continue;
+    }
+
+    storedAssets.set(assetId, await userFiles.getById(assetId));
+  }
+
+  await appendRuntimeAuditLog("deferred_job", "compose_media_worker_asset_resolution_started", {
+    conversationId: params.conversationId,
+    userId: params.userId,
+    toolInvocationId: params.toolInvocationId ?? null,
+    plan: summarizePlan(params.plan),
+    storedAssets: initialAssetIds.map((assetId) => ({
+      assetId,
+      stored: summarizeStoredAssetRecord(storedAssets.get(assetId)),
+    })),
+  });
+
+  const materialized = await materializeServerComposePlan({
+    plan: params.plan,
+    userId: params.userId,
+    conversationId: params.conversationId,
+    toolInvocationId: params.toolInvocationId,
+    userFiles,
+    storedAssets,
+  });
+
+  const constraintError = validateExecutablePlanConstraints(materialized.plan);
+  if (constraintError) {
+    await appendRuntimeAuditLog("deferred_job", "compose_media_worker_constraint_failed", {
+      conversationId: params.conversationId,
+      userId: params.userId,
+      toolInvocationId: params.toolInvocationId ?? null,
+      inputPlan: summarizePlan(params.plan),
+      materializedPlan: summarizePlan(materialized.plan),
+      error: constraintError,
+    });
+    throw new InvalidComposeMediaAssetReadinessError(constraintError, "asset_kind_mismatch");
+  }
+
+  await appendRuntimeAuditLog("deferred_job", "compose_media_worker_materialized_plan", {
+    conversationId: params.conversationId,
+    userId: params.userId,
+    toolInvocationId: params.toolInvocationId ?? null,
+    inputPlan: summarizePlan(params.plan),
+    materializedPlan: summarizePlan(materialized.plan),
+  });
+
+  const assetIds = [...new Set([
+    ...materialized.plan.visualClips.map((clip) => clip.assetId),
+    ...materialized.plan.audioClips.map((clip) => clip.assetId),
   ])];
   const assetPaths = new Map<string, string | null>();
   const assetsById = new Map<string, ComposeMediaAssetReadinessEntry>();
 
   for (const assetId of assetIds) {
-    const stored = await userFiles.getById(assetId);
+    if (assetId.startsWith("blogasset_")) {
+      const blogAssetRepo = getBlogAssetRepository();
+      const blogAsset = await blogAssetRepo.findById(assetId);
+      
+      if (!blogAsset) {
+        assetPaths.set(assetId, null);
+        assetsById.set(assetId, {
+          assetId,
+          status: "not_found",
+        });
+        continue;
+      }
+      
+      const isOwnedByUser = blogAsset.createdByUserId === params.userId;
+      
+      assetPaths.set(assetId, isOwnedByUser ? resolveBlogAssetDiskPath(blogAsset.storagePath) : null);
+      assetsById.set(assetId, {
+        assetId,
+        status: isOwnedByUser ? "ready" : "forbidden",
+        assetKind: blogAsset.mimeType.startsWith("image/") ? "image" : null,
+        conversationId: null,
+        derivativeOfAssetId: null,
+      });
+      continue;
+    }
+
+    const stored = materialized.storedAssets.get(assetId);
     if (!stored) {
       assetPaths.set(assetId, null);
       assetsById.set(assetId, {
@@ -102,10 +241,17 @@ export async function executeComposeMediaRemotely(
     const projected = projectUserFileToMediaAssetDescriptor(stored.file);
     const isOwnedByUser = stored.file.userId === params.userId;
 
-    assetPaths.set(assetId, isOwnedByUser ? stored.diskPath : null);
+    let readinessStatus: ComposeMediaAssetReadinessEntry["status"] = isOwnedByUser
+      ? "ready"
+      : "forbidden";
+    if (isOwnedByUser && stored.file.status === "pending") {
+      readinessStatus = "pending";
+    }
+
+    assetPaths.set(assetId, readinessStatus === "ready" ? stored.diskPath : null);
     assetsById.set(assetId, {
       assetId,
-      status: isOwnedByUser ? "ready" : "forbidden",
+      status: readinessStatus,
       assetKind: projected?.kind ?? null,
       conversationId: stored.file.conversationId,
       derivativeOfAssetId: stored.file.metadata.derivativeOfAssetId ?? null,
@@ -113,11 +259,19 @@ export async function executeComposeMediaRemotely(
   }
 
   const readinessFailure = evaluateComposeMediaAssetReadiness({
-    plan: params.plan,
+    plan: materialized.plan,
     assetsById,
   });
 
   if (readinessFailure) {
+    await appendRuntimeAuditLog("deferred_job", "compose_media_worker_readiness_failed", {
+      conversationId: params.conversationId,
+      userId: params.userId,
+      toolInvocationId: params.toolInvocationId ?? null,
+      plan: summarizePlan(materialized.plan),
+      assetsById: summarizeAssetReadinessMap(assetsById),
+      failure: readinessFailure,
+    });
     throw new InvalidComposeMediaAssetReadinessError(
       readinessFailure.message,
       readinessFailure.code,
@@ -125,12 +279,12 @@ export async function executeComposeMediaRemotely(
   }
 
   const envelope = await executor.executeDeferredPlan(
-    params.plan,
+    materialized.plan,
     (progress, phase) => params.onProgress?.({
       activePhaseKey: phase,
       progressPercent: progress,
       progressLabel: getComposeMediaProgressLabel(phase, {
-        plan: params.plan,
+        plan: materialized.plan,
         progressPercent: progress,
       }),
     }),
@@ -145,14 +299,15 @@ export async function executeComposeMediaRemotely(
     userId: params.userId,
     conversationId: params.conversationId,
     fileType: "video",
-    mimeType: getMimeType(params.plan.outputFormat),
-    extension: getOutputExtension(params.plan.outputFormat),
+    mimeType: getMimeType(materialized.plan.outputFormat),
+    extension: getOutputExtension(materialized.plan.outputFormat),
     data: outputBytes,
     metadata: {
       assetKind: "video",
       source: "generated",
       retentionClass: params.conversationId ? "conversation" : "ephemeral",
       toolName: "compose_media",
+      ...(params.toolInvocationId ? { toolInvocationId: params.toolInvocationId } : {}),
     },
   });
 
@@ -170,25 +325,32 @@ export async function executeComposeMediaRemotely(
     ...envelope,
     summary: {
       ...envelope.summary,
-      subtitle: `${params.plan.outputFormat.toUpperCase()} · Media Worker · ${params.plan.resolution?.width ?? 0}x${params.plan.resolution?.height ?? 0}`,
+      subtitle: `${materialized.plan.outputFormat.toUpperCase()} · Media Worker · ${materialized.plan.resolution?.width ?? 0}x${materialized.plan.resolution?.height ?? 0}`,
       statusLine: "succeeded",
     },
     replaySnapshot: {
       route: "deferred_remote",
-      planId: params.plan.id,
-      outputFormat: params.plan.outputFormat,
+      planId: materialized.plan.id,
+      outputFormat: materialized.plan.outputFormat,
       outputBytes: stored.fileSize,
-      resolution: params.plan.resolution ?? null,
+      resolution: materialized.plan.resolution ?? null,
     },
-    artifacts: buildPersistedArtifacts(stored.id, params.plan.outputFormat, params.conversationId, params.plan.resolution),
+    artifacts: buildPersistedArtifacts(
+      stored.id,
+      materialized.plan.outputFormat,
+      params.conversationId,
+      materialized.plan.resolution,
+      params.toolInvocationId,
+    ),
     payload: {
       route: "deferred_remote",
-      planId: params.plan.id,
+      planId: materialized.plan.id,
       primaryAssetId: stored.id,
-      outputFormat: params.plan.outputFormat,
+      outputFormat: materialized.plan.outputFormat,
       outputBytes: stored.fileSize,
-      mimeType: getMimeType(params.plan.outputFormat),
-      resolution: params.plan.resolution ?? null,
+      mimeType: getMimeType(materialized.plan.outputFormat),
+      resolution: materialized.plan.resolution ?? null,
+      ...(params.toolInvocationId ? { toolInvocationId: params.toolInvocationId } : {}),
     },
   };
 }

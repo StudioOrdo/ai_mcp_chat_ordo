@@ -108,6 +108,28 @@ export class PromptProvenanceDataMapper {
     ).run(assistantMessageId, recordId);
   }
 
+  async findById(id: string): Promise<PromptTurnProvenanceRecord | null> {
+    const row = this.db.prepare(
+      `SELECT
+         id,
+         conversation_id as conversationId,
+         user_message_id as userMessageId,
+         assistant_message_id as assistantMessageId,
+         surface,
+         effective_hash as effectiveHash,
+         slot_refs_json as slotRefsJson,
+         sections_json as sectionsJson,
+         warnings_json as warningsJson,
+         replay_context_json as replayContextJson,
+         recorded_at as recordedAt
+       FROM prompt_provenance_records
+       WHERE id = ?
+       LIMIT 1`,
+    ).get(id) as PromptTurnProvenanceRow | undefined;
+
+    return row ? mapRow(row) : null;
+  }
+
   async findLatestByConversation(conversationId: string): Promise<PromptTurnProvenanceRecord | null> {
     const row = this.db.prepare(
       `SELECT

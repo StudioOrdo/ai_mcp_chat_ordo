@@ -42,6 +42,7 @@ const CARD_KIND_TONE_MAP: Record<CapabilityCardKind, CapabilityTone | null> = {
   editorial_workflow: "editorial",
   fallback: "neutral",
   journal_workflow: "accent",
+  lifecycle: "neutral",
   media_render: "media",
   profile_summary: "accent",
   search_result: "accent",
@@ -50,6 +51,7 @@ const CARD_KIND_TONE_MAP: Record<CapabilityCardKind, CapabilityTone | null> = {
 
 const STATE_TONE_MAP: Record<CapabilityCardState, CapabilityTone> = {
   canceled: "warning",
+  dead_letter: "danger",
   failed: "danger",
   idle: "neutral",
   queued: "neutral",

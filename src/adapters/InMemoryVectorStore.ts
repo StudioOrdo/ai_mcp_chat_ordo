@@ -4,6 +4,16 @@ import type {
   VectorStore,
 } from "@/core/search/ports/VectorStore";
 
+function readMetadataString(record: EmbeddingRecord, key: "audience" | "contentClass" | "rolePersona"): string | null {
+  const metadata = record.metadata;
+  const value = key === "audience"
+    ? ("audience" in metadata ? metadata.audience : undefined)
+    : key === "contentClass"
+      ? ("contentClass" in metadata ? metadata.contentClass : undefined)
+      : ("rolePersona" in metadata ? metadata.rolePersona : undefined);
+  return typeof value === "string" ? value : null;
+}
+
 export class InMemoryVectorStore implements VectorStore {
   private records = new Map<string, EmbeddingRecord>();
 
@@ -28,6 +38,27 @@ export class InMemoryVectorStore implements VectorStore {
     }
     if (query?.chunkLevel) {
       results = results.filter((r) => r.chunkLevel === query.chunkLevel);
+    }
+    if (query?.allowedAudiences && query.allowedAudiences.length > 0) {
+      const allowed = new Set(query.allowedAudiences);
+      results = results.filter((record) => {
+        const audience = readMetadataString(record, "audience");
+        return audience !== null && allowed.has(audience);
+      });
+    }
+    if (query?.classes && query.classes.length > 0) {
+      const allowed = new Set(query.classes);
+      results = results.filter((record) => {
+        const contentClass = readMetadataString(record, "contentClass");
+        return contentClass !== null && allowed.has(contentClass);
+      });
+    }
+    if (query?.rolePersonas && query.rolePersonas.length > 0) {
+      const allowed = new Set(query.rolePersonas);
+      results = results.filter((record) => {
+        const rolePersona = readMetadataString(record, "rolePersona");
+        return rolePersona !== null && allowed.has(rolePersona);
+      });
     }
     if (query?.limit) {
       results = results.slice(0, query.limit);

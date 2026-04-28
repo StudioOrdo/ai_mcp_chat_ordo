@@ -25,10 +25,10 @@ describe("chat policy", () => {
     expect(prompt).toContain("Offload detail to tools to SHOW rather than describe");
   });
 
-  it("returns configured model first and dedupes", () => {
+  it("returns a deduped fallback list when API model override is set", () => {
     vi.stubEnv("API__ANTHROPIC_MODEL", "claude-sonnet-4-6");
 
-    expect(getModelFallbacks()).toEqual(["claude-sonnet-4-6", "claude-haiku-4-5", "claude-opus-4-6"]);
+    expect(getModelFallbacks()).toEqual(["claude-haiku-4-5", "claude-sonnet-4-6", "claude-opus-4-6"]);
   });
 
   it("returns fallback list when model not configured", () => {

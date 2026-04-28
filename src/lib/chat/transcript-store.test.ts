@@ -26,7 +26,7 @@ describe("TranscriptStore", () => {
           content: "The result is ready.",
           parts: [
             { type: "text", text: "The result is ready." },
-            { type: "tool_result", name: "calculator", result: 4 },
+            { type: "tool_result", name: "calculator", result: 4, toolInvocationId: "toolu_calc_1" },
           ],
         },
         1,
@@ -61,6 +61,7 @@ describe("TranscriptStore", () => {
     expect(transcript[2]).toMatchObject({
       role: "tool_result",
       sourceMessageId: "msg_1",
+      toolInvocationId: "toolu_calc_1",
       contentSummary: "calculator: 4",
     });
     expect(transcript[4]).toMatchObject({

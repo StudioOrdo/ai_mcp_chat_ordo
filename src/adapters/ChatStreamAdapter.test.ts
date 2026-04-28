@@ -29,6 +29,47 @@ describe("ChatStreamAdapter", () => {
     vi.unstubAllGlobals();
   });
 
+  it("posts media continuity handoff payloads to the stream route", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(createSseResponse([
+      'data: {"done":true}\n\n',
+    ]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const adapter = new ChatStreamAdapter();
+    await adapter.fetchStream([{ role: "user", content: "combine them" }], {
+      conversationId: "conv_media",
+      currentPathname: "/",
+      attachments: [],
+      mediaContinuityHandoff: {
+        assets: [
+          { assetId: "uf_chart_1", kind: "chart", aliases: ["growth chart"] },
+          { assetId: "uf_audio_1", kind: "audio", aliases: ["growth narration"] },
+        ],
+      },
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/chat/stream",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          messages: [{ role: "user", content: "combine them" }],
+          conversationId: "conv_media",
+          currentPathname: "/",
+          currentPageSnapshot: undefined,
+          attachments: [],
+          taskOriginHandoff: undefined,
+          mediaContinuityHandoff: {
+            assets: [
+              { assetId: "uf_chart_1", kind: "chart", aliases: ["growth chart"] },
+              { assetId: "uf_audio_1", kind: "audio", aliases: ["growth narration"] },
+            ],
+          },
+        }),
+      }),
+    );
+  });
+
   it("parses the final buffered SSE event when the stream ends without a trailing newline", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(createSseResponse([
       'data: {"conversation_id":"conv_1"}\n\n',

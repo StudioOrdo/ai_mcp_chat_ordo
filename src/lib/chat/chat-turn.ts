@@ -17,11 +17,9 @@ import {
   toAnthropicMessages,
 } from "@/lib/chat/validation";
 import { createAnthropicProvider } from "@/lib/chat/anthropic-client";
-import {
-  getToolComposition,
-} from "@/lib/chat/tool-composition-root";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
 import { looksLikeMath } from "@/lib/chat/math-classifier";
+import { getAgentPlatformFacade } from "@/lib/platform/agent-platform-facade-root";
 
 type ChatRequestUser = Pick<User, "id" | "roles">;
 
@@ -55,7 +53,7 @@ export async function executeDirectChatTurn({
     builder.withUserPreferences(userPrefs);
   }
 
-  const { registry, executor } = getToolComposition();
+  const { registry, executor } = getAgentPlatformFacade().getExecutionSurface();
   const tools = registry.getSchemasForRole(role) as Anthropic.Tool[];
   builder.withToolManifest?.(tools.map((tool) => ({
     name: tool.name,

@@ -14,7 +14,7 @@ const {
   findActiveJobByDedupeKeyMock,
   findLatestRenderableEventForJobMock,
   getSessionUserMock,
-  listConversationJobSnapshotsMock,
+  listConversationJobInteractionsMock,
   getConversationMock,
   getActiveForUserMock,
 } = vi.hoisted(() => ({
@@ -24,7 +24,7 @@ const {
   findActiveJobByDedupeKeyMock: vi.fn(),
   findLatestRenderableEventForJobMock: vi.fn(),
   getSessionUserMock: vi.fn(),
-  listConversationJobSnapshotsMock: vi.fn(),
+  listConversationJobInteractionsMock: vi.fn(),
   getConversationMock: vi.fn(),
   getActiveForUserMock: vi.fn(),
 }));
@@ -44,8 +44,8 @@ vi.mock("@/adapters/RepositoryFactory", () => ({
     findActiveJobByDedupeKey: findActiveJobByDedupeKeyMock,
     findLatestRenderableEventForJob: findLatestRenderableEventForJobMock,
   }),
-  getJobStatusQuery: () => ({
-    listConversationJobSnapshots: listConversationJobSnapshotsMock,
+  getPlatformInteractionFacade: () => ({
+    listConversationJobInteractions: listConversationJobInteractionsMock,
   }),
 }));
 
@@ -116,14 +116,14 @@ describe("GET /api/chat/jobs", () => {
 
   it("returns an empty snapshot when the requested conversation does not exist", async () => {
     getConversationMock.mockRejectedValue(new NotFoundError("Conversation not found"));
-    listConversationJobSnapshotsMock.mockResolvedValue([]);
+    listConversationJobInteractionsMock.mockResolvedValue([]);
 
     const response = await GET(createRouteRequest("/api/chat/jobs?conversationId=conv_missing"));
     const payload = await response.json();
 
     expect(response.status).toBe(200);
     expect(payload.jobs).toEqual([]);
-    expect(listConversationJobSnapshotsMock).toHaveBeenCalledWith("conv_missing", {
+    expect(listConversationJobInteractionsMock).toHaveBeenCalledWith("conv_missing", {
       statuses: undefined,
       limit: 25,
     });
@@ -131,37 +131,39 @@ describe("GET /api/chat/jobs", () => {
 
   it("returns job snapshots for an existing requested conversation", async () => {
     getConversationMock.mockResolvedValue({ conversation: { id: "conv_existing" } });
-    listConversationJobSnapshotsMock.mockResolvedValue([
+    listConversationJobInteractionsMock.mockResolvedValue([
       {
-        messageId: "jobmsg_job_1",
-        part: {
-          type: "job_status",
-          jobId: "job_1",
-          toolName: "produce_blog_article",
-          label: "Produce Blog Article",
-          title: "Launch plan",
-          status: "running",
-          progressPercent: 42,
-          progressLabel: "Reviewing article",
-          resultEnvelope: {
-            schemaVersion: 1,
+        snapshot: {
+          messageId: "jobmsg_job_1",
+          part: {
+            type: "job_status",
+            jobId: "job_1",
             toolName: "produce_blog_article",
-            family: "editorial",
-            cardKind: "editorial_workflow",
-            executionMode: "deferred",
-            inputSnapshot: { brief: "Launch plan" },
-            summary: { title: "Launch plan" },
-            progress: {
-              percent: 42,
-              label: "Reviewing article",
-              phases: [
-                { key: "qa_blog_article", label: "Reviewing article", status: "active", percent: 60 },
-              ],
-              activePhaseKey: "qa_blog_article",
+            label: "Produce Blog Article",
+            title: "Launch plan",
+            status: "running",
+            progressPercent: 42,
+            progressLabel: "Reviewing article",
+            resultEnvelope: {
+              schemaVersion: 1,
+              toolName: "produce_blog_article",
+              family: "editorial",
+              cardKind: "editorial_workflow",
+              executionMode: "deferred",
+              inputSnapshot: { brief: "Launch plan" },
+              summary: { title: "Launch plan" },
+              progress: {
+                percent: 42,
+                label: "Reviewing article",
+                phases: [
+                  { key: "qa_blog_article", label: "Reviewing article", status: "active", percent: 60 },
+                ],
+                activePhaseKey: "qa_blog_article",
+              },
+              payload: null,
             },
-            payload: null,
+            updatedAt: "2026-03-25T03:00:07.000Z",
           },
-          updatedAt: "2026-03-25T03:00:07.000Z",
         },
       },
     ]);
@@ -171,7 +173,7 @@ describe("GET /api/chat/jobs", () => {
 
     expect(response.status).toBe(200);
     expect(getConversationMock).toHaveBeenCalledWith("conv_existing", "usr_owner");
-    expect(listConversationJobSnapshotsMock).toHaveBeenCalledWith("conv_existing", {
+    expect(listConversationJobInteractionsMock).toHaveBeenCalledWith("conv_existing", {
       statuses: undefined,
       limit: 12,
     });
@@ -328,5 +330,35 @@ describe("GET /api/chat/jobs", () => {
         }),
       },
     });
+  });
+
+  it("returns 400 when compose_media includes non-canonical visual asset references", async () => {
+    const response = await POST(createRouteRequest(
+      "/api/chat/jobs",
+      "POST",
+      {
+        toolName: "compose_media",
+        conversationId: "conv_existing",
+        plan: {
+          id: "plan_media_invalid_asset",
+          conversationId: "conv_existing",
+          visualClips: [{ assetId: "generate:a plate of cheese", kind: "image" }],
+          audioClips: [{ assetId: "uf_audio_1", kind: "audio" }],
+          subtitlePolicy: "none",
+          waveformPolicy: "none",
+          outputFormat: "mp4",
+        },
+      },
+      { "Content-Type": "application/json" },
+    ));
+    const payload = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(payload).toMatchObject({
+      error: expect.stringMatching(/Invalid visual clip assetId at index 0/),
+    });
+    expect(findActiveJobByDedupeKeyMock).not.toHaveBeenCalled();
+    expect(createJobMock).not.toHaveBeenCalled();
+    expect(appendEventMock).not.toHaveBeenCalled();
   });
 });

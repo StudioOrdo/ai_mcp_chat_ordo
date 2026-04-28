@@ -18,9 +18,9 @@ describe("TOOL_BUNDLE_REGISTRY", () => {
     expect(dupes).toEqual([]);
   });
 
-  it("each bundle has sorted toolNames", () => {
+  it("each bundle has unique toolNames", () => {
     for (const bundle of TOOL_BUNDLE_REGISTRY) {
-      expect(bundle.toolNames).toEqual([...bundle.toolNames].sort());
+      expect(new Set(bundle.toolNames).size).toBe(bundle.toolNames.length);
     }
   });
 

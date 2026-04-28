@@ -1,0 +1,11 @@
+{
+  "slug": "architecture-reference",
+  "title": "The Architecture Reference",
+  "number": "III",
+  "sortOrder": 3,
+  "description": "How the system works, told by the Machine. Architecture, sovereignty, extensibility, and the $10 stack — the aircraft technical manual for the cockpit.",
+  "domain": ["reference"],
+  "audience": "staff",
+  "class": "reference",
+  "tags": ["architecture", "system-docs", "docker", "sqlite", "mcp", "capability-catalog", "metal"]
+}

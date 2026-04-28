@@ -32,6 +32,24 @@ export interface ChatStreamDispatcher {
   getResolvedTerminalState: () => GenerationStatusUpdate | null;
 }
 
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value);
+  }
+
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => stableStringify(entry)).join(",")}]`;
+  }
+
+  const objectValue = value as Record<string, unknown>;
+  const keys = Object.keys(objectValue).sort();
+  return `{${keys.map((key) => `${JSON.stringify(key)}:${stableStringify(objectValue[key])}`).join(",")}}`;
+}
+
+function buildFallbackResultHash(name: string, result: unknown): string {
+  return stableStringify({ name, result });
+}
+
 export function createChatStreamDispatcher({
   initialConversationId,
   dispatch,
@@ -41,6 +59,7 @@ export function createChatStreamDispatcher({
   let resolvedConversationId = initialConversationId;
   let resolvedStreamId: string | null = null;
   let resolvedTerminalState: GenerationStatusUpdate | null = null;
+  const seenToolResultKeys = new Set<string>();
 
   return {
     dispatchStreamAction(action) {
@@ -64,6 +83,18 @@ export function createChatStreamDispatcher({
           generation: action.generation,
         });
         return;
+      }
+
+      if (action.type === "APPEND_TOOL_RESULT") {
+        const dedupeKey = action.toolInvocationId
+          ? `toolInvocationId:${action.toolInvocationId}`
+          : `${action.sourceMessageId ?? `assistant_index:${action.index}`}:${action.name}:${action.contentHash ?? buildFallbackResultHash(action.name, action.result)}`;
+
+        if (seenToolResultKeys.has(dedupeKey)) {
+          return;
+        }
+
+        seenToolResultKeys.add(dedupeKey);
       }
 
       dispatch(action);

@@ -3,7 +3,8 @@ import {
   JobProgressStrategy,
   StreamProcessor, 
   TextDeltaStrategy, 
-  ToolCallStrategy 
+  ToolCallStrategy,
+  ToolResultStrategy,
 } from "./StreamStrategy";
 import type { StreamEvent } from "@/core/entities/chat-stream";
 
@@ -26,14 +27,38 @@ describe("StreamStrategy Processor", () => {
     const dispatch = vi.fn();
     const processor = new StreamProcessor([new ToolCallStrategy()]);
     
-    const event: StreamEvent = { type: "tool_call", name: "test", args: { x: 1 } };
+    const event: StreamEvent = { type: "tool_call", name: "test", args: { x: 1 }, toolInvocationId: "toolu_test_1" };
     processor.process(event, { dispatch, assistantIndex: 1 });
     
     expect(dispatch).toHaveBeenCalledWith({
       type: "APPEND_TOOL_CALL",
       index: 1,
       name: "test",
-      args: { x: 1 }
+      args: { x: 1 },
+      toolInvocationId: "toolu_test_1",
+    });
+  });
+
+  it("should route tool results with invocation identity to dispatch", () => {
+    const dispatch = vi.fn();
+    const processor = new StreamProcessor([new ToolResultStrategy()]);
+
+    const event: StreamEvent = {
+      type: "tool_result",
+      name: "generate_audio",
+      result: { assetId: "uf_audio_1" },
+      toolInvocationId: "toolu_audio_1",
+    };
+    processor.process(event, { dispatch, assistantIndex: 1 });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "APPEND_TOOL_RESULT",
+      index: 1,
+      name: "generate_audio",
+      result: { assetId: "uf_audio_1" },
+      toolInvocationId: "toolu_audio_1",
+      sourceMessageId: undefined,
+      contentHash: undefined,
     });
   });
 

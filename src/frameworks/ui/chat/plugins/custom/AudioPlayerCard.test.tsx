@@ -79,4 +79,39 @@ describe("AudioPlayerCard", () => {
     expect(screen.getByText("Asset Generation")).toBeInTheDocument();
     expect(screen.getByText("tts_provider_failed")).toBeInTheDocument();
   });
+
+  it("renders playable audio when failed status still carries a durable asset", async () => {
+    render(
+      <AudioPlayerCard
+        part={createPart({
+          status: "failed",
+          lifecyclePhase: "durable_asset_available",
+          failureStage: "recovery",
+          failureCode: "fallback_required",
+          error: "Local browser execution was interrupted and must reroute to the server.",
+        })}
+        toolCall={{
+          name: "generate_audio",
+          args: { title: "Ode to Cheese", text: "Cheese forever" },
+          result: {
+            action: "generate_audio",
+            title: "Ode to Cheese",
+            text: "Cheese forever",
+            assetId: "uf_6e9cee49-5d47-4497-89d2-0171e4b73b36",
+            provider: "user-file-cache",
+            generationStatus: "cached_asset",
+            estimatedDurationSeconds: 18,
+            estimatedGenerationSeconds: 4,
+          },
+        }}
+        isStreaming={false}
+      />,
+    );
+
+    expect(screen.getByText("Ready")).toBeInTheDocument();
+    expect(screen.queryByRole("alert", { name: "Generate Audio result" })).not.toBeInTheDocument();
+    expect(await screen.findByTestId("mock-audio-player")).toHaveTextContent(
+      "Ode to Cheese:user-file-cache:uf_6e9cee49-5d47-4497-89d2-0171e4b73b36",
+    );
+  });
 });

@@ -1,5 +1,18 @@
 import type { CapabilityDefinition } from "../capability-definition";
 import { CATALOG_INPUT_SCHEMAS } from "../catalog-input-schemas";
+import type { JobProgressPhaseDefinition } from "@/lib/jobs/job-capability-types";
+import { ADMIN_ROLES, MANUAL_ONLY_RETRY } from "./shared";
+
+const PRODUCE_PRODUCT_PROGRESS_PHASES = [
+  { key: "research", label: "Researching brief", baselinePercent: 5 },
+  { key: "draft", label: "Drafting core content", baselinePercent: 20 },
+  { key: "asset_generation_image_1", label: "Generating assets", baselinePercent: 40 },
+  { key: "composition", label: "Composing release package", baselinePercent: 65 },
+  { key: "qa_asset", label: "Reviewing asset QA", baselinePercent: 78 },
+  { key: "qa_page", label: "Reviewing composition QA", baselinePercent: 86 },
+  { key: "qa_resolution", label: "Resolving QA status", baselinePercent: 93 },
+  { key: "release", label: "Publishing release", baselinePercent: 98 },
+] as const satisfies readonly JobProgressPhaseDefinition[];
 
 export const ADMIN_PILOT_CAPABILITIES = {
   admin_web_search: {
@@ -12,13 +25,15 @@ export const ADMIN_PILOT_CAPABILITIES = {
       roles: ["ADMIN"],
     },
     runtime: {
-      executionMode: undefined,
-      deferred: undefined,
+      executionMode: "deferred",
+      deferred: {
+        retryable: true,
+      },
     },
     presentation: {
       family: "search",
       cardKind: "search_result",
-      executionMode: "inline",
+      executionMode: "deferred",
     },
     promptHint: {
       roleDirectiveLines: {
@@ -77,10 +92,90 @@ export const ADMIN_PILOT_CAPABILITIES = {
       mcpDescription:
         "Core web search execution logic is shared between the app tool and the MCP export layer.",
     },
+    job: {
+      family: "system",
+      label: "Admin Web Search",
+      description: "Perform an administrative web search and store the results.",
+      executionPrincipal: "system_worker",
+      executionAllowedRoles: ["ADMIN"],
+      retryPolicy: {
+        mode: "automatic",
+        maxAttempts: 2,
+        backoffStrategy: "fixed",
+        baseDelayMs: 2_000,
+      },
+      recoveryMode: "rerun",
+      resultRetention: "retain",
+      artifactPolicy: { mode: "open_or_download" },
+      initiatorRoles: ["ADMIN"],
+      ownerViewerRoles: ["ADMIN"],
+      ownerActionRoles: ["ADMIN"],
+      globalViewerRoles: ["ADMIN"],
+      globalActionRoles: ["ADMIN"],
+      defaultSurface: "global",
+    },
   },
 } as const satisfies Record<string, CapabilityDefinition>;
 
 export const ADMIN_OPERATIONS_CAPABILITIES = {
+  produce_product: {
+    core: {
+      name: "produce_product",
+      label: "Produce Product",
+      description:
+        "Run the factory orchestration pipeline from validated brief through release persistence.",
+      category: "content",
+      roles: ["ADMIN"],
+    },
+    schema: {
+      inputSchema: CATALOG_INPUT_SCHEMAS.produce_product,
+      outputHint:
+        "Returns workOrderId, releaseId, compositionId, and persisted output ids for the completed factory run.",
+    },
+    runtime: {
+      executionMode: "deferred",
+      deferred: {
+        dedupeStrategy: "per-conversation-payload",
+        retryable: true,
+        notificationPolicy: "completion-and-failure",
+      },
+    },
+    executorBinding: {
+      bundleId: "admin",
+      executorId: "produce_product",
+      executionSurface: "internal",
+    },
+    validationBinding: {
+      validatorId: "produce_product",
+      mode: "parse",
+    },
+    presentation: {
+      family: "editorial",
+      cardKind: "editorial_workflow",
+      executionMode: "deferred",
+      progressMode: "phased",
+      artifactKinds: ["image", "chart", "graph", "audio", "video"],
+    },
+    job: {
+      family: "editorial",
+      label: "Produce Product",
+      description:
+        "Run the factory orchestration pipeline from validated brief through release persistence.",
+      executionPrincipal: "system_worker",
+      executionAllowedRoles: ADMIN_ROLES,
+      retryPolicy: MANUAL_ONLY_RETRY,
+      recoveryMode: "rerun",
+      resultRetention: "retain",
+      artifactPolicy: { mode: "open_artifact" },
+      initiatorRoles: ADMIN_ROLES,
+      ownerViewerRoles: ADMIN_ROLES,
+      ownerActionRoles: ADMIN_ROLES,
+      globalViewerRoles: ADMIN_ROLES,
+      globalActionRoles: ADMIN_ROLES,
+      defaultSurface: "global",
+      progressPhases: PRODUCE_PRODUCT_PROGRESS_PHASES,
+    },
+  },
   admin_prioritize_leads: {
     core: {
       name: "admin_prioritize_leads",
@@ -218,11 +313,60 @@ export const ADMIN_OPERATIONS_CAPABILITIES = {
         ],
       },
     },
-    mcpExport: {
+      mcpExport: {
       exportable: true,
       sharedModule: "src/lib/capabilities/shared/admin-intelligence-tool",
       mcpDescription:
         "Shared admin routing-risk triage logic exported through the operations MCP sidecar.",
+    },
+  },
+
+  inspect_runtime_logs: {
+    core: {
+      name: "inspect_runtime_logs",
+      label: "Inspect Runtime Logs",
+      description:
+        "Inspect system runtime logs for debugging issues with deferred jobs, MCP processes, and remote services. Output should be summarized as a Markdown report so the admin can copy it to GitHub if needed.",
+      category: "system",
+      roles: ["ADMIN"],
+    },
+    schema: {
+      inputSchema: CATALOG_INPUT_SCHEMAS.inspect_runtime_logs,
+      outputHint: "Returns a list of parsed JSON log entries matching the criteria.",
+    },
+    runtime: {},
+    executorBinding: {
+      bundleId: "admin",
+      executorId: "inspect_runtime_logs",
+      executionSurface: "internal",
+    },
+    validationBinding: {
+      validatorId: "inspect_runtime_logs",
+      mode: "parse",
+    },
+    localExecutionTargets: {
+      mcpStdio: {
+        processId: "operations",
+        toolName: "inspect_runtime_logs",
+      },
+    },
+    presentation: {
+      family: "system",
+      cardKind: "fallback",
+      executionMode: "inline",
+    },
+    promptHint: {
+      roleDirectiveLines: {
+        ADMIN: [
+          "- **inspect_runtime_logs**: Query local system JSONL logs (.runtime-logs directory). Use this when debugging failures, looking for crash context, or inspecting background job/MCP logs. Summarize your findings as a Markdown report suitable for GitHub issues.",
+        ],
+      },
+    },
+    mcpExport: {
+      exportable: true,
+      sharedModule: "src/lib/capabilities/shared/admin-intelligence-tool",
+      mcpDescription:
+        "Log inspection tool exported through the operations MCP sidecar.",
     },
   },
 } as const satisfies Record<string, CapabilityDefinition>;

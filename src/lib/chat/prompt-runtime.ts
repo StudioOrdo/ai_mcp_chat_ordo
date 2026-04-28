@@ -40,6 +40,7 @@ export interface PromptSectionContribution {
   includedInText: boolean;
   parentKey?: string;
   slotKey?: string;
+  payload?: unknown;
 }
 
 export interface PromptRuntimeWarning {
@@ -346,6 +347,7 @@ export class DefaultPromptRuntime implements PromptRuntime {
         priority: extraSection.priority,
         content: extraSection.content,
         includedInText: true,
+        ...(extraSection.payload !== undefined ? { payload: extraSection.payload } : {}),
       });
     }
 

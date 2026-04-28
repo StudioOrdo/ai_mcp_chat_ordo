@@ -185,7 +185,7 @@ describe("job status summary tools", () => {
     expect(result.job.part).toMatchObject({
       toolName: "prepare_journal_post_for_publish",
       title: "Journal publish readiness for post_42",
-      subtitle: "Check blockers, active work, and QA before publication",
+      subtitle: "Check whether a journal post is ready to publish and summarize blockers, active work, and QA findings.",
       summary: '"Launch Plan" is not ready to publish yet. 2 blockers remain.',
     });
   });

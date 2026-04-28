@@ -13,14 +13,14 @@ import { describe, it, expect } from "vitest";
 
 import {
   CAPABILITY_CATALOG,
-  projectPresentationDescriptor,
-  projectJobCapability,
-  projectBrowserCapability,
-  projectPromptHint,
 } from "@/core/capability-catalog/catalog";
 import type { CapabilityDefinition } from "@/core/capability-catalog/capability-definition";
 import { assembleRoleDirective } from "@/core/entities/role-directive-assembler";
 import type { RoleName } from "@/core/entities/user";
+import {
+  projectAllCapabilityRuntimeStatics,
+  projectCapabilityRuntimeStaticByName,
+} from "@/core/platform/capability-runtime/CapabilityRuntime";
 
 const ALL_ROLES: RoleName[] = [
   "ANONYMOUS",
@@ -31,6 +31,10 @@ const ALL_ROLES: RoleName[] = [
 ];
 
 const catalogEntries = Object.entries(CAPABILITY_CATALOG);
+const runtimeEntries = projectAllCapabilityRuntimeStatics().map((runtime) => [
+  runtime.capabilityName,
+  runtime,
+] as const);
 
 describe("Sprint 14 — End-to-End Catalog Flow", () => {
   // ─────────────────────────────────────────────────────────────────────────
@@ -38,8 +42,10 @@ describe("Sprint 14 — End-to-End Catalog Flow", () => {
   // ─────────────────────────────────────────────────────────────────────────
   describe("Full pipeline projection", () => {
     it("every catalog entry produces a valid presentation descriptor", () => {
-      for (const [name, def] of catalogEntries) {
-        const desc = projectPresentationDescriptor(def);
+      expect(runtimeEntries).toHaveLength(catalogEntries.length);
+
+      for (const [name, runtime] of runtimeEntries) {
+        const desc = runtime.presentation;
         expect(desc, `Missing presentation for ${name}`).toBeDefined();
         expect(desc.toolName).toBe(name);
         expect(desc.family).toBeTruthy();
@@ -48,13 +54,16 @@ describe("Sprint 14 — End-to-End Catalog Flow", () => {
     });
 
     it("deferred entries produce valid job capabilities", () => {
-      const deferredEntries = catalogEntries.filter(
+      const catalogDeferredEntries = catalogEntries.filter(
         ([, def]) => (def as CapabilityDefinition).job !== undefined,
       );
-      expect(deferredEntries.length).toBeGreaterThan(0);
+      const deferredEntries = runtimeEntries.filter(
+        ([, runtime]) => runtime.job !== null,
+      );
+      expect(deferredEntries.length).toBe(catalogDeferredEntries.length);
 
-      for (const [name, def] of deferredEntries) {
-        const job = projectJobCapability(def);
+      for (const [name, runtime] of deferredEntries) {
+        const job = runtime.job;
         expect(job, `Missing job for deferred entry ${name}`).not.toBeNull();
         expect(job!.toolName).toBe(name);
         expect(job!.family).toBeTruthy();
@@ -63,23 +72,31 @@ describe("Sprint 14 — End-to-End Catalog Flow", () => {
     });
 
     it("non-deferred entries produce null job capabilities", () => {
-      const inlineEntries = catalogEntries.filter(
+      const catalogInlineEntries = catalogEntries.filter(
         ([, def]) => (def as CapabilityDefinition).job === undefined,
       );
-      for (const [name, def] of inlineEntries) {
-        const job = projectJobCapability(def);
+      const inlineEntries = runtimeEntries.filter(
+        ([, runtime]) => runtime.job === null,
+      );
+      expect(inlineEntries.length).toBe(catalogInlineEntries.length);
+
+      for (const [name, runtime] of inlineEntries) {
+        const job = runtime.job;
         expect(job, `Non-null job for inline entry ${name}`).toBeNull();
       }
     });
 
     it("browser entries produce valid browser capabilities", () => {
-      const browserEntries = catalogEntries.filter(
+      const catalogBrowserEntries = catalogEntries.filter(
         ([, def]) => (def as CapabilityDefinition).browser !== undefined,
       );
-      expect(browserEntries.length).toBeGreaterThan(0);
+      const browserEntries = runtimeEntries.filter(
+        ([, runtime]) => runtime.browser !== null,
+      );
+      expect(browserEntries.length).toBe(catalogBrowserEntries.length);
 
-      for (const [name, def] of browserEntries) {
-        const browser = projectBrowserCapability(def);
+      for (const [name, runtime] of browserEntries) {
+        const browser = runtime.browser;
         expect(
           browser,
           `Missing browser for browser entry ${name}`,
@@ -89,16 +106,19 @@ describe("Sprint 14 — End-to-End Catalog Flow", () => {
     });
 
     it("promptHint entries produce role-specific directive lines", () => {
-      const hintEntries = catalogEntries.filter(
+      const catalogHintEntries = catalogEntries.filter(
         ([, def]) =>
           (def as { promptHint?: unknown }).promptHint !== undefined,
       );
-      expect(hintEntries.length).toBe(19);
+      const hintEntries = runtimeEntries.filter(
+        ([, runtime]) => runtime.promptHintsByRole !== null,
+      );
+      expect(hintEntries.length).toBe(catalogHintEntries.length);
 
-      for (const [name, def] of hintEntries) {
+      for (const [name, runtime] of hintEntries) {
         let hasAtLeastOneRole = false;
         for (const role of ALL_ROLES) {
-          const lines = projectPromptHint(def, role);
+          const lines = runtime.promptHintsByRole?.[role] ?? null;
           if (lines && lines.length > 0) {
             hasAtLeastOneRole = true;
             for (const line of lines) {
@@ -120,11 +140,8 @@ describe("Sprint 14 — End-to-End Catalog Flow", () => {
   describe("Assembled directive coherence", () => {
     it("compose_media flows from catalog → ADMIN assembled directive", () => {
       const directive = assembleRoleDirective("ADMIN");
-      // compose_media promptHint for ADMIN
-      const adminHints = projectPromptHint(
-        CAPABILITY_CATALOG.compose_media,
-        "ADMIN",
-      );
+      const adminHints = projectCapabilityRuntimeStaticByName("compose_media")
+        ?.promptHintsByRole?.ADMIN ?? null;
       expect(adminHints).not.toBeNull();
       for (const line of adminHints!) {
         expect(directive).toContain(line);
@@ -133,10 +150,8 @@ describe("Sprint 14 — End-to-End Catalog Flow", () => {
 
     it("admin_web_search flows from catalog → ADMIN assembled directive", () => {
       const directive = assembleRoleDirective("ADMIN");
-      const hints = projectPromptHint(
-        CAPABILITY_CATALOG.admin_web_search,
-        "ADMIN",
-      );
+      const hints = projectCapabilityRuntimeStaticByName("admin_web_search")
+        ?.promptHintsByRole?.ADMIN ?? null;
       expect(hints).not.toBeNull();
       for (const line of hints!) {
         expect(directive).toContain(line);
@@ -151,10 +166,8 @@ describe("Sprint 14 — End-to-End Catalog Flow", () => {
         "ADMIN",
       ] as RoleName[]) {
         const directive = assembleRoleDirective(role);
-        const hints = projectPromptHint(
-          CAPABILITY_CATALOG.search_my_conversations,
-          role,
-        );
+        const hints = projectCapabilityRuntimeStaticByName("search_my_conversations")
+          ?.promptHintsByRole?.[role] ?? null;
         expect(hints, `No hints for ${role}`).not.toBeNull();
         for (const line of hints!) {
           expect(directive).toContain(line);
@@ -164,8 +177,8 @@ describe("Sprint 14 — End-to-End Catalog Flow", () => {
 
     it("ANONYMOUS gets no tool-specific promptHints from catalog", () => {
       let hintCount = 0;
-      for (const def of Object.values(CAPABILITY_CATALOG)) {
-        const hints = projectPromptHint(def, "ANONYMOUS");
+      for (const [, runtime] of runtimeEntries) {
+        const hints = runtime.promptHintsByRole?.ANONYMOUS ?? null;
         if (hints && hints.length > 0) hintCount += hints.length;
       }
       expect(hintCount).toBe(0);
@@ -199,8 +212,8 @@ describe("Sprint 14 — End-to-End Catalog Flow", () => {
     });
 
     it("presentation projections have unique toolNames", () => {
-      const toolNames = catalogEntries.map(([, def]) =>
-        projectPresentationDescriptor(def).toolName,
+      const toolNames = runtimeEntries.map(([, runtime]) =>
+        runtime.presentation.toolName,
       );
       const unique = new Set(toolNames);
       expect(unique.size).toBe(toolNames.length);

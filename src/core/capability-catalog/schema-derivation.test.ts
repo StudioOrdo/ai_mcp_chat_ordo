@@ -6,8 +6,10 @@
  * the projections match the legacy schemas maintained in tool files.
  */
 import { describe, it, expect } from "vitest";
+import * as fs from "fs";
+import * as path from "path";
 import { CAPABILITY_CATALOG } from "./catalog";
-import type { CapabilityDefinition } from "./capability-definition";
+import type { CapabilityDefinition, CapabilitySchemaFacet } from "./capability-definition";
 import {
   projectAnthropicSchema,
   projectMcpSchema,
@@ -15,14 +17,26 @@ import {
   getAllMcpSchemas,
   getSchemaEnrichedEntries,
 } from "./schema-projection";
+import { projectAllCapabilityRuntimeStatics } from "@/core/platform/capability-runtime/CapabilityRuntime";
+
+const ROOT = path.resolve(__dirname, "../../..");
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function getEntriesWithSchema(): Array<[string, CapabilityDefinition]> {
-  return (Object.entries(CAPABILITY_CATALOG) as Array<[string, CapabilityDefinition]>)
-    .map((entry) => entry);
+function getRuntimeEntriesWithSchema(): Array<{
+  name: string;
+  schema: CapabilitySchemaFacet;
+}> {
+  return projectAllCapabilityRuntimeStatics().map((runtime) => ({
+    name: runtime.capabilityName,
+    schema: runtime.schema,
+  }));
+}
+
+function getRuntimeCapabilityCount(): number {
+  return projectAllCapabilityRuntimeStatics().length;
 }
 
 // ---------------------------------------------------------------------------
@@ -30,6 +44,15 @@ function getEntriesWithSchema(): Array<[string, CapabilityDefinition]> {
 // ---------------------------------------------------------------------------
 
 describe("schema-derivation", () => {
+  describe("source convergence", () => {
+    it("derives batch schemas from CapabilityRuntime static projection", () => {
+      const source = fs.readFileSync(path.join(ROOT, "src/core/capability-catalog/schema-projection.ts"), "utf-8");
+
+      expect(source).toContain("projectAllCapabilityRuntimeStatics");
+      expect(source).not.toContain("Object.values(CAPABILITY_CATALOG)");
+    });
+  });
+
   describe("CapabilitySchemaFacet type", () => {
     it("exists on CapabilityDefinition as a required field", () => {
       const def: CapabilityDefinition = {
@@ -66,46 +89,46 @@ describe("schema-derivation", () => {
 
   describe("catalog schema enrichment", () => {
     it("covers every catalog entry with a schema facet", () => {
-      const enriched = getEntriesWithSchema();
-      expect(enriched.length).toBe(Object.keys(CAPABILITY_CATALOG).length);
+      const enriched = getRuntimeEntriesWithSchema();
+      expect(enriched.length).toBe(getRuntimeCapabilityCount());
     });
 
     it("every schema facet has a valid inputSchema with type 'object'", () => {
-      for (const [name, def] of getEntriesWithSchema()) {
-        expect(def.schema.inputSchema.type, `${name} should have type 'object'`).toBe("object");
-        expect(def.schema.inputSchema.properties, `${name} should have properties`).toBeDefined();
+      for (const entry of getRuntimeEntriesWithSchema()) {
+        expect(entry.schema.inputSchema.type, `${entry.name} should have type 'object'`).toBe("object");
+        expect(entry.schema.inputSchema.properties, `${entry.name} should have properties`).toBeDefined();
       }
     });
 
     it("every schema facet with required has it as an array", () => {
-      for (const [name, def] of getEntriesWithSchema()) {
-        if (def.schema.inputSchema.required !== undefined) {
+      for (const entry of getRuntimeEntriesWithSchema()) {
+        if (entry.schema.inputSchema.required !== undefined) {
           expect(
-            Array.isArray(def.schema.inputSchema.required),
-            `${name}.required should be an array`,
+            Array.isArray(entry.schema.inputSchema.required),
+            `${entry.name}.required should be an array`,
           ).toBe(true);
           expect(
-            def.schema.inputSchema.required.length,
-            `${name}.required should not be empty`,
+            entry.schema.inputSchema.required.length,
+            `${entry.name}.required should not be empty`,
           ).toBeGreaterThan(0);
         }
       }
     });
 
     it("schema-enriched entries include deferred tools", () => {
-      const names = getEntriesWithSchema().map(([name]) => name);
+      const names = getRuntimeEntriesWithSchema().map((entry) => entry.name);
       expect(names).toContain("draft_content");
       expect(names).toContain("publish_content");
     });
 
     it("schema-enriched entries include content tools", () => {
-      const names = getEntriesWithSchema().map(([name]) => name);
+      const names = getRuntimeEntriesWithSchema().map((entry) => entry.name);
       expect(names).toContain("search_corpus");
       expect(names).toContain("get_section");
     });
 
     it("schema-enriched entries include admin tools", () => {
-      const names = getEntriesWithSchema().map(([name]) => name);
+      const names = getRuntimeEntriesWithSchema().map((entry) => entry.name);
       expect(names).toContain("admin_search");
       expect(names).toContain("admin_prioritize_leads");
     });
@@ -154,7 +177,7 @@ describe("schema-derivation", () => {
   describe("batch projections", () => {
     it("getAllAnthropicSchemas() returns one schema per catalog entry", () => {
       const schemas = getAllAnthropicSchemas();
-      expect(schemas.length).toBe(Object.keys(CAPABILITY_CATALOG).length);
+      expect(schemas.length).toBe(getRuntimeCapabilityCount());
     });
 
     it("getAllMcpSchemas() returns same count as Anthropic", () => {
@@ -165,7 +188,7 @@ describe("schema-derivation", () => {
 
     it("getSchemaEnrichedEntries() returns name+schema pairs", () => {
       const entries = getSchemaEnrichedEntries();
-      expect(entries.length).toBe(Object.keys(CAPABILITY_CATALOG).length);
+      expect(entries.length).toBe(getRuntimeCapabilityCount());
 
       for (const entry of entries) {
         expect(entry.name).toBeTruthy();
@@ -176,9 +199,18 @@ describe("schema-derivation", () => {
 
   describe("schema parity between Anthropic and MCP projections", () => {
     it("properties match between Anthropic and MCP for each entry", () => {
-      for (const [, def] of getEntriesWithSchema()) {
-        const anthropic = projectAnthropicSchema(def)!;
-        const mcp = projectMcpSchema(def)!;
+      const anthropicSchemas = new Map(
+        getAllAnthropicSchemas().map((schema) => [schema.name, schema] as const),
+      );
+      const mcpSchemas = new Map(
+        getAllMcpSchemas().map((schema) => [schema.name, schema] as const),
+      );
+
+      expect(anthropicSchemas.size).toBe(mcpSchemas.size);
+
+      for (const [name, anthropic] of anthropicSchemas) {
+        const mcp = mcpSchemas.get(name);
+        expect(mcp, `Missing MCP schema for ${name}`).toBeDefined();
 
         expect(anthropic.name).toBe(mcp.name);
         expect(anthropic.description).toBe(mcp.description);

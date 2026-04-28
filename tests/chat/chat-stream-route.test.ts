@@ -82,6 +82,7 @@ const {
   getTrustedReferrerContextMock: vi.fn(),
 }));
 
+// Phase 7 Mock Density Exception: This file tests a complex composition root or integration pipeline and legitimately requires extensive boundary mocking for external services (auth, db, observability, etc.).
 vi.mock("@/lib/auth", () => ({
   getSessionUser: getSessionUserMock,
 }));
@@ -983,6 +984,66 @@ describe("POST /api/chat/stream", () => {
     expect(conversationIndex).toBeGreaterThanOrEqual(0);
     expect(deltaIndex).toBeGreaterThan(conversationIndex);
     expect(toolCallIndex).toBeGreaterThan(conversationIndex);
+  });
+
+  it("emits and persists matching tool invocation ids for tool calls and results", async () => {
+    looksLikeMathMock.mockReturnValue(false);
+    runClaudeAgentLoopStreamMock.mockImplementationOnce(
+      async ({ callbacks }: {
+        callbacks: {
+          onToolCall: (name: string, args: Record<string, unknown>, toolInvocationId: string) => void;
+          onToolResult: (name: string, result: unknown, toolInvocationId: string) => void;
+        };
+      }) => {
+        const args = { title: "Cheese audio", text: "A short ode to cheese." };
+        callbacks.onToolCall("generate_audio", args, "toolu_audio_1");
+        callbacks.onToolResult("generate_audio", { assetId: "uf_audio_1" }, "toolu_audio_1");
+      },
+    );
+
+    const response = await POST(
+      createStreamRouteRequest({
+        messages: [{ role: "user", content: "Generate a short cheese audio clip." }],
+      }) as never,
+    );
+
+    const body = await response.text();
+    const payloads = parseSsePayloads(body);
+
+    expect(payloads).toEqual(expect.arrayContaining([
+      {
+        tool_call: {
+          name: "generate_audio",
+          args: { title: "Cheese audio", text: "A short ode to cheese." },
+          toolInvocationId: "toolu_audio_1",
+        },
+      },
+      {
+        tool_result: {
+          name: "generate_audio",
+          result: { assetId: "uf_audio_1" },
+          toolInvocationId: "toolu_audio_1",
+        },
+      },
+    ]));
+
+    const assistantPersistCall = appendMessageMock.mock.calls[1]?.[0] as {
+      parts: Array<Record<string, unknown>>;
+    };
+    expect(assistantPersistCall.parts).toEqual(expect.arrayContaining([
+      {
+        type: "tool_call",
+        name: "generate_audio",
+        args: { title: "Cheese audio", text: "A short ode to cheese." },
+        toolInvocationId: "toolu_audio_1",
+      },
+      {
+        type: "tool_result",
+        name: "generate_audio",
+        result: { assetId: "uf_audio_1" },
+        toolInvocationId: "toolu_audio_1",
+      },
+    ]));
   });
 
   it("emits an in-stream error when assistant persistence fails after streaming starts", async () => {

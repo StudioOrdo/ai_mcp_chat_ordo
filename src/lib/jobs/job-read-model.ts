@@ -17,6 +17,8 @@ function toEventType(status: JobStatus): JobEvent["eventType"] {
       return "failed";
     case "canceled":
       return "canceled";
+    case "dead_letter":
+      return "failed";
   }
 }
 

@@ -6,7 +6,7 @@ import { getJobCapability } from "@/lib/jobs/job-capability-registry";
 import type { DeferredJobConversationProjector } from "./deferred-job-conversation-projector";
 
 export const CANCELABLE_JOB_STATUSES = new Set<JobStatus>(["queued", "running"]);
-export const RETRIABLE_JOB_STATUSES = new Set<JobStatus>(["failed", "canceled"]);
+export const RETRIABLE_JOB_STATUSES = new Set<JobStatus>(["failed", "canceled", "dead_letter"]);
 
 export interface ManualJobReplayResult {
   outcome: "deduped" | "queued";

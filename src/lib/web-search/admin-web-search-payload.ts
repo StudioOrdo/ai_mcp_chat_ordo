@@ -29,6 +29,7 @@ export interface AdminWebSearchSuccessPayload extends WebSearchResultData {
   action: "admin_web_search";
   query: string;
   allowed_domains?: string[];
+  assetId?: string;
 }
 
 export interface AdminWebSearchErrorPayload extends WebSearchErrorData {
@@ -36,6 +37,7 @@ export interface AdminWebSearchErrorPayload extends WebSearchErrorData {
   query: string;
   allowed_domains?: string[];
   model: string;
+  assetId?: string;
 }
 
 export type AdminWebSearchPayload = AdminWebSearchSuccessPayload | AdminWebSearchErrorPayload;
@@ -79,19 +81,23 @@ export function sanitizeAdminWebSearchInput(value: unknown): WebSearchInput {
 export function toAdminWebSearchPayload(
   input: Partial<WebSearchInput>,
   result: WebSearchErrorData,
+  assetId?: string,
 ): AdminWebSearchErrorPayload;
 export function toAdminWebSearchPayload(
   input: Partial<WebSearchInput>,
   result: WebSearchResultData,
+  assetId?: string,
 ): AdminWebSearchSuccessPayload;
 export function toAdminWebSearchPayload(
   input: Partial<WebSearchInput>,
   result: WebSearchResultData | WebSearchErrorData,
+  assetId?: string,
 ): AdminWebSearchPayload;
 
 export function toAdminWebSearchPayload(
   input: Partial<WebSearchInput>,
   result: WebSearchResultData | WebSearchErrorData,
+  assetId?: string,
 ): AdminWebSearchPayload {
   const query = typeof input.query === "string" ? input.query : "";
   const allowed_domains = normalizeAllowedDomains(input.allowed_domains);
@@ -105,6 +111,7 @@ export function toAdminWebSearchPayload(
       model,
       error: result.error,
       code: result.code,
+      assetId,
     };
   }
 
@@ -116,6 +123,7 @@ export function toAdminWebSearchPayload(
     citations: result.citations,
     sources: result.sources,
     model: result.model,
+    assetId,
   };
 }
 

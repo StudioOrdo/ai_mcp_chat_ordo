@@ -107,7 +107,7 @@ describe("plugin card ARIA roles", () => {
     const { container } = render(<ReferralQrCard toolCall={toolCall} isStreaming={false} />);
     const region = container.querySelector("[role='region']");
     expect(region).not.toBeNull();
-    expect(region?.getAttribute("aria-label")).toBe("Referral QR result");
+    expect(region?.getAttribute("aria-label")).toBe("Get My Referral QR result");
   });
 
   it("JournalWorkflowCard renders role=region", () => {
@@ -144,7 +144,7 @@ describe("plugin card ARIA roles", () => {
     const { container } = render(<AudioPlayerCard toolCall={toolCall} isStreaming={false} />);
     const region = container.querySelector("[role='region']");
     expect(region).not.toBeNull();
-    expect(region?.getAttribute("aria-label")).toBe("Audio result");
+    expect(region?.getAttribute("aria-label")).toBe("Generate Audio result");
   });
 
   it("ErrorCard renders role=alert", () => {

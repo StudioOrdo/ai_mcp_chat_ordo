@@ -4,7 +4,7 @@
  * Sprint 13: Replaces the monolithic ROLE_DIRECTIVES object with a function
  * that assembles directives from three sources:
  *   1. Role-level framing (hardcoded per role)
- *   2. Tool-specific guidance from catalog promptHint facets
+ *   2. Tool-specific guidance from CapabilityRuntime prompt-hint facets
  *   3. Dynamic job-status directive lines
  *
  * Content that CANNOT move to the catalog stays hardcoded:
@@ -15,10 +15,7 @@
  */
 import type { RoleName } from "./user";
 import { getJobStatusDirectiveLines } from "./job-status-response-strategy";
-import {
-  CAPABILITY_CATALOG,
-  projectPromptHint,
-} from "@/core/capability-catalog/catalog";
+import { projectAllCapabilityRuntimeStatics } from "@/core/platform/capability-runtime/CapabilityRuntime";
 
 // ---------------------------------------------------------------------------
 // Role-level framing — NOT tool-specific, stays hardcoded
@@ -102,7 +99,7 @@ const ADMIN_OPERATOR_FORMAT_LINES: readonly string[] = [
  *
  * Sources:
  * 1. Role-level framing (hardcoded)
- * 2. Catalog promptHint facets (iterated from CAPABILITY_CATALOG)
+ * 2. CapabilityRuntime prompt-hint facets
  * 3. Admin-only corpus_* MCP lines (hardcoded — MCP-only)
  * 4. Admin operator format guidance (hardcoded — behavioral)
  * 5. Job status directive lines (dynamic — getJobStatusDirectiveLines())
@@ -113,10 +110,10 @@ export function assembleRoleDirective(role: RoleName): string {
   // 1. Role-level framing
   lines.push(...ROLE_FRAMING[role]);
 
-  // 2. Catalog promptHint facets — collect tool-specific directives
+  // 2. CapabilityRuntime prompt hints — collect tool-specific directives
   const toolDirectiveLines: string[] = [];
-  for (const def of Object.values(CAPABILITY_CATALOG)) {
-    const hintLines = projectPromptHint(def, role);
+  for (const runtime of projectAllCapabilityRuntimeStatics()) {
+    const hintLines = runtime.promptHintsByRole?.[role] ?? null;
     if (hintLines && hintLines.length > 0) {
       toolDirectiveLines.push(...hintLines);
     }

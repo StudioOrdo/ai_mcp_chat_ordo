@@ -2,7 +2,6 @@ import type { NextRequest } from "next/server";
 import {
   runRouteTemplate,
   successJson,
-  errorJson,
 } from "@/lib/chat/http-facade";
 import { createConversationRouteServices } from "@/lib/chat/conversation-root";
 import { resolveUserId } from "@/lib/chat/resolve-user";

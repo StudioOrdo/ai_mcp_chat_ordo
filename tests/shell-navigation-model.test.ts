@@ -81,10 +81,12 @@ describe("shell navigation model", () => {
     ]);
     expect(resolveAccountMenuRoutes(authenticatedUser).map((route) => route.id)).toEqual([
       "jobs",
+      "my-media",
       "profile",
     ]);
     expect(resolveAccountMenuRoutes(apprenticeUser).map((route) => route.id)).toEqual([
       "jobs",
+      "my-media",
       "profile",
     ]);
     expect(resolveRailMenuRoutes(anonymousUser).map((route) => route.id)).toEqual([

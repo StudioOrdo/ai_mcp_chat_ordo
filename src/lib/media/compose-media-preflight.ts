@@ -4,10 +4,11 @@ import type {
 } from "@/core/entities/media-composition";
 import type { MediaAssetKind } from "@/core/entities/media-asset";
 
-export type ComposeMediaAssetReadinessStatus = "ready" | "not_found" | "forbidden";
+export type ComposeMediaAssetReadinessStatus = "ready" | "pending" | "not_found" | "forbidden";
 
 export type ComposeMediaPreflightFailureCode =
   | "asset_not_found"
+  | "asset_pending"
   | "asset_forbidden"
   | "asset_kind_mismatch"
   | "asset_conversation_mismatch"
@@ -48,6 +49,15 @@ export function evaluateComposeMediaAssetReadiness(options: {
       return {
         code: "asset_not_found",
         message: `Composition source asset ${clip.assetId} was not found.`,
+        assetId: clip.assetId,
+        clipKind: clip.kind,
+      };
+    }
+
+    if (asset.status === "pending") {
+      return {
+        code: "asset_pending",
+        message: `Composition source asset ${clip.assetId} is still pending generation.`,
         assetId: clip.assetId,
         clipKind: clip.kind,
       };

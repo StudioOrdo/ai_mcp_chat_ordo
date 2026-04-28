@@ -65,6 +65,52 @@ describe("chatSendPolicy", () => {
       { role: "assistant", content: "Welcome" },
       { role: "user", content: "Audit this workflow" },
     ]);
+    expect(prepared.mediaContinuityHandoff).toBeNull();
+  });
+
+  it("derives a media continuity handoff from reusable prior assets", () => {
+    const prepared = prepareChatSend(
+      [
+        {
+          id: "msg_assets",
+          role: "assistant",
+          content: "",
+          timestamp: new Date("2026-04-20T06:40:00.000Z"),
+          parts: [
+            {
+              type: "tool_result",
+              name: "list_conversation_media_assets",
+              result: {
+                action: "list_conversation_media_assets",
+                assets: [
+                  {
+                    assetId: "uf_chart_1",
+                    assetKind: "chart",
+                    label: "Growth Chart",
+                    fileName: "growth-chart.mmd",
+                  },
+                  {
+                    assetId: "uf_audio_1",
+                    assetKind: "audio",
+                    label: "Growth Narration",
+                    fileName: "growth-narration.mp3",
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+      "combine them into a short video",
+      [],
+    );
+
+    expect(prepared.mediaContinuityHandoff).toEqual({
+      assets: [
+        expect.objectContaining({ assetId: "uf_chart_1", kind: "chart" }),
+        expect.objectContaining({ assetId: "uf_audio_1", kind: "audio" }),
+      ],
+    });
   });
 
   it("serializes structured messages with blank content into backend-safe history", () => {

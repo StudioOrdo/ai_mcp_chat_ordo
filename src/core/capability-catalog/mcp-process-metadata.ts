@@ -1,5 +1,5 @@
 export interface McpProcessMetadata {
-  id: "admin-web-search" | "calculator" | "operations";
+  id: "admin-web-search" | "calculator" | "generate-audio" | "operations";
   serverName: string;
   entrypoint: string;
   canonicalCommand: string;
@@ -23,6 +23,14 @@ export const MCP_PROCESS_METADATA: readonly McpProcessMetadata[] = [
     canonicalCommand: "npm run mcp:calculator",
     compatibilityAliases: [],
     capabilityGroups: ["math"],
+  },
+  {
+    id: "generate-audio",
+    serverName: "generate-audio-mcp-server",
+    entrypoint: "mcp/generate-audio-server.ts",
+    canonicalCommand: "npm run mcp:generate-audio",
+    compatibilityAliases: [],
+    capabilityGroups: ["media", "audio"],
   },
   {
     id: "operations",

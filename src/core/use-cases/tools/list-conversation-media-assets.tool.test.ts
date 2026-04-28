@@ -37,6 +37,7 @@ describe("createListConversationMediaAssetsTool", () => {
           assetKind: "chart",
           source: "generated",
           toolName: "generate_chart",
+          derivativeOfAssetId: "chart_test_001",
           width: 1280,
           height: 720,
         },
@@ -80,6 +81,7 @@ describe("createListConversationMediaAssetsTool", () => {
           retentionClass: "conversation",
           createdAt: "2026-04-14T12:05:00.000Z",
           conversationId: "conv_1",
+          derivativeOfAssetId: "chart_test_001",
           toolName: "generate_chart",
           width: 1280,
           height: 720,
@@ -98,7 +100,7 @@ describe("createListConversationMediaAssetsTool", () => {
           durationSeconds: 18,
         },
       ],
-      summary: "Returned 2 reusable media assets for this conversation.",
+      summary: "Returned 2 reusable media assets for this conversation. Use the assetId values exactly as shown when referencing them in compose_media clips. Charts and graphs are valid direct governed inputs; if a derived image exists, preserve the original source via sourceAssetId.",
     });
   });
 

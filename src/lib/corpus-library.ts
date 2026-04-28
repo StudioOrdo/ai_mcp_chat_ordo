@@ -12,14 +12,17 @@ import { ChecklistInteractor } from "../core/use-cases/ChecklistInteractor";
 import { CorpusSummaryInteractor } from "../core/use-cases/CorpusSummaryInteractor";
 import type { CorpusIndexEntry } from "../core/use-cases/CorpusIndexInteractor";
 import { CorpusIndexInteractor } from "../core/use-cases/CorpusIndexInteractor";
-import { GetChapterInteractor } from "../core/use-cases/GetChapterInteractor";
 
 import { ConsoleLogger } from "../adapters/ConsoleLogger";
 import { ErrorHandler } from "../core/services/ErrorHandler";
 import { LoggingDecorator } from "../core/common/LoggingDecorator";
 import { resolveCorpusRole, type CorpusAccessOptions } from "./corpus-access";
-import { buildCanonicalCorpusReference } from "./corpus-reference";
-import { stripLeadingMarkdownTitle } from "./markdown/strip-leading-markdown-title";
+import {
+  KnowledgeAccessService,
+  toLegacyCorpusSearchResults,
+  toLegacyCorpusSection,
+  type LegacyCorpusSearchResult,
+} from "@/core/platform/knowledge-access/KnowledgeAccessService";
 
 const logger = new ConsoleLogger();
 const errorHandler = new ErrorHandler(logger);
@@ -41,14 +44,14 @@ const summaryInteractor = new LoggingDecorator(
   new CorpusSummaryInteractor(corpusRepository),
   "GetCorpusSummaries"
 );
-const sectionInteractor = new LoggingDecorator(
-  new GetChapterInteractor(corpusRepository),
-  "GetSectionFull"
-);
 const indexInteractor = new LoggingDecorator(
   new CorpusIndexInteractor(corpusRepository),
   "GetCorpusIndex"
 );
+const knowledgeAccessService = new KnowledgeAccessService(corpusRepository, undefined, {
+  searchExecutor: searchInteractor,
+  indexExecutor: indexInteractor,
+});
 
 // ── Error-handling wrapper (TD-B F4) ──
 
@@ -98,22 +101,7 @@ export const getDocuments = withErrorFallback(
   "getDocuments",
 );
 
-export interface SearchResult {
-  document: string;
-  documentId: string;
-  section: string;
-  sectionSlug: string;
-  documentSlug: string;
-  matchContext: string;
-  relevance: "high" | "medium" | "low";
-  book: string;
-  bookNumber: string;
-  chapter: string;
-  chapterSlug: string;
-  bookSlug: string;
-  canonicalPath: string;
-  resolverPath: string;
-}
+export type SearchResult = LegacyCorpusSearchResult;
 
 let cachedIndex: CorpusIndexEntry[] | null = null;
 const cachedIndexByRole = new Map<string, CorpusIndexEntry[]>();
@@ -145,30 +133,11 @@ export const getCorpusIndex = withErrorFallback(
 export const searchCorpus = withErrorFallback(
   async (query: string, maxResults: number = 10, options?: CorpusAccessOptions) => {
     const role = resolveCorpusRole(options);
-    const results = await searchInteractor.execute({ query, maxResults, role });
-
-    return results.map((result) => {
-      const documentSlug = result.documentSlug ?? result.bookSlug ?? "";
-      const sectionSlug = result.sectionSlug ?? result.chapterSlug ?? "";
-      const reference = buildCanonicalCorpusReference(documentSlug, sectionSlug);
-
-      return {
-        document: `${result.documentId ?? result.bookNumber ?? ""}. ${result.documentTitle ?? result.bookTitle ?? ""}`.trim(),
-        documentId: result.documentId ?? result.bookNumber ?? "",
-        section: result.sectionTitle ?? result.chapterTitle ?? "",
-        sectionSlug,
-        documentSlug,
-        matchContext: result.matchContext,
-        relevance: result.relevance,
-        book: `${result.bookNumber ?? result.documentId ?? ""}. ${result.bookTitle ?? result.documentTitle ?? ""}`.trim(),
-        bookNumber: result.bookNumber ?? result.documentId ?? "",
-        chapter: result.chapterTitle ?? result.sectionTitle ?? "",
-        chapterSlug: sectionSlug,
-        bookSlug: documentSlug,
-        canonicalPath: reference.canonicalPath,
-        resolverPath: reference.resolverPath,
-      };
-    });
+    const response = await knowledgeAccessService.searchKnowledge(
+      { query, maxResults },
+      role ? { role } : undefined,
+    );
+    return toLegacyCorpusSearchResults(response);
   },
   [] as SearchResult[],
   "searchCorpus",
@@ -177,18 +146,11 @@ export const searchCorpus = withErrorFallback(
 export const getSectionFull = withErrorFallback(
   async (documentSlug: string, sectionSlug: string, options?: CorpusAccessOptions) => {
     const role = resolveCorpusRole(options);
-    const result = await sectionInteractor.execute({
-      bookSlug: documentSlug,
-      chapterSlug: sectionSlug,
-      role,
-    });
-    if (!result) return null;
-    return {
-      title: result.title,
-      content: stripLeadingMarkdownTitle(result.title, result.content),
-      document: result.bookTitle,
-      book: result.bookTitle,
-    };
+    const result = await knowledgeAccessService.getSection(
+      { documentSlug, sectionSlug },
+      role ? { role } : undefined,
+    );
+    return toLegacyCorpusSection(result);
   },
   null as { title: string; content: string; document: string; book: string } | null,
   "getSectionFull",

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
+// Phase 7 Mock Density Exception: This file tests a complex composition root or integration pipeline and legitimately requires extensive boundary mocking for external services (auth, db, observability, etc.).
 vi.mock("@/lib/observability/logger", () => ({
   logEvent: vi.fn(),
   logFailure: vi.fn(),
@@ -22,8 +23,28 @@ vi.mock("@/adapters/RepositoryFactory", () => ({
     listUserJobSnapshots: vi.fn(() => []),
     listConversationJobSnapshots: vi.fn(() => []),
   })),
+  getJobQueueRepository: vi.fn(() => ({
+    createJob: vi.fn(),
+    appendEvent: vi.fn(),
+    findJobById: vi.fn(),
+    findActiveJobByDedupeKey: vi.fn(),
+    updateJobStatus: vi.fn(),
+    listEventsForJob: vi.fn(() => []),
+    findLatestRenderableEventForJob: vi.fn(),
+    cancelJob: vi.fn(),
+  })),
+  getUserFileDataMapper: vi.fn(() => ({
+    findById: vi.fn(),
+    listForUser: vi.fn(() => []),
+    create: vi.fn(),
+  })),
+  getUserPreferencesDataMapper: vi.fn(() => ({
+    get: vi.fn(),
+    set: vi.fn(),
+  })),
   getBlogPostRevisionRepository: vi.fn(() => ({})),
   getJournalEditorialMutationRepository: vi.fn(() => ({})),
+  getVectorStore: vi.fn(() => ({ search: vi.fn(() => []) })),
 }));
 
 vi.mock("@/lib/db", () => ({

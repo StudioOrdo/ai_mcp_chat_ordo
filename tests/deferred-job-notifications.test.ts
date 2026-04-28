@@ -19,6 +19,7 @@ const {
   sendNotificationMock: vi.fn(),
 }));
 
+// Phase 7 Mock Density Exception: This file tests a complex composition root or integration pipeline and legitimately requires extensive boundary mocking for external services (auth, db, observability, etc.).
 vi.mock("web-push", () => ({
   default: {
     setVapidDetails: setVapidDetailsMock,
@@ -32,12 +33,9 @@ vi.mock("@/adapters/RepositoryFactory", () => ({
     markNotified: markNotifiedMock,
     deleteByEndpoint: deleteByEndpointMock,
   }),
-}));
-
-vi.mock("@/adapters/UserPreferencesDataMapper", () => ({
-  UserPreferencesDataMapper: class UserPreferencesDataMapper {
-    get = preferenceGetMock;
-  },
+  getUserPreferencesDataMapper: () => ({
+    get: preferenceGetMock,
+  }),
 }));
 
 vi.mock("@/lib/chat/tool-composition-root", () => ({

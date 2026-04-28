@@ -6,7 +6,7 @@
  * Supports optional row selection with checkboxes.
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 
 export interface ColumnDef {
   key: string;
@@ -40,12 +40,7 @@ export function AdminDataTable({
   onSelectionChange,
 }: AdminDataTableProps) {
   const [internalSelected, setInternalSelected] = useState<Set<string>>(new Set());
-  const [hasMounted, setHasMounted] = useState(false);
   const selectedIds = controlledSelectedIds ?? internalSelected;
-
-  useEffect(() => {
-    setHasMounted(true);
-  }, []);
 
   const toggleRow = useCallback(
     (id: string) => {
@@ -179,7 +174,7 @@ export function AdminDataTable({
 
       {/* Mobile card stack */}
       <div className="flex flex-col gap-(--space-2) sm:hidden" data-admin-data-table="mobile">
-        {hasMounted && selectable && rows.length > 1 ? (
+        {selectable && rows.length > 1 ? (
           <div
             className="flex items-center justify-between rounded-xl border border-foreground/8 bg-foreground/2.5 px-(--space-3) py-(--space-2)"
             data-admin-mobile-selection-bar="true"

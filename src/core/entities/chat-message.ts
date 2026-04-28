@@ -1,4 +1,6 @@
 import type { MessagePart } from "./message-parts";
+import type { LifecycleEnvelope } from "./lifecycle";
+import type { CoachEnvelope } from "./coach";
 
 export type MessageRole = "user" | "assistant" | "system";
 
@@ -12,6 +14,8 @@ export interface FailedSendMetadata {
 export interface ChatMessageMetadata {
   failedSend?: FailedSendMetadata;
   responseState?: ChatResponseState;
+  lifecycle?: LifecycleEnvelope;
+  coach?: CoachEnvelope;
 }
 
 export interface ChatMessage {

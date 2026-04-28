@@ -12,9 +12,9 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-   --font-body: var(--font-ibm-plex-sans, sans-serif);
-   --font-display: var(--font-fraunces, serif);
-   --font-mono: var(--font-ibm-plex-mono, monospace);
+   --font-body: var(--font-ibm-plex-sans, "IBM Plex Sans", "Aptos", "Segoe UI", sans-serif);
+   --font-display: var(--font-fraunces, "Fraunces", "Iowan Old Style", "Palatino Linotype", serif);
+   --font-mono: var(--font-ibm-plex-mono, "IBM Plex Mono", "SFMono-Regular", "Cascadia Code", monospace);
    --font-base: var(--font-body);
    --font-label: var(--font-body);
 }

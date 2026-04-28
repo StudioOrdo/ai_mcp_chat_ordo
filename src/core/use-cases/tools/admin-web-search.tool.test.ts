@@ -116,7 +116,7 @@ describe("createAdminWebSearchTool", () => {
       query: "ordo architecture",
       allowed_domains: undefined,
       model: "gpt-5",
-      error: "OPENAI_API_KEY must be set to a non-empty value.",
+      error: "OPENAI_API_KEY or API__OPENAI_API_KEY must be set to a non-empty value.",
       code: undefined,
     });
   });

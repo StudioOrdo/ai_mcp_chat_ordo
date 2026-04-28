@@ -1,0 +1,9 @@
+{
+  "slug": "system-docs",
+  "title": "Studio Ordo System Documentation",
+  "number": "00",
+  "sortOrder": 0,
+  "description": "Technical documentation for Studio Ordo, a governed all-in-one AI operator system for solopreneurs. It covers the system architecture, security model, capabilities framework, deployment footprint, and evaluation engine.",
+  "domain": ["reference", "internal"],
+  "tags": ["system", "architecture", "rbac", "mcp", "a2a", "docker", "sqlite", "solopreneur", "operator", "orchestrator"]
+}

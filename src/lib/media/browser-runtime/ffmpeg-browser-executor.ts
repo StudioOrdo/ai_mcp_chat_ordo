@@ -1,5 +1,7 @@
 import type { MediaCompositionPlan } from "@/core/entities/media-composition";
 import type { CapabilityResultEnvelope } from "@/core/entities/capability-result";
+import type { AssetReferenceRepair } from "@/lib/media/ffmpeg/media-composition-plan";
+import type { BrowserRuntimeTruncationDiagnostic } from "./runtime-diagnostics";
 import { probeFfmpegWasmCapability } from "./ffmpeg-capability-probe";
 import type { FfmpegWorkerMessage, FfmpegWorkerResponse } from "./ffmpeg.worker";
 import {
@@ -20,6 +22,9 @@ export interface BrowserMediaExecutorResult {
 export interface BrowserMediaExecutorContext {
   conversationId: string | null;
   userId: string;
+  toolInvocationId?: string;
+  repairs?: readonly AssetReferenceRepair[];
+  truncations?: readonly BrowserRuntimeTruncationDiagnostic[];
 }
 
 /**
@@ -63,6 +68,9 @@ async function uploadResultBlob(
   formData.append("files", file);
   if (context.conversationId) {
     formData.append("conversationId", context.conversationId);
+  }
+  if (context.toolInvocationId) {
+    formData.append("toolInvocationId", context.toolInvocationId);
   }
 
   const response = await fetch("/api/chat/uploads", {
@@ -198,6 +206,7 @@ export class FfmpegBrowserExecutor {
                   height: plan.resolution?.height,
                   retentionClass: context.conversationId ? "conversation" : "ephemeral",
                   source: "generated",
+                  ...(context.toolInvocationId ? { toolInvocationId: context.toolInvocationId } : {}),
                 },
               ],
               payload: {
@@ -207,6 +216,7 @@ export class FfmpegBrowserExecutor {
                 primaryAssetId: assetId,
                 outputFormat: plan.outputFormat,
                 resolution: plan.resolution ?? null,
+                ...(context.toolInvocationId ? { toolInvocationId: context.toolInvocationId } : {}),
               },
             };
 

@@ -1,4 +1,4 @@
-export type JobStatus = "queued" | "running" | "succeeded" | "failed" | "canceled";
+export type JobStatus = "queued" | "running" | "succeeded" | "failed" | "canceled" | "dead_letter";
 
 export type JobExecutionPrincipal = "system_worker" | "admin_delegate" | "owner_delegate";
 export type JobRetryMode = "manual_only" | "automatic";

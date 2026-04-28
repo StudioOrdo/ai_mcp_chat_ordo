@@ -491,7 +491,7 @@ const AssistantBubbleContent: React.FC<AssistantBubbleSharedProps & {
         {message.toolRenderEntries?.map((entry, idx) =>
           entry.kind === "job-status" ? (
             <ToolPluginPartRenderer
-              key={`job-${entry.part.jobId}`}
+              key={`job-${entry.part.jobId}-${idx}`}
               part={entry.part}
               computedActions={entry.computedActions}
               descriptor={entry.descriptor}

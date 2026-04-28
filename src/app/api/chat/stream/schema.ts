@@ -31,6 +31,7 @@ export const ChatStreamRequestSchema = z.object({
     .optional()
     .default([]),
   taskOriginHandoff: z.unknown().optional(),
+  mediaContinuityHandoff: z.unknown().optional(),
   currentPathname: z.string().max(500).optional(),
   currentPageSnapshot: CurrentPageSnapshotSchema.optional(),
 });

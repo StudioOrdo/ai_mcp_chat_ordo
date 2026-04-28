@@ -196,6 +196,7 @@ describe("useChatSend", () => {
         messages={[
           {
             id: "msg_0",
+      mediaContinuityHandoff: null,
             role: "assistant",
             content: "Welcome",
             parts: [{ type: "text", text: "Welcome" }],
@@ -256,6 +257,7 @@ describe("useChatSend", () => {
         selectedText: null,
         contentExcerpt: "Homepage content",
       },
+      null,
     );
     expect(refreshConversation).not.toHaveBeenCalled();
   });
@@ -308,6 +310,7 @@ describe("useChatSend", () => {
       messageText: "Audit this workflow",
       attachments: [],
       taskOriginHandoff: undefined,
+      mediaContinuityHandoff: null,
     });
     expect(dispatchRecorder).toHaveBeenCalledWith({
       type: "SET_FAILED_SEND",
@@ -317,7 +320,43 @@ describe("useChatSend", () => {
         failedUserMessageId,
       },
     });
-    expect(refreshConversation).not.toHaveBeenCalled();
+    expect(refreshConversation).toHaveBeenCalledWith("conv_new");
+  });
+
+  it("refreshes the current conversation when an interrupted stream produced no live text delta", async () => {
+    const refreshConversation = vi.fn().mockResolvedValue(undefined);
+    runStreamMock.mockResolvedValue({
+      conversationId: "conv_existing",
+      didReceiveTextDelta: false,
+      lifecycle: {
+        status: "interrupted",
+        actor: "system",
+        reason: "Connection lost during streaming.",
+        recordedAt: "2026-03-25T10:00:00.000Z",
+      },
+    });
+
+    render(
+      <Harness
+        conversationId="conv_existing"
+        messages={[
+          {
+            id: "msg_1",
+            role: "assistant",
+            content: "Welcome",
+            parts: [{ type: "text", text: "Welcome" }],
+            timestamp: new Date("2026-03-23T10:00:00.000Z"),
+          },
+        ]}
+        refreshConversation={refreshConversation}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "send" }));
+
+    await waitFor(() => {
+      expect(refreshConversation).toHaveBeenCalledWith("conv_existing");
+    });
   });
 
   it("retries restored interrupted sends with persisted attachments and no reupload", async () => {
@@ -411,6 +450,7 @@ describe("useChatSend", () => {
         selectedText: null,
         contentExcerpt: "Homepage content",
       },
+      null,
     );
     expect(refreshConversation).not.toHaveBeenCalled();
   });
@@ -486,6 +526,7 @@ describe("useChatSend", () => {
         selectedText: null,
         contentExcerpt: "Homepage content",
       },
+      null,
     );
     expect(refreshConversation).not.toHaveBeenCalled();
   });

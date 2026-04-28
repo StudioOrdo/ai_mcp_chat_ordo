@@ -50,6 +50,7 @@ export const STATUS_LABELS: Record<JobStatusSnapshot["part"]["status"], string> 
   succeeded: "Succeeded",
   failed: "Failed",
   canceled: "Canceled",
+  dead_letter: "Needs recovery",
 };
 
 export function getStatusTone(status: JobStatusSnapshot["part"]["status"]): string {
@@ -57,6 +58,9 @@ export function getStatusTone(status: JobStatusSnapshot["part"]["status"]): stri
     return "jobs-status-succeeded";
   }
   if (status === "failed") {
+    return "jobs-status-failed";
+  }
+  if (status === "dead_letter") {
     return "jobs-status-failed";
   }
   if (status === "canceled") {
@@ -70,7 +74,7 @@ export function getJobAction(status: JobStatusSnapshot["part"]["status"]): { act
     return { action: "cancel", label: "Cancel" };
   }
 
-  if (status === "failed" || status === "canceled") {
+  if (status === "failed" || status === "canceled" || status === "dead_letter") {
     return { action: "retry", label: "Replay" };
   }
 

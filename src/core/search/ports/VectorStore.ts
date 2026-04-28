@@ -18,6 +18,9 @@ export interface EmbeddingRecord {
 export interface VectorQuery {
   sourceType?: string;
   chunkLevel?: "document" | "section" | "passage";
+  allowedAudiences?: string[];
+  classes?: string[];
+  rolePersonas?: string[];
   limit?: number;
 }
 

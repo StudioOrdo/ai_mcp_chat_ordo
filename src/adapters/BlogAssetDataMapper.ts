@@ -112,6 +112,38 @@ export class BlogAssetDataMapper implements BlogAssetRepository {
     return rows.map(mapRow);
   }
 
+  async listByUser(
+    userId: string,
+    options?: { limit?: number; kinds?: string[] },
+  ): Promise<BlogAsset[]> {
+    const limit = Math.min(Math.max(options?.limit ?? 25, 1), 100);
+    const kinds = options?.kinds;
+
+    if (kinds && kinds.length > 0) {
+      const placeholders = kinds.map(() => "?").join(", ");
+      const rows = this.db
+        .prepare(
+          `SELECT * FROM blog_assets
+           WHERE created_by_user_id = ?
+             AND kind IN (${placeholders})
+           ORDER BY created_at DESC
+           LIMIT ?`,
+        )
+        .all(userId, ...kinds, limit) as BlogAssetRow[];
+      return rows.map(mapRow);
+    }
+
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM blog_assets
+         WHERE created_by_user_id = ?
+         ORDER BY created_at DESC
+         LIMIT ?`,
+      )
+      .all(userId, limit) as BlogAssetRow[];
+    return rows.map(mapRow);
+  }
+
   async listHeroCandidates(postId: string): Promise<BlogAsset[]> {
     const rows = this.db
       .prepare(

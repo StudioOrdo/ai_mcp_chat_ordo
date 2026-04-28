@@ -14,7 +14,7 @@ export const PROMPT_CONTROL_PLANE_ROLES: Array<"ALL" | RoleName> = [
   ...PROMPT_RUNTIME_ROLES,
 ];
 
-export const PROMPT_SLOT_TYPES: PromptSlotType[] = ["base", "role_directive"];
+export const PROMPT_SLOT_TYPES: PromptSlotType[] = ["base", "role_directive", "coach"];
 
 export function isPromptRuntimeRole(value: string): value is RoleName {
   return PROMPT_RUNTIME_ROLES.includes(value as RoleName);
@@ -35,6 +35,13 @@ export function listRoleDirectiveSlots(): PromptSlotRef[] {
   }));
 }
 
+export function listCoachPromptSlots(): PromptSlotRef[] {
+  return PROMPT_RUNTIME_ROLES.map((role) => ({
+    role,
+    promptType: "coach",
+  }));
+}
+
 function cloneSlot(slot: PromptSlotRef): PromptSlotRef {
   return {
     role: slot.role,
@@ -46,6 +53,7 @@ export function listAdminVisiblePromptSlots(): PromptSlotRef[] {
   return [
     { role: "ALL", promptType: "base" },
     ...listRoleDirectiveSlots(),
+    ...listCoachPromptSlots(),
   ];
 }
 

@@ -1,11 +1,22 @@
 import { describe, expect, it } from "vitest";
 
+import { projectCapabilityRuntimeNamesForBundle } from "@/core/platform/capability-runtime/CapabilityRuntime";
 import { _resetToolComposition, getToolComposition } from "./tool-composition-root";
 import {
   getRuntimeToolCountsByRole,
   getRuntimeToolManifestForRole,
   RUNTIME_MANIFEST_ROLE_ORDER,
 } from "./runtime-manifest";
+
+import { TOOL_BUNDLE_REGISTRY } from "./tool-composition-root";
+
+describe("tool composition root", () => {
+  it("keeps bundle descriptors aligned with capability runtime bundle projection", () => {
+    for (const bundle of TOOL_BUNDLE_REGISTRY) {
+      expect(bundle.toolNames).toEqual(projectCapabilityRuntimeNamesForBundle(bundle.id));
+    }
+  });
+});
 
 describe("tool composition runtime manifest", () => {
   const { registry } = getToolComposition();
@@ -33,7 +44,7 @@ describe("tool composition runtime manifest", () => {
       AUTHENTICATED: 27,
       APPRENTICE: 27,
       STAFF: 27,
-      ADMIN: 56,
+      ADMIN: 58,
     });
   });
 

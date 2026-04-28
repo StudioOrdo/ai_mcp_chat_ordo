@@ -345,6 +345,46 @@ describe("DeferredJobWorker", () => {
     });
   });
 
+  it("schedules an automatic retry for SQLite lock contention", async () => {
+    const job = await repo.createJob({
+      conversationId: "conv_jobs",
+      userId: "usr_test",
+      toolName: "compose_media",
+      requestPayload: { plan: { id: "plan_locked" } },
+    });
+
+    const worker = new DeferredJobWorker(repo, {
+      compose_media: vi.fn(async () => {
+        throw new Error("database is locked");
+      }),
+    }, projector);
+
+    const result = await worker.runNext({
+      workerId: "worker_lock_retry",
+      now: new Date("2026-04-27T03:20:39.000Z"),
+    });
+
+    expect(result.outcome).toBe("scheduled_retry");
+    expect(result.errorMessage).toBe("database is locked");
+
+    const persisted = await repo.findJobById(job.id);
+    expect(persisted).toMatchObject({
+      id: job.id,
+      status: "queued",
+      failureClass: "transient",
+      attemptCount: 1,
+      claimedBy: null,
+    });
+    expect(persisted?.nextRetryAt).not.toBeNull();
+
+    const events = await repo.listConversationEvents("conv_jobs");
+    expect(events.map((event) => event.eventType)).toEqual(["started", "retry_scheduled"]);
+    expect(events[1]?.payload).toMatchObject({
+      errorMessage: "database is locked",
+      failureClass: "transient",
+    });
+  });
+
   it("fails with exhaustion metadata after automatic retries are spent", async () => {
     const job = await repo.createJob({
       conversationId: "conv_jobs",
@@ -485,7 +525,7 @@ describe("DeferredJobWorker", () => {
 
     const result = await run;
 
-    expect(handlerSignal?.aborted).toBe(true);
+    expect((handlerSignal as AbortSignal | null)?.aborted).toBe(true);
     expect(result.outcome).toBe("canceled");
 
     const persisted = await repo.findJobById(job.id);

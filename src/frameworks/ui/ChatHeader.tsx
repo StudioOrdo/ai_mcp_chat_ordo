@@ -19,7 +19,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onSearchChange,
   density,
   onDensityChange,
-  logoPath = "/ordo-avatar.png",
+  logoPath = "/logo_with_words.png",
 }) => {
   const densityLabels: Record<"compact" | "normal" | "relaxed", string> = {
     compact: "C",

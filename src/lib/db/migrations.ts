@@ -151,6 +151,7 @@ export function runMigrations(db: Database.Database): void {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_job_requests_replayed_from ON job_requests(replayed_from_job_id)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_job_requests_superseded_by ON job_requests(superseded_by_job_id)`);
   addColumnIfNotExists(db, "user_files", "metadata_json", "TEXT NOT NULL DEFAULT '{}'" );
+  addColumnIfNotExists(db, "user_files", "status", "TEXT NOT NULL DEFAULT 'ready'" );
   db.exec(`CREATE INDEX IF NOT EXISTS idx_uf_user_created_id ON user_files(user_id, created_at DESC, id DESC)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_uf_created_id ON user_files(created_at DESC, id DESC)`);
 

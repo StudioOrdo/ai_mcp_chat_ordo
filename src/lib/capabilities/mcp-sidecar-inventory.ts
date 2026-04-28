@@ -2,8 +2,7 @@ import {
   getMcpProcessMetadata,
   MCP_PROCESS_METADATA,
 } from "@/core/capability-catalog/mcp-process-metadata";
-import { CAPABILITY_CATALOG } from "@/core/capability-catalog/catalog";
-import type { CapabilityDefinition } from "@/core/capability-catalog/capability-definition";
+import { projectAllCapabilityRuntimeStatics } from "@/core/platform/capability-runtime/CapabilityRuntime";
 
 export interface LocalMcpStdioTargetConfig {
   capabilityName: string;
@@ -34,15 +33,15 @@ export interface McpSidecarInventoryEntry {
 
 const LOCAL_MCP_STDIO_TARGETS = Object.freeze(
   Object.fromEntries(
-    Object.entries(CAPABILITY_CATALOG as Record<string, CapabilityDefinition>).flatMap(([capabilityName, definition]) => {
-      const target = definition.localExecutionTargets?.mcpStdio;
+    projectAllCapabilityRuntimeStatics().flatMap((runtime) => {
+      const target = runtime.localExecutionTargets?.mcpStdio;
       if (!target) {
         return [];
       }
 
       const process = getMcpProcessMetadata(target.processId);
-      return [[capabilityName, {
-        capabilityName,
+      return [[runtime.capabilityName, {
+        capabilityName: runtime.capabilityName,
         processId: target.processId,
         entrypoint: target.entrypoint ?? process.entrypoint,
         toolName: target.toolName,
@@ -53,20 +52,20 @@ const LOCAL_MCP_STDIO_TARGETS = Object.freeze(
 
 const LOCAL_MCP_CONTAINER_TARGETS = Object.freeze(
   Object.fromEntries(
-    Object.entries(CAPABILITY_CATALOG as Record<string, CapabilityDefinition>).flatMap(([capabilityName, definition]) => {
-      const target = definition.localExecutionTargets?.mcpContainer;
+    projectAllCapabilityRuntimeStatics().flatMap((runtime) => {
+      const target = runtime.localExecutionTargets?.mcpContainer;
       if (!target) {
         return [];
       }
 
       const process = getMcpProcessMetadata(target.processId);
-      return [[capabilityName, {
-        capabilityName,
+      return [[runtime.capabilityName, {
+        capabilityName: runtime.capabilityName,
         processId: target.processId,
         serviceName: target.serviceName,
         entrypoint: target.entrypoint ?? process.entrypoint,
-        toolName: target.toolName ?? capabilityName,
-        healthcheckToolName: target.healthcheckToolName ?? capabilityName,
+        toolName: target.toolName ?? runtime.capabilityName,
+        healthcheckToolName: target.healthcheckToolName ?? runtime.capabilityName,
       }] as const];
     }),
   ) as Readonly<Record<string, LocalMcpContainerTargetConfig>>,

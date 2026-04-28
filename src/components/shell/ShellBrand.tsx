@@ -70,7 +70,7 @@ export function ShellBrand({
       data-shell-brand="true"
     >
       <div
-        className="shell-brand-mark accent-fill overflow-hidden rounded-[0.58rem] shadow-[0_12px_22px_-16px_color-mix(in_srgb,var(--shadow-base)_34%,transparent)]"
+        className="shell-brand-mark overflow-hidden rounded-[0.58rem]"
         aria-hidden="true"
         data-shell-brand-mark="true"
       >

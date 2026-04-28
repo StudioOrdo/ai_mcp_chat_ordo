@@ -12,6 +12,7 @@ export interface PromptSection {
   key: string;
   content: string;
   priority: number;
+  payload?: unknown;
 }
 
 export class SystemPromptBuilder {

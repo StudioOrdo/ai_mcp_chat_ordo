@@ -2,53 +2,94 @@ import { createRoot } from "react-dom/client";
 
 import { GraphRenderer } from "@/components/GraphRenderer";
 import type { ResolvedGraphPayload } from "@/core/use-cases/tools/graph-payload";
+import { MAX_SVG_POLL_FRAMES, SVG_POLL_INTERVAL_MS } from "./rasterization-constants";
+import { rasterizeSvgElementToPngBlob } from "./svg-rasterization";
+
+const MAX_GRAPH_TABLE_ROWS = 6;
 
 function waitForFrame(): Promise<void> {
   return new Promise((resolve) => requestAnimationFrame(() => resolve()));
 }
 
 async function rasterizeSvgToPngBlob(svgElement: SVGSVGElement): Promise<Blob> {
-  const rect = svgElement.getBoundingClientRect();
-  const width = Math.max(Math.ceil(rect.width), 1200);
-  const height = Math.max(Math.ceil(rect.height), 700);
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
+  return rasterizeSvgElementToPngBlob(svgElement);
+}
 
-  const context = canvas.getContext("2d");
-  if (!context) {
-    throw new Error("Canvas context unavailable.");
+function countGraphRows(payload: ResolvedGraphPayload): number {
+  return Array.isArray(payload.graph?.data) ? payload.graph.data.length : 0;
+}
+
+function getGraphKind(payload: ResolvedGraphPayload): string {
+  return typeof payload.graph?.kind === "string" ? payload.graph.kind : "unknown";
+}
+
+function describeGraphContext(payload: ResolvedGraphPayload): string {
+  return `kind=${getGraphKind(payload)}, rows=${countGraphRows(payload)}`;
+}
+
+function withGraphContextError(payload: ResolvedGraphPayload, error: unknown): Error {
+  if (error instanceof Error && error.message.startsWith("Graph rendering failed (")) {
+    return error;
   }
 
-  context.fillStyle = "#ffffff";
-  context.fillRect(0, 0, width, height);
+  const message = error instanceof Error ? error.message : String(error);
+  return new Error(`Graph rendering failed (${describeGraphContext(payload)}): ${message}`);
+}
 
-  let svgData = new XMLSerializer().serializeToString(svgElement);
-  if (!svgData.includes("http://www.w3.org/2000/svg")) {
-    svgData = svgData.replace("<svg", '<svg xmlns="http://www.w3.org/2000/svg"');
+function truncateGraphPayloadForBrowserRender(payload: ResolvedGraphPayload): ResolvedGraphPayload {
+  if (payload.graph.kind !== "table" || !Array.isArray(payload.graph.data)) {
+    return payload;
   }
 
-  const image = new Image();
-  const dataUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgData)))}`;
-
-  await new Promise<void>((resolve, reject) => {
-    image.onload = () => {
-      context.drawImage(image, 0, 0, width, height);
-      resolve();
-    };
-    image.onerror = () => reject(new Error("Unable to load serialized graph SVG."));
-    image.src = dataUrl;
-  });
-
-  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
-  if (!blob) {
-    throw new Error("PNG conversion failed.");
+  if (payload.graph.data.length <= MAX_GRAPH_TABLE_ROWS) {
+    return payload;
   }
 
-  return blob;
+  return {
+    ...payload,
+    graph: {
+      ...payload.graph,
+      data: payload.graph.data.slice(0, MAX_GRAPH_TABLE_ROWS),
+    },
+  };
+}
+
+async function waitForRenderedGraphSvg(container: HTMLDivElement): Promise<SVGSVGElement> {
+  for (let frame = 0; frame < MAX_SVG_POLL_FRAMES; frame += 1) {
+    await waitForFrame();
+    const svgElement = container.querySelector("svg[data-testid='graph-svg']");
+    if (svgElement instanceof SVGSVGElement) {
+      return svgElement;
+    }
+  }
+
+  throw new Error(
+    `no SVG element emitted within ${MAX_SVG_POLL_FRAMES} frames (${MAX_SVG_POLL_FRAMES * SVG_POLL_INTERVAL_MS} ms).`,
+  );
+}
+
+export function getGraphTableTruncationDiagnostic(payload: ResolvedGraphPayload): {
+  surface: "graph_table";
+  original: number;
+  rendered: number;
+} | null {
+  if (payload.graph.kind !== "table" || !Array.isArray(payload.graph.data)) {
+    return null;
+  }
+
+  if (payload.graph.data.length <= MAX_GRAPH_TABLE_ROWS) {
+    return null;
+  }
+
+  return {
+    surface: "graph_table",
+    original: payload.graph.data.length,
+    rendered: MAX_GRAPH_TABLE_ROWS,
+  };
 }
 
 export async function renderGraphToPngBlob(payload: ResolvedGraphPayload): Promise<Blob> {
+  const renderPayload = truncateGraphPayloadForBrowserRender(payload);
   const container = document.createElement("div");
   container.style.position = "fixed";
   container.style.left = "-10000px";
@@ -62,24 +103,19 @@ export async function renderGraphToPngBlob(payload: ResolvedGraphPayload): Promi
   try {
     root.render(
       <GraphRenderer
-        graph={payload.graph}
-        title={payload.title}
-        caption={payload.caption}
-        summary={payload.summary}
-        downloadFileName={payload.downloadFileName}
-        dataPreview={payload.dataPreview}
+        graph={renderPayload.graph}
+        title={renderPayload.title}
+        caption={renderPayload.caption}
+        summary={renderPayload.summary}
+        downloadFileName={renderPayload.downloadFileName}
+        dataPreview={renderPayload.dataPreview}
       />,
     );
 
-    await waitForFrame();
-    await waitForFrame();
-
-    const svgElement = container.querySelector("svg[data-testid='graph-svg']");
-    if (!(svgElement instanceof SVGSVGElement)) {
-      throw new Error("Graph rendering completed without an SVG output.");
-    }
-
+    const svgElement = await waitForRenderedGraphSvg(container);
     return await rasterizeSvgToPngBlob(svgElement);
+  } catch (error) {
+    throw withGraphContextError(payload, error);
   } finally {
     root.unmount();
     container.remove();

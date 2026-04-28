@@ -1,0 +1,593 @@
+{
+  "generatedAt": "2026-04-24T03:48:10.112Z",
+  "corpusSourceType": "document_chunk",
+  "documentCount": 25,
+  "sectionCount": 237,
+  "totalChunks": 1475,
+  "totalOverlapPairs": 108,
+  "levelCounts": {
+    "document": 237,
+    "section": 907,
+    "passage": 331
+  },
+  "averageWordsByLevel": {
+    "document": 266.19,
+    "section": 161.02,
+    "passage": 99.23
+  },
+  "chunkMetadataCoverage": {
+    "chunkIds": 1475,
+    "adjacencyLinks": 1207,
+    "boundarySources": 1475,
+    "conceptKeywords": 1475
+  },
+  "minWordsByLevel": {
+    "document": 41,
+    "section": 50,
+    "passage": 5
+  },
+  "maxWordsByLevel": {
+    "document": 363,
+    "section": 1326,
+    "passage": 410
+  },
+  "boundarySourceCounts": {
+    "document_start": 475,
+    "h2_heading": 921,
+    "inline_offset": 78,
+    "paragraph_break": 1
+  },
+  "overlapBreakdown": {
+    "section->passage": 108
+  },
+  "conceptSpanAudit": {
+    "sectionsWithSplitConcepts": 31,
+    "spanningConceptCount": 132,
+    "samples": [
+      {
+        "sourceId": "field-guide/ch09-the-question-engine",
+        "sectionTitle": "The Question Engine",
+        "keyword": "question",
+        "chunkIds": [
+          "field-guide/ch09-the-question-engine#section:0",
+          "field-guide/ch09-the-question-engine#section:1",
+          "field-guide/ch09-the-question-engine#passage:2",
+          "field-guide/ch09-the-question-engine#passage:3",
+          "field-guide/ch09-the-question-engine#section:4",
+          "field-guide/ch09-the-question-engine#passage:5",
+          "field-guide/ch09-the-question-engine#passage:6",
+          "field-guide/ch09-the-question-engine#passage:7",
+          "field-guide/ch09-the-question-engine#section:8",
+          "field-guide/ch09-the-question-engine#passage:9",
+          "field-guide/ch09-the-question-engine#passage:10",
+          "field-guide/ch09-the-question-engine#section:11"
+        ],
+        "chunkLevels": [
+          "section",
+          "passage"
+        ],
+        "passageChunkIds": [
+          "field-guide/ch09-the-question-engine#passage:2",
+          "field-guide/ch09-the-question-engine#passage:3",
+          "field-guide/ch09-the-question-engine#passage:5",
+          "field-guide/ch09-the-question-engine#passage:6",
+          "field-guide/ch09-the-question-engine#passage:7",
+          "field-guide/ch09-the-question-engine#passage:9",
+          "field-guide/ch09-the-question-engine#passage:10"
+        ]
+      },
+      {
+        "sourceId": "field-guide/ch20-the-armory",
+        "sectionTitle": "The Armory",
+        "keyword": "armory",
+        "chunkIds": [
+          "field-guide/ch20-the-armory#section:0",
+          "field-guide/ch20-the-armory#passage:3",
+          "field-guide/ch20-the-armory#passage:4",
+          "field-guide/ch20-the-armory#section:5",
+          "field-guide/ch20-the-armory#passage:8",
+          "field-guide/ch20-the-armory#passage:9",
+          "field-guide/ch20-the-armory#passage:10",
+          "field-guide/ch20-the-armory#passage:11",
+          "field-guide/ch20-the-armory#passage:12",
+          "field-guide/ch20-the-armory#section:13"
+        ],
+        "chunkLevels": [
+          "section",
+          "passage"
+        ],
+        "passageChunkIds": [
+          "field-guide/ch20-the-armory#passage:3",
+          "field-guide/ch20-the-armory#passage:4",
+          "field-guide/ch20-the-armory#passage:8",
+          "field-guide/ch20-the-armory#passage:9",
+          "field-guide/ch20-the-armory#passage:10",
+          "field-guide/ch20-the-armory#passage:11",
+          "field-guide/ch20-the-armory#passage:12"
+        ]
+      },
+      {
+        "sourceId": "field-guide/ch02-the-bugatti",
+        "sectionTitle": "The Bugatti",
+        "keyword": "bugatti",
+        "chunkIds": [
+          "field-guide/ch02-the-bugatti#section:0",
+          "field-guide/ch02-the-bugatti#section:1",
+          "field-guide/ch02-the-bugatti#passage:2",
+          "field-guide/ch02-the-bugatti#passage:3",
+          "field-guide/ch02-the-bugatti#section:4",
+          "field-guide/ch02-the-bugatti#passage:5",
+          "field-guide/ch02-the-bugatti#passage:6",
+          "field-guide/ch02-the-bugatti#section:7",
+          "field-guide/ch02-the-bugatti#passage:8",
+          "field-guide/ch02-the-bugatti#passage:9"
+        ],
+        "chunkLevels": [
+          "section",
+          "passage"
+        ],
+        "passageChunkIds": [
+          "field-guide/ch02-the-bugatti#passage:2",
+          "field-guide/ch02-the-bugatti#passage:3",
+          "field-guide/ch02-the-bugatti#passage:5",
+          "field-guide/ch02-the-bugatti#passage:6",
+          "field-guide/ch02-the-bugatti#passage:8",
+          "field-guide/ch02-the-bugatti#passage:9"
+        ]
+      },
+      {
+        "sourceId": "field-guide/ch08-the-internal-cockpit",
+        "sectionTitle": "The Internal Cockpit",
+        "keyword": "that",
+        "chunkIds": [
+          "field-guide/ch08-the-internal-cockpit#section:0",
+          "field-guide/ch08-the-internal-cockpit#section:1",
+          "field-guide/ch08-the-internal-cockpit#passage:2",
+          "field-guide/ch08-the-internal-cockpit#passage:3",
+          "field-guide/ch08-the-internal-cockpit#section:4",
+          "field-guide/ch08-the-internal-cockpit#passage:5",
+          "field-guide/ch08-the-internal-cockpit#passage:6",
+          "field-guide/ch08-the-internal-cockpit#section:7",
+          "field-guide/ch08-the-internal-cockpit#passage:8",
+          "field-guide/ch08-the-internal-cockpit#passage:9",
+          "field-guide/ch08-the-internal-cockpit#section:10",
+          "field-guide/ch08-the-internal-cockpit#section:11"
+        ],
+        "chunkLevels": [
+          "section",
+          "passage"
+        ],
+        "passageChunkIds": [
+          "field-guide/ch08-the-internal-cockpit#passage:2",
+          "field-guide/ch08-the-internal-cockpit#passage:3",
+          "field-guide/ch08-the-internal-cockpit#passage:5",
+          "field-guide/ch08-the-internal-cockpit#passage:6",
+          "field-guide/ch08-the-internal-cockpit#passage:8",
+          "field-guide/ch08-the-internal-cockpit#passage:9"
+        ]
+      },
+      {
+        "sourceId": "field-guide/ch11-the-persuasion-engine",
+        "sectionTitle": "The Persuasion Engine",
+        "keyword": "that",
+        "chunkIds": [
+          "field-guide/ch11-the-persuasion-engine#section:1",
+          "field-guide/ch11-the-persuasion-engine#passage:2",
+          "field-guide/ch11-the-persuasion-engine#passage:3",
+          "field-guide/ch11-the-persuasion-engine#section:4",
+          "field-guide/ch11-the-persuasion-engine#passage:5",
+          "field-guide/ch11-the-persuasion-engine#passage:8",
+          "field-guide/ch11-the-persuasion-engine#passage:9",
+          "field-guide/ch11-the-persuasion-engine#passage:12",
+          "field-guide/ch11-the-persuasion-engine#section:13"
+        ],
+        "chunkLevels": [
+          "section",
+          "passage"
+        ],
+        "passageChunkIds": [
+          "field-guide/ch11-the-persuasion-engine#passage:2",
+          "field-guide/ch11-the-persuasion-engine#passage:3",
+          "field-guide/ch11-the-persuasion-engine#passage:5",
+          "field-guide/ch11-the-persuasion-engine#passage:8",
+          "field-guide/ch11-the-persuasion-engine#passage:9",
+          "field-guide/ch11-the-persuasion-engine#passage:12"
+        ]
+      },
+      {
+        "sourceId": "archetype-atlas/ch08-creator-ruler-lover-jester",
+        "sectionTitle": "Layer 46: The Architects of Structure and Delight — Creator, Ruler, Lover, and Jester",
+        "keyword": "ruler",
+        "chunkIds": [
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:0",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#section:1",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:2",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:3",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:4",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:6"
+        ],
+        "chunkLevels": [
+          "passage",
+          "section"
+        ],
+        "passageChunkIds": [
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:0",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:2",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:3",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:4",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:6"
+        ]
+      },
+      {
+        "sourceId": "design-history/ch00-before-the-bauhaus",
+        "sectionTitle": "Chapter 0 — Before the Bauhaus: The People Who Mathematized Art",
+        "keyword": "before",
+        "chunkIds": [
+          "design-history/ch00-before-the-bauhaus#passage:0",
+          "design-history/ch00-before-the-bauhaus#section:1",
+          "design-history/ch00-before-the-bauhaus#section:2",
+          "design-history/ch00-before-the-bauhaus#passage:4",
+          "design-history/ch00-before-the-bauhaus#passage:5",
+          "design-history/ch00-before-the-bauhaus#passage:6",
+          "design-history/ch00-before-the-bauhaus#passage:7",
+          "design-history/ch00-before-the-bauhaus#section:9",
+          "design-history/ch00-before-the-bauhaus#section:10",
+          "design-history/ch00-before-the-bauhaus#section:11"
+        ],
+        "chunkLevels": [
+          "passage",
+          "section"
+        ],
+        "passageChunkIds": [
+          "design-history/ch00-before-the-bauhaus#passage:0",
+          "design-history/ch00-before-the-bauhaus#passage:4",
+          "design-history/ch00-before-the-bauhaus#passage:5",
+          "design-history/ch00-before-the-bauhaus#passage:6",
+          "design-history/ch00-before-the-bauhaus#passage:7"
+        ]
+      },
+      {
+        "sourceId": "design-history/ch00-before-the-bauhaus",
+        "sectionTitle": "Chapter 0 — Before the Bauhaus: The People Who Mathematized Art",
+        "keyword": "bauhaus",
+        "chunkIds": [
+          "design-history/ch00-before-the-bauhaus#passage:0",
+          "design-history/ch00-before-the-bauhaus#section:1",
+          "design-history/ch00-before-the-bauhaus#passage:4",
+          "design-history/ch00-before-the-bauhaus#passage:5",
+          "design-history/ch00-before-the-bauhaus#passage:6",
+          "design-history/ch00-before-the-bauhaus#passage:7",
+          "design-history/ch00-before-the-bauhaus#section:10",
+          "design-history/ch00-before-the-bauhaus#section:11"
+        ],
+        "chunkLevels": [
+          "passage",
+          "section"
+        ],
+        "passageChunkIds": [
+          "design-history/ch00-before-the-bauhaus#passage:0",
+          "design-history/ch00-before-the-bauhaus#passage:4",
+          "design-history/ch00-before-the-bauhaus#passage:5",
+          "design-history/ch00-before-the-bauhaus#passage:6",
+          "design-history/ch00-before-the-bauhaus#passage:7"
+        ]
+      },
+      {
+        "sourceId": "field-guide/ch06-the-dart",
+        "sectionTitle": "The Dart",
+        "keyword": "that",
+        "chunkIds": [
+          "field-guide/ch06-the-dart#section:0",
+          "field-guide/ch06-the-dart#passage:1",
+          "field-guide/ch06-the-dart#passage:2",
+          "field-guide/ch06-the-dart#section:3",
+          "field-guide/ch06-the-dart#section:4",
+          "field-guide/ch06-the-dart#section:6",
+          "field-guide/ch06-the-dart#passage:7",
+          "field-guide/ch06-the-dart#section:9",
+          "field-guide/ch06-the-dart#section:10",
+          "field-guide/ch06-the-dart#passage:11",
+          "field-guide/ch06-the-dart#passage:12"
+        ],
+        "chunkLevels": [
+          "section",
+          "passage"
+        ],
+        "passageChunkIds": [
+          "field-guide/ch06-the-dart#passage:1",
+          "field-guide/ch06-the-dart#passage:2",
+          "field-guide/ch06-the-dart#passage:7",
+          "field-guide/ch06-the-dart#passage:11",
+          "field-guide/ch06-the-dart#passage:12"
+        ]
+      },
+      {
+        "sourceId": "software-engineering/ch03-prompt-orchestration-primitives",
+        "sectionTitle": "Chapter 3 — Prompt Orchestration Primitives",
+        "keyword": "prompt",
+        "chunkIds": [
+          "software-engineering/ch03-prompt-orchestration-primitives#passage:0",
+          "software-engineering/ch03-prompt-orchestration-primitives#section:1",
+          "software-engineering/ch03-prompt-orchestration-primitives#passage:3",
+          "software-engineering/ch03-prompt-orchestration-primitives#passage:4",
+          "software-engineering/ch03-prompt-orchestration-primitives#passage:5",
+          "software-engineering/ch03-prompt-orchestration-primitives#passage:6",
+          "software-engineering/ch03-prompt-orchestration-primitives#section:7",
+          "software-engineering/ch03-prompt-orchestration-primitives#section:8"
+        ],
+        "chunkLevels": [
+          "passage",
+          "section"
+        ],
+        "passageChunkIds": [
+          "software-engineering/ch03-prompt-orchestration-primitives#passage:0",
+          "software-engineering/ch03-prompt-orchestration-primitives#passage:3",
+          "software-engineering/ch03-prompt-orchestration-primitives#passage:4",
+          "software-engineering/ch03-prompt-orchestration-primitives#passage:5",
+          "software-engineering/ch03-prompt-orchestration-primitives#passage:6"
+        ]
+      },
+      {
+        "sourceId": "software-engineering/ch03-prompt-orchestration-primitives",
+        "sectionTitle": "Chapter 3 — Prompt Orchestration Primitives",
+        "keyword": "orchestration",
+        "chunkIds": [
+          "software-engineering/ch03-prompt-orchestration-primitives#passage:0",
+          "software-engineering/ch03-prompt-orchestration-primitives#section:1",
+          "software-engineering/ch03-prompt-orchestration-primitives#passage:3",
+          "software-engineering/ch03-prompt-orchestration-primitives#passage:4",
+          "software-engineering/ch03-prompt-orchestration-primitives#passage:5",
+          "software-engineering/ch03-prompt-orchestration-primitives#passage:6",
+          "software-engineering/ch03-prompt-orchestration-primitives#section:7",
+          "software-engineering/ch03-prompt-orchestration-primitives#section:8"
+        ],
+        "chunkLevels": [
+          "passage",
+          "section"
+        ],
+        "passageChunkIds": [
+          "software-engineering/ch03-prompt-orchestration-primitives#passage:0",
+          "software-engineering/ch03-prompt-orchestration-primitives#passage:3",
+          "software-engineering/ch03-prompt-orchestration-primitives#passage:4",
+          "software-engineering/ch03-prompt-orchestration-primitives#passage:5",
+          "software-engineering/ch03-prompt-orchestration-primitives#passage:6"
+        ]
+      },
+      {
+        "sourceId": "archetype-atlas/ch07-innocent-caregiver-everyman",
+        "sectionTitle": "Layer 45: The Guardians of Veracity — The Innocent, Caregiver, and Regular Person",
+        "keyword": "layer",
+        "chunkIds": [
+          "archetype-atlas/ch07-innocent-caregiver-everyman#passage:0",
+          "archetype-atlas/ch07-innocent-caregiver-everyman#passage:3",
+          "archetype-atlas/ch07-innocent-caregiver-everyman#passage:4",
+          "archetype-atlas/ch07-innocent-caregiver-everyman#passage:5"
+        ],
+        "chunkLevels": [
+          "passage"
+        ],
+        "passageChunkIds": [
+          "archetype-atlas/ch07-innocent-caregiver-everyman#passage:0",
+          "archetype-atlas/ch07-innocent-caregiver-everyman#passage:3",
+          "archetype-atlas/ch07-innocent-caregiver-everyman#passage:4",
+          "archetype-atlas/ch07-innocent-caregiver-everyman#passage:5"
+        ]
+      },
+      {
+        "sourceId": "archetype-atlas/ch07-innocent-caregiver-everyman",
+        "sectionTitle": "Layer 45: The Guardians of Veracity — The Innocent, Caregiver, and Regular Person",
+        "keyword": "guardians",
+        "chunkIds": [
+          "archetype-atlas/ch07-innocent-caregiver-everyman#passage:0",
+          "archetype-atlas/ch07-innocent-caregiver-everyman#passage:2",
+          "archetype-atlas/ch07-innocent-caregiver-everyman#passage:3",
+          "archetype-atlas/ch07-innocent-caregiver-everyman#passage:4"
+        ],
+        "chunkLevels": [
+          "passage"
+        ],
+        "passageChunkIds": [
+          "archetype-atlas/ch07-innocent-caregiver-everyman#passage:0",
+          "archetype-atlas/ch07-innocent-caregiver-everyman#passage:2",
+          "archetype-atlas/ch07-innocent-caregiver-everyman#passage:3",
+          "archetype-atlas/ch07-innocent-caregiver-everyman#passage:4"
+        ]
+      },
+      {
+        "sourceId": "archetype-atlas/ch07-innocent-caregiver-everyman",
+        "sectionTitle": "Layer 45: The Guardians of Veracity — The Innocent, Caregiver, and Regular Person",
+        "keyword": "caregiver",
+        "chunkIds": [
+          "archetype-atlas/ch07-innocent-caregiver-everyman#passage:0",
+          "archetype-atlas/ch07-innocent-caregiver-everyman#section:1",
+          "archetype-atlas/ch07-innocent-caregiver-everyman#passage:2",
+          "archetype-atlas/ch07-innocent-caregiver-everyman#passage:3",
+          "archetype-atlas/ch07-innocent-caregiver-everyman#passage:4"
+        ],
+        "chunkLevels": [
+          "passage",
+          "section"
+        ],
+        "passageChunkIds": [
+          "archetype-atlas/ch07-innocent-caregiver-everyman#passage:0",
+          "archetype-atlas/ch07-innocent-caregiver-everyman#passage:2",
+          "archetype-atlas/ch07-innocent-caregiver-everyman#passage:3",
+          "archetype-atlas/ch07-innocent-caregiver-everyman#passage:4"
+        ]
+      },
+      {
+        "sourceId": "archetype-atlas/ch08-creator-ruler-lover-jester",
+        "sectionTitle": "Layer 46: The Architects of Structure and Delight — Creator, Ruler, Lover, and Jester",
+        "keyword": "layer",
+        "chunkIds": [
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:0",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:3",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:4",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:5"
+        ],
+        "chunkLevels": [
+          "passage"
+        ],
+        "passageChunkIds": [
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:0",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:3",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:4",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:5"
+        ]
+      },
+      {
+        "sourceId": "archetype-atlas/ch08-creator-ruler-lover-jester",
+        "sectionTitle": "Layer 46: The Architects of Structure and Delight — Creator, Ruler, Lover, and Jester",
+        "keyword": "creator",
+        "chunkIds": [
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:0",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#section:1",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:2",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:3",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:6"
+        ],
+        "chunkLevels": [
+          "passage",
+          "section"
+        ],
+        "passageChunkIds": [
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:0",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:2",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:3",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:6"
+        ]
+      },
+      {
+        "sourceId": "archetype-atlas/ch08-creator-ruler-lover-jester",
+        "sectionTitle": "Layer 46: The Architects of Structure and Delight — Creator, Ruler, Lover, and Jester",
+        "keyword": "lover",
+        "chunkIds": [
+          "archetype-atlas/ch08-creator-ruler-lover-jester#section:1",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:2",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:4",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:5",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:6"
+        ],
+        "chunkLevels": [
+          "section",
+          "passage"
+        ],
+        "passageChunkIds": [
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:2",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:4",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:5",
+          "archetype-atlas/ch08-creator-ruler-lover-jester#passage:6"
+        ]
+      },
+      {
+        "sourceId": "design-history/ch09-industrial-design",
+        "sectionTitle": "Chapter 9 — Industrial Design: Dieter Rams, Eames, and the Physical Origins of Digital Product Thinking",
+        "keyword": "design",
+        "chunkIds": [
+          "design-history/ch09-industrial-design#passage:0",
+          "design-history/ch09-industrial-design#section:1",
+          "design-history/ch09-industrial-design#section:2",
+          "design-history/ch09-industrial-design#section:3",
+          "design-history/ch09-industrial-design#section:4",
+          "design-history/ch09-industrial-design#passage:5",
+          "design-history/ch09-industrial-design#passage:6",
+          "design-history/ch09-industrial-design#passage:7",
+          "design-history/ch09-industrial-design#section:8",
+          "design-history/ch09-industrial-design#section:9",
+          "design-history/ch09-industrial-design#section:10"
+        ],
+        "chunkLevels": [
+          "passage",
+          "section"
+        ],
+        "passageChunkIds": [
+          "design-history/ch09-industrial-design#passage:0",
+          "design-history/ch09-industrial-design#passage:5",
+          "design-history/ch09-industrial-design#passage:6",
+          "design-history/ch09-industrial-design#passage:7"
+        ]
+      },
+      {
+        "sourceId": "design-history/ch09-industrial-design",
+        "sectionTitle": "Chapter 9 — Industrial Design: Dieter Rams, Eames, and the Physical Origins of Digital Product Thinking",
+        "keyword": "rams",
+        "chunkIds": [
+          "design-history/ch09-industrial-design#passage:0",
+          "design-history/ch09-industrial-design#section:1",
+          "design-history/ch09-industrial-design#section:4",
+          "design-history/ch09-industrial-design#passage:5",
+          "design-history/ch09-industrial-design#passage:6",
+          "design-history/ch09-industrial-design#passage:7",
+          "design-history/ch09-industrial-design#section:9"
+        ],
+        "chunkLevels": [
+          "passage",
+          "section"
+        ],
+        "passageChunkIds": [
+          "design-history/ch09-industrial-design#passage:0",
+          "design-history/ch09-industrial-design#passage:5",
+          "design-history/ch09-industrial-design#passage:6",
+          "design-history/ch09-industrial-design#passage:7"
+        ]
+      },
+      {
+        "sourceId": "field-guide/ch02-the-bugatti",
+        "sectionTitle": "The Bugatti",
+        "keyword": "that",
+        "chunkIds": [
+          "field-guide/ch02-the-bugatti#section:1",
+          "field-guide/ch02-the-bugatti#passage:3",
+          "field-guide/ch02-the-bugatti#section:4",
+          "field-guide/ch02-the-bugatti#passage:5",
+          "field-guide/ch02-the-bugatti#passage:6",
+          "field-guide/ch02-the-bugatti#section:7",
+          "field-guide/ch02-the-bugatti#passage:8",
+          "field-guide/ch02-the-bugatti#section:10"
+        ],
+        "chunkLevels": [
+          "section",
+          "passage"
+        ],
+        "passageChunkIds": [
+          "field-guide/ch02-the-bugatti#passage:3",
+          "field-guide/ch02-the-bugatti#passage:5",
+          "field-guide/ch02-the-bugatti#passage:6",
+          "field-guide/ch02-the-bugatti#passage:8"
+        ]
+      }
+    ]
+  },
+  "multiChunkConceptSamples": [
+    {
+      "sourceId": "field-guide/ch11-the-persuasion-engine",
+      "sectionTitle": "The Persuasion Engine",
+      "passageCount": 10,
+      "overlappingPairs": 10
+    },
+    {
+      "sourceId": "field-guide/ch20-the-armory",
+      "sectionTitle": "The Armory",
+      "passageCount": 8,
+      "overlappingPairs": 3
+    },
+    {
+      "sourceId": "field-guide/ch09-the-question-engine",
+      "sectionTitle": "The Question Engine",
+      "passageCount": 7,
+      "overlappingPairs": 4
+    },
+    {
+      "sourceId": "field-guide/ch02-the-bugatti",
+      "sectionTitle": "The Bugatti",
+      "passageCount": 6,
+      "overlappingPairs": 6
+    },
+    {
+      "sourceId": "field-guide/ch06-the-dart",
+      "sectionTitle": "The Dart",
+      "passageCount": 6,
+      "overlappingPairs": 6
+    }
+  ]
+}

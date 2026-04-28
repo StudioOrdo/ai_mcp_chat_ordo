@@ -20,7 +20,8 @@ function isSeriesPoint(
   return point !== null;
 }
 
-function toFileStem(value: string): string {
+function toFileStem(value: string | undefined | null): string {
+  if (!value) return "graph";
   return (
     value
       .trim()

@@ -3,6 +3,7 @@ import { useCallback, useRef, type Dispatch } from "react";
 import { MessageFactory } from "@/core/entities/MessageFactory";
 import type { ChatMessage } from "@/core/entities/chat-message";
 import type { CurrentPageMemento } from "@/lib/chat/CurrentPageMemento";
+import type { MediaContinuityHandoff } from "@/lib/chat/media-continuity-handoff";
 import type { AttachmentPart } from "@/lib/chat/message-attachments";
 import type { TaskOriginHandoff } from "@/lib/chat/task-origin-handoff";
 
@@ -51,6 +52,7 @@ function prepareRetrySend(
   failedUserMessageId: string,
   trimmedMessage: string,
   attachmentParts: AttachmentPart[],
+  mediaContinuityHandoff: MediaContinuityHandoff | null,
 ): PreparedChatSend | null {
   const failedUserIndex = messages.findIndex((message) => message.id === failedUserMessageId);
   if (failedUserIndex < 0) {
@@ -81,6 +83,7 @@ function prepareRetrySend(
     assistantIndex,
     optimisticMessages,
     historyForBackend: buildBackendHistory(optimisticMessages.slice(0, assistantIndex)),
+    mediaContinuityHandoff,
   };
 }
 
@@ -167,6 +170,7 @@ export function useChatSend({
           attachmentParts,
           taskOriginHandoff,
           currentPageSnapshot,
+          preparedSend.mediaContinuityHandoff,
         );
 
         if (lifecycle?.status === "interrupted") {
@@ -178,10 +182,15 @@ export function useChatSend({
               messageText: trimmedMessage,
               attachments: attachmentParts,
               taskOriginHandoff,
+              mediaContinuityHandoff: preparedSend.mediaContinuityHandoff,
             });
           }
 
-          return { ok: false, error: lifecycle.reason };
+          if (shouldRefreshConversationAfterStream(conversationId, resolvedConversationId, didReceiveTextDelta)) {
+            await refreshConversation(resolvedConversationId);
+          }
+
+          return { ok: true };
         }
 
         if (shouldRefreshConversationAfterStream(conversationId, resolvedConversationId, didReceiveTextDelta)) {
@@ -202,6 +211,7 @@ export function useChatSend({
               messageText: trimmedMessage,
               attachments: attachmentParts,
               taskOriginHandoff,
+              mediaContinuityHandoff: preparedSend.mediaContinuityHandoff,
             });
 
             const failedMessages = [...preparedSend.optimisticMessages];
@@ -267,6 +277,7 @@ export function useChatSend({
           failedSend.failedUserMessageId,
           trimmedMessage,
           failedSend.attachments,
+          failedSend.mediaContinuityHandoff ?? null,
         );
 
         if (!preparedRetry) {
@@ -288,11 +299,17 @@ export function useChatSend({
           failedSend.attachments,
           failedSend.taskOriginHandoff,
           currentPageSnapshot,
+          preparedRetry.mediaContinuityHandoff,
         );
 
         if (lifecycle?.status === "interrupted") {
           markInterruptedSend(dispatch, registerFailedSend, preparedRetry.assistantIndex, failedSend);
-          return { ok: false, error: lifecycle.reason };
+
+          if (shouldRefreshConversationAfterStream(conversationId, resolvedConversationId, didReceiveTextDelta)) {
+            await refreshConversation(resolvedConversationId);
+          }
+
+          return { ok: true };
         }
 
         if (shouldRefreshConversationAfterStream(conversationId, resolvedConversationId, didReceiveTextDelta)) {

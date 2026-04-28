@@ -163,6 +163,12 @@ describe("capability-catalog", () => {
   });
 
   describe("browser projection", () => {
+    it("uses explicit collision resolutions for shared media tool keys", () => {
+      expect(CAPABILITY_CATALOG.generate_audio.presentation.executionMode).toBe("browser");
+      expect(CAPABILITY_CATALOG.generate_chart.presentation.executionMode).toBe("browser");
+      expect(CAPABILITY_CATALOG.generate_graph.presentation.executionMode).toBe("browser");
+    });
+
     it("projects compose_media browser capability", () => {
       const result = projectBrowserCapability(CAPABILITY_CATALOG.compose_media);
       expect(result).not.toBeNull();

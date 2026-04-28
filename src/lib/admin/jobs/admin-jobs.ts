@@ -7,7 +7,8 @@ import type {
   JobResultRetentionMode,
   JobStatus,
 } from "@/core/entities/job";
-import { getJobQueueDataMapper } from "@/adapters/RepositoryFactory";
+import { getJobQueueDataMapper, getPlatformInteractionFacade } from "@/adapters/RepositoryFactory";
+import type { JobPlatformInteraction } from "@/core/platform/facade/PlatformInteractionFacade";
 import type { AdminPaginationParams } from "@/lib/admin/admin-pagination";
 import { getAdminJobsDetailPath } from "@/lib/admin/jobs/admin-jobs-routes";
 import {
@@ -131,6 +132,14 @@ export interface AdminJobListEntry {
   canCancel: boolean;
   canRequeue: boolean;
   canRetry: boolean;
+  interactionExecutionState: string;
+  interactionTimelineSupportLevel: string;
+  interactionTimelineSummary: string | null;
+  interactionTimelineEventCount: number;
+  interactionRevisionSupportLevel: string;
+  interactionRevisionState: string;
+  interactionRevisionSummary: string | null;
+  interactionRevisionActionCount: number;
 }
 
 export interface AdminJobCapabilityPolicyViewModel {
@@ -152,6 +161,24 @@ export interface AdminJobListViewModel {
   toolOptions: AdminJobToolFilterOption[];
   total: number;
   jobs: AdminJobListEntry[];
+}
+
+export interface AdminJobInteractionViewModel {
+  timeline: JobPlatformInteraction["timeline"];
+  revision: JobPlatformInteraction["revision"];
+}
+
+function toInteractionFields(interaction: JobPlatformInteraction | null, jobStatus: string) {
+  return {
+    interactionExecutionState: interaction?.timeline.state ?? jobStatus,
+    interactionTimelineSupportLevel: interaction?.timeline.supportLevel ?? "unsupported",
+    interactionTimelineSummary: interaction?.timeline.summary ?? null,
+    interactionTimelineEventCount: interaction?.timeline.events.length ?? 0,
+    interactionRevisionSupportLevel: interaction?.revision.supportLevel ?? "unsupported",
+    interactionRevisionState: interaction?.revision.state ?? "unsupported",
+    interactionRevisionSummary: interaction?.revision.summary ?? null,
+    interactionRevisionActionCount: interaction?.revision.actions.length ?? 0,
+  };
 }
 
 function formatDuration(startedAt: string | null, completedAt: string | null, status: string): string | null {
@@ -255,7 +282,7 @@ function toListEntry(job: {
   startedAt: string | null;
   completedAt: string | null;
   conversationId: string;
-}, roles: readonly RoleName[]): AdminJobListEntry | null {
+}, roles: readonly RoleName[], interaction: JobPlatformInteraction | null): AdminJobListEntry | null {
   const capability = buildCapabilityMetadata(job.toolName, roles);
   if (!capability) {
     return null;
@@ -285,6 +312,7 @@ function toListEntry(job: {
     canCancel: capability.canManage && CANCELABLE_STATUSES.has(job.status as JobStatus),
     canRequeue: capability.canManage && REQUEUEABLE_STATUSES.has(job.status as JobStatus),
     canRetry: capability.canManage && RETRIABLE_STATUSES.has(job.status as JobStatus),
+    ...toInteractionFields(interaction, job.status),
   };
 }
 
@@ -344,6 +372,14 @@ export async function loadAdminJobList(
     mapper.listForAdmin(listFilters),
   ]);
 
+  const interactionFacade = getPlatformInteractionFacade();
+  const jobsWithInteractions = await Promise.all(
+    jobs.map(async (job) => ({
+      job,
+      interaction: await interactionFacade.getJobInteraction(job.id),
+    })),
+  );
+
   const familyCounts = buildFamilyCounts(toolNameCounts, roles);
 
   return {
@@ -359,8 +395,8 @@ export async function loadAdminJobList(
     familyOptions: buildFamilyOptions(familyCounts, roles),
     toolOptions: buildToolOptions(toolNameCounts, filters, roles),
     total,
-    jobs: jobs
-      .map((job) => toListEntry(job, roles))
+    jobs: jobsWithInteractions
+      .map(({ job, interaction }) => toListEntry(job, roles, interaction))
       .filter((job): job is AdminJobListEntry => job !== null),
   };
 }
@@ -392,6 +428,7 @@ export interface AdminJobDetailViewModel {
     retryExhausted: boolean;
   };
   capabilityPolicy: AdminJobCapabilityPolicyViewModel;
+  interaction: AdminJobInteractionViewModel;
   events: Array<{
     id: string;
     eventType: string;
@@ -411,7 +448,12 @@ export async function loadAdminJobDetail(
     notFound();
   }
 
-  const listEntry = toListEntry(job, roles);
+  const interaction = await getPlatformInteractionFacade().getJobInteraction(jobId);
+  if (!interaction) {
+    notFound();
+  }
+
+  const listEntry = toListEntry(job, roles, interaction);
   if (!listEntry) {
     notFound();
   }
@@ -463,6 +505,10 @@ export async function loadAdminJobDetail(
       globalActionRoles: formatRoleList(capability.globalActionRoles),
       resultRetention: capability.resultRetention,
       artifactPolicy: capability.artifactPolicy.mode,
+    },
+    interaction: {
+      timeline: interaction.timeline,
+      revision: interaction.revision,
     },
     events: events.map((e) => ({
       id: e.id,

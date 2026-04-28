@@ -1,0 +1,3 @@
+export const MAX_FFMPEG_ASSET_BYTES = 500_000_000;
+export const FFMPEG_LOG_HEAD_LINES = 40;
+export const FFMPEG_LOG_TAIL_LINES = 40;

@@ -3,6 +3,7 @@ import type { CapabilityResultEnvelope, CapabilityArtifactRef } from "@/core/ent
 
 interface MediaRenderCardProps {
   envelope: CapabilityResultEnvelope;
+  posterUrl?: string | null;
 }
 
 function RouteLabel({ mode }: { mode: CapabilityResultEnvelope["executionMode"] }) {
@@ -49,10 +50,12 @@ function VideoArtifactRow({
   artifact,
   dimensions,
   progressLabel,
+  posterUrl,
 }: {
   artifact: CapabilityArtifactRef;
   dimensions: { width: number; height: number } | null;
   progressLabel?: string;
+  posterUrl?: string | null;
 }) {
   const label = artifact.label || artifact.kind;
   const href = artifact.uri ?? (artifact.assetId ? `/api/user-files/${artifact.assetId}` : null);
@@ -75,6 +78,7 @@ function VideoArtifactRow({
         <video
           controls={isReady}
           src={href}
+          poster={posterUrl ?? undefined}
           className={`w-full bg-black/80 object-contain transition-opacity duration-300 ${isReady ? "opacity-100" : "opacity-0"}`}
           preload="auto"
           aria-label={label}
@@ -118,7 +122,7 @@ function ArtifactRow({ artifact }: { artifact: CapabilityArtifactRef }) {
   );
 }
 
-export function MediaRenderCard({ envelope }: MediaRenderCardProps) {
+export function MediaRenderCard({ envelope, posterUrl }: MediaRenderCardProps) {
   const isTerminalFailure =
     envelope.summary.statusLine === "failed" ||
     envelope.summary.statusLine === "canceled";
@@ -178,6 +182,7 @@ export function MediaRenderCard({ envelope }: MediaRenderCardProps) {
           artifact={primaryVideo}
           dimensions={videoDimensions}
           progressLabel={envelope.progress?.label ?? undefined}
+          posterUrl={posterUrl}
         />
       ) : (
         /* Placeholder when artifact not yet available (in-progress or pruned) */

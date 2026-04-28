@@ -2,7 +2,6 @@ import type { JobEvent, JobRequest } from "@/core/entities/job";
 import type {
   CapabilityArtifactRef,
   CapabilityProgressPhase,
-  CapabilityResultEnvelope,
 } from "@/core/entities/capability-result";
 import type { JobStatusMessagePart } from "@/core/entities/message-parts";
 
@@ -27,6 +26,8 @@ type JobStatusProjection = Pick<
   | "errorMessage"
   | "failureClass"
   | "recoveryMode"
+  | "nextRetryAt"
+  | "lastCheckpointId"
   | "replayedFromJobId"
   | "supersededByJobId"
 >;
@@ -39,7 +40,19 @@ const CANONICAL_MEDIA_JOB_NAMES = new Set([
 ]);
 
 export function projectJobForEvent(
-  job: Pick<JobRequest, "id" | "status" | "toolName" | "requestPayload" | "failureClass" | "recoveryMode" | "replayedFromJobId" | "supersededByJobId">,
+  job: Pick<
+    JobRequest,
+    | "id"
+    | "status"
+    | "toolName"
+    | "requestPayload"
+    | "failureClass"
+    | "recoveryMode"
+    | "nextRetryAt"
+    | "lastCheckpointId"
+    | "replayedFromJobId"
+    | "supersededByJobId"
+  >,
   event: JobEvent,
 ): JobStatusProjection {
   const payload = event.payload;
@@ -58,6 +71,13 @@ export function projectJobForEvent(
       typeof payload.errorMessage === "string" ? payload.errorMessage : null,
     failureClass: job.failureClass,
     recoveryMode: job.recoveryMode,
+    nextRetryAt: typeof payload.nextRetryAt === "string" || payload.nextRetryAt === null
+      ? payload.nextRetryAt
+      : job.nextRetryAt,
+    lastCheckpointId:
+      typeof payload.lastCheckpointId === "string" || payload.lastCheckpointId === null
+        ? payload.lastCheckpointId
+        : job.lastCheckpointId,
     replayedFromJobId: job.replayedFromJobId,
     supersededByJobId: job.supersededByJobId,
   };
@@ -241,15 +261,30 @@ function buildHumanReadableIdentity(
   job: Pick<JobStatusProjection, "toolName" | "requestPayload">,
 ): Pick<JobStatusMessagePart, "title" | "subtitle"> {
   const capability = getJobCapability(job.toolName);
+  const postId = readString(job.requestPayload.post_id);
   const contextualSubtitle =
     job.toolName === "compose_blog_article" || job.toolName === "produce_blog_article"
       ? buildEditorialContextSubtitle(job.requestPayload)
+      : job.toolName === "generate_blog_image" && !postId
+        ? "Generate and store an image asset for reuse in the conversation."
       : undefined;
 
   return {
     title: buildIdentityTitle(job.toolName, job.requestPayload),
     subtitle: contextualSubtitle ?? capability?.description,
   };
+}
+
+function resolveJobLabel(job: Pick<JobStatusProjection, "toolName" | "requestPayload">): string {
+  if (job.toolName === "generate_blog_image" && !readString(job.requestPayload.post_id)) {
+    return "Generate Image";
+  }
+
+  if (job.toolName === "generate_blog_image_prompt" && !readString(job.requestPayload.post_id)) {
+    return "Design Image Prompt";
+  }
+
+  return humanizeToolName(job.toolName);
 }
 
 export function buildJobStatusPart(job: JobRequest, event: JobEvent): JobStatusMessagePart {
@@ -376,8 +411,9 @@ export function buildJobStatusPartFromProjection(
   return {
     type: "job_status",
     jobId: job.id,
+    ...(typeof payload.toolInvocationId === "string" ? { toolInvocationId: payload.toolInvocationId } : {}),
     toolName: job.toolName,
-    label: humanizeToolName(job.toolName),
+    label: resolveJobLabel(job),
     title: envelopeSummary?.title ?? identity.title,
     subtitle: envelopeSummary?.subtitle ?? identity.subtitle,
     status,
@@ -394,6 +430,8 @@ export function buildJobStatusPartFromProjection(
     resultEnvelope,
     failureClass: mediaRuntimeState?.failureClass ?? job.failureClass,
     recoveryMode: mediaRuntimeState?.recoveryMode ?? job.recoveryMode,
+    nextRetryAt: job.nextRetryAt,
+    lastCheckpointId: job.lastCheckpointId,
     replayedFromJobId: job.replayedFromJobId,
     supersededByJobId: job.supersededByJobId,
   };
@@ -421,6 +459,7 @@ export function describeJobStatus(part: JobStatusMessagePart): string {
     case "succeeded":
       return part.summary ? `${subject} completed: ${part.summary}` : `${subject} completed.`;
     case "failed":
+    case "dead_letter":
       return part.error ? `${subject} failed: ${part.error}` : `${subject} failed.`;
     case "canceled":
       return `${subject} canceled.`;

@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-04-28T15:24:02.833Z",
+  "phase": "phase-9-shared-media-materialization-and-live-runtime-proof",
+  "deterministicScenarios": [
+    "structural plans allow chart and graph clips before materialization",
+    "executable plans still reject raw chart and graph clips without promotion",
+    "worker runtime promotes governed chart and graph clips into governed derived image assets before ffmpeg execution",
+    "phase-7 deterministic media regressions remain green after the shared materialization fix"
+  ],
+  "liveScenarioMatrix": [
+    "real media workflows produce downloadable playable video artifacts",
+    "planner-driven compose still yields an inspectable single-beat plan and playable output",
+    "live compose flows remain green when live media credentials are enabled"
+  ],
+  "passingRules": [
+    "worker execution cannot fail on supported chart or graph inputs solely because promotion was browser-only",
+    "derived compose assets preserve lineage metadata",
+    "browser and worker lanes share executable-plan semantics",
+    "live failures remain diagnosable from retained evidence"
+  ],
+  "liveMediaEnabled": false,
+  "commands": [
+    {
+      "name": "phase-9-shared-materialization-tests",
+      "command": "npm",
+      "args": [
+        "run",
+        "test",
+        "--",
+        "src/lib/media/server/compose-media-plan-materialization.test.ts",
+        "src/lib/media/server/compose-media-worker-runtime.test.ts",
+        "src/lib/media/ffmpeg/media-composition-plan.test.ts"
+      ],
+      "enabled": true,
+      "status": "passed",
+      "exitCode": 0,
+      "stdoutTail": "> studio-ordo@0.1.0 test\n> vitest run src/lib/media/server/compose-media-plan-materialization.test.ts src/lib/media/server/compose-media-worker-runtime.test.ts src/lib/media/ffmpeg/media-composition-plan.test.ts\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv4.0.18 \u001b[39m\u001b[90m/Users/kwilliams/Projects/ordoSite\u001b[39m\n\n \u001b[32m✓\u001b[39m src/lib/media/ffmpeg/media-composition-plan.test.ts \u001b[2m(\u001b[22m\u001b[2m22 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 8\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/lib/media/server/compose-media-worker-runtime.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 10\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/lib/media/server/compose-media-plan-materialization.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1117\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m materializes Mermaid chart clips when Mermaid rendering depends on getBBox \u001b[33m 1073\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m28 passed\u001b[39m\u001b[22m\u001b[90m (28)\u001b[39m\n\u001b[2m   Start at \u001b[22m 11:23:52\n\u001b[2m   Duration \u001b[22m 2.63s\u001b[2m (transform 502ms, setup 734ms, import 534ms, tests 1.13s, environment 2.30s)\u001b[22m"
+    },
+    {
+      "name": "phase-9-phase-7-deterministic-regression",
+      "command": "node_modules/.bin/tsx",
+      "args": [
+        "scripts/run-sprint-7-qa.ts",
+        "--tests-only"
+      ],
+      "enabled": true,
+      "status": "passed",
+      "exitCode": 0,
+      "stdoutTail": "🎬 Sprint 7 QA: Hybrid FFmpeg Browser + Server Execution\n\n✓ WASM artifacts present in public/ffmpeg-core/\n\n============================================================\n► Sprint 7 — All unit tests\n============================================================\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv4.0.18 \u001b[39m\u001b[90m/Users/kwilliams/Projects/ordoSite\u001b[39m\n\n \u001b[32m✓\u001b[39m src/core/use-cases/tools/list-conversation-media-assets.tool.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 20\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/lib/media/browser-runtime/ffmpeg-browser-executor.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 16\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/frameworks/ui/chat/plugins/custom/MediaRenderCard.test.tsx \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 273\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/lib/jobs/job-capability-registry.test.ts \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 14\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/core/use-cases/tools/compose-media.tool.test.ts \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 18\u001b[2mms\u001b[22m\u001b[39m\n\u001b[90mstdout\u001b[2m | src/app/api/chat/jobs/route.test.ts\u001b[2m > \u001b[22m\u001b[2mGET /api/chat/jobs\u001b[2m > \u001b[22m\u001b[2mreturns an empty snapshot when the requested conversation does not exist\n\u001b[22m\u001b[39m{\"timestamp\":\"2026-04-28T15:23:59.373Z\",\"level\":\"info\",\"event\":\"metric.route\",\"route\":\"/api/chat/jobs\",\"durationMs\":2,\"isError\":false}\n\n\u001b[90mstdout\u001b[2m | src/app/api/chat/jobs/route.test.ts\u001b[2m > \u001b[22m\u001b[2mGET /api/chat/jobs\u001b[2m > \u001b[22m\u001b[2mreturns job snapshots for an existing requested conversation\n\u001b[22m\u001b[39m{\"timestamp\":\"2026-04-28T15:23:59.398Z\",\"level\":\"info\",\"event\":\"metric.route\",\"route\":\"/api/chat/jobs\",\"durationMs\":1,\"isError\":false}\n\n\u001b[90mstdout\u001b[2m | src/app/api/chat/jobs/route.test.ts\u001b[2m > \u001b[22m\u001b[2mGET /api/chat/jobs\u001b[2m > \u001b[22m\u001b[2menqueues a compose_media deferred job through the shared route surface\n\u001b[22m\u001b[39m{\"timestamp\":\"2026-04-28T15:23:59.410Z\",\"level\":\"info\",\"event\":\"metric.route\",\"route\":\"POST /api/chat/jobs\",\"durationMs\":7,\"isError\":false}\n\n\u001b[90mstdout\u001b[2m | src/app/api/chat/jobs/route.test.ts\u001b[2m > \u001b[22m\u001b[2mGET /api/chat/jobs\u001b[2m > \u001b[22m\u001b[2mreturns the existing compose_media job when the route deduplicates an active plan\n\u001b[22m\u001b[39m{\"timestamp\":\"2026-04-28T15:23:59.416Z\",\"level\":\"info\",\"event\":\"metric.route\",\"route\":\"POST /api/chat/jobs\",\"durationMs\":1,\"isError\":false}\n\n\u001b[90mstdout\u001b[2m | src/app/api/chat/jobs/route.test.ts\u001b[2m > \u001b[22m\u001b[2mGET /api/chat/jobs\u001b[2m > \u001b[22m\u001b[2mreturns 400 when compose_media includes non-canonical visual asset references\n\u001b[22m\u001b[39m{\"timestamp\":\"2026-04-28T15:23:59.420Z\",\"level\":\"info\",\"event\":\"metric.route\",\"route\":\"POST /api/chat/jobs\",\"durationMs\":1,\"isError\":false}\n\n \u001b[32m✓\u001b[39m src/app/api/chat/jobs/route.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 56\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/lib/media/media-composition-asset-identity.test.ts \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 12\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/lib/media/browser-runtime/job-snapshots.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 13\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/lib/media/compose-media-preflight.test.ts \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 10\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/lib/media/ffmpeg/media-execution-router.test.ts \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 11\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/lib/media/ffmpeg/server/ffmpeg-server-executor.test.ts \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 2763\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m emits progress phases in the correct order \u001b[33m 387\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m returns a canonical CapabilityResultEnvelope on success \u001b[33m 436\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m produces a real output file on disk when no inputs are provided (lavfi fallback) \u001b[33m 317\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m supports the fast still-image narration profile on the server path \u001b[33m 630\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m concatenates multiple source videos for the multi-video standard profile \u001b[33m 984\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/lib/media/browser-runtime/browser-capability-registry.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 8\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/lib/media/ffmpeg/media-composition-plan.test.ts \u001b[2m(\u001b[22m\u001b[2m22 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 14\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/lib/media/browser-runtime/ffmpeg-capability-probe.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/app/api/user-files/[id]/route.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 11\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m15 passed\u001b[39m\u001b[22m\u001b[90m (15)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m123 passed\u001b[39m\u001b[22m\u001b[90m (123)\u001b[39m\n\u001b[2m   Start at \u001b[22m 11:23:56\n\u001b[2m   Duration \u001b[22m 6.78s\u001b[2m (transform 4.38s, setup 4.98s, import 6.42s, tests 3.24s, environment 19.95s)\u001b[22m\n\n\n✓ Sprint 7 — All unit tests passed\n\n🏁 Sprint 7 QA passed — all checks green."
+    },
+    {
+      "name": "phase-9-live-media-workflows",
+      "command": "node_modules/.bin/playwright",
+      "args": [
+        "test",
+        "tests/browser-ui/media-live-workflows.spec.ts"
+      ],
+      "enabled": false,
+      "status": "skipped",
+      "exitCode": null
+    },
+    {
+      "name": "phase-9-live-compose-eval",
+      "command": "node_modules/.bin/playwright",
+      "args": [
+        "test",
+        "tests/browser-ui/media-compose-eval.spec.ts"
+      ],
+      "enabled": false,
+      "status": "skipped",
+      "exitCode": null
+    },
+    {
+      "name": "phase-9-live-planner-eval",
+      "command": "node_modules/.bin/playwright",
+      "args": [
+        "test",
+        "tests/browser-ui/media-compose-planner-eval.spec.ts"
+      ],
+      "enabled": false,
+      "status": "skipped",
+      "exitCode": null
+    }
+  ]
+}

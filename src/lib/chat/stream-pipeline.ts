@@ -5,6 +5,7 @@ import type { JobStatusQuery } from "@/core/use-cases/JobStatusQuery";
 import { getSessionUser } from "@/lib/auth";
 import type { createConversationRuntimeServices } from "@/lib/chat/conversation-root";
 import type { RouteContext } from "@/lib/chat/http-facade";
+import type { MediaContinuityHandoff } from "@/lib/chat/media-continuity-handoff";
 import type { AttachmentPart } from "@/lib/chat/message-attachments";
 import type { PromptAssemblyBuilder } from "@/lib/chat/prompt-runtime";
 import { resolveUserId } from "@/lib/chat/resolve-user";
@@ -132,6 +133,7 @@ export class ChatStreamPipeline {
     latestUserText: string,
     latestUserContent: string,
     taskOriginHandoff: TaskOriginHandoff | null,
+    mediaContinuityHandoff: MediaContinuityHandoff | null,
   ): Promise<PreparedStreamContext> {
     return prepareStreamContextStage({
       builder,
@@ -143,6 +145,7 @@ export class ChatStreamPipeline {
       latestUserText,
       latestUserContent,
       taskOriginHandoff,
+      mediaContinuityHandoff,
     });
   }
 
@@ -151,12 +154,14 @@ export class ChatStreamPipeline {
     incomingMessages: ChatMessage[],
     latestUserContent: string,
     taskOriginHandoff: TaskOriginHandoff | null,
+    mediaContinuityHandoff: MediaContinuityHandoff | null,
   ): Promise<PreparedStreamContext> {
     return prepareFallbackContextStage({
       builder,
       incomingMessages,
       latestUserContent,
       taskOriginHandoff,
+      mediaContinuityHandoff,
     });
   }
 
@@ -171,6 +176,7 @@ export class ChatStreamPipeline {
     latestUserContent: string;
     latestUserText?: string;
     taskOriginHandoff: TaskOriginHandoff | null;
+    mediaContinuityHandoff: MediaContinuityHandoff | null;
     routeContext?: RouteContext | null;
     conversationId?: string;
     userId?: string;

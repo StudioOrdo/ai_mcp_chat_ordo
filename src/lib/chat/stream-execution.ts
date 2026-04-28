@@ -72,6 +72,7 @@ export type CreateStreamResponseOptions = {
     name: string,
     input: Record<string, unknown>,
     abortSignal?: AbortSignal,
+    toolInvocationId?: string,
   ) => Promise<unknown>;
   requestSignal?: AbortSignal;
   latestAttachments?: AttachmentPart[];
@@ -237,10 +238,17 @@ async function buildAnthropicMessages(options: {
 export async function createDeferredToolExecutor(options: DeferredToolExecutorOptions) {
   const queueRepository = getJobQueueRepository();
 
-  return async (name: string, input: Record<string, unknown>, abortSignal?: AbortSignal) => {
-    const executionContext = abortSignal
-      ? { ...options.context, abortSignal }
-      : options.context;
+  return async (
+    name: string,
+    input: Record<string, unknown>,
+    abortSignal?: AbortSignal,
+    toolInvocationId?: string,
+  ) => {
+    const executionContext = {
+      ...options.context,
+      ...(abortSignal ? { abortSignal } : {}),
+      ...(toolInvocationId ? { toolInvocationId } : {}),
+    };
 
     if (abortSignal?.aborted) {
       throw createAbortSignalError(abortSignal, "tool_execution_aborted");
@@ -263,6 +271,7 @@ export async function createDeferredToolExecutor(options: DeferredToolExecutorOp
       requestPayload: input,
       initiatorType: options.isAnonymous ? "anonymous_session" : "user",
       deferred: descriptor.deferred,
+      toolInvocationId,
     })).payload;
   };
 }
@@ -429,17 +438,18 @@ export function createStreamResponse(options: CreateStreamResponseOptions): Resp
           signal: streamAbortController.signal,
           systemPrompt: options.systemPrompt,
           tools: options.tools,
-          toolExecutor: (name, input) => options.toolExecutor(name, input, streamAbortController.signal),
+          toolExecutor: (name, input, toolInvocationId) =>
+            options.toolExecutor(name, input, streamAbortController.signal, toolInvocationId),
           callbacks: {
             onDelta(text) {
               assistantText += text;
               assistantParts.push({ type: "text", text });
               controller.enqueue(encoder.encode(sseChunk({ delta: text })));
             },
-            onToolCall(name, args) {
-              assistantParts.push({ type: "tool_call", name, args });
+            onToolCall(name, args, toolInvocationId) {
+              assistantParts.push({ type: "tool_call", name, args, toolInvocationId });
               controller.enqueue(
-                encoder.encode(sseChunk({ tool_call: { name, args } })),
+                encoder.encode(sseChunk({ tool_call: { name, args, toolInvocationId } })),
               );
               options.interactor.recordToolUsed(options.conversationId, name, options.role)
                 .catch((error) => logDegradation(
@@ -449,15 +459,15 @@ export function createStreamResponse(options: CreateStreamResponseOptions): Resp
                   error,
                 ));
             },
-            onToolResult(name, result) {
-              assistantParts.push({ type: "tool_result", name, result });
+            onToolResult(name, result, toolInvocationId) {
+              assistantParts.push({ type: "tool_result", name, result, toolInvocationId });
               controller.enqueue(
-                encoder.encode(sseChunk({ tool_result: { name, result } })),
+                encoder.encode(sseChunk({ tool_result: { name, result, toolInvocationId } })),
               );
 
               if (isDeferredJobResultPayload(result)) {
-                const streamEvent = deferredJobResultToStreamEvent(result);
-                assistantParts.push(deferredJobResultToMessagePart(result));
+                const streamEvent = deferredJobResultToStreamEvent(result, toolInvocationId);
+                assistantParts.push(deferredJobResultToMessagePart(result, toolInvocationId));
                 controller.enqueue(
                   encoder.encode(sseChunk(streamEvent as unknown as Record<string, unknown>)),
                 );
@@ -466,12 +476,16 @@ export function createStreamResponse(options: CreateStreamResponseOptions): Resp
 
               const jobSnapshots = extractJobStatusSnapshots(result);
               for (const snapshot of jobSnapshots) {
-                assistantParts.push(snapshot.part);
+                const part = snapshot.part.toolInvocationId
+                  ? snapshot.part
+                  : { ...snapshot.part, toolInvocationId };
+                assistantParts.push(part);
                 controller.enqueue(
                   encoder.encode(
-                    sseChunk(
-                      jobStatusSnapshotToStreamEvent(snapshot, options.conversationId) as unknown as Record<string, unknown>,
-                    ),
+                    sseChunk(jobStatusSnapshotToStreamEvent(
+                      { ...snapshot, part },
+                      options.conversationId,
+                    ) as unknown as Record<string, unknown>),
                   ),
                 );
               }

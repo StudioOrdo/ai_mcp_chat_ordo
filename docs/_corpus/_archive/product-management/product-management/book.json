@@ -1,0 +1,15 @@
+{
+  "slug": "product-management",
+  "title": "Product Management",
+  "number": "V",
+  "sortOrder": 5,
+  "domain": [
+    "teaching",
+    "reference"
+  ],
+  "tags": [
+    "product-management",
+    "strategy",
+    "roadmaps"
+  ]
+}

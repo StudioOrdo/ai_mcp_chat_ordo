@@ -3,6 +3,11 @@ import type Anthropic from "@anthropic-ai/sdk";
 import type { ConversationRoutingSnapshot } from "@/core/entities/conversation-routing";
 import type { RoleName } from "@/core/entities/user";
 import type { ToolRegistry } from "@/core/tool-registry/ToolRegistry";
+import {
+  mediaContinuityHasAudioAsset,
+  mediaContinuityHasVisualAsset,
+  type MediaContinuityHandoff,
+} from "@/lib/chat/media-continuity-handoff";
 
 import { isHighConfidenceLane } from "./routing-consumers";
 
@@ -60,6 +65,7 @@ const DEVELOPMENT_OUTPUT_TOOLS = [
   "generate_audio",
   "generate_chart",
   "generate_graph",
+  "list_conversation_media_assets",
   "compose_media",
 ] as const;
 
@@ -93,19 +99,94 @@ export interface RequestScopedToolSelection {
   prefiltered: boolean;
 }
 
+const VIDEO_INTENT_PATTERN = /\b(video|mp4|clip|reel|short|trailer|b-roll)\b/i;
+const IMAGE_INTENT_PATTERN = /\b(image|images|picture|pictures|photo|photos|thumbnail|hero image|illustration)\b/i;
+const MEDIA_REUSE_INTENT_PATTERN = /\b(combine|reuse|animate|overlay|sync|use (?:the|that|those|these|previous|earlier)|add audio|with audio|with the audio|turn (?:it|them|that|this) into (?:a )?(?:video|clip|reel|short)|make (?:a )?(?:video|clip|reel|short) from)\b/i;
+const VIDEO_FIRST_EXCLUDED_TOOLS = new Set([
+  "generate_blog_image",
+  "generate_blog_image_prompt",
+  "select_journal_hero_image",
+]);
+const CONTINUITY_GENERATION_EXCLUDED_TOOLS = new Set([
+  "generate_audio",
+  "generate_chart",
+  "generate_graph",
+]);
+
+function applyVideoFirstToolSelection(
+  tools: Anthropic.Tool[],
+  latestUserText?: string,
+): Anthropic.Tool[] {
+  const text = latestUserText?.trim() ?? "";
+  if (!text) {
+    return tools;
+  }
+
+  if (!VIDEO_INTENT_PATTERN.test(text) || IMAGE_INTENT_PATTERN.test(text)) {
+    return tools;
+  }
+
+  const toolNames = new Set(tools.map((tool) => tool.name));
+  if (!toolNames.has("compose_media")) {
+    return tools;
+  }
+
+  const filtered = tools.filter((tool) => !VIDEO_FIRST_EXCLUDED_TOOLS.has(tool.name));
+  return filtered.length > 0 ? filtered : tools;
+}
+
+function applyMediaContinuityToolSelection(
+  tools: Anthropic.Tool[],
+  latestUserText: string | undefined,
+  mediaContinuityHandoff: MediaContinuityHandoff | null | undefined,
+): Anthropic.Tool[] {
+  const text = latestUserText?.trim() ?? "";
+  if (!text || !mediaContinuityHandoff || !MEDIA_REUSE_INTENT_PATTERN.test(text)) {
+    return tools;
+  }
+
+  const toolNames = new Set(tools.map((tool) => tool.name));
+  if (!toolNames.has("compose_media")) {
+    return tools;
+  }
+
+  if (!mediaContinuityHasVisualAsset(mediaContinuityHandoff) || !mediaContinuityHasAudioAsset(mediaContinuityHandoff)) {
+    return tools;
+  }
+
+  const filtered = tools.filter((tool) => !CONTINUITY_GENERATION_EXCLUDED_TOOLS.has(tool.name));
+  return filtered.length > 0 ? filtered : tools;
+}
+
 export function getRequestScopedToolSelection(
   registry: ToolRegistry,
   role: RoleName,
   snapshot: ConversationRoutingSnapshot,
+  latestUserText?: string,
+  mediaContinuityHandoff?: MediaContinuityHandoff | null,
 ): RequestScopedToolSelection {
   const tools = registry.getSchemasForRole(role) as Anthropic.Tool[];
-  const fullToolNames = tools.map((tool) => tool.name);
+
+  const applyRequestFilters = (candidateTools: Anthropic.Tool[]) => {
+    const videoFirstTools = applyVideoFirstToolSelection(candidateTools, latestUserText);
+    const continuityTools = applyMediaContinuityToolSelection(
+      videoFirstTools,
+      latestUserText,
+      mediaContinuityHandoff,
+    );
+
+    return {
+      tools: continuityTools,
+      prefiltered: continuityTools.length !== tools.length,
+    };
+  };
 
   if (role !== "ADMIN" || !isHighConfidenceLane(snapshot) || snapshot.lane === "uncertain") {
+    const requestScoped = applyRequestFilters(tools);
     return {
-      tools,
-      allowedToolNames: fullToolNames,
-      prefiltered: false,
+      tools: requestScoped.tools,
+      allowedToolNames: requestScoped.tools.map((tool) => tool.name),
+      prefiltered: requestScoped.prefiltered,
     };
   }
 
@@ -113,16 +194,23 @@ export function getRequestScopedToolSelection(
   const filteredTools = tools.filter((tool) => allowlist.has(tool.name));
 
   if (filteredTools.length === 0 || filteredTools.length === tools.length) {
+    const requestScoped = applyRequestFilters(tools);
     return {
-      tools,
-      allowedToolNames: fullToolNames,
-      prefiltered: false,
+      tools: requestScoped.tools,
+      allowedToolNames: requestScoped.tools.map((tool) => tool.name),
+      prefiltered: requestScoped.prefiltered,
     };
   }
 
+  const laneScopedTools = applyMediaContinuityToolSelection(
+    applyVideoFirstToolSelection(filteredTools, latestUserText),
+    latestUserText,
+    mediaContinuityHandoff,
+  );
+
   return {
-    tools: filteredTools,
-    allowedToolNames: filteredTools.map((tool) => tool.name),
+    tools: laneScopedTools,
+    allowedToolNames: laneScopedTools.map((tool) => tool.name),
     prefiltered: true,
   };
 }

@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { getJobQueueRepository, getJobStatusQuery } from "@/adapters/RepositoryFactory";
+import { getJobQueueRepository, getPlatformInteractionFacade } from "@/adapters/RepositoryFactory";
 import { NotFoundError } from "@/core/use-cases/ConversationInteractor";
 import { createConversationRouteServices } from "@/lib/chat/conversation-root";
 import { resolveUserId } from "@/lib/chat/resolve-user";
@@ -8,6 +8,44 @@ import { enqueueComposeMediaDeferredJob, InvalidComposeMediaDeferredJobError } f
 import { buildJobStatusSnapshot } from "@/lib/jobs/job-read-model";
 import { getActiveJobStatuses } from "@/lib/jobs/job-read-model";
 import { isRegisteredJobCapability } from "@/lib/jobs/job-capability-registry";
+import { logEvent } from "@/lib/observability/logger";
+
+function summarizeComposePlan(plan: unknown): Record<string, unknown> | null {
+  if (typeof plan !== "object" || plan === null) {
+    return null;
+  }
+
+  const raw = plan as {
+    id?: unknown;
+    conversationId?: unknown;
+    visualClips?: unknown;
+    audioClips?: unknown;
+    profile?: unknown;
+    outputFormat?: unknown;
+  };
+
+  const summarizeClip = (clip: unknown) => {
+    if (typeof clip !== "object" || clip === null) {
+      return { invalid: true };
+    }
+
+    const value = clip as { assetId?: unknown; kind?: unknown; sourceAssetId?: unknown };
+    return {
+      assetId: typeof value.assetId === "string" ? value.assetId : null,
+      kind: typeof value.kind === "string" ? value.kind : null,
+      sourceAssetId: typeof value.sourceAssetId === "string" ? value.sourceAssetId : null,
+    };
+  };
+
+  return {
+    id: typeof raw.id === "string" ? raw.id : null,
+    conversationId: typeof raw.conversationId === "string" ? raw.conversationId : null,
+    profile: typeof raw.profile === "string" ? raw.profile : null,
+    outputFormat: typeof raw.outputFormat === "string" ? raw.outputFormat : null,
+    visualClips: Array.isArray(raw.visualClips) ? raw.visualClips.map(summarizeClip) : [],
+    audioClips: Array.isArray(raw.audioClips) ? raw.audioClips.map(summarizeClip) : [],
+  };
+}
 
 function parsePositiveInteger(value: string | null, fallback: number): number {
   if (!value) {
@@ -60,7 +98,7 @@ export async function GET(request: NextRequest) {
       const activeOnly = request.nextUrl.searchParams.get("activeOnly") === "true";
       const limit = parsePositiveInteger(request.nextUrl.searchParams.get("limit"), 25);
 
-      const jobs = await getJobStatusQuery().listConversationJobSnapshots(resolvedConversationId, {
+      const interactions = await getPlatformInteractionFacade().listConversationJobInteractions(resolvedConversationId, {
         statuses: activeOnly ? getActiveJobStatuses() : undefined,
         limit,
       });
@@ -68,7 +106,8 @@ export async function GET(request: NextRequest) {
       return successJson(context, {
         ok: true,
         conversationId: resolvedConversationId,
-        jobs,
+        jobs: interactions.map((result) => result.snapshot),
+        interactions,
       });
     },
   });
@@ -132,6 +171,13 @@ export async function POST(request: NextRequest) {
       }
 
       try {
+        logEvent("info", "COMPOSE_MEDIA_DEFERRED_ENQUEUE_REQUESTED", {
+          conversationId,
+          userId,
+          toolName,
+          plan: summarizeComposePlan(raw["plan"]),
+        });
+
         const result = await enqueueComposeMediaDeferredJob({
           repository: getJobQueueRepository(),
           conversationId,

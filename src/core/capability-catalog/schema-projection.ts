@@ -2,12 +2,12 @@
  * Sprint 20 — Catalog Schema Projection Functions
  *
  * Derives Anthropic-compatible and MCP-compatible tool schemas from the
- * capability catalog's schema facet, eliminating parallel maintenance of
+ * CapabilityRuntime static schema facet, eliminating parallel maintenance of
  * tool input schemas across different protocol surfaces.
  */
 
 import type { CapabilityDefinition, CapabilitySchemaFacet } from "./capability-definition";
-import { CAPABILITY_CATALOG } from "./catalog";
+import { projectAllCapabilityRuntimeStatics } from "@/core/platform/capability-runtime/CapabilityRuntime";
 
 // ---------------------------------------------------------------------------
 // Anthropic-compatible tool descriptor
@@ -76,18 +76,18 @@ export function projectMcpSchema(
  * Project all catalog entries into Anthropic tool descriptors.
  */
 export function getAllAnthropicSchemas(): AnthropicToolDescriptor[] {
-  return (Object.values(CAPABILITY_CATALOG) as CapabilityDefinition[]).map((def) =>
-    projectAnthropicSchema(def),
-  );
+  return projectAllCapabilityRuntimeStatics().map((runtime) => runtime.descriptor.schema);
 }
 
 /**
  * Project all catalog entries into MCP tool schemas.
  */
 export function getAllMcpSchemas(): McpToolSchema[] {
-  return (Object.values(CAPABILITY_CATALOG) as CapabilityDefinition[]).map((def) =>
-    projectMcpSchema(def),
-  );
+  return projectAllCapabilityRuntimeStatics().map((runtime) => ({
+    name: runtime.capabilityName,
+    description: runtime.descriptor.description,
+    inputSchema: { ...runtime.schema.inputSchema },
+  }));
 }
 
 /**
@@ -97,9 +97,9 @@ export function getSchemaEnrichedEntries(): Array<{
   name: string;
   schema: CapabilitySchemaFacet;
 }> {
-  return (Object.values(CAPABILITY_CATALOG) as CapabilityDefinition[])
-    .map((def) => ({
-      name: def.core.name,
-      schema: def.schema,
+  return projectAllCapabilityRuntimeStatics()
+    .map((runtime) => ({
+      name: runtime.capabilityName,
+      schema: runtime.schema,
     }));
 }

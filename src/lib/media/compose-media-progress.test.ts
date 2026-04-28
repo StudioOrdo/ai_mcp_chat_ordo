@@ -37,4 +37,24 @@ describe("compose-media-progress", () => {
       progressPercent: 98,
     })).toBe("Checking playback");
   });
+
+  it("falls back to default phase labels when plan clips are missing", () => {
+    expect(getComposeMediaProgressLabel("staging_assets", {
+      plan: {
+        profile: "auto",
+      } as unknown as { profile: "auto"; visualClips: []; audioClips: [] },
+      progressPercent: 5,
+    })).toBe("Staging assets");
+  });
+
+  it("never throws for malformed plan payloads", () => {
+    expect(() => getComposeMediaProgressLabel("rendering_media", {
+      plan: {
+        profile: "auto",
+        visualClips: undefined,
+        audioClips: undefined,
+      } as unknown as { profile: "auto"; visualClips: []; audioClips: [] },
+      progressPercent: 25,
+    })).not.toThrow();
+  });
 });

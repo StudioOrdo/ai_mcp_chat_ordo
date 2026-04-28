@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" role="img" aria-labelledby="title desc">
+<title id="title">The analogy works because both eras change who can participate in producing and distributing symbolic work.</title>
+<desc id="desc">On the left, printers handle type, paper, and stacked books in a workshop. On the right, a modern builder works beside screens, notebooks, and diagrams. The two scenes align as parallel sites of knowledge production rather than as spectacle.</desc>
+
+      <defs>
+        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#efe5d7"/>
+          <stop offset="55%" stop-color="#d5d7cb"/>
+          <stop offset="100%" stop-color="#d9e2ee"/>
+        </linearGradient>
+      </defs>
+      <rect width="960" height="560" rx="36" fill="url(#bg)"/>
+      <rect x="72" y="84" width="360" height="392" rx="28" fill="#8c6744" opacity="0.72"/>
+      <rect x="528" y="84" width="360" height="392" rx="28" fill="#5a748f" opacity="0.72"/>
+      <circle cx="252" cy="222" r="72" fill="#f4d8bb"/>
+      <circle cx="708" cy="222" r="72" fill="#f2efe8"/>
+      <rect x="186" y="290" width="132" height="118" rx="20" fill="#f2efe8" opacity="0.86"/>
+      <rect x="642" y="290" width="132" height="118" rx="20" fill="#edf4fb" opacity="0.86"/>
+      <path d="M432 188 C504 214 530 254 560 330" stroke="#293240" stroke-width="10" fill="none" stroke-linecap="round"/>
+      <text x="88" y="504" font-size="34" font-family="Georgia, serif" fill="#1f2732">The analogy works because both eras change who can participate in producing and distributing symbolic work.</text>
+    
+</svg>

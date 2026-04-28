@@ -19,6 +19,7 @@ export interface EnqueueDeferredToolJobOptions {
   priority?: number;
   deferred?: DeferredExecutionConfig;
   dedupeKey?: string | null;
+  toolInvocationId?: string;
 }
 
 export interface EnqueueDeferredToolJobResult {
@@ -60,7 +61,10 @@ export async function enqueueDeferredToolJob(
       job: existing,
       event,
       deduplicated: true,
-      payload: createDeferredJobResultPayload(existing, event, { deduped: true }),
+      payload: createDeferredJobResultPayload(existing, event, {
+        deduped: true,
+        toolInvocationId: options.toolInvocationId,
+      }),
     };
   }
 
@@ -80,6 +84,7 @@ export async function enqueueDeferredToolJob(
     eventType: "queued",
     payload: {
       toolName: options.toolName,
+      ...(options.toolInvocationId ? { toolInvocationId: options.toolInvocationId } : {}),
     },
   });
 
@@ -87,6 +92,6 @@ export async function enqueueDeferredToolJob(
     job,
     event,
     deduplicated: false,
-    payload: createDeferredJobResultPayload(job, event),
+    payload: createDeferredJobResultPayload(job, event, { toolInvocationId: options.toolInvocationId }),
   };
 }

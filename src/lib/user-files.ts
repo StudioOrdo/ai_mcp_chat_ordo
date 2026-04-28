@@ -111,6 +111,7 @@ export class UserFileSystem {
         id: `uf_${crypto.randomUUID()}`,
         userId: params.userId,
         conversationId: params.conversationId,
+        status: "ready",
         contentHash: hash,
         fileType: params.fileType,
         fileName,
@@ -173,6 +174,7 @@ export class UserFileSystem {
    * Returns the new UserFile.
    */
   async store(params: {
+    id?: string;
     userId: string;
     conversationId: string | null;
     input: string;
@@ -194,16 +196,39 @@ export class UserFileSystem {
 
     fs.writeFileSync(diskPath, params.data);
 
-    const id = `uf_${crypto.randomUUID()}`;
+    const id = params.id ?? `uf_${crypto.randomUUID()}`;
     return this.repo.create({
       id,
       userId: params.userId,
       conversationId: params.conversationId,
+      status: "ready",
       contentHash: hash,
       fileType: params.fileType,
       fileName,
       mimeType: params.mimeType,
       fileSize: params.data.length,
+      metadata: buildUserFileMetadata(params.metadata),
+    });
+  }
+
+  async allocatePending(params: {
+    userId: string;
+    conversationId: string | null;
+    fileType: UserFile["fileType"];
+    metadata?: Partial<UserFile["metadata"]>;
+  }): Promise<UserFile> {
+    const id = `uf_${crypto.randomUUID()}`;
+    const hash = `pending_${id}`;
+    return this.repo.create({
+      id,
+      userId: params.userId,
+      conversationId: params.conversationId,
+      status: "pending",
+      contentHash: hash,
+      fileType: params.fileType,
+      fileName: hash,
+      mimeType: "application/octet-stream",
+      fileSize: 0,
       metadata: buildUserFileMetadata(params.metadata),
     });
   }

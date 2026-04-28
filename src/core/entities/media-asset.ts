@@ -23,5 +23,8 @@ export interface MediaAssetDescriptor {
   durationSeconds?: number;
   conversationId?: string;
   toolName?: string;
+  toolInvocationId?: string;
+  derivativeOfToolInvocationId?: string | null;
+  derivativeOfAssetId?: string | null;
   retentionClass?: MediaAssetRetentionClass;
 }

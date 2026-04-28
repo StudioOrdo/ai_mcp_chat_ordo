@@ -4,8 +4,40 @@ import { execFileSync } from "node:child_process";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { executeComposeMediaJobMock } = vi.hoisted(() => ({
+const {
+  executeComposeMediaJobMock,
+  generateStoredAudioArtifactMock,
+  mockUfsAllocatePending,
+  mockUfsStore,
+} = vi.hoisted(() => ({
   executeComposeMediaJobMock: vi.fn(),
+  generateStoredAudioArtifactMock: vi.fn().mockResolvedValue({
+    assetId: "uf_audio_mock",
+    durationSec: 1.5,
+    mimeType: "audio/mpeg",
+    bytes: 1024,
+    path: "/tmp/mock"
+  }),
+  mockUfsAllocatePending: vi.fn().mockResolvedValue({ id: "uf_pending_mock" }),
+  mockUfsStore: vi.fn().mockResolvedValue({ id: "uf_mock" }),
+}));
+
+vi.mock("@/lib/audio/audio-generation-service", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/audio/audio-generation-service")>();
+  return {
+    ...actual,
+    generateStoredAudioArtifact: generateStoredAudioArtifactMock,
+  };
+});
+
+vi.mock("@/lib/user-files", () => ({
+  UserFileSystem: vi.fn(function MockUserFileSystem() {
+    return {
+      allocatePending: mockUfsAllocatePending,
+      lookup: vi.fn(async () => null),
+      store: mockUfsStore,
+    };
+  }),
 }));
 
 vi.mock("@/lib/media/server/media-worker-client", () => ({
@@ -37,6 +69,7 @@ import type { UserProfileViewModel } from "@/lib/profile/types";
 import type { AdminReferralAnalyticsService } from "@/lib/referrals/admin-referral-analytics";
 import type { ReferralAnalyticsService } from "@/lib/referrals/referral-analytics";
 import * as adminSearchToolModule from "@/core/use-cases/tools/admin-search.tool";
+import { projectAllCapabilityRuntimeStatics } from "@/core/platform/capability-runtime/CapabilityRuntime";
 
 import { CAPABILITY_CATALOG } from "./catalog";
 import {
@@ -349,6 +382,9 @@ function createSharedDeps(registry = new ToolRegistry()) {
 
 afterEach(async () => {
   executeComposeMediaJobMock.mockReset();
+  generateStoredAudioArtifactMock.mockClear();
+  mockUfsAllocatePending.mockClear();
+  mockUfsStore.mockClear();
   await closeGlobalMcpProcessSessions();
 });
 
@@ -483,7 +519,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
       throw new Error("deps should not be constructed for invalid input");
     });
     const descriptor = projectCatalogBoundToolDescriptor("admin_web_search", {
-      adminWebSearchDepsFactory: depsFactory,
+      userFileRepository: {} as any, adminWebSearchDepsFactory: depsFactory,
     });
 
     const result = await descriptor.command.execute(
@@ -544,7 +580,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
     }));
     const depsFactory = vi.fn(createWebSearchDeps(create));
     const descriptor = projectCatalogBoundToolDescriptor("admin_web_search", {
-      adminWebSearchDepsFactory: depsFactory,
+      userFileRepository: {} as any, adminWebSearchDepsFactory: depsFactory,
     });
     const previousFixture = process.env.ORDO_MCP_ADMIN_WEB_SEARCH_RESULT_FIXTURE;
     process.env.ORDO_MCP_ADMIN_WEB_SEARCH_RESULT_FIXTURE = JSON.stringify(fixtureResult);
@@ -604,7 +640,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
     }));
     const depsFactory = vi.fn(createWebSearchDeps(create));
     const descriptor = projectCatalogBoundToolDescriptor("admin_web_search", {
-      adminWebSearchDepsFactory: depsFactory,
+      userFileRepository: {} as any, adminWebSearchDepsFactory: depsFactory,
     });
     const previousOpenAiKey = process.env.OPENAI_API_KEY;
     process.env.OPENAI_API_KEY = "test-key";
@@ -679,7 +715,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
     }));
     const depsFactory = vi.fn(createWebSearchDeps(create));
     const descriptor = projectCatalogBoundToolDescriptor("admin_web_search", {
-      adminWebSearchDepsFactory: depsFactory,
+      userFileRepository: {} as any, adminWebSearchDepsFactory: depsFactory,
     });
     const previousOpenAiKey = process.env.OPENAI_API_KEY;
     const previousFixture = process.env.ORDO_MCP_ADMIN_WEB_SEARCH_RESULT_FIXTURE;
@@ -714,7 +750,9 @@ describe("Sprint 23 — Catalog runtime binding", () => {
         },
       );
 
-      expect(hostResult).toEqual(mcpResult);
+      const { assetId: _hostAssetId, ...hostParityResult } = hostResult as any;
+      const { assetId: _mcpAssetId, ...mcpParityResult } = mcpResult as any;
+      expect(hostParityResult).toEqual(mcpParityResult);
       expect(hostResult).toMatchObject({
         action: "admin_web_search",
         query: "latest referral guidance",
@@ -741,7 +779,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
 
   it("routes admin_web_search through a native_process target override", async () => {
     const descriptor = projectCatalogBoundToolDescriptor("admin_web_search", {
-      adminWebSearchDepsFactory: vi.fn(() => {
+      userFileRepository: {} as any, adminWebSearchDepsFactory: vi.fn(() => {
         throw new Error("host executor should not run for native_process override");
       }),
     });
@@ -798,7 +836,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
 
   it("routes admin_web_search through a remote_service target override", async () => {
     const descriptor = projectCatalogBoundToolDescriptor("admin_web_search", {
-      adminWebSearchDepsFactory: vi.fn(() => {
+      userFileRepository: {} as any, adminWebSearchDepsFactory: vi.fn(() => {
         throw new Error("host executor should not run for remote_service override");
       }),
     });
@@ -871,7 +909,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
 
   it("can opt a remote_service target override into execution-context bridging", async () => {
     const descriptor = projectCatalogBoundToolDescriptor("admin_web_search", {
-      adminWebSearchDepsFactory: vi.fn(() => {
+      userFileRepository: {} as any, adminWebSearchDepsFactory: vi.fn(() => {
         throw new Error("host executor should not run for remote_service override");
       }),
     });
@@ -966,7 +1004,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
       }));
       const depsFactory = vi.fn(createWebSearchDeps(create));
       const descriptor = projectCatalogBoundToolDescriptor("admin_web_search", {
-        adminWebSearchDepsFactory: depsFactory,
+        userFileRepository: {} as any, adminWebSearchDepsFactory: depsFactory,
       });
       const previousOpenAiKey = process.env.OPENAI_API_KEY;
       const previousFixture = process.env.ORDO_MCP_ADMIN_WEB_SEARCH_RESULT_FIXTURE;
@@ -1003,7 +1041,9 @@ describe("Sprint 23 — Catalog runtime binding", () => {
           },
         );
 
-        expect(hostResult).toEqual(mcpContainerResult);
+        const { assetId: _hostAssetId, ...hostParityResult } = hostResult as any;
+        const { assetId: _mcpAssetId, ...mcpParityResult } = mcpContainerResult as any;
+        expect(hostParityResult).toEqual(mcpParityResult);
         expect(hostResult).toMatchObject({
           action: "admin_web_search",
           query: "latest referral guidance",
@@ -1038,7 +1078,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
     async () => {
       const depsFactory = vi.fn(createWebSearchDeps(vi.fn()));
       const descriptor = projectCatalogBoundToolDescriptor("admin_web_search", {
-        adminWebSearchDepsFactory: depsFactory,
+        userFileRepository: {} as any, adminWebSearchDepsFactory: depsFactory,
       });
 
       try {
@@ -1078,7 +1118,10 @@ describe("Sprint 23 — Catalog runtime binding", () => {
 
   it("routes compose_media through deferred_job when browser execution is unavailable", async () => {
     const jobQueueRepository = createJobQueueRepositoryMock();
-    const descriptor = projectCatalogBoundToolDescriptor("compose_media", { jobQueueRepository });
+    const descriptor = projectCatalogBoundToolDescriptor("compose_media", {
+      jobQueueRepository,
+      userFileRepository: createUserFileRepositoryMock(),
+    });
 
     const result = await descriptor.command.execute(
       {
@@ -1121,7 +1164,10 @@ describe("Sprint 23 — Catalog runtime binding", () => {
 
   it("routes compose_media through the local native_process target before deferred_job", async () => {
     const jobQueueRepository = createJobQueueRepositoryMock();
-    const descriptor = projectCatalogBoundToolDescriptor("compose_media", { jobQueueRepository });
+    const descriptor = projectCatalogBoundToolDescriptor("compose_media", {
+      jobQueueRepository,
+      userFileRepository: createUserFileRepositoryMock(),
+    });
     const previousFixture = process.env.ORDO_NATIVE_COMPOSE_MEDIA_RESULT_FIXTURE;
     process.env.ORDO_NATIVE_COMPOSE_MEDIA_RESULT_FIXTURE = JSON.stringify({
       schemaVersion: 1,
@@ -1209,6 +1255,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
   it("routes compose_media worker execution through the media worker and preserves canonical envelope shape", async () => {
     const descriptor = projectCatalogBoundToolDescriptor("compose_media", {
       jobQueueRepository: createJobQueueRepositoryMock(),
+      userFileRepository: createUserFileRepositoryMock(),
     });
     executeComposeMediaJobMock.mockImplementation(async (_request, onProgress) => {
       await onProgress?.({
@@ -1272,6 +1319,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
         userId: "user-1",
         conversationId: "conv_media_1",
         executionPrincipal: "system_worker",
+        toolInvocationId: "toolu_compose_1",
         reportProgress,
       },
     ) as Record<string, unknown>;
@@ -1280,6 +1328,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
       expect.objectContaining({
         userId: "user-1",
         conversationId: "conv_media_1",
+        toolInvocationId: "toolu_compose_1",
         plan: expect.objectContaining({
           id: "plan_media_worker_1",
           outputFormat: "mp4",
@@ -1323,7 +1372,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
     });
   });
 
-  it("routes generate_audio through the browser_wasm compatibility adapter by default", async () => {
+  it("routes generate_audio and preserves its payload", async () => {
     const descriptor = projectCatalogBoundToolDescriptor("generate_audio");
 
     const result = await descriptor.command.execute(
@@ -1331,35 +1380,105 @@ describe("Sprint 23 — Catalog runtime binding", () => {
         title: "Founder memo",
         text: "This is the founder memo for the weekly review.",
       },
-      { role: "AUTHENTICATED", userId: "user-1" },
+      { role: "AUTHENTICATED", userId: "user-1", toolInvocationId: "toolu_audio_1" },
+    ) as Record<string, unknown>;
+
+    expect(result).toMatchObject({
+      title: "Founder memo",
+      text: "This is the founder memo for the weekly review.",
+      assetId: "uf_audio_mock",
+      toolInvocationId: "toolu_audio_1",
+    });
+    expect(generateStoredAudioArtifactMock).toHaveBeenCalledWith(
+      expect.objectContaining({ toolInvocationId: "toolu_audio_1" }),
+    );
+  });
+
+  it("routes chart and graph generation with tool invocation provenance", async () => {
+    const chartDescriptor = projectCatalogBoundToolDescriptor("generate_chart");
+    const graphDescriptor = projectCatalogBoundToolDescriptor("generate_graph");
+
+    const chartResult = await chartDescriptor.command.execute(
+      {
+        code: "flowchart TD\n  A[Start] --> B[Finish]",
+        title: "Flow",
+      },
+      {
+        role: "AUTHENTICATED",
+        userId: "user-1",
+        conversationId: "conv_1",
+        toolInvocationId: "toolu_chart_1",
+      },
+    ) as Record<string, unknown>;
+    const graphResult = await graphDescriptor.command.execute(
+      {
+        title: "Revenue",
+        data: { rows: [{ month: "Jan", revenue: 42 }] },
+        spec: {
+          graphType: "bar",
+          xField: "month",
+          yField: "revenue",
+        },
+      },
+      {
+        role: "AUTHENTICATED",
+        userId: "user-1",
+        conversationId: "conv_1",
+        toolInvocationId: "toolu_graph_1",
+      },
+    ) as Record<string, unknown>;
+
+    expect(chartResult).toMatchObject({
+      assetKind: "chart",
+      toolInvocationId: "toolu_chart_1",
+    });
+    expect(graphResult).toMatchObject({
+      assetKind: "graph",
+      toolInvocationId: "toolu_graph_1",
+    });
+    expect(mockUfsStore).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          toolName: "generate_chart",
+          toolInvocationId: "toolu_chart_1",
+        }),
+      }),
+    );
+    expect(mockUfsStore).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          toolName: "generate_graph",
+          toolInvocationId: "toolu_graph_1",
+        }),
+      }),
+    );
+  });
+
+  it("falls back to host_ts when browser planner availability is explicitly disabled", async () => {
+    const descriptor = projectCatalogBoundToolDescriptor("generate_audio");
+
+    const result = await descriptor.command.execute(
+      {
+        title: "Founder memo",
+        text: "This is the founder memo for the weekly review.",
+      },
+      {
+        role: "AUTHENTICATED",
+        userId: "user-1",
+        executionPlanning: {
+          browserRuntimeAvailable: false,
+        },
+      },
     ) as Record<string, unknown>;
 
     expect(result).toMatchObject({
       action: "generate_audio",
       title: "Founder memo",
-      provider: "openai-speech",
-      generationStatus: "client_fetch_pending",
+      assetId: "uf_audio_mock",
     });
-  });
-
-  it("can block generate_audio when browser planner availability is explicitly disabled", async () => {
-    const descriptor = projectCatalogBoundToolDescriptor("generate_audio");
-
-    await expect(
-      descriptor.command.execute(
-        {
-          title: "Founder memo",
-          text: "This is the founder memo for the weekly review.",
-        },
-        {
-          role: "AUTHENTICATED",
-          userId: "user-1",
-          executionPlanning: {
-            browserRuntimeAvailable: false,
-          },
-        },
-      ),
-    ).rejects.toThrow('Execution plan for "generate_audio" has no active target (no_active_targets).');
+    expect(generateStoredAudioArtifactMock).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "user-1" }),
+    );
   });
 
   it("uses the catalog-backed search_corpus validator before repository work", async () => {
@@ -1511,16 +1630,23 @@ describe("Sprint 23 — Catalog runtime binding", () => {
   });
 
   it("derives full tool membership from catalog bundle ids", () => {
+    const runtimeCatalogBoundToolNames = projectAllCapabilityRuntimeStatics()
+      .filter((runtime) => runtime.binding !== null && runtime.binding.validatorId !== null)
+      .map((runtime) => runtime.capabilityName)
+      .sort((left, right) => left.localeCompare(right));
+
     expect(CATALOG_BOUND_TOOL_NAMES).toEqual(
-      Object.keys(CAPABILITY_CATALOG).sort((left, right) => left.localeCompare(right)),
+      runtimeCatalogBoundToolNames,
     );
-    expect(CATALOG_BOUND_TOOL_NAMES).toHaveLength(56);
+    expect(CATALOG_BOUND_TOOL_NAMES).toHaveLength(58);
 
     expect(getCatalogBoundToolNamesForBundle("admin")).toEqual([
       "admin_prioritize_leads",
       "admin_prioritize_offer",
       "admin_triage_routing_risk",
       "admin_web_search",
+      "inspect_runtime_logs",
+      "produce_product",
     ]);
     expect(getCatalogBoundToolNamesForBundle("affiliate")).toEqual([
       "get_admin_affiliate_summary",
@@ -1611,55 +1737,42 @@ describe("Sprint 23 — Catalog runtime binding", () => {
     expect(adminBundle).not.toContain("createAdminWebSearchTool");
     expect(adminBundle).not.toContain("createAdminPrioritizeLeadsTool");
     expect(adminBundle).not.toContain("registerCatalogBoundToolsForBundle(registry, ADMIN_BUNDLE.id)");
-    expect(adminBundle).toContain('projectCatalogBoundToolDescriptor("admin_prioritize_leads"');
-    expect(adminBundle).toContain('projectCatalogBoundToolDescriptor("admin_web_search"');
+    expect(adminBundle).toContain("createCatalogBoundToolBundle(");
+    expect(adminBundle).toContain('registerCatalogBoundToolBundle(registry, "admin"');
     expect(affiliateBundle).not.toContain("createGetMyAffiliateSummaryTool");
-    expect(affiliateBundle).toContain('projectCatalogBoundToolDescriptor("get_my_affiliate_summary"');
+    expect(affiliateBundle).toContain('registerCatalogBoundToolBundle(registry, "affiliate"');
     expect(blogBundle).not.toContain("createDraftContentTool");
     expect(blogBundle).not.toContain("createPublishContentTool");
     expect(blogBundle).not.toContain("createGetJournalPostTool");
-    expect(blogBundle).toContain('projectCatalogBoundToolDescriptor("approve_journal_post"');
-    expect(blogBundle).toContain('projectCatalogBoundToolDescriptor("prepare_journal_post_for_publish"');
+    expect(blogBundle).toContain('registerCatalogBoundToolBundle(registry, "blog"');
     expect(calculatorBundle).not.toContain("calculatorTool");
     expect(calculatorBundle).not.toContain("generateAudioTool");
-    expect(calculatorBundle).toContain('projectCatalogBoundToolDescriptor("calculator"');
+    expect(calculatorBundle).toContain('registerCatalogBoundToolBundle(registry, "calculator"');
     expect(conversationBundle).not.toContain("createSearchMyConversationsTool");
-    expect(conversationBundle).toContain('projectCatalogBoundToolDescriptor("search_my_conversations"');
+    expect(conversationBundle).toContain('registerCatalogBoundToolBundle(registry, "conversation"');
     expect(corpusBundle).not.toContain("createSearchCorpusTool");
     expect(corpusBundle).not.toContain("createGetSectionTool");
     expect(corpusBundle).not.toContain("registerCatalogBoundToolsForBundle(registry, CORPUS_BUNDLE.id");
-    expect(corpusBundle).toContain('projectCatalogBoundToolDescriptor("search_corpus"');
+    expect(corpusBundle).toContain('registerCatalogBoundToolBundle(registry, "corpus"');
     expect(jobBundle).not.toContain("createGetDeferredJobStatusTool");
-    expect(jobBundle).toContain('projectCatalogBoundToolDescriptor("get_deferred_job_status"');
+    expect(jobBundle).toContain('registerCatalogBoundToolBundle(registry, "job"');
     expect(mediaBundle).not.toContain("composeMediaTool");
-    expect(mediaBundle).toContain('projectCatalogBoundToolDescriptor("compose_media"');
-    expect(mediaBundle).toContain('projectCatalogBoundToolDescriptor("list_conversation_media_assets"');
+    expect(mediaBundle).toContain('registerCatalogBoundToolBundle(registry, "media"');
     expect(navigationBundle).not.toContain("adminSearchTool");
     expect(navigationBundle).not.toContain("getCurrentPageTool");
     expect(navigationBundle).not.toContain("createInspectRuntimeContextTool");
     expect(navigationBundle).not.toContain("listAvailablePagesTool");
     expect(navigationBundle).not.toContain("navigateToPageTool");
     expect(profileBundle).not.toContain("createGetMyProfileTool");
-    expect(profileBundle).toContain('projectCatalogBoundToolDescriptor("get_my_profile"');
+    expect(profileBundle).toContain('registerCatalogBoundToolBundle(registry, "profile"');
     expect(themeBundle).not.toContain("createAdjustUiTool");
     expect(themeBundle).not.toContain("createInspectThemeTool");
     expect(themeBundle).not.toContain("createSetPreferenceTool");
     expect(themeBundle).not.toContain("setThemeTool");
     expect(blogBundle).not.toContain("registerCatalogBoundToolsForBundle(registry, BLOG_BUNDLE.id");
-    expect(blogBundle).toContain('projectCatalogBoundToolDescriptor("draft_content"');
-    expect(blogBundle).toContain('projectCatalogBoundToolDescriptor("publish_content"');
-    expect(blogBundle).toContain("registerToolBundle(registry, BLOG_TOOL_REGISTRATIONS");
-    expect(calculatorBundle).toContain('projectCatalogBoundToolDescriptor("calculator"');
-    expect(mediaBundle).toContain("registerToolBundle(registry, MEDIA_TOOL_REGISTRATIONS");
-    expect(navigationBundle).toContain('projectCatalogBoundToolDescriptor("admin_search"');
-    expect(navigationBundle).toContain('projectCatalogBoundToolDescriptor("get_current_page"');
-    expect(navigationBundle).toContain('projectCatalogBoundToolDescriptor("inspect_runtime_context"');
-    expect(navigationBundle).toContain('projectCatalogBoundToolDescriptor("list_available_pages"');
-    expect(navigationBundle).toContain('projectCatalogBoundToolDescriptor("navigate_to_page"');
-    expect(themeBundle).toContain('projectCatalogBoundToolDescriptor("adjust_ui"');
-    expect(themeBundle).toContain('projectCatalogBoundToolDescriptor("inspect_theme"');
-    expect(themeBundle).toContain('projectCatalogBoundToolDescriptor("set_preference"');
-    expect(themeBundle).toContain('projectCatalogBoundToolDescriptor("set_theme"');
+    expect(blogBundle).toContain("createCatalogBoundToolBundle(");
+    expect(navigationBundle).toContain('registerCatalogBoundToolBundle(registry, "navigation"');
+    expect(themeBundle).toContain('registerCatalogBoundToolBundle(registry, "theme"');
     expect(compositionRoot).not.toContain("createAdminWebSearchTool");
     expect(compositionRoot).not.toContain("createDraftContentTool");
     expect(compositionRoot).not.toContain("createPublishContentTool");

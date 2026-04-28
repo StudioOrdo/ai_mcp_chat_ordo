@@ -24,6 +24,7 @@ export interface CompactSectionEntry {
   includedInText: boolean;
   parentKey?: string;
   slotKey?: string;
+  payload?: unknown;
 }
 
 /** Compact provenance record stored per conversation */
@@ -79,6 +80,7 @@ export function compactProvenance(result: PromptRuntimeResult): Omit<PromptProve
       includedInText: s.includedInText,
       ...(s.parentKey ? { parentKey: s.parentKey } : {}),
       ...(s.slotKey ? { slotKey: s.slotKey } : {}),
+      ...(s.payload !== undefined ? { payload: s.payload } : {}),
     })),
     warnings: result.warnings,
   };

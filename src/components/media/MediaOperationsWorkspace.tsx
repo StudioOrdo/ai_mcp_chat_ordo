@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 
 import type { FleetMediaStorageAccount } from "@/lib/storage/media-storage-accounting";
 import type { OperationsMediaFilters, OperationsMediaItem } from "@/lib/media/media-operations";
@@ -81,6 +81,124 @@ function buildOperationsMediaHref(filters: OperationsMediaFilters, page: number)
   return query ? `/operations/media?${query}` : "/operations/media";
 }
 
+function TextArtifactViewer({ url, fileType }: { url: string; fileType: string }) {
+  const [content, setContent] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setContent(null);
+    setError(null);
+
+    fetch(url)
+      .then((res) => {
+        if (!res.ok) throw new Error(`Failed to load asset (HTTP ${res.status})`);
+        return res.text();
+      })
+      .then((text) => {
+        if (!cancelled) {
+          setContent(text);
+          setLoading(false);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load asset content.");
+          setLoading(false);
+        }
+      });
+
+    return () => { cancelled = true; };
+  }, [url]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 rounded-xl border border-dashed border-border/60 p-6 text-sm text-foreground/55">
+        <span className="animate-pulse">Loading asset content…</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-xl border border-dashed border-border/60 p-4 text-sm text-foreground/60">
+        <p className="font-medium text-foreground/80">Preview unavailable</p>
+        <p className="mt-1">{error}</p>
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-3 inline-flex rounded-full border border-border/70 px-4 py-2 text-xs font-medium text-foreground hover:bg-foreground/5"
+        >
+          Open raw file
+        </a>
+      </div>
+    );
+  }
+
+  if (fileType === "chart") {
+    return (
+      <div className="flex flex-col gap-2">
+        <div className="rounded-lg border border-border/50 bg-background/80 p-3">
+          <div className="mb-2 text-xs font-medium uppercase tracking-widest text-foreground/50">Mermaid Chart Source</div>
+          <pre className="overflow-x-auto whitespace-pre-wrap break-words font-mono text-xs text-foreground/80 leading-relaxed">
+            {content}
+          </pre>
+        </div>
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className="self-start rounded-full border border-border/70 px-4 py-2 text-xs font-medium text-foreground hover:bg-foreground/5"
+        >
+          Download .mmd file
+        </a>
+      </div>
+    );
+  }
+
+  if (fileType === "document") {
+    return (
+      <div className="flex flex-col gap-2">
+        <div className="max-h-80 overflow-y-auto rounded-lg border border-border/50 bg-background/80 p-4">
+          <pre className="whitespace-pre-wrap break-words text-sm text-foreground/80 leading-relaxed font-sans">
+            {content}
+          </pre>
+        </div>
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className="self-start rounded-full border border-border/70 px-4 py-2 text-xs font-medium text-foreground hover:bg-foreground/5"
+        >
+          Open full document
+        </a>
+      </div>
+    );
+  }
+
+  // graph or other text-based types
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="max-h-80 overflow-y-auto rounded-lg border border-border/50 bg-background/80 p-3">
+        <pre className="whitespace-pre-wrap break-words font-mono text-xs text-foreground/80 leading-relaxed">
+          {content}
+        </pre>
+      </div>
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        className="self-start rounded-full border border-border/70 px-4 py-2 text-xs font-medium text-foreground hover:bg-foreground/5"
+      >
+        Open raw file
+      </a>
+    </div>
+  );
+}
+
 function PreviewPane({ item }: { item: OperationsMediaItem }) {
   if (item.fileType === "image") {
     return (
@@ -103,6 +221,10 @@ function PreviewPane({ item }: { item: OperationsMediaItem }) {
 
   if (item.fileType === "audio") {
     return <audio controls src={item.previewUrl} className="w-full" preload="metadata" />;
+  }
+
+  if (item.fileType === "chart" || item.fileType === "graph" || item.fileType === "document") {
+    return <TextArtifactViewer url={item.previewUrl} fileType={item.fileType} />;
   }
 
   return (

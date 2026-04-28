@@ -1,86 +1,134 @@
 import mermaid from "mermaid";
+import {
+  normalizeSvgForRasterization as normalizeSvgMarkupForRasterization,
+  rasterizeSvgMarkupToPngBlob,
+} from "./svg-rasterization";
 
-let mermaidInitialized = false;
+const MERMAID_MAX_FLOWCHART_NODES = 40;
 
-function getSvgViewportMetrics(svgContent: string): { width: number; height: number } {
-  if (!svgContent.trim()) {
-    return { width: 960, height: 640 };
-  }
+type MermaidThemeTokens = {
+  signature: string;
+  fontFamily: string;
+  primaryColor: string;
+  primaryTextColor: string;
+  primaryBorderColor: string;
+  lineColor: string;
+  secondaryColor: string;
+  tertiaryColor: string;
+  nodeBorder: string;
+  clusterBorder: string;
+  titleColor: string;
+  edgeLabelBackground: string;
+};
 
-  try {
-    const parser = new DOMParser();
-    const document = parser.parseFromString(svgContent, "image/svg+xml");
-    const svg = document.querySelector("svg");
-    if (!svg) {
-      return { width: 960, height: 640 };
-    }
+let cachedThemeTokens: MermaidThemeTokens | null = null;
+let themeObserver: MutationObserver | null = null;
+let themeDirty = true;
+let lastInitializedThemeSignature: string | null = null;
 
-    const viewBox = svg.getAttribute("viewBox")?.trim().split(/\s+/).map(Number);
-    if (viewBox && viewBox.length === 4 && viewBox.every((value) => Number.isFinite(value))) {
-      return {
-        width: Math.max(viewBox[2] ?? 960, 1),
-        height: Math.max(viewBox[3] ?? 640, 1),
-      };
-    }
-
-    const width = Number(svg.getAttribute("width")?.replace(/px$/, ""));
-    const height = Number(svg.getAttribute("height")?.replace(/px$/, ""));
-    if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) {
-      return { width, height };
-    }
-  } catch {
-    return { width: 960, height: 640 };
-  }
-
-  return { width: 960, height: 640 };
+function getThemeSignature(style: CSSStyleDeclaration): string {
+  return [
+    document.documentElement.getAttribute("data-theme") ?? "",
+    document.documentElement.className,
+    style.getPropertyValue("--font-base"),
+    style.getPropertyValue("--surface-muted"),
+    style.getPropertyValue("--foreground"),
+    style.getPropertyValue("--border-color"),
+    style.getPropertyValue("--surface-hover"),
+    style.getPropertyValue("--surface"),
+  ].join("|");
 }
 
-function resolveColor(varName: string, fallback: string): string {
-  try {
-    const el = document.createElement("div");
-    el.style.display = "none";
-    el.style.color = `var(${varName})`;
-    document.body.appendChild(el);
-    const computed = getComputedStyle(el).color;
-    document.body.removeChild(el);
+function normalizeHexColor(value: string, fallback: string): string {
+  const trimmed = value.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(trimmed)) {
+    return trimmed.toLowerCase();
+  }
 
-    const match = computed.match(/rgba?\(\s*(\d+),\s*(\d+),\s*(\d+)/);
-    if (match) {
-      const [, r, g, b] = match;
-      return `#${Number(r).toString(16).padStart(2, "0")}${Number(g).toString(16).padStart(2, "0")}${Number(b).toString(16).padStart(2, "0")}`;
-    }
-  } catch {
-    return fallback;
+  if (/^#[0-9a-fA-F]{3}$/.test(trimmed)) {
+    const r = trimmed[1] ?? "0";
+    const g = trimmed[2] ?? "0";
+    const b = trimmed[3] ?? "0";
+    return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
   }
 
   return fallback;
 }
 
-function ensureMermaidInitialized(): void {
-  if (mermaidInitialized) {
+function readThemeTokensFromComputedStyle(): MermaidThemeTokens {
+  const style = getComputedStyle(document.documentElement);
+  return {
+    signature: getThemeSignature(style),
+    fontFamily: style.getPropertyValue("--font-base").trim() || "sans-serif",
+    primaryColor: normalizeHexColor(style.getPropertyValue("--surface-muted"), "#f1f5f9"),
+    primaryTextColor: normalizeHexColor(style.getPropertyValue("--foreground"), "#111111"),
+    primaryBorderColor: normalizeHexColor(style.getPropertyValue("--border-color"), "#e2e8f0"),
+    lineColor: normalizeHexColor(style.getPropertyValue("--foreground"), "#111111"),
+    secondaryColor: normalizeHexColor(style.getPropertyValue("--surface-muted"), "#f1f5f9"),
+    tertiaryColor: normalizeHexColor(style.getPropertyValue("--surface-hover"), "#f1f5f9"),
+    nodeBorder: normalizeHexColor(style.getPropertyValue("--border-color"), "#e2e8f0"),
+    clusterBorder: normalizeHexColor(style.getPropertyValue("--border-color"), "#e2e8f0"),
+    titleColor: normalizeHexColor(style.getPropertyValue("--foreground"), "#111111"),
+    edgeLabelBackground: normalizeHexColor(style.getPropertyValue("--surface"), "#ffffff"),
+  };
+}
+
+function ensureThemeObserver(): void {
+  if (typeof MutationObserver === "undefined") {
     return;
   }
 
-  const style = getComputedStyle(document.documentElement);
-  const fontFamily = style.getPropertyValue("--font-base").trim() || "sans-serif";
+  if (themeObserver) {
+    return;
+  }
+
+  themeObserver = new MutationObserver(() => {
+    themeDirty = true;
+  });
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["style", "class", "data-theme"],
+  });
+}
+
+function getThemeTokens(): MermaidThemeTokens {
+  ensureThemeObserver();
+
+  if (typeof MutationObserver === "undefined") {
+    return readThemeTokensFromComputedStyle();
+  }
+
+  if (!cachedThemeTokens || themeDirty) {
+    cachedThemeTokens = readThemeTokensFromComputedStyle();
+    themeDirty = false;
+  }
+
+  return cachedThemeTokens;
+}
+
+function ensureMermaidInitialized(): void {
+  const tokens = getThemeTokens();
+  if (lastInitializedThemeSignature === tokens.signature) {
+    return;
+  }
 
   mermaid.initialize({
     startOnLoad: false,
     theme: "base",
     themeVariables: {
-      fontFamily,
-      primaryColor: resolveColor("--surface-muted", "#f1f5f9"),
-      primaryTextColor: resolveColor("--foreground", "#111111"),
-      primaryBorderColor: resolveColor("--border-color", "#e2e8f0"),
-      lineColor: resolveColor("--foreground", "#111111"),
-      secondaryColor: resolveColor("--surface-muted", "#f1f5f9"),
-      tertiaryColor: resolveColor("--surface-hover", "#f1f5f9"),
+      fontFamily: tokens.fontFamily,
+      primaryColor: tokens.primaryColor,
+      primaryTextColor: tokens.primaryTextColor,
+      primaryBorderColor: tokens.primaryBorderColor,
+      lineColor: tokens.lineColor,
+      secondaryColor: tokens.secondaryColor,
+      tertiaryColor: tokens.tertiaryColor,
       mainBkg: "transparent",
-      nodeBorder: resolveColor("--border-color", "#e2e8f0"),
+      nodeBorder: tokens.nodeBorder,
       clusterBkg: "transparent",
-      clusterBorder: resolveColor("--border-color", "#e2e8f0"),
-      titleColor: resolveColor("--foreground", "#111111"),
-      edgeLabelBackground: resolveColor("--surface", "#ffffff"),
+      clusterBorder: tokens.clusterBorder,
+      titleColor: tokens.titleColor,
+      edgeLabelBackground: tokens.edgeLabelBackground,
     },
     flowchart: {
       htmlLabels: true,
@@ -88,55 +136,72 @@ function ensureMermaidInitialized(): void {
     },
   });
 
-  mermaidInitialized = true;
+  lastInitializedThemeSignature = tokens.signature;
 }
 
-export async function rasterizeSvgMarkupToPngBlob(svgMarkup: string): Promise<Blob> {
-  const metrics = getSvgViewportMetrics(svgMarkup);
-  const width = Math.max(Math.ceil(metrics.width), 1200);
-  const height = Math.max(Math.ceil(metrics.height), 700);
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
+function extractMermaidNodeIds(code: string): string[] {
+  const nodeLines = code
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => /^\w+\[[^\]]+\]$/.test(line));
+  return nodeLines.map((line) => line.split("[")[0] ?? "").filter((id) => id.length > 0);
+}
 
-  const context = canvas.getContext("2d");
-  if (!context) {
-    throw new Error("Canvas context unavailable.");
+export function getMermaidNodeTruncationDiagnostic(code: string): {
+  surface: "mermaid_nodes";
+  original: number;
+  rendered: number;
+} | null {
+  const nodeIds = extractMermaidNodeIds(code);
+  if (nodeIds.length <= MERMAID_MAX_FLOWCHART_NODES) {
+    return null;
   }
 
-  context.fillStyle = "#ffffff";
-  context.fillRect(0, 0, width, height);
+  return {
+    surface: "mermaid_nodes",
+    original: nodeIds.length,
+    rendered: MERMAID_MAX_FLOWCHART_NODES,
+  };
+}
 
-  let svgData = svgMarkup;
-  if (!svgData.includes("http://www.w3.org/2000/svg")) {
-    svgData = svgData.replace("<svg", '<svg xmlns="http://www.w3.org/2000/svg"');
+export function truncateMermaidChartCodeForBrowserRender(code: string): string {
+  const nodeIds = extractMermaidNodeIds(code);
+  if (nodeIds.length <= MERMAID_MAX_FLOWCHART_NODES) {
+    return code;
   }
 
-  const image = new Image();
-  const dataUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgData)))}`;
+  const allowed = new Set(nodeIds.slice(0, MERMAID_MAX_FLOWCHART_NODES));
+  const lines = code.split("\n");
 
-  await new Promise<void>((resolve, reject) => {
-    image.onload = () => {
-      context.drawImage(image, 0, 0, width, height);
-      resolve();
-    };
-    image.onerror = () => reject(new Error("Unable to load serialized SVG."));
-    image.src = dataUrl;
-  });
+  return lines.filter((line) => {
+    const trimmed = line.trim();
+    const nodeMatch = /^(\w+)\[[^\]]+\]$/.exec(trimmed);
+    if (!nodeMatch) {
+      return true;
+    }
+    return allowed.has(nodeMatch[1] ?? "");
+  }).join("\n");
+}
 
-  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
-  if (!blob) {
-    throw new Error("PNG conversion failed.");
+export function normalizeSvgForRasterization(svgMarkup: string): string {
+  return normalizeSvgMarkupForRasterization(svgMarkup);
+}
+
+export function resetMermaidThemeStateForTests(): void {
+  cachedThemeTokens = null;
+  themeDirty = true;
+  lastInitializedThemeSignature = null;
+  if (themeObserver) {
+    themeObserver.disconnect();
+    themeObserver = null;
   }
-
-  return blob;
 }
 
 export async function renderMermaidChartToPngBlob(code: string): Promise<Blob> {
   ensureMermaidInitialized();
 
   const renderId = `mermaid-compose-${Math.random().toString(36).slice(2, 9)}`;
-  const processedCode = code.replace(/\\n/g, "<br/>");
+  const processedCode = truncateMermaidChartCodeForBrowserRender(code);
   const { svg } = await mermaid.render(renderId, processedCode);
 
   return rasterizeSvgMarkupToPngBlob(svg);

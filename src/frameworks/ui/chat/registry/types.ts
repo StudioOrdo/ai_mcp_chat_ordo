@@ -1,12 +1,14 @@
 import type { CapabilityPresentationDescriptor } from "@/core/entities/capability-presentation";
 import type { CapabilityResultEnvelope } from "@/core/entities/capability-result";
 import type { JobStatusMessagePart } from "@/core/entities/message-parts";
+import type { RoleName } from "@/core/entities/user";
 import type { ActionLinkType, InlineNode } from "@/core/entities/rich-content";
 
 export interface ToolCallData {
   name: string;
   args: Record<string, unknown>;
   result?: unknown;
+  toolInvocationId?: string;
 }
 
 export interface ToolPluginProps {
@@ -34,6 +36,9 @@ export interface ToolPluginProps {
 
   /** True while the stream for this message is still open */
   isStreaming: boolean;
+
+  /** Role of the viewing user — used for admin-gated visibility decisions */
+  viewerRole?: RoleName;
 }
 
 export type ToolComponent = React.ComponentType<ToolPluginProps>;

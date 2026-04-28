@@ -1,0 +1,15 @@
+{
+  "slug": "accessibility",
+  "title": "Accessibility",
+  "number": "VI",
+  "sortOrder": 6,
+  "domain": [
+    "teaching",
+    "reference"
+  ],
+  "tags": [
+    "accessibility",
+    "wcag",
+    "inclusive-design"
+  ]
+}

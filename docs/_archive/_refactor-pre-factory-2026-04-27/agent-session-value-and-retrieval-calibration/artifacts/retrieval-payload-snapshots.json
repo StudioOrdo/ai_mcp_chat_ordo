@@ -1,0 +1,149 @@
+{
+  "generatedAt": "2026-04-24T03:48:10.112Z",
+  "authenticatedStrong": {
+    "query": "printing press analogy",
+    "backend": "search_pipeline",
+    "fallbackError": null,
+    "groundingState": "no_results",
+    "followUp": "refine_query",
+    "retrievalQuality": "none",
+    "resultCount": 0,
+    "results": [],
+    "prefetchedSection": null
+  },
+  "anonymousStrong": {
+    "query": "printing press analogy",
+    "backend": "search_pipeline",
+    "fallbackError": null,
+    "groundingState": "no_results",
+    "followUp": "refine_query",
+    "retrievalQuality": "none",
+    "resultCount": 0,
+    "results": [],
+    "prefetchedSection": null
+  },
+  "noResults": {
+    "query": "zzzxqv non existent corpus sentinel",
+    "backend": "search_pipeline",
+    "fallbackError": null,
+    "groundingState": "search_only",
+    "followUp": "call_get_section_before_detailed_claims",
+    "retrievalQuality": "strong",
+    "resultCount": 3,
+    "results": [
+      {
+        "section": "The Iron Man Suit",
+        "canonicalPath": "/library/field-guide/ch14-the-iron-man-suit",
+        "resolverPath": "/library/section/ch14-the-iron-man-suit",
+        "fallbackSearchPath": null,
+        "fallbackSearchQuery": null,
+        "relevance": "high",
+        "rrfScore": 3.2264210272573526,
+        "vectorRank": null,
+        "bm25Rank": 1,
+        "matchContextPreview": "One person, inside this system, can do what used to require a team of twelve. I don't say that figuratively. I will enumerate: **Publish.** Write, edit, and deploy articles to a production website with AI-assisted com...",
+        "matchPassagePreview": "One person, inside this system, can do what used to require a team of twelve. I don't say that figuratively. I will enumerate: **Publish.** Write, edit, and deploy articles to a production website with AI-assisted com...",
+        "matchSection": "What the Cockpit Is",
+        "chunkMetadata": {
+          "chunkId": "field-guide/ch14-the-iron-man-suit#passage:2",
+          "chunkLevel": "passage",
+          "localChunkIndex": 2,
+          "localChunkCount": 7,
+          "parentChunkId": "field-guide/ch14-the-iron-man-suit#section:1",
+          "previousChunkId": "field-guide/ch14-the-iron-man-suit#section:1",
+          "nextChunkId": "field-guide/ch14-the-iron-man-suit#passage:3",
+          "boundarySource": "h2_heading",
+          "conceptKeywords": [
+            "your",
+            "that",
+            "search",
+            "cockpit",
+            "person",
+            "articles"
+          ]
+        }
+      },
+      {
+        "section": "The Armory",
+        "canonicalPath": "/library/field-guide/ch20-the-armory",
+        "resolverPath": "/library/section/ch20-the-armory",
+        "fallbackSearchPath": null,
+        "fallbackSearchQuery": null,
+        "relevance": "high",
+        "rrfScore": 2.746724951995889,
+        "vectorRank": null,
+        "bm25Rank": 2,
+        "matchContextPreview": "The most powerful man in the ancient world wrote this while governing a crumbling empire from a military tent on the Danube frontier during the Marcomannic Wars. His soldiers were dying of the Antonine Plague. His co-...",
+        "matchPassagePreview": "The most powerful man in the ancient world wrote this while governing a crumbling empire from a military tent on the Danube frontier during the Marcomannic Wars. His soldiers were dying of the Antonine Plague. His co-...",
+        "matchSection": "Marcus Aurelius — *Meditations* (~170–180 AD)",
+        "chunkMetadata": {
+          "chunkId": "field-guide/ch20-the-armory#passage:2",
+          "chunkLevel": "passage",
+          "localChunkIndex": 2,
+          "localChunkCount": 14,
+          "parentChunkId": "field-guide/ch20-the-armory#section:1",
+          "previousChunkId": "field-guide/ch20-the-armory#section:1",
+          "nextChunkId": "field-guide/ch20-the-armory#passage:3",
+          "boundarySource": "h2_heading",
+          "conceptKeywords": [
+            "meditations",
+            "himself",
+            "that",
+            "passage",
+            "marcus",
+            "aurelius"
+          ]
+        }
+      },
+      {
+        "section": "The Capability Catalog",
+        "canonicalPath": "/library/field-guide/ch17-the-capability-catalog",
+        "resolverPath": "/library/section/ch17-the-capability-catalog",
+        "fallbackSearchPath": null,
+        "fallbackSearchQuery": null,
+        "relevance": "high",
+        "rrfScore": 2.5085425775763968,
+        "vectorRank": null,
+        "bm25Rank": 3,
+        "matchContextPreview": "The cockpit currently operates over forty registered capabilities, organized into families: **Content Production.** Compose articles from a brief. Generate hero images from a thesis statement. Run editorial QA against...",
+        "matchPassagePreview": "The cockpit currently operates over forty registered capabilities, organized into families: **Content Production.** Compose articles from a brief. Generate hero images from a thesis statement. Run editorial QA against...",
+        "matchSection": "The Current Inventory",
+        "chunkMetadata": {
+          "chunkId": "field-guide/ch17-the-capability-catalog#passage:3",
+          "chunkLevel": "passage",
+          "localChunkIndex": 3,
+          "localChunkCount": 7,
+          "parentChunkId": "field-guide/ch17-the-capability-catalog#section:2",
+          "previousChunkId": "field-guide/ch17-the-capability-catalog#section:2",
+          "nextChunkId": "field-guide/ch17-the-capability-catalog#passage:4",
+          "boundarySource": "h2_heading",
+          "conceptKeywords": [
+            "capability",
+            "capabilities",
+            "family",
+            "pipeline",
+            "runs",
+            "this"
+          ]
+        }
+      }
+    ],
+    "prefetchedSection": null
+  },
+  "getSection": {
+    "document_slug": "second-renaissance",
+    "section_slug": "ch01-why-now",
+    "outputType": "object",
+    "found": true,
+    "canonicalPath": "/library/second-renaissance/ch01-why-now",
+    "resolverPath": "/library/section/ch01-why-now",
+    "outputLength": 3803,
+    "includesTruncationMarker": false,
+    "relatedSectionCount": 3,
+    "navigation": {
+      "previousCanonicalPath": "/library/second-renaissance/ch00-the-thread",
+      "nextCanonicalPath": "/library/second-renaissance/ch02-political-economy-of-skills"
+    },
+    "outputPreview": "## The Silence of the Scriptorium Before the machine, there was the monk. For a millennium, the reproduction of knowledge was a liturgical act—slow, expensive, and profoundly centralized. A book was not a consumer good; it was a relic, a vessel of authority guarded by high walls and sacred languages. To own a text was to hold a fragment of the institutional monopoly on truth. Then, in 1450, Johannes Gutenberg introduced a different kind of authority: the movable type. The printing press was n..."
+  }
+}

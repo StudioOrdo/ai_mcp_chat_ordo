@@ -70,6 +70,7 @@ const {
   loadRecurringPainThemesBlockMock: vi.fn(),
 }));
 
+// Phase 7 Mock Density Exception: This file tests a complex composition root or integration pipeline and legitimately requires extensive boundary mocking for external services (auth, db, observability, etc.).
 vi.mock("next/navigation", () => ({
   notFound: vi.fn(() => {
     throw new Error("notFound");
@@ -498,7 +499,7 @@ describe("D4.5 — Prompt Detail page", () => {
     // Role badge — may appear multiple times (header + version entries)
     expect(screen.getAllByText("ADMIN").length).toBeGreaterThanOrEqual(1);
     // Version history
-    expect(screen.getByText("Version History")).toBeInTheDocument();
+    expect(screen.getByText(/Version history/i)).toBeInTheDocument();
   });
 
   it("shows no-active-version message when activeContent empty", async () => {

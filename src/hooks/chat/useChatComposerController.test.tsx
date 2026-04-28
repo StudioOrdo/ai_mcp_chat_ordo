@@ -117,4 +117,28 @@ describe("useChatComposerController", () => {
     expect(screen.getByTestId("input")).toHaveTextContent("Keep this draft");
     expect(screen.getByTestId("file-count")).toHaveTextContent("1");
   });
+
+  it("keeps the composer cleared when the message was accepted but streaming was interrupted", async () => {
+    const onSendMessage = vi.fn().mockResolvedValue({ ok: true });
+
+    render(<Harness onSendMessage={onSendMessage} />);
+
+    fireEvent.change(screen.getByLabelText("draft"), {
+      target: { value: "Make an image about the LLM lament" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "send" }));
+
+    await waitFor(() => {
+      expect(onSendMessage).toHaveBeenCalledWith(
+        "Make an image about the LLM lament",
+        [],
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("input")).toHaveTextContent("");
+      expect(screen.getByTestId("file-count")).toHaveTextContent("0");
+    });
+  });
 });

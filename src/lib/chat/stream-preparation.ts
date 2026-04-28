@@ -11,6 +11,10 @@ import {
 } from "@/lib/chat/context-window";
 import type { createConversationRuntimeServices } from "@/lib/chat/conversation-root";
 import type { RouteContext } from "@/lib/chat/http-facade";
+import {
+  buildMediaContinuityContextBlock,
+  type MediaContinuityHandoff,
+} from "@/lib/chat/media-continuity-handoff";
 import type {
   PromptAssemblyBuilder,
   PromptRuntimeResult,
@@ -29,6 +33,26 @@ import { REASON_CODES } from "@/lib/observability/reason-codes";
 import { compactProvenance } from "@/lib/prompts/prompt-provenance-store";
 
 import type { ChatMessage } from "@/lib/chat/stream-intake";
+
+function summarizeMediaContinuityHandoff(handoff: MediaContinuityHandoff): Array<{
+  assetId: string;
+  kind: string;
+  aliases: string[];
+  derivativeOfAssetId?: string | null;
+}> {
+  return handoff.assets.map((asset) => ({
+    assetId: asset.assetId,
+    kind: asset.kind,
+    aliases: asset.aliases.slice(0, 4),
+    ...(asset.derivativeOfAssetId !== undefined
+      ? { derivativeOfAssetId: asset.derivativeOfAssetId }
+      : {}),
+  }));
+}
+
+function summarizeUserText(value: string): string {
+  return value.trim().replace(/\s+/g, " ").slice(0, 160);
+}
 
 export type PreparedStreamContext = {
   mode: RequestAssemblyMode;
@@ -86,6 +110,24 @@ function applyTaskOriginHandoff(
   });
 }
 
+function applyMediaContinuityHandoff(
+  builder: PromptAssemblyBuilder,
+  mediaContinuityHandoff: MediaContinuityHandoff | null,
+): void {
+  if (!mediaContinuityHandoff) {
+    return;
+  }
+
+  builder.withSection({
+    key: "media_continuity_handoff",
+    content: buildMediaContinuityContextBlock(mediaContinuityHandoff),
+    priority: 88,
+    payload: {
+      assets: summarizeMediaContinuityHandoff(mediaContinuityHandoff),
+    },
+  });
+}
+
 function logPromptProvenance(
   mode: RequestAssemblyMode,
   promptRuntimeResult: PromptRuntimeResult,
@@ -113,6 +155,7 @@ export async function prepareStreamContext(options: {
   latestUserText: string;
   latestUserContent: string;
   taskOriginHandoff: TaskOriginHandoff | null;
+  mediaContinuityHandoff: MediaContinuityHandoff | null;
 }): Promise<PreparedStreamContext> {
   const allMessages = await options.interactor.getForStreamingContext(
     options.conversationId,
@@ -146,6 +189,16 @@ export async function prepareStreamContext(options: {
   options.builder.withConversationSummary(contextWindow.summaryText);
   applyContextWindowGuard(options.builder, contextWindow.guard);
   options.builder.withRoutingContext(routingSnapshot);
+  applyMediaContinuityHandoff(options.builder, options.mediaContinuityHandoff);
+  if (options.mediaContinuityHandoff) {
+    logEvent("info", "MEDIA_CONTINUITY_HANDOFF_APPLIED", {
+      conversationId: options.conversationId,
+      mode: "primary",
+      latestUserText: summarizeUserText(options.latestUserText),
+      assetCount: options.mediaContinuityHandoff.assets.length,
+      assets: summarizeMediaContinuityHandoff(options.mediaContinuityHandoff),
+    });
+  }
   applyTaskOriginHandoff(options.builder, options.taskOriginHandoff);
 
   return {
@@ -161,6 +214,7 @@ export async function prepareFallbackContext(options: {
   incomingMessages: ChatMessage[];
   latestUserContent: string;
   taskOriginHandoff: TaskOriginHandoff | null;
+  mediaContinuityHandoff: MediaContinuityHandoff | null;
 }): Promise<PreparedStreamContext> {
   const fallbackMessages = options.incomingMessages.map((message, index) => ({
     role: message.role,
@@ -174,6 +228,15 @@ export async function prepareFallbackContext(options: {
 
   applyContextWindowGuard(options.builder, contextWindow.guard);
   options.builder.withRoutingContext(routingSnapshot);
+  applyMediaContinuityHandoff(options.builder, options.mediaContinuityHandoff);
+  if (options.mediaContinuityHandoff) {
+    logEvent("info", "MEDIA_CONTINUITY_HANDOFF_APPLIED", {
+      mode: "fallback",
+      latestUserText: summarizeUserText(options.latestUserContent),
+      assetCount: options.mediaContinuityHandoff.assets.length,
+      assets: summarizeMediaContinuityHandoff(options.mediaContinuityHandoff),
+    });
+  }
   applyTaskOriginHandoff(options.builder, options.taskOriginHandoff);
 
   return {
@@ -192,6 +255,7 @@ export async function finalizePreparedStreamContext(options: {
   latestUserContent: string;
   latestUserText?: string;
   taskOriginHandoff: TaskOriginHandoff | null;
+  mediaContinuityHandoff: MediaContinuityHandoff | null;
   routeContext?: RouteContext | null;
   conversationId?: string;
   userId?: string;
@@ -203,6 +267,7 @@ export async function finalizePreparedStreamContext(options: {
     incomingMessages: options.incomingMessages,
     latestUserContent: options.latestUserContent,
     taskOriginHandoff: options.taskOriginHandoff,
+    ...(options.mediaContinuityHandoff ? { mediaContinuityHandoff: options.mediaContinuityHandoff } : {}),
     ...(options.conversationId ? { conversationId: options.conversationId } : {}),
     ...(options.userId ? { userId: options.userId } : {}),
     ...(options.latestUserText ? { latestUserText: options.latestUserText } : {}),

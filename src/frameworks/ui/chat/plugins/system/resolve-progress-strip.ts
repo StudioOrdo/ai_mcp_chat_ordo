@@ -37,6 +37,7 @@ export const DESKTOP_PROGRESS_STRIP_VISIBLE_CAP = 3;
 
 const JOB_STATUS_PRIORITY: Record<JobStatus, number> = {
   failed: 0,
+  dead_letter: 0,
   canceled: 0,
   running: 1,
   queued: 2,
@@ -60,6 +61,7 @@ function resolveProgressBubbleStatus(status: JobStatus): CapabilityProgressPhase
     case "running":
       return "active";
     case "failed":
+    case "dead_letter":
       return "failed";
     case "canceled":
       return "canceled";
@@ -87,7 +89,7 @@ function resolveProgressPhase(
 }
 
 function resolvePhaseLabel(candidate: ProgressCandidate["item"]): string {
-  if (candidate.status === "failed") {
+  if (candidate.status === "failed" || candidate.status === "dead_letter") {
     return "Needs attention";
   }
 

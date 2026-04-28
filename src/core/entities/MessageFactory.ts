@@ -39,4 +39,15 @@ export class MessageFactory {
       responseState: "open",
     });
   }
+
+  static createSystemMessage(metadata: ChatMessageMetadata): ChatMessage {
+    return {
+      id: crypto.randomUUID(),
+      role: "system",
+      content: "",
+      parts: [],
+      metadata,
+      timestamp: new Date(),
+    };
+  }
 }

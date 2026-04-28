@@ -27,6 +27,8 @@ interface DocumentMeta {
 	number: string;
 	sectionsDir: string;
 	audience: ContentAudience;
+	class?: string;
+	rolePersona?: string;
 }
 
 interface DocumentManifest {
@@ -37,6 +39,8 @@ interface DocumentManifest {
 	domain: string[];
 	tags?: string[];
 	audience?: ContentAudience;
+	class?: string;
+	rolePersona?: string;
 }
 
 export class FileSystemCorpusRepository implements CorpusRepository {
@@ -90,6 +94,8 @@ export class FileSystemCorpusRepository implements CorpusRepository {
 						number: manifest.number,
 						sectionsDir: path.join(CORPUS_DIR, manifest.slug, "chapters"),
 						audience: manifest.audience ?? "public",
+						class: typeof manifest.class === "string" ? manifest.class : undefined,
+						rolePersona: typeof manifest.rolePersona === "string" ? manifest.rolePersona : undefined,
 					},
 					sortOrder: manifest.sortOrder,
 				});
@@ -116,6 +122,8 @@ export class FileSystemCorpusRepository implements CorpusRepository {
 			number: document.number,
 			id: document.number,
 			audience: document.audience,
+			class: document.class,
+			rolePersona: document.rolePersona,
 		}));
 	}
 
@@ -129,6 +137,8 @@ export class FileSystemCorpusRepository implements CorpusRepository {
 			number: document.number,
 			id: document.number,
 			audience: document.audience,
+			class: document.class,
+			rolePersona: document.rolePersona,
 		};
 	}
 
@@ -152,10 +162,13 @@ export class FileSystemCorpusRepository implements CorpusRepository {
 					path.join(sectionsDir, filename),
 					"utf-8",
 				);
-				sections.push(this.parseSection(documentMeta.slug, slug, content, documentMeta.audience));
+				sections.push(this.parseSection(documentMeta, slug, content));
 			}
 			return sections;
-		} catch {
+		} catch (error) {
+			if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+				return [];
+			}
 			throw new ResourceNotFoundError(`Failed to read sections for document: ${documentSlug}`);
 		}
 	}
@@ -184,7 +197,7 @@ export class FileSystemCorpusRepository implements CorpusRepository {
 		);
 		try {
 			const content = await fs.readFile(filepath, "utf-8");
-			return this.parseSection(documentSlug, sectionSlug, content, documentMeta.audience);
+			return this.parseSection(documentMeta, sectionSlug, content);
 		} catch {
 			throw new ResourceNotFoundError(`Section not found: ${sectionSlug}`);
 		}
@@ -216,15 +229,14 @@ export class FileSystemCorpusRepository implements CorpusRepository {
 	}
 
 	private parseSection(
-		documentSlug: string,
+		documentMeta: DocumentMeta,
 		sectionSlug: string,
 		content: string,
-		documentAudience: ContentAudience,
 	): Section {
 		const { body, data } = this.parseFrontmatter(content);
-		const audience = data.audience ?? documentAudience;
+		const audience = data.audience ?? documentMeta.audience;
 		if (!isContentAudience(audience)) {
-			throw new Error(`Invalid audience for ${documentSlug}/${sectionSlug}: ${audience}`);
+			throw new Error(`Invalid audience for ${documentMeta.slug}/${sectionSlug}: ${audience}`);
 		}
 
 		const titleMatch = body.match(/^#\s+(.*)/m);
@@ -238,7 +250,7 @@ export class FileSystemCorpusRepository implements CorpusRepository {
 		);
 
 		return new Section(
-			documentSlug,
+			documentMeta.slug,
 			sectionSlug,
 			title,
 			body,
@@ -246,6 +258,8 @@ export class FileSystemCorpusRepository implements CorpusRepository {
 			supplements,
 			headings,
 			audience,
+			data.class ?? documentMeta.class,
+			data.rolePersona ?? documentMeta.rolePersona,
 		);
 	}
 }

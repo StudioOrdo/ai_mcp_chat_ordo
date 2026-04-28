@@ -1,0 +1,15 @@
+{
+  "slug": "software-engineering",
+  "title": "Software Engineering",
+  "number": "I",
+  "sortOrder": 1,
+  "domain": [
+    "teaching",
+    "reference"
+  ],
+  "tags": [
+    "software-engineering",
+    "best-practices",
+    "design-patterns"
+  ]
+}

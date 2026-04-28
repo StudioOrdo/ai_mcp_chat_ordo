@@ -78,6 +78,7 @@ export type ToolRenderEntry =
       name: string;
       args: Record<string, unknown>;
       result?: unknown;
+      toolInvocationId?: string;
       descriptor?: CapabilityPresentationDescriptor;
       resultEnvelope?: CapabilityResultEnvelope | null;
     };
@@ -135,6 +136,7 @@ type ToolCallWithResult = {
   name: string;
   args: Record<string, unknown>;
   result?: unknown;
+  toolInvocationId?: string;
 };
 
 function findJsonArrayEnd(input: string, arrayStart: number): number {
@@ -543,14 +545,21 @@ function pairToolCallsWithResults(parts?: MessagePart[]): ToolCallWithResult[] {
   const calls: Array<ToolCallWithResult & { consumed?: boolean }> = [];
   for (const part of parts) {
     if (part.type === "tool_call") {
-      calls.push({ name: part.name, args: part.args });
+      calls.push({ name: part.name, args: part.args, toolInvocationId: part.toolInvocationId });
       continue;
     }
 
     if (part.type === "tool_result") {
-      const match = calls.find((call) => !call.consumed && call.name === part.name);
+      const match = calls.find((call) =>
+        !call.consumed
+        && call.name === part.name
+        && (part.toolInvocationId && call.toolInvocationId
+          ? call.toolInvocationId === part.toolInvocationId
+          : true),
+      );
       if (match) {
         match.result = part.result;
+        match.toolInvocationId = match.toolInvocationId ?? part.toolInvocationId;
         match.consumed = true;
       }
     }
@@ -990,6 +999,7 @@ export class ChatPresenter {
         name: call.name,
         args: call.args,
         result: call.result,
+            toolInvocationId: call.toolInvocationId,
         descriptor,
         resultEnvelope,
       });

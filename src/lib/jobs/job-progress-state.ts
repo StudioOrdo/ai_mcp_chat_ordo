@@ -2,7 +2,7 @@ import type {
   CapabilityProgressPhase,
   CapabilityProgressPhaseStatus,
 } from "@/core/entities/capability-result";
-import { getCatalogDefinition } from "@/core/capability-catalog/catalog";
+import { projectCapabilityRuntimeByName } from "@/core/platform/capability-runtime/CapabilityRuntime";
 import type { JobProgressPhaseDefinition } from "@/lib/jobs/job-capability-types";
 
 export interface JobProgressPhaseInput {
@@ -221,7 +221,7 @@ function deriveCompatibilityLabel(
 }
 
 export function getJobPhaseDefinitions(toolName: string): readonly JobProgressPhaseDefinition[] | undefined {
-  return getCatalogDefinition(toolName)?.job?.progressPhases;
+  return projectCapabilityRuntimeByName(toolName)?.job?.progressPhases;
 }
 
 export function normalizeJobProgressState(

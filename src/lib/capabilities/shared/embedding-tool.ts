@@ -1,4 +1,3 @@
-import { createHash } from "crypto";
 import type { Embedder } from "@/core/search/ports/Embedder";
 import type { VectorStore, VectorQuery } from "@/core/search/ports/VectorStore";
 import type { BM25IndexStore } from "@/core/search/ports/BM25IndexStore";

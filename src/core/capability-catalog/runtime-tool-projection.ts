@@ -1,8 +1,8 @@
 import type { ToolCommand } from "@/core/tool-registry/ToolCommand";
 import type { ToolDescriptor } from "@/core/tool-registry/ToolDescriptor";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
+import { projectCapabilityRuntimeDescriptorDefinition } from "@/core/platform/capability-runtime/CapabilityRuntime";
 import type { CapabilityDefinition } from "./capability-definition";
-import { projectAnthropicSchema } from "./schema-projection";
 
 export type CatalogInputParser<TInput = unknown> = (input: unknown) => TInput;
 
@@ -29,15 +29,15 @@ export function buildCatalogBoundToolDescriptor<TInput, TOutput>(
     execute: CatalogExecutor<TInput, TOutput>;
   },
 ): ToolDescriptor<unknown, TOutput> {
-  const schema = projectAnthropicSchema(def);
+  const runtimeDescriptor = projectCapabilityRuntimeDescriptorDefinition(def);
 
   return {
-    name: def.core.name,
-    schema,
+    name: runtimeDescriptor.name,
+    schema: runtimeDescriptor.schema,
     command: new CatalogBoundToolCommand(binding.parse, binding.execute),
-    roles: def.core.roles,
-    category: def.core.category,
-    executionMode: def.runtime.executionMode,
-    deferred: def.runtime.deferred,
+    roles: runtimeDescriptor.roles,
+    category: runtimeDescriptor.category,
+    executionMode: runtimeDescriptor.executionMode,
+    deferred: runtimeDescriptor.deferred,
   };
 }

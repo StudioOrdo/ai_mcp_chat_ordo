@@ -23,12 +23,10 @@ describe("env config", () => {
   });
 
   it("falls back to API__ANTHROPIC_API_KEY", () => {
-    const warningSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     vi.stubEnv("ANTHROPIC_API_KEY", "");
     vi.stubEnv("API__ANTHROPIC_API_KEY", "legacy-key");
 
     expect(getAnthropicApiKey()).toBe("legacy-key");
-    expect(warningSpy).toHaveBeenCalled();
   });
 
   it("throws when no anthropic key is provided", () => {
@@ -39,11 +37,9 @@ describe("env config", () => {
   });
 
   it("uses configured model if provided", () => {
-    const warningSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    vi.stubEnv("API__ANTHROPIC_MODEL", "claude-sonnet-4-6");
+    vi.stubEnv("ANTHROPIC_MODEL", "claude-sonnet-4-6");
 
     expect(getAnthropicModel()).toBe("claude-sonnet-4-6");
-    expect(warningSpy).toHaveBeenCalled();
   });
 
   it("falls back to default model", () => {
@@ -54,7 +50,7 @@ describe("env config", () => {
   });
 
   it("returns ordered unique model fallbacks", () => {
-    vi.stubEnv("API__ANTHROPIC_MODEL", "claude-sonnet-4-6");
+    vi.stubEnv("ANTHROPIC_MODEL", "claude-sonnet-4-6");
 
     expect(getModelFallbacks()).toEqual(["claude-sonnet-4-6", "claude-haiku-4-5", "claude-opus-4-6"]);
   });

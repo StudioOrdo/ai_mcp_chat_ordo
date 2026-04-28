@@ -1,10 +1,5 @@
-import path from "node:path";
-
-import { CAPABILITY_CATALOG } from "@/core/capability-catalog/catalog";
-import type {
-  CapabilityDefinition,
-  CapabilityLocalNativeProcessTargetFacet,
-} from "@/core/capability-catalog/capability-definition";
+import { projectAllCapabilityRuntimes } from "@/core/platform/capability-runtime/CapabilityRuntime";
+import type { CapabilityLocalNativeProcessTargetFacet } from "@/core/capability-catalog/capability-definition";
 
 import type {
   DeclaredNativeProcessTarget,
@@ -37,10 +32,10 @@ function projectLocalNativeProcessTarget(
 
 const LOCAL_NATIVE_PROCESS_TARGETS = Object.freeze(
   Object.fromEntries(
-    Object.entries(CAPABILITY_CATALOG as Record<string, CapabilityDefinition>).flatMap(([capabilityName, definition]) => {
-      const target = definition.localExecutionTargets?.nativeProcess;
+    projectAllCapabilityRuntimes().flatMap((runtime) => {
+      const target = runtime.localExecutionTargets?.nativeProcess;
       return target
-        ? [[capabilityName, projectLocalNativeProcessTarget(capabilityName, target)] as const]
+        ? [[runtime.capabilityName, projectLocalNativeProcessTarget(runtime.capabilityName, target)] as const]
         : [];
     }),
   ) as Readonly<Record<string, LocalNativeProcessTargetConfig>>,

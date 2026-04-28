@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import type { CapabilityArtifactRef } from "@/core/entities/capability-result";
 import type { ToolPluginProps } from "../../registry/types";
 import { resolveCapabilityDisplayLabel } from "../../registry/capability-presentation-registry";
+import { resolveCanonicalMediaAssetId } from "@/lib/media/media-asset-id";
 import { CapabilityActionRail } from "../../primitives/CapabilityActionRail";
 import { CapabilityCardHeader } from "../../primitives/CapabilityCardHeader";
 import { CapabilityCardShell } from "../../primitives/CapabilityCardShell";
@@ -76,11 +77,16 @@ function resolveAudioData(
     && typeof toolArgs.title === "string"
     && toolArgs.title.trim().length > 0
   ) {
+    // Validate assetId from args before using it
+    const validatedAssetId = typeof toolArgs.assetId === "string" 
+      ? resolveCanonicalMediaAssetId(toolArgs.assetId)
+      : null;
+    
     return {
       action: "generate_audio",
       text: toolArgs.text,
       title: toolArgs.title,
-      assetId: typeof toolArgs.assetId === "string" ? toolArgs.assetId : artifact?.assetId ?? null,
+      assetId: validatedAssetId ?? artifact?.assetId ?? null,
       generationStatus: artifact?.assetId ? "cached_asset" : undefined,
     };
   }
@@ -90,6 +96,13 @@ function resolveAudioData(
 
 function resolveStatusLabel(props: ToolPluginProps, audio: GenerateAudioResultPayload | null): string {
   const { part, resultEnvelope } = props;
+
+  const hasDurableAudioAsset = Boolean(audio?.assetId)
+    || part?.lifecyclePhase === "durable_asset_available";
+
+  if (hasDurableAudioAsset) {
+    return "Ready";
+  }
 
   switch (part?.status) {
     case "queued":
@@ -138,9 +151,11 @@ export const AudioPlayerCard: React.FC<ToolPluginProps> = (props) => {
   const result = resultEnvelope?.payload ?? toolCall?.result;
   const audioArtifact = findAudioArtifact(resultEnvelope?.artifacts);
   const audio = resolveAudioData(result, toolCall?.args, audioArtifact);
+  const hasDurableAudioAsset = Boolean(audio?.assetId ?? audioArtifact?.assetId)
+    || part?.lifecyclePhase === "durable_asset_available";
   const statusLabel = resolveStatusLabel(props, audio);
   const failureMessage = part?.error ?? part?.summary ?? resultEnvelope?.summary.message ?? "Audio generation did not complete.";
-  const isTerminalFailure = part?.status === "failed" || part?.status === "canceled";
+  const isTerminalFailure = (part?.status === "failed" || part?.status === "canceled") && !hasDurableAudioAsset;
 
   if (isTerminalFailure) {
     return (

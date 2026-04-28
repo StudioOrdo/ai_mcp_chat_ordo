@@ -35,6 +35,8 @@ export interface CapabilityArtifactRef {
   height?: number;
   durationSeconds?: number;
   source?: MediaAssetSource;
+  toolInvocationId?: string;
+  derivativeOfToolInvocationId?: string | null;
 }
 
 export interface CapabilityResultEnvelope<TPayload = unknown> {

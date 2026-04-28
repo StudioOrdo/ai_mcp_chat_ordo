@@ -20,6 +20,11 @@ interface JobRow {
   detailHref: string;
   canManage: boolean;
   canRequeue: boolean;
+  interactionExecutionState: string;
+  interactionTimelineSupportLevel: string;
+  interactionTimelineSummary: string | null;
+  interactionRevisionState: string;
+  interactionRevisionActionCount: number;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -35,6 +40,11 @@ const EXECUTION_PRINCIPAL_LABELS: Record<string, string> = {
   admin_delegate: "Admin delegate",
   owner_delegate: "Owner delegate",
 };
+
+function formatTokenLabel(value: string | null | undefined): string {
+  if (!value) return "Unknown";
+  return value.replace(/_/g, " ").replace(/\b\w/g, (match) => match.toUpperCase());
+}
 
 const columns: ColumnDef[] = [
   {
@@ -86,6 +96,27 @@ const columns: ColumnDef[] = [
           <div className="mt-1 text-foreground/45">
             {entry.canManage ? "Global manage" : "View only"}
           </div>
+        </div>
+      );
+    },
+  },
+  {
+    key: "interactionExecutionState",
+    header: "Interaction",
+    render: (_value: unknown, row: Record<string, unknown>) => {
+      const entry = row as unknown as JobRow;
+
+      return (
+        <div className="min-w-0 text-xs text-foreground/60">
+          <div>
+            {formatTokenLabel(entry.interactionExecutionState)} • {formatTokenLabel(entry.interactionTimelineSupportLevel)} timeline
+          </div>
+          <div className="mt-1 text-foreground/45">
+            {formatTokenLabel(entry.interactionRevisionState)} • {entry.interactionRevisionActionCount} revision actions
+          </div>
+          {entry.interactionTimelineSummary && (
+            <div className="mt-1 truncate text-foreground/40">{entry.interactionTimelineSummary}</div>
+          )}
         </div>
       );
     },

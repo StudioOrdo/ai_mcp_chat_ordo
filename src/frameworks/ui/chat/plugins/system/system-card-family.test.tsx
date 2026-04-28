@@ -85,7 +85,9 @@ describe("system card family", () => {
     const card = screen.getByRole("region", { name: "Draft Content status" });
     expect(card).toHaveAttribute("data-capability-card", "true");
     expect(card).toHaveAttribute("data-capability-state", "running");
-    expect(screen.getByText("Revising")).toBeInTheDocument();
+    expect(screen.getByText(/Revising 45%/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Draft Content/i }));
     expect(screen.getByText("Compose")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Open workspace (route)" }));

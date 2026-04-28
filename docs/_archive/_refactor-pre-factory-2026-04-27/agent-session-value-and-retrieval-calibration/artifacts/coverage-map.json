@@ -1,0 +1,708 @@
+{
+  "generatedAt": "2026-04-24T03:48:10.112Z",
+  "sampleSize": 10,
+  "chapters": [
+    {
+      "bookSlug": "archetype-atlas",
+      "sectionSlug": "ch01-what-an-archetype-is",
+      "sectionTitle": "Layer 39: The Architecture of Typology — Constraint vs. Diagnosis",
+      "expectedCanonicalPath": "/library/archetype-atlas/ch01-what-an-archetype-is",
+      "queriesTested": 5,
+      "top1HitRate": 0,
+      "top3HitRate": 0,
+      "benchmarkRuns": [
+        {
+          "query": "what is an archetype",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch20-the-armory",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch20-the-armory",
+            "/library/field-guide/ch11-the-persuasion-engine",
+            "/library/field-guide/ch09-the-question-engine"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "define archetype",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch20-the-armory",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch20-the-armory",
+            "/library/field-guide/ch11-the-persuasion-engine",
+            "/library/field-guide/ch09-the-question-engine"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "archetype meaning",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch20-the-armory",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch20-the-armory",
+            "/library/field-guide/ch11-the-persuasion-engine",
+            "/library/field-guide/ch16-the-deferred-worker"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "how should i think about archetypes",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch20-the-armory",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch20-the-armory"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "archetype framework definition",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch20-the-armory",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch20-the-armory",
+            "/library/field-guide/ch07-the-outlaw-sage",
+            "/library/field-guide/ch11-the-persuasion-engine"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        }
+      ],
+      "recallQuality": "weak"
+    },
+    {
+      "bookSlug": "building-ai-native-systems",
+      "sectionSlug": "ch01-llm-application-engineering",
+      "sectionTitle": "LLM Application Engineering: The Aesthetics of the Probabilistic",
+      "expectedCanonicalPath": "/library/building-ai-native-systems/ch01-llm-application-engineering",
+      "queriesTested": 5,
+      "top1HitRate": 0,
+      "top3HitRate": 0,
+      "benchmarkRuns": [
+        {
+          "query": "what is llm application engineering",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch15-the-sovereignty-stack",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch15-the-sovereignty-stack",
+            "/library/field-guide/ch17-the-capability-catalog",
+            "/library/field-guide/ch10-the-analog-handshake"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "building an llm application",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch15-the-sovereignty-stack",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch15-the-sovereignty-stack",
+            "/library/field-guide/ch17-the-capability-catalog",
+            "/library/field-guide/ch02-the-bugatti"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "application engineering for language models",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch02-the-bugatti",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch02-the-bugatti",
+            "/library/field-guide/ch15-the-sovereignty-stack",
+            "/library/field-guide/ch08-the-internal-cockpit"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "ai-native application engineering",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch15-the-sovereignty-stack",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch15-the-sovereignty-stack",
+            "/library/field-guide/ch17-the-capability-catalog",
+            "/library/field-guide/ch10-the-analog-handshake"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "shipping production llm systems",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch03-the-evidence",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch03-the-evidence",
+            "/library/field-guide/ch01-the-photograph",
+            "/library/field-guide/ch20-the-armory"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        }
+      ],
+      "recallQuality": "weak"
+    },
+    {
+      "bookSlug": "curriculum-architecture",
+      "sectionSlug": "ch01-trivium-quadrivium",
+      "sectionTitle": "The Updated Trivium and Quadrivium: The Architecture of the Polymath",
+      "expectedCanonicalPath": "/library/curriculum-architecture/ch01-trivium-quadrivium",
+      "queriesTested": 5,
+      "top1HitRate": 0,
+      "top3HitRate": 0,
+      "benchmarkRuns": [
+        {
+          "query": "updated trivium and quadrivium",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch20-the-armory",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch20-the-armory"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "formation model for the ai era",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch03-the-evidence",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch03-the-evidence",
+            "/library/field-guide/ch08-the-internal-cockpit",
+            "/library/field-guide/ch09-the-question-engine"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "curriculum trivium quadrivium",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch12-the-signal-stack",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch12-the-signal-stack",
+            "/library/field-guide/ch04-the-socratic-divide"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "modern trivium quadrivium model",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch03-the-evidence",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch03-the-evidence",
+            "/library/field-guide/ch20-the-armory",
+            "/library/field-guide/ch03-the-evidence"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "classical formation for ai builders",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch11-the-persuasion-engine",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch11-the-persuasion-engine",
+            "/library/field-guide/ch19-the-covenant",
+            "/library/field-guide/ch08-the-internal-cockpit"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        }
+      ],
+      "recallQuality": "weak"
+    },
+    {
+      "bookSlug": "formation-and-governance",
+      "sectionSlug": "ch01-whole-person-formation",
+      "sectionTitle": "Whole-Person Formation vs. Content Delivery: The Alignment of the Agent",
+      "expectedCanonicalPath": "/library/formation-and-governance/ch01-whole-person-formation",
+      "queriesTested": 5,
+      "top1HitRate": 0,
+      "top3HitRate": 0,
+      "benchmarkRuns": [
+        {
+          "query": "whole-person formation",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch11-the-persuasion-engine",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch11-the-persuasion-engine",
+            "/library/field-guide/ch19-the-covenant",
+            "/library/field-guide/ch06-the-dart"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "formation versus content delivery",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch11-the-persuasion-engine",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch11-the-persuasion-engine",
+            "/library/field-guide/ch21-the-daily-practice",
+            "/library/field-guide/ch19-the-covenant"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "educating the whole person",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch07-the-outlaw-sage",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch07-the-outlaw-sage",
+            "/library/field-guide/ch22-the-passage",
+            "/library/field-guide/ch21-the-daily-practice"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "formation and governance curriculum",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch11-the-persuasion-engine",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch11-the-persuasion-engine",
+            "/library/field-guide/ch12-the-signal-stack",
+            "/library/field-guide/ch04-the-socratic-divide"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "whole person education model",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch08-the-internal-cockpit",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch08-the-internal-cockpit",
+            "/library/field-guide/ch03-the-evidence",
+            "/library/field-guide/ch03-the-evidence"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        }
+      ],
+      "recallQuality": "weak"
+    },
+    {
+      "bookSlug": "identity-system",
+      "sectionSlug": "ch01-the-one-line-system",
+      "sectionTitle": "The One-Line System: The Lexicon of Agency",
+      "expectedCanonicalPath": "/library/identity-system/ch01-the-one-line-system",
+      "queriesTested": 5,
+      "top1HitRate": 0,
+      "top3HitRate": 0,
+      "benchmarkRuns": [
+        {
+          "query": "what is the one-line system",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch10-the-analog-handshake",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch10-the-analog-handshake",
+            "/library/field-guide/ch08-the-internal-cockpit",
+            "/library/field-guide/ch08-the-internal-cockpit"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "one line system identity",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch01-the-photograph",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch01-the-photograph",
+            "/library/field-guide/ch02-the-bugatti",
+            "/library/field-guide/ch11-the-persuasion-engine"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "identity one-line system",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch10-the-analog-handshake",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch10-the-analog-handshake",
+            "/library/field-guide/ch01-the-photograph",
+            "/library/field-guide/ch20-the-armory"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "one-line identity framework",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch20-the-armory",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch20-the-armory",
+            "/library/field-guide/ch10-the-analog-handshake",
+            "/library/field-guide/ch20-the-armory"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "how the one line system works",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch02-the-bugatti",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch02-the-bugatti",
+            "/library/field-guide/ch14-the-iron-man-suit",
+            "/library/field-guide/ch06-the-dart"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        }
+      ],
+      "recallQuality": "weak"
+    },
+    {
+      "bookSlug": "perception-visual-intelligence",
+      "sectionSlug": "ch01-what-happens-in-the-first-second",
+      "sectionTitle": "Layer 18: What Happens in the First Second — The Evolutionary Prior",
+      "expectedCanonicalPath": "/library/perception-visual-intelligence/ch01-what-happens-in-the-first-second",
+      "queriesTested": 5,
+      "top1HitRate": 0,
+      "top3HitRate": 0,
+      "benchmarkRuns": [
+        {
+          "query": "what happens in the first second",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch02-the-bugatti",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch02-the-bugatti",
+            "/library/field-guide/ch04-the-socratic-divide",
+            "/library/field-guide/ch11-the-persuasion-engine"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "first second visual judgment",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch02-the-bugatti",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch02-the-bugatti",
+            "/library/field-guide/ch01-the-photograph",
+            "/library/field-guide/ch08-the-internal-cockpit"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "initial visual impression",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch06-the-dart",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch06-the-dart",
+            "/library/field-guide/ch08-the-internal-cockpit"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "first-second perception model",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch03-the-evidence",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch03-the-evidence",
+            "/library/field-guide/ch07-the-outlaw-sage",
+            "/library/field-guide/ch09-the-question-engine"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "how visual judgment starts",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch06-the-dart",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch06-the-dart",
+            "/library/field-guide/ch08-the-internal-cockpit",
+            "/library/field-guide/ch09-the-question-engine"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        }
+      ],
+      "recallQuality": "weak"
+    },
+    {
+      "bookSlug": "second-renaissance",
+      "sectionSlug": "ch01-why-now",
+      "sectionTitle": "Why Now: The Mainz Inflection",
+      "expectedCanonicalPath": "/library/second-renaissance/ch01-why-now",
+      "queriesTested": 5,
+      "top1HitRate": 0,
+      "top3HitRate": 0,
+      "benchmarkRuns": [
+        {
+          "query": "printing press analogy",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": null,
+          "top3CanonicalPaths": [],
+          "groundingState": "no_results",
+          "retrievalQuality": "none"
+        },
+        {
+          "query": "why now printing press",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch09-the-question-engine",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch09-the-question-engine",
+            "/library/field-guide/ch02-the-bugatti",
+            "/library/field-guide/ch06-the-dart"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "ai and the printing press",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch08-the-internal-cockpit",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch08-the-internal-cockpit",
+            "/library/field-guide/ch03-the-evidence",
+            "/library/field-guide/ch08-the-internal-cockpit"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "second renaissance printing press comparison",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch22-the-passage",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch22-the-passage",
+            "/library/field-guide/ch09-the-question-engine",
+            "/library/field-guide/ch08-the-internal-cockpit"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "historical analogy for ai transition",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch01-the-photograph",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch01-the-photograph",
+            "/library/field-guide/ch22-the-passage",
+            "/library/field-guide/ch08-the-internal-cockpit"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        }
+      ],
+      "recallQuality": "weak"
+    },
+    {
+      "bookSlug": "signal-and-deployment",
+      "sectionSlug": "ch01-portfolio-as-product",
+      "sectionTitle": "Layer 32: The Portfolio as Product — The Concretion of the Masterpiece",
+      "expectedCanonicalPath": "/library/signal-and-deployment/ch01-portfolio-as-product",
+      "queriesTested": 5,
+      "top1HitRate": 0,
+      "top3HitRate": 0,
+      "benchmarkRuns": [
+        {
+          "query": "portfolio as product",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch11-the-persuasion-engine",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch11-the-persuasion-engine",
+            "/library/field-guide/ch14-the-iron-man-suit",
+            "/library/field-guide/ch02-the-bugatti"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "portfolio not homework",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch11-the-persuasion-engine",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch11-the-persuasion-engine"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "turn portfolio into a product",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch11-the-persuasion-engine",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch11-the-persuasion-engine",
+            "/library/field-guide/ch14-the-iron-man-suit",
+            "/library/field-guide/ch08-the-internal-cockpit"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "portfolio as deployed signal",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch11-the-persuasion-engine",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch11-the-persuasion-engine",
+            "/library/campaign/local-flyers",
+            "/library/field-guide/ch10-the-analog-handshake"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "why portfolio should be productized",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch11-the-persuasion-engine",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch11-the-persuasion-engine"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        }
+      ],
+      "recallQuality": "weak"
+    },
+    {
+      "bookSlug": "sources-and-lineage",
+      "sectionSlug": "ch01-eisenstein",
+      "sectionTitle": "Elizabeth Eisenstein: The Agent of Change and the Architecture of Fixity",
+      "expectedCanonicalPath": "/library/sources-and-lineage/ch01-eisenstein",
+      "queriesTested": 5,
+      "top1HitRate": 0,
+      "top3HitRate": 0,
+      "benchmarkRuns": [
+        {
+          "query": "Elizabeth Eisenstein printing press",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": null,
+          "top3CanonicalPaths": [],
+          "groundingState": "no_results",
+          "retrievalQuality": "none"
+        },
+        {
+          "query": "Eisenstein information economy",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch08-the-internal-cockpit",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch08-the-internal-cockpit",
+            "/library/field-guide/ch10-the-analog-handshake",
+            "/library/field-guide/ch19-the-covenant"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "print revolution information economy",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/campaign/local-flyers",
+          "top3CanonicalPaths": [
+            "/library/campaign/local-flyers",
+            "/library/field-guide/ch08-the-internal-cockpit",
+            "/library/field-guide/ch10-the-analog-handshake"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "Eisenstein on print economics",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/campaign/local-flyers",
+          "top3CanonicalPaths": [
+            "/library/campaign/local-flyers",
+            "/library/field-guide/ch01-the-photograph",
+            "/library/field-guide/ch10-the-analog-handshake"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "information economics of print",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/campaign/local-flyers",
+          "top3CanonicalPaths": [
+            "/library/campaign/local-flyers",
+            "/library/field-guide/ch01-the-photograph",
+            "/library/field-guide/ch10-the-analog-handshake"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        }
+      ],
+      "recallQuality": "weak"
+    },
+    {
+      "bookSlug": "trust-proof-persuasion",
+      "sectionSlug": "ch01-trust-is-not-a-mood",
+      "sectionTitle": "Layer 25: Trust Is Not a Mood — The Structural Axioms of Veracity",
+      "expectedCanonicalPath": "/library/trust-proof-persuasion/ch01-trust-is-not-a-mood",
+      "queriesTested": 5,
+      "top1HitRate": 0,
+      "top3HitRate": 0,
+      "benchmarkRuns": [
+        {
+          "query": "trust is not a mood",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch11-the-persuasion-engine",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch11-the-persuasion-engine",
+            "/library/field-guide/ch16-the-deferred-worker",
+            "/library/field-guide/ch19-the-covenant"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "how trust works structurally",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch06-the-dart",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch06-the-dart",
+            "/library/field-guide/ch02-the-bugatti",
+            "/library/field-guide/ch18-the-ordo"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "trust proof persuasion",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch20-the-armory",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch20-the-armory",
+            "/library/field-guide/ch11-the-persuasion-engine",
+            "/library/field-guide/ch02-the-bugatti"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "trust as structural proof",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/field-guide/ch01-the-photograph",
+          "top3CanonicalPaths": [
+            "/library/field-guide/ch01-the-photograph",
+            "/library/field-guide/ch11-the-persuasion-engine",
+            "/library/field-guide/ch18-the-ordo"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        },
+        {
+          "query": "what makes trust legible",
+          "expectedHitRank": null,
+          "topHitCanonicalPath": "/library/campaign/lightweight-paid-outreach",
+          "top3CanonicalPaths": [
+            "/library/campaign/lightweight-paid-outreach",
+            "/library/field-guide/ch09-the-question-engine",
+            "/library/field-guide/ch22-the-passage"
+          ],
+          "groundingState": "search_only",
+          "retrievalQuality": "strong"
+        }
+      ],
+      "recallQuality": "weak"
+    }
+  ]
+}

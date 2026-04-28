@@ -44,6 +44,7 @@ describe("deferred-job-result", () => {
         sequence: 7,
         eventType: "result",
         payload: {
+          toolInvocationId: "toolu_job_1",
           result: {
             action: "prepare_journal_post_for_publish",
             ready: true,
@@ -67,6 +68,7 @@ describe("deferred-job-result", () => {
       family: "journal",
       cardKind: "journal_workflow",
     });
+    expect(payload.deferred_job.toolInvocationId).toBe("toolu_job_1");
   });
 
   it("hydrates message parts from deferred payload envelopes when legacy summary fields are absent", () => {
@@ -78,6 +80,7 @@ describe("deferred-job-result", () => {
         label: "Draft Content",
         status: "running",
         sequence: 2,
+        toolInvocationId: "toolu_draft_1",
         resultPayload: null,
         resultEnvelope: {
           schemaVersion: 1,
@@ -112,12 +115,14 @@ describe("deferred-job-result", () => {
     expect(part.progressPercent).toBe(55);
     expect(part.progressLabel).toBe("Drafting");
     expect(part.resultEnvelope?.toolName).toBe("draft_content");
+    expect(part.toolInvocationId).toBe("toolu_draft_1");
   });
 
   it("emits normalized job parts on deferred job stream events", () => {
     const event = deferredJobResultToStreamEvent({
       deferred_job: {
         jobId: "job_3",
+        toolInvocationId: "toolu_blog_1",
         conversationId: "conv_3",
         toolName: "produce_blog_article",
         label: "Produce Blog Article",
@@ -152,6 +157,7 @@ describe("deferred-job-result", () => {
       part: expect.objectContaining({
         type: "job_status",
         jobId: "job_3",
+        toolInvocationId: "toolu_blog_1",
         resultEnvelope: expect.objectContaining({ toolName: "produce_blog_article" }),
       }),
     });

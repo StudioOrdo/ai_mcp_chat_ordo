@@ -16,9 +16,9 @@ import * as path from "path";
 import { assembleRoleDirective } from "@/core/entities/role-directive-assembler";
 import { ROLE_DIRECTIVES } from "@/core/entities/role-directives";
 import {
-  CAPABILITY_CATALOG,
-  projectPromptHint,
-} from "@/core/capability-catalog/catalog";
+  projectAllCapabilityRuntimeStatics,
+  projectCapabilityRuntimeStaticByName,
+} from "@/core/platform/capability-runtime/CapabilityRuntime";
 import type { RoleName } from "@/core/entities/user";
 
 const ROOT = path.resolve(__dirname, "../../..");
@@ -157,15 +157,15 @@ describe("Sprint 13 — Prompt Directive Unification", () => {
     });
 
     it("every catalog promptHint line appears in at least one directive", () => {
-      for (const def of Object.values(CAPABILITY_CATALOG)) {
+      for (const runtime of projectAllCapabilityRuntimeStatics()) {
         for (const role of ALL_ROLES) {
-          const hintLines = projectPromptHint(def, role);
+          const hintLines = runtime.promptHintsByRole?.[role] ?? null;
           if (hintLines && hintLines.length > 0) {
             const directive = assembleRoleDirective(role);
             for (const line of hintLines) {
               expect(
                 directive,
-                `Missing promptHint line from ${def.core.name} for ${role}: "${line.substring(0, 60)}..."`,
+                `Missing promptHint line from ${runtime.capabilityName} for ${role}: "${line.substring(0, 60)}..."`,
               ).toContain(line);
             }
           }
@@ -222,25 +222,25 @@ describe("Sprint 13 — Prompt Directive Unification", () => {
   // ─────────────────────────────────────────────────────────────────────────
   describe("Catalog promptHint coverage", () => {
     it("catalog has 19 entries with promptHint facets", () => {
-      const count = Object.values(CAPABILITY_CATALOG).filter(
-        (def) => (def as { promptHint?: unknown }).promptHint !== undefined,
+      const count = projectAllCapabilityRuntimeStatics().filter(
+        (runtime) => runtime.promptHintsByRole !== null,
       ).length;
-      expect(count).toBe(20);
+      expect(count).toBe(21);
     });
 
     it("compose_media has promptHint for 4 roles", () => {
-      const hint = CAPABILITY_CATALOG.compose_media.promptHint!;
-      expect(Object.keys(hint.roleDirectiveLines)).toHaveLength(4);
+      const hint = projectCapabilityRuntimeStaticByName("compose_media")!.promptHintsByRole!;
+      expect(Object.keys(hint)).toHaveLength(4);
     });
 
     it("search_my_conversations has promptHint for 4 roles", () => {
-      const hint = CAPABILITY_CATALOG.search_my_conversations.promptHint!;
-      expect(Object.keys(hint.roleDirectiveLines)).toHaveLength(4);
+      const hint = projectCapabilityRuntimeStaticByName("search_my_conversations")!.promptHintsByRole!;
+      expect(Object.keys(hint)).toHaveLength(4);
     });
 
     it("admin_web_search has promptHint for 1 role", () => {
-      const hint = CAPABILITY_CATALOG.admin_web_search.promptHint!;
-      expect(Object.keys(hint.roleDirectiveLines)).toHaveLength(1);
+      const hint = projectCapabilityRuntimeStaticByName("admin_web_search")!.promptHintsByRole!;
+      expect(Object.keys(hint)).toHaveLength(1);
     });
   });
 });

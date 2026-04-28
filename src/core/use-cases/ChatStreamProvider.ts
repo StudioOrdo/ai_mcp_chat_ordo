@@ -1,4 +1,5 @@
 import type { StreamEvent } from "../entities/chat-stream";
+import type { MediaContinuityHandoff } from "@/lib/chat/media-continuity-handoff";
 import type { TaskOriginHandoff } from "@/lib/chat/task-origin-handoff";
 import type { CurrentPageSnapshot } from "@/lib/chat/current-page-context";
 import type { AttachmentMessagePart } from "@/core/entities/message-parts";
@@ -20,6 +21,7 @@ export interface FetchChatStreamOptions {
   currentPageSnapshot?: CurrentPageSnapshot;
   attachments?: Array<Omit<AttachmentMessagePart, "type">>;
   taskOriginHandoff?: TaskOriginHandoff;
+  mediaContinuityHandoff?: MediaContinuityHandoff;
 }
 
 export interface ChatStreamProvider {

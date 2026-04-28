@@ -65,6 +65,7 @@ function parseJobStatusPart(value: unknown): JobStatusMessagePart | undefined {
     ...(typeof value.supersededByJobId === "string" || value.supersededByJobId === null
       ? { supersededByJobId: value.supersededByJobId as string | null }
       : {}),
+    ...(typeof value.toolInvocationId === "string" ? { toolInvocationId: value.toolInvocationId } : {}),
   };
 }
 
@@ -86,11 +87,12 @@ export class TextDeltaParser implements EventParserStrategy {
 export class ToolCallParser implements EventParserStrategy {
   canParse(data: RawSSEData) { return !!data.tool_call; }
   parse(data: RawSSEData): StreamEvent {
-    const tc = data.tool_call as { name: string; args: Record<string, unknown> };
+    const tc = data.tool_call as { name: string; args: Record<string, unknown>; toolInvocationId?: unknown };
     return { 
       type: "tool_call", 
       name: tc.name, 
-      args: tc.args 
+      args: tc.args,
+      ...(typeof tc.toolInvocationId === "string" ? { toolInvocationId: tc.toolInvocationId } : {}),
     };
   }
 }
@@ -98,11 +100,21 @@ export class ToolCallParser implements EventParserStrategy {
 export class ToolResultParser implements EventParserStrategy {
   canParse(data: RawSSEData) { return !!data.tool_result; }
   parse(data: RawSSEData): StreamEvent {
-    const tr = data.tool_result as { name: string; result: unknown };
+    const tr = data.tool_result as {
+      name: string;
+      result: unknown;
+      toolInvocationId?: unknown;
+      sourceMessageId?: unknown;
+      contentHash?: unknown;
+    };
+
     return { 
       type: "tool_result", 
       name: tr.name, 
-      result: tr.result 
+      result: tr.result,
+      ...(typeof tr.toolInvocationId === "string" ? { toolInvocationId: tr.toolInvocationId } : {}),
+      ...(typeof tr.sourceMessageId === "string" ? { sourceMessageId: tr.sourceMessageId } : {}),
+      ...(typeof tr.contentHash === "string" ? { contentHash: tr.contentHash } : {}),
     };
   }
 }

@@ -45,6 +45,8 @@ export async function POST(request: Request) {
       .filter((value): value is File => value instanceof File);
     const rawConversationId = formData.get("conversationId");
     const rawDerivativeOfAssetId = formData.get("derivativeOfAssetId");
+    const rawToolInvocationId = formData.get("toolInvocationId");
+    const rawDerivativeOfToolInvocationId = formData.get("derivativeOfToolInvocationId");
 
     if (files.length === 0) {
       return jsonError("At least one file is required.", "VALIDATION_ERROR", 400);
@@ -103,6 +105,14 @@ export async function POST(request: Request) {
       typeof rawDerivativeOfAssetId === "string" && rawDerivativeOfAssetId.trim().length > 0
         ? rawDerivativeOfAssetId.trim()
         : undefined;
+    const toolInvocationId =
+      typeof rawToolInvocationId === "string" && rawToolInvocationId.trim().length > 0
+        ? rawToolInvocationId.trim()
+        : undefined;
+    const derivativeOfToolInvocationId =
+      typeof rawDerivativeOfToolInvocationId === "string" && rawDerivativeOfToolInvocationId.trim().length > 0
+        ? rawDerivativeOfToolInvocationId.trim()
+        : undefined;
     const { userId } = await resolveUserId();
 
     await reapStaleChatUploads({ userId }).catch((error) => {
@@ -124,6 +134,8 @@ export async function POST(request: Request) {
           ...metadata,
           retentionClass,
           ...(derivativeOfAssetId ? { derivativeOfAssetId } : {}),
+          ...(toolInvocationId ? { toolInvocationId } : {}),
+          ...(derivativeOfToolInvocationId ? { derivativeOfToolInvocationId } : {}),
         };
 
         return {
@@ -164,6 +176,12 @@ export async function POST(request: Request) {
           : {}),
         ...(storedMetadata.derivativeOfAssetId
           ? { derivativeOfAssetId: storedMetadata.derivativeOfAssetId }
+          : {}),
+        ...(storedMetadata.toolInvocationId
+          ? { toolInvocationId: storedMetadata.toolInvocationId }
+          : {}),
+        ...(storedMetadata.derivativeOfToolInvocationId
+          ? { derivativeOfToolInvocationId: storedMetadata.derivativeOfToolInvocationId }
           : {}),
       };
     });

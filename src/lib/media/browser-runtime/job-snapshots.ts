@@ -34,11 +34,13 @@ type RuntimeStatus = "queued" | "running" | "succeeded" | "failed" | "canceled";
 type PairedToolCall = {
   name: string;
   args: Record<string, unknown>;
+  toolInvocationId?: string;
 };
 
 export interface BrowserRuntimeCandidate {
   jobId: string;
   messageId: string;
+  toolInvocationId?: string;
   toolName: BrowserRuntimeToolName;
   args: Record<string, unknown>;
   payload: unknown;
@@ -85,6 +87,18 @@ function isGenerateAudioPayload(value: unknown): value is GenerateAudioPayload {
     && typeof value.generationStatus === "string"
     && typeof value.estimatedDurationSeconds === "number"
     && typeof value.estimatedGenerationSeconds === "number";
+}
+
+function hasDurableAsset(toolName: BrowserRuntimeToolName, payload: unknown): boolean {
+  if (!isRecord(payload)) {
+    return false;
+  }
+
+  if (toolName === "compose_media") {
+    return typeof payload.primaryAssetId === "string" && payload.primaryAssetId.trim().length > 0;
+  }
+
+  return typeof payload.assetId === "string" && payload.assetId.trim().length > 0;
 }
 
 function readBrowserRuntimeAssetFields(value: unknown): BrowserRuntimeAssetFields {
@@ -314,7 +328,7 @@ function normalizePayload(
 }
 
 export function buildBrowserRuntimeJobStatusPart(options: {
-  candidate: Pick<BrowserRuntimeCandidate, "jobId" | "messageId" | "toolName" | "args">;
+  candidate: Pick<BrowserRuntimeCandidate, "jobId" | "messageId" | "toolName" | "args" | "toolInvocationId">;
   payload: unknown;
   status: RuntimeStatus;
   browserExecutionStatus?: BrowserCapabilityExecutionStatus | null;
@@ -338,6 +352,10 @@ export function buildBrowserRuntimeJobStatusPart(options: {
     options.candidate.args,
     options.conversationId,
   );
+  const status = (options.status === "failed" || options.status === "canceled")
+    && hasDurableAsset(options.candidate.toolName, normalizedPayload)
+    ? "succeeded"
+    : options.status;
   const artifacts = buildArtifacts(options.candidate.toolName, normalizedPayload, options.conversationId);
   const resultEnvelope = projectCapabilityResultEnvelope({
     toolName: options.candidate.toolName,
@@ -346,7 +364,7 @@ export function buildBrowserRuntimeJobStatusPart(options: {
     descriptor,
     executionMode: descriptor.executionMode,
     progress:
-      options.status === "queued" || options.status === "running"
+      status === "queued" || status === "running"
         ? {
           percent: options.progressPercent ?? undefined,
           label: options.progressLabel ?? undefined,
@@ -358,27 +376,28 @@ export function buildBrowserRuntimeJobStatusPart(options: {
   const summary = resultEnvelope?.summary;
   const runtimeState = normalizeMediaRuntimeState({
     toolName: options.candidate.toolName,
-    jobStatus: options.status,
+    jobStatus: status,
     payload: normalizedPayload,
     executionMode: descriptor.executionMode,
     browserExecutionStatus: options.browserExecutionStatus,
-    failureCode: options.failureCode,
-    failureStage: options.failureStage,
+    failureCode: status === "failed" || status === "canceled" ? options.failureCode : null,
+    failureStage: status === "failed" || status === "canceled" ? options.failureStage : null,
   });
 
   return {
     type: "job_status",
     jobId: options.candidate.jobId,
+    ...(options.candidate.toolInvocationId ? { toolInvocationId: options.candidate.toolInvocationId } : {}),
     toolName: options.candidate.toolName,
     label: descriptor.label,
     ...(summary?.title ? { title: summary.title } : {}),
     ...(summary?.subtitle ? { subtitle: summary.subtitle } : {}),
-    status: options.status,
+    status,
     sequence: options.sequence,
     ...(options.progressPercent !== undefined ? { progressPercent: options.progressPercent } : {}),
     ...(options.progressLabel !== undefined ? { progressLabel: options.progressLabel } : {}),
     ...(summary?.message ? { summary: summary.message } : {}),
-    ...(options.error ? { error: options.error } : {}),
+    ...((status === "failed" || status === "canceled") && options.error ? { error: options.error } : {}),
     updatedAt: options.updatedAt ?? new Date().toISOString(),
     lifecyclePhase: runtimeState.lifecyclePhase,
     failureCode: runtimeState.failureCode,
@@ -417,6 +436,7 @@ export function getBrowserRuntimeCandidates(messages: ChatMessage[]): BrowserRun
           pendingCalls.push({
             name: part.name,
             args: part.args,
+            toolInvocationId: part.toolInvocationId,
           });
         }
         continue;
@@ -459,6 +479,7 @@ export function getBrowserRuntimeCandidates(messages: ChatMessage[]): BrowserRun
       candidates.push({
         jobId,
         messageId: message.id,
+        ...(match.toolInvocationId ? { toolInvocationId: match.toolInvocationId } : {}),
         toolName: match.name,
         args: match.args,
         payload,

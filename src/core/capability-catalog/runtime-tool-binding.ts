@@ -52,6 +52,10 @@ import {
   createResolveBlogArticleQaTool,
 } from "@/core/use-cases/tools/blog-production.tool";
 import {
+  createProduceProductTool,
+  parseProduceProductInput,
+} from "@/core/use-cases/tools/factory-production.tool";
+import {
   createGetDeferredJobStatusTool,
   createGetMyJobStatusTool,
   createListDeferredJobsTool,
@@ -68,6 +72,10 @@ import {
   executeInspectRuntimeContext,
   parseInspectRuntimeContextInput,
 } from "@/core/use-cases/tools/inspect-runtime-context.tool";
+import {
+  executeInspectRuntimeLogs,
+  sanitizeInspectRuntimeLogsInput,
+} from "@/core/use-cases/tools/inspect-runtime-logs.tool";
 import { createInspectThemeTool } from "@/core/use-cases/tools/inspect-theme.tool";
 import {
   createGetJournalPostTool,
@@ -116,13 +124,17 @@ import {
   executeSetTheme,
   parseSetThemeInput,
 } from "@/core/use-cases/tools/set-theme.tool";
+import { createProduceProductDeferredJobHandler } from "@/lib/factory/factory-production-root";
 import {
   executeSetPreference,
   parseSetPreferenceInput,
 } from "@/core/use-cases/tools/set-preference.tool";
-import { generateAudioTool } from "@/core/use-cases/tools/generate-audio.tool";
-import { generateChartTool } from "@/core/use-cases/tools/generate-chart.tool";
-import { generateGraphTool } from "@/core/use-cases/tools/generate-graph.tool";
+import { parseGenerateAudioInput } from "@/core/use-cases/tools/generate-audio.tool";
+import { parseGenerateChartInput } from "@/core/use-cases/tools/generate-chart.tool";
+import { parseGenerateGraphInput } from "@/core/use-cases/tools/generate-graph.tool";
+import { buildGenerateAudioRuntimePayload, generateStoredAudioArtifact } from "@/lib/audio/audio-generation-service";
+import { buildGenerateChartRuntimePayload, generateStoredChartArtifact } from "@/lib/media/server/chart-generation-service";
+import { buildGenerateGraphRuntimePayload, generateStoredGraphArtifact } from "@/lib/media/server/graph-generation-service";
 import {
   createGetMyProfileTool,
   createGetMyReferralQrTool,
@@ -132,6 +144,7 @@ import type { CapabilityDefinition } from "./capability-definition";
 import { CAPABILITY_CATALOG, getCatalogDefinition } from "./catalog";
 import { resolveExecutionPlanningContextForCapability } from "./execution-planning-policy";
 import { getMcpProcessMetadata } from "./mcp-process-metadata";
+import { UserFileSystem } from "@/lib/user-files";
 import {
   buildCatalogBoundToolDescriptor,
   type CatalogExecutor,
@@ -157,14 +170,12 @@ import { enqueueComposeMediaDeferredJob } from "@/lib/jobs/compose-media-deferre
 import { enqueueDeferredToolJob } from "@/lib/jobs/enqueue-deferred-tool-job";
 import {
   COMPOSE_MEDIA_COMPLETE_LABEL,
-  getComposeMediaBaselinePercent,
-  getComposeMediaProgressLabel,
 } from "@/lib/media/compose-media-progress";
 import { MediaWorkerClient } from "@/lib/media/server/media-worker-client";
 import {
   planCapabilityExecution,
   type ExecutionPlanningContext,
-} from "@/lib/capabilities/execution-targets";
+} from "@/core/platform/execution/ExecutionPlanner";
 import type { WebSearchToolDeps } from "@/lib/capabilities/shared/web-search-tool";
 import {
   loadOperatorAnonymousOpportunities,
@@ -212,10 +223,12 @@ type CatalogBoundDefinition = CapabilityDefinition & {
   validationBinding: NonNullable<CapabilityDefinition["validationBinding"]>;
 };
 
-interface CatalogRuntimeBinding {
-  parse: CatalogInputParser<any>;
-  createExecutor: (deps: CatalogToolBindingDeps) => CatalogExecutor<any>;
+interface CatalogRuntimeBinding<T = unknown> {
+  parse: CatalogInputParser<T>;
+  createExecutor: (deps: CatalogToolBindingDeps) => CatalogExecutor<T>;
 }
+
+type AnyCatalogRuntimeBinding = CatalogRuntimeBinding<any>;
 
 function requireBlogRepo(deps: CatalogToolBindingDeps): BlogPostRepository {
   if (!deps.blogRepo) {
@@ -356,6 +369,7 @@ async function executeComposeMediaForSystemWorker(
     plan: input.plan,
     userId: context.userId,
     conversationId,
+    toolInvocationId: context.toolInvocationId,
   }, async (update) => {
     await context.reportProgress?.(update);
   });
@@ -408,15 +422,15 @@ const DESCRIPTOR_BACKED_RUNTIME_BINDINGS = {
   compose_blog_article: createDescriptorBackedRuntimeBinding(
     (deps) => createComposeBlogArticleTool(requireBlogArticleService(deps)),
   ),
-  generate_audio: createDescriptorBackedRuntimeBinding(() => generateAudioTool),
+  // generate_audio is bound manually in RUNTIME_BINDINGS below to enable synchronous backend generation
   generate_blog_image: createDescriptorBackedRuntimeBinding(
     (deps) => createGenerateBlogImageTool(requireBlogImageService(deps)),
   ),
   generate_blog_image_prompt: createDescriptorBackedRuntimeBinding(
     (deps) => createGenerateBlogImagePromptTool(requireBlogArticleService(deps)),
   ),
-  generate_chart: createDescriptorBackedRuntimeBinding(() => generateChartTool),
-  generate_graph: createDescriptorBackedRuntimeBinding(() => generateGraphTool),
+  // generate_chart is bound manually in RUNTIME_BINDINGS below to enable synchronous backend generation
+  // generate_graph is bound manually in RUNTIME_BINDINGS below to enable synchronous backend generation
   get_admin_affiliate_summary: createDescriptorBackedRuntimeBinding(
     (deps) => createGetAdminAffiliateSummaryTool(requireAdminAnalyticsService(deps)),
   ),
@@ -466,7 +480,7 @@ const DESCRIPTOR_BACKED_RUNTIME_BINDINGS = {
     (deps) => createListDeferredJobsTool(requireJobStatusQuery(deps)),
   ),
   list_conversation_media_assets: createDescriptorBackedRuntimeBinding(
-    (deps) => createListConversationMediaAssetsTool(requireUserFileRepository(deps)),
+    (deps) => createListConversationMediaAssetsTool(requireUserFileRepository(deps), deps.blogAssetRepo),
     parseListConversationMediaAssetsInput,
   ),
   list_journal_posts: createDescriptorBackedRuntimeBinding(
@@ -501,6 +515,10 @@ const DESCRIPTOR_BACKED_RUNTIME_BINDINGS = {
         requireBlogArticleService(deps),
       ),
     ),
+  ),
+  produce_product: createDescriptorBackedRuntimeBinding(
+    () => createProduceProductTool(createProduceProductDeferredJobHandler()),
+    parseProduceProductInput,
   ),
   produce_blog_article: createDescriptorBackedRuntimeBinding(
     (deps) => createProduceBlogArticleTool(requireBlogArticleService(deps)),
@@ -551,13 +569,45 @@ const DESCRIPTOR_BACKED_RUNTIME_BINDINGS = {
   update_my_profile: createDescriptorBackedRuntimeBinding(
     (deps) => createUpdateMyProfileTool(requireProfileService(deps)),
   ),
-} as const satisfies Record<string, CatalogRuntimeBinding>;
+} as const satisfies Record<string, AnyCatalogRuntimeBinding>;
 
 const RUNTIME_BINDINGS = {
   admin_web_search: {
     parse: sanitizeAdminWebSearchInput,
     createExecutor: (deps): CatalogExecutor<ReturnType<typeof sanitizeAdminWebSearchInput>> => {
-      return async (input) => executeAdminWebSearch(input, deps.adminWebSearchDepsFactory);
+      return async (input, context) => {
+        const payload = await executeAdminWebSearch(input, deps.adminWebSearchDepsFactory);
+
+        if (!("error" in payload)) {
+          const userFileRepo = requireUserFileRepository(deps);
+          const ufs = new UserFileSystem(userFileRepo);
+
+          // Serialize to markdown
+          const markdownContent = [
+            `# Web Search Results`,
+            `**Query:** ${payload.query}`,
+            payload.allowed_domains ? `**Domains:** ${payload.allowed_domains.join(", ")}` : null,
+            `\n## Answer\n\n${payload.answer}`,
+            payload.citations.length > 0 ? `\n## Citations\n` : null,
+            ...payload.citations.map((c, i) => `[${i + 1}] [${c.title}](${c.url})`),
+          ].filter(Boolean).join("\n");
+
+          const fileContent = Buffer.from(markdownContent, "utf-8");
+          const created = await ufs.store({
+            userId: context?.userId ?? "anonymous",
+            conversationId: context?.conversationId ?? null,
+            input: markdownContent,
+            fileType: "document",
+            mimeType: "text/markdown",
+            extension: "md",
+            data: fileContent,
+          });
+
+          return { ...payload, assetId: created.id };
+        }
+
+        return payload;
+      };
     },
   },
   admin_search: {
@@ -611,6 +661,12 @@ const RUNTIME_BINDINGS = {
       return async (input, context) => executeInspectRuntimeContext(registry, input, context);
     },
   },
+  inspect_runtime_logs: {
+    parse: sanitizeInspectRuntimeLogsInput,
+    createExecutor: (): CatalogExecutor<ReturnType<typeof sanitizeInspectRuntimeLogsInput>> => {
+      return async (input) => executeInspectRuntimeLogs(input);
+    },
+  },
   list_available_pages: {
     parse: parseListAvailablePagesInput,
     createExecutor: (): CatalogExecutor<ReturnType<typeof parseListAvailablePagesInput>> => {
@@ -637,6 +693,64 @@ const RUNTIME_BINDINGS = {
       return async (input, context) => command.execute(input, context);
     },
   },
+  generate_audio: {
+    parse: parseGenerateAudioInput,
+    createExecutor: (): CatalogExecutor<ReturnType<typeof parseGenerateAudioInput>> => {
+      return async (input, context) => {
+        const resolved = await generateStoredAudioArtifact({
+          userId: context?.userId ?? "anonymous",
+          text: input.text,
+          conversationId: context?.conversationId ?? null,
+          toolInvocationId: context?.toolInvocationId,
+        });
+
+        return buildGenerateAudioRuntimePayload(
+          { title: input.title, text: input.text, toolInvocationId: context?.toolInvocationId },
+          resolved
+        );
+      };
+    },
+  },
+  generate_chart: {
+    parse: parseGenerateChartInput,
+    createExecutor: (): CatalogExecutor<ReturnType<typeof parseGenerateChartInput>> => {
+      return async (input, context) => {
+        const resolved = await generateStoredChartArtifact({
+          ...input,
+          userId: context?.userId ?? "anonymous",
+          conversationId: context?.conversationId ?? null,
+          toolInvocationId: context?.toolInvocationId,
+        });
+
+        return buildGenerateChartRuntimePayload({
+          ...input,
+          userId: context?.userId ?? "anonymous",
+          conversationId: context?.conversationId ?? null,
+          toolInvocationId: context?.toolInvocationId,
+        }, resolved);
+      };
+    },
+  },
+  generate_graph: {
+    parse: parseGenerateGraphInput,
+    createExecutor: (): CatalogExecutor<ReturnType<typeof parseGenerateGraphInput>> => {
+      return async (input, context) => {
+        const resolved = await generateStoredGraphArtifact({
+          ...input,
+          userId: context?.userId ?? "anonymous",
+          conversationId: context?.conversationId ?? null,
+          toolInvocationId: context?.toolInvocationId,
+        });
+
+        return buildGenerateGraphRuntimePayload({
+          ...input,
+          userId: context?.userId ?? "anonymous",
+          conversationId: context?.conversationId ?? null,
+          toolInvocationId: context?.toolInvocationId,
+        }, resolved);
+      };
+    },
+  },
   set_preference: {
     parse: parseSetPreferenceInput,
     createExecutor: (deps): CatalogExecutor<ReturnType<typeof parseSetPreferenceInput>> => {
@@ -651,7 +765,7 @@ const RUNTIME_BINDINGS = {
     },
   },
   ...DESCRIPTOR_BACKED_RUNTIME_BINDINGS,
-} as const satisfies Record<string, CatalogRuntimeBinding>;
+} as const satisfies Record<string, AnyCatalogRuntimeBinding>;
 
 export type CatalogBoundToolName = keyof typeof RUNTIME_BINDINGS;
 
@@ -812,6 +926,25 @@ function createDeferredJobExecutionTargetAdapter(
       }
 
       const initiatorType = request.context?.role === "ANONYMOUS" ? "anonymous_session" : "user";
+      
+      let preAllocatedAssetId: string | undefined = undefined;
+      const requestPayload = request.input as Record<string, unknown>;
+
+      if (def.presentation.artifactKinds?.length) {
+        const primaryKind = def.presentation.artifactKinds[0];
+        if (primaryKind === "audio" || primaryKind === "chart" || primaryKind === "graph" || primaryKind === "video") {
+          const userFileRepo = requireUserFileRepository(deps);
+          const ufs = new UserFileSystem(userFileRepo);
+          const pending = await ufs.allocatePending({
+            userId,
+            conversationId,
+            fileType: primaryKind,
+            metadata: { toolName: def.core.name },
+          });
+          preAllocatedAssetId = pending.id;
+          requestPayload.assetId = pending.id;
+        }
+      }
 
       if (def.core.name === "compose_media") {
         const input = request.input as ReturnType<typeof parseComposeMediaInput>;
@@ -823,7 +956,11 @@ function createDeferredJobExecutionTargetAdapter(
           initiatorType,
         });
 
-        return result.payload;
+        const payload = result.payload;
+        if (preAllocatedAssetId) {
+          payload.deferred_job.assetId = preAllocatedAssetId;
+        }
+        return payload;
       }
 
       const result = await enqueueDeferredToolJob({
@@ -831,12 +968,16 @@ function createDeferredJobExecutionTargetAdapter(
         conversationId,
         userId,
         toolName: def.core.name,
-        requestPayload: request.input as Record<string, unknown>,
+        requestPayload,
         initiatorType,
         deferred: def.runtime.deferred,
       });
 
-      return result.payload;
+      const payload = result.payload;
+      if (preAllocatedAssetId) {
+        payload.deferred_job.assetId = preAllocatedAssetId;
+      }
+      return payload;
     },
   };
 }
@@ -940,9 +1081,31 @@ export function registerCatalogBoundTools(
   }
 }
 
+export function registerCatalogBoundToolsWithDepsResolver(
+  registry: ToolRegistry,
+  toolNames: readonly CatalogBoundToolName[],
+  resolveDeps?: (toolName: CatalogBoundToolName) => CatalogToolBindingDeps,
+): void {
+  for (const toolName of toolNames) {
+    registry.register(projectCatalogBoundToolDescriptor(toolName, resolveDeps?.(toolName) ?? {}));
+  }
+}
+
 export function getCatalogBoundToolNamesForBundle(bundleId: string): readonly CatalogBoundToolName[] {
   return CATALOG_BOUND_TOOL_NAMES.filter(
     (toolName) => getCatalogBoundDefinition(toolName).executorBinding.bundleId === bundleId,
+  );
+}
+
+export function registerCatalogBoundToolsForBundleWithDepsResolver(
+  registry: ToolRegistry,
+  bundleId: string,
+  resolveDeps?: (toolName: CatalogBoundToolName) => CatalogToolBindingDeps,
+): void {
+  registerCatalogBoundToolsWithDepsResolver(
+    registry,
+    getCatalogBoundToolNamesForBundle(bundleId),
+    resolveDeps,
   );
 }
 

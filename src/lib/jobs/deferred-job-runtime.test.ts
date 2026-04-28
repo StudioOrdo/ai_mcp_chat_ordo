@@ -10,6 +10,7 @@ const {
   executeDraftContentMock,
   executePublishContentMock,
   executeGenerateBlogImageMock,
+  executeProduceProductMock,
   executeQaBlogArticleMock,
   executeResolveBlogArticleQaMock,
   executeProduceBlogArticleMock,
@@ -18,18 +19,21 @@ const {
   executeDraftContentMock: vi.fn(),
   executePublishContentMock: vi.fn(),
   executeGenerateBlogImageMock: vi.fn(),
+  executeProduceProductMock: vi.fn(),
   executeQaBlogArticleMock: vi.fn(),
   executeResolveBlogArticleQaMock: vi.fn(),
   executeProduceBlogArticleMock: vi.fn(),
   executeComposeMediaJobMock: vi.fn(),
 }));
 
+// Phase 7 Mock Density Exception: This file tests a complex composition root or integration pipeline and legitimately requires extensive boundary mocking for external services (auth, db, observability, etc.).
 vi.mock("@/adapters/RepositoryFactory", () => ({
   getBlogAssetRepository: () => ({}),
   getBlogPostRepository: () => ({}),
   getBlogPostRevisionRepository: () => ({}),
   getJobQueueRepository: () => ({}),
   getJobStatusQuery: () => ({}),
+  getUserFileDataMapper: () => ({}),
 }));
 
 vi.mock("@/lib/blog/blog-production-root", () => ({
@@ -102,6 +106,20 @@ vi.mock("@/core/use-cases/tools/blog-production.tool", () => ({
   parseResolveBlogArticleQaInput: (value: Record<string, unknown>) => value,
 }));
 
+vi.mock("@/core/use-cases/tools/factory-production.tool", () => ({
+  createProduceProductTool: (_handler: unknown) => ({
+    command: {
+      execute: (input: Record<string, unknown>, context: { reportProgress?: unknown } | undefined) =>
+        executeProduceProductMock(input, context, context?.reportProgress),
+    },
+  }),
+  parseProduceProductInput: (value: Record<string, unknown>) => value,
+}));
+
+vi.mock("@/lib/factory/factory-production-root", () => ({
+  createProduceProductDeferredJobHandler: () => ({ mocked: true }),
+}));
+
 vi.mock("@/core/use-cases/tools/journal-write.tool", () => ({
   parsePrepareJournalPostForPublishInput: (value: Record<string, unknown>) => value,
   PrepareJournalPostForPublishInteractor: class PrepareJournalPostForPublishInteractor {
@@ -156,6 +174,12 @@ describe("deferred job runtime", () => {
     executeDraftContentMock.mockResolvedValue({ id: "post_1" });
     executePublishContentMock.mockResolvedValue({ id: "post_1" });
     executeGenerateBlogImageMock.mockResolvedValue({ id: "asset_1" });
+    executeProduceProductMock.mockResolvedValue({
+      workOrderId: "wo_1",
+      releaseId: "release_1",
+      compositionId: "composition_1",
+      outputIds: ["research_1", "draft_1", "release_1"],
+    });
     executeQaBlogArticleMock.mockResolvedValue({ ok: true });
     executeResolveBlogArticleQaMock.mockResolvedValue({ ok: true });
     executeProduceBlogArticleMock.mockResolvedValue({ id: "post_2" });
@@ -189,6 +213,20 @@ describe("deferred job runtime", () => {
     await handlers.qa_blog_article(makeJob("qa_blog_article", { title: "Launch" }), handlerContext);
     await handlers.resolve_blog_article_qa(makeJob("resolve_blog_article_qa", { title: "Launch" }), handlerContext);
     await handlers.produce_blog_article(makeJob("produce_blog_article", { brief: "Launch" }), handlerContext);
+    await handlers.produce_product(makeJob("produce_product", {
+      brief: {
+        id: "brief_1",
+        schemaVersion: 1,
+        title: "Launch",
+        topic: "Phase 3",
+        assetKinds: ["image"],
+        qaCriteria: ["accuracy"],
+        targetChannels: ["web"],
+        executionPreferences: { autoRetryOnFailure: true, parallelizeAssets: false },
+        createdAt: "2026-04-27T00:00:00.000Z",
+        createdBy: "usr_admin",
+      },
+    }), handlerContext);
 
     expectWorkerContext("draft_content", executeDraftContentMock.mock.calls[0]?.[2]);
     expectWorkerContext("publish_content", executePublishContentMock.mock.calls[0]?.[2]);
@@ -196,6 +234,7 @@ describe("deferred job runtime", () => {
     expectWorkerContext("qa_blog_article", executeQaBlogArticleMock.mock.calls[0]?.[2]);
     expectWorkerContext("resolve_blog_article_qa", executeResolveBlogArticleQaMock.mock.calls[0]?.[2]);
     expectWorkerContext("produce_blog_article", executeProduceBlogArticleMock.mock.calls[0]?.[2]);
+    expectWorkerContext("produce_product", executeProduceProductMock.mock.calls[0]?.[1]);
   });
 
   it("forwards structured phased progress updates from produce_blog_article handlers", async () => {
@@ -242,6 +281,49 @@ describe("deferred job runtime", () => {
     expect(executeProduceBlogArticleMock.mock.calls[0]?.[2]).toMatchObject({
       abortSignal: abortController.signal,
     });
+  });
+
+  it("forwards structured progress updates from produce_product handlers", async () => {
+    const handlers = createDeferredJobHandlers();
+    const reportProgress = vi.fn().mockResolvedValue(undefined);
+
+    executeProduceProductMock.mockImplementationOnce(async (_input, _context, progress) => {
+      await progress?.({
+        activePhaseKey: "qa_resolution",
+        progressPercent: 93,
+        progressLabel: "Resolving QA status",
+      });
+      return {
+        workOrderId: "wo_1",
+        releaseId: "release_1",
+        compositionId: "composition_1",
+        outputIds: ["release_1"],
+      };
+    });
+
+    await handlers.produce_product(
+      makeJob("produce_product", {
+        brief: {
+          id: "brief_1",
+          schemaVersion: 1,
+          title: "Launch",
+          topic: "Phase 3",
+          assetKinds: ["image"],
+          qaCriteria: ["accuracy"],
+          targetChannels: ["web"],
+          executionPreferences: { autoRetryOnFailure: true, parallelizeAssets: false },
+          createdAt: "2026-04-27T00:00:00.000Z",
+          createdBy: "usr_admin",
+        },
+      }),
+      { abortSignal: new AbortController().signal, reportProgress },
+    );
+
+    expect(reportProgress).toHaveBeenCalledWith(expect.objectContaining({
+      activePhaseKey: "qa_resolution",
+      progressPercent: 93,
+      progressLabel: "Resolving QA status",
+    }));
   });
 
   it("routes compose_media through the generic catalog-bound handler and reports shared progress", async () => {

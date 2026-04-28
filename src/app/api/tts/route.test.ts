@@ -16,6 +16,7 @@ const {
   fetchMock: vi.fn(),
 }));
 
+// Phase 7 Mock Density Exception: This file tests a complex composition root or integration pipeline and legitimately requires extensive boundary mocking for external services (auth, db, observability, etc.).
 vi.mock("node:fs/promises", () => ({
   readFile: readFileMock,
   default: {

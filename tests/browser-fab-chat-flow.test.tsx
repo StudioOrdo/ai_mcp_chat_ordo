@@ -10,6 +10,7 @@ const { fetchStreamMock, pushMock } = vi.hoisted(() => ({
   pushMock: vi.fn(),
 }));
 
+// Phase 7 Mock Density Exception: This file tests a complex composition root or integration pipeline and legitimately requires extensive boundary mocking for external services (auth, db, observability, etc.).
 vi.mock("@/adapters/StreamProviderFactory", () => ({
   getChatStreamProvider: () => ({
     fetchStream: fetchStreamMock,
@@ -182,8 +183,9 @@ describe("browser FAB chat flow", () => {
       window.dispatchEvent(new CustomEvent(OPEN_GLOBAL_CHAT_EVENT));
     });
 
-    const initialChip = await screen.findByRole("button", { name: "Audit this workflow" });
-    fireEvent.click(initialChip);
+    const composer = await screen.findByPlaceholderText("Ask Studio Ordo...");
+    fireEvent.change(composer, { target: { value: "Audit this workflow" } });
+    fireEvent.keyDown(composer, { key: "Enter", code: "Enter" });
 
     await waitFor(() => {
       expect(fetchStreamMock).toHaveBeenNthCalledWith(

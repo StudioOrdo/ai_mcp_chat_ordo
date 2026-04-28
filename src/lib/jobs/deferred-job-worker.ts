@@ -1,9 +1,4 @@
 import type { JobFailureClass, JobRequest } from "@/core/entities/job";
-import type {
-  CapabilityArtifactRef,
-  CapabilityProgressPhase,
-  CapabilityResultEnvelope,
-} from "@/core/entities/capability-result";
 import type { ToolProgressUpdate } from "@/core/tool-registry/ToolExecutionContext";
 import type { JobQueueRepository } from "@/core/use-cases/JobQueueRepository";
 import { isCapabilityResultEnvelope } from "@/lib/capabilities/capability-result-envelope";
@@ -13,7 +8,7 @@ import { getJobCapability, type JobRetryPolicy } from "./job-capability-registry
 import { getJobPhaseDefinitions, normalizeJobProgressState } from "./job-progress-state";
 import { appendRuntimeAuditLog } from "@/lib/observability/runtime-audit-log";
 
-export interface DeferredJobProgressUpdate extends ToolProgressUpdate {}
+export type DeferredJobProgressUpdate = ToolProgressUpdate;
 
 export interface DeferredJobHandlerContext {
   reportProgress: (update: DeferredJobProgressUpdate) => Promise<void>;
@@ -85,7 +80,11 @@ function classifyJobFailure(error: unknown): JobFailureClass {
     return "policy";
   }
 
-  if (/(timeout|timed out|temporary|temporarily|try again|rate limit|too many requests|service unavailable|network|socket hang up|connection reset|econn|eai_again|429|502|503|504|offline)/.test(normalized)) {
+  if (/(sqlite_busy|sqlite_busy_snapshot|database is locked|database table is locked|database busy|busy timeout)/.test(normalized)) {
+    return "transient";
+  }
+
+  if (/(timeout|timed out|temporary|temporarily|try again|rate limit|too many requests|service unavailable|network|socket hang up|connection reset|econn|eai_again|429|502|503|504|offline|asset_pending)/.test(normalized)) {
     return "transient";
   }
 
@@ -491,6 +490,9 @@ export class DeferredJobWorker {
     const abortController = new AbortController();
     const stopCancellationMonitor = this.startCancellationMonitor(job.id, abortController);
 
+    let lastProgressReportTimeMs = 0;
+    let lastProgressReportPercent = 0;
+
     try {
 
       const result = await handler(job, {
@@ -507,9 +509,26 @@ export class DeferredJobWorker {
           }
 
           const normalizedUpdate = normalizeProgressUpdate(job.toolName, update);
-          const progressNow = new Date();
-          const renewedLeaseExpiresAt = buildLeaseExpiresAt(progressNow, leaseDurationMs);
           lastProgressUpdate = normalizedUpdate;
+
+          const progressNow = new Date();
+          const nowMs = progressNow.getTime();
+          const currentPercent = normalizedUpdate.progressPercent ?? 0;
+
+          // Throttle progress updates to avoid SQLite write-lock contention.
+          // Always flush if it's been > 500ms, or if progress jumped by > 5%, or if it's 100%.
+          if (
+            currentPercent !== 100 &&
+            nowMs - lastProgressReportTimeMs < 500 &&
+            currentPercent - lastProgressReportPercent < 5
+          ) {
+            return; // Skip DB write, but lastProgressUpdate is safely updated in memory
+          }
+
+          lastProgressReportTimeMs = nowMs;
+          lastProgressReportPercent = currentPercent;
+
+          const renewedLeaseExpiresAt = buildLeaseExpiresAt(progressNow, leaseDurationMs);
 
           await appendRuntimeAuditLog("deferred_job", "progress", buildAuditContext(job, options.workerId, {
             progressPercent: normalizedUpdate.progressPercent,

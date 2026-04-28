@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { CAPABILITY_CATALOG } from "@/core/capability-catalog/catalog";
 import { planCapabilityExecutionWithDefaults } from "@/core/capability-catalog/execution-planning-policy";
@@ -18,12 +18,13 @@ import {
 } from "./execution-targets";
 
 describe("execution-target planning", () => {
-  it("keeps host_ts as the raw planner default for admin_web_search when no pack planning context is applied", () => {
+  it("keeps deferred_job as the raw planner default for admin_web_search when no pack planning context is applied", () => {
     const plan = planCapabilityExecution(CAPABILITY_CATALOG.admin_web_search);
 
-    expect(plan.primaryTarget?.kind).toBe("host_ts");
+    expect(plan.primaryTarget?.kind).toBe("deferred_job");
     expect(plan.blockReason).toBeNull();
     expect(plan.candidates.map((candidate) => [candidate.kind, candidate.readiness])).toEqual([
+      ["deferred_job", "active"],
       ["host_ts", "active"],
       ["mcp_stdio", "declared"],
       ["mcp_container", "declared"],
@@ -38,6 +39,7 @@ describe("execution-target planning", () => {
     expect(plan.candidates.map((candidate) => [candidate.kind, candidate.readiness])).toEqual([
       ["mcp_stdio", "active"],
       ["host_ts", "active"],
+      ["deferred_job", "declared"],
       ["mcp_container", "declared"],
     ]);
   });
@@ -67,6 +69,7 @@ describe("execution-target planning", () => {
     expect(plan.candidates.map((candidate) => [candidate.kind, candidate.readiness])).toEqual([
       ["mcp_container", "active"],
       ["host_ts", "active"],
+      ["deferred_job", "declared"],
       ["mcp_stdio", "declared"],
     ]);
   });
@@ -150,9 +153,10 @@ describe("execution-target planning", () => {
     const plan = planCapabilityExecutionWithDefaults(CAPABILITY_CATALOG.generate_audio);
 
     expect(plan.primaryTarget?.kind).toBe("browser_wasm");
-    expect(plan.fallbackTargets).toEqual([]);
+    expect(plan.fallbackTargets.map((target) => target.kind)).toEqual(["host_ts"]);
     expect(plan.candidates.map((candidate) => [candidate.kind, candidate.readiness])).toEqual([
       ["browser_wasm", "active"],
+      ["host_ts", "active"],
     ]);
   });
 
@@ -170,13 +174,13 @@ describe("execution-target dispatch", () => {
     let callCount = 0;
     const registry = createExecutionTargetAdapterRegistry([
       {
-        kind: "host_ts",
+        kind: "deferred_job",
         invoke: async (request) => {
           callCount += 1;
           observedTargetKind = request.target.kind;
           return { ok: true };
         },
-      } satisfies ExecutionTargetAdapter<"host_ts">,
+      } satisfies ExecutionTargetAdapter<"deferred_job">,
     ]);
     const plan = planCapabilityExecution(CAPABILITY_CATALOG.admin_web_search);
 
@@ -189,7 +193,7 @@ describe("execution-target dispatch", () => {
 
     expect(result).toEqual({ ok: true });
     expect(callCount).toBe(1);
-    expect(observedTargetKind).toBe("host_ts");
+    expect(observedTargetKind).toBe("deferred_job");
   });
 
   it("throws when dispatching a plan without any active target", async () => {

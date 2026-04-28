@@ -4,10 +4,10 @@ import type { RoleName } from "@/core/entities/user";
 import { buildSystemPrompt } from "@/lib/chat/policy";
 import type { PromptRuntimeResult } from "@/lib/chat/prompt-runtime";
 import { getPromptRuntime } from "@/lib/chat/prompt-runtime";
-import { getToolComposition } from "@/lib/chat/tool-composition-root";
 import { runClaudeAgentLoopStream, type ClaudeAgentLoopResult } from "@/lib/chat/anthropic-stream";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
 import type { CurrentPageSnapshot } from "@/lib/chat/current-page-context";
+import { getAgentPlatformFacade } from "@/lib/platform/agent-platform-facade-root";
 
 export interface LiveEvalRuntimeRequest {
   apiKey: string;
@@ -33,7 +33,7 @@ export interface LiveEvalRuntimeResult extends ClaudeAgentLoopResult {
 export async function executeLiveEvalRuntime(
   request: LiveEvalRuntimeRequest,
 ): Promise<LiveEvalRuntimeResult> {
-  const { registry, executor } = getToolComposition();
+  const { registry, executor } = getAgentPlatformFacade().getExecutionSurface();
   let promptRuntime = request.promptRuntime ?? null;
   let systemPrompt = promptRuntime?.text ?? request.systemPrompt;
 

@@ -4,7 +4,7 @@
  * Verifies the PromptProvenanceStore: compact provenance extraction,
  * TTL eviction, slot source attribution, and section key stripping.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   PromptProvenanceStore,
   compactProvenance,
@@ -81,7 +81,38 @@ describe("prompt-provenance-store", () => {
     });
 
     it("preserves section keys and sourceKinds", () => {
-      const result = createMockResult();
+      const result = createMockResult({
+        sections: [
+          {
+            key: "identity",
+            sourceKind: "slot",
+            priority: 10,
+            content: "You are Ordo, a helpful knowledge assistant.",
+            includedInText: true,
+            slotKey: "ALL/base",
+          },
+          {
+            key: "role_directive",
+            sourceKind: "slot",
+            priority: 20,
+            content: "Guide apprentice users through...",
+            includedInText: true,
+            slotKey: "APPRENTICE/role_directive",
+          },
+          {
+            key: "tool_manifest",
+            sourceKind: "request",
+            priority: 15,
+            content: "TOOLS AVAILABLE: ...",
+            includedInText: true,
+            payload: {
+              assets: [
+                { assetId: "uf_chart_1", kind: "chart", derivativeOfAssetId: "chart_test_001" },
+              ],
+            },
+          },
+        ],
+      });
       const compact = compactProvenance(result);
 
       expect(compact.sections).toHaveLength(3);
@@ -97,6 +128,11 @@ describe("prompt-provenance-store", () => {
         sourceKind: "request",
         priority: 15,
         includedInText: true,
+        payload: {
+          assets: [
+            { assetId: "uf_chart_1", kind: "chart", derivativeOfAssetId: "chart_test_001" },
+          ],
+        },
       });
     });
 

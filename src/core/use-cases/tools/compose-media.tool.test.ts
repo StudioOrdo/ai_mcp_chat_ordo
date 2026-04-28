@@ -42,15 +42,28 @@ describe("parseComposeMediaInput", () => {
       plan: {
         id: "p-parse-1",
         conversationId: "conv-1",
-        visualClips: [{ assetId: "v1", kind: "video" }],
+        visualClips: [{ assetId: "asset_v1", kind: "video" }],
         audioClips: [],
         subtitlePolicy: "none",
       },
     };
     const result = parseComposeMediaInput(input);
     expect(result.plan.id).toBe("p-parse-1");
-    expect(result.plan.visualClips[0].assetId).toBe("v1");
-    expect(result.plan.resolution).toEqual({ width: 1080, height: 1920 });
+    expect(result.plan.visualClips[0].assetId).toBe("asset_v1");
+  });
+
+  it("throws when clip assetIds are prompt-like instead of stored IDs", () => {
+    const input = {
+      plan: {
+        id: "p-bad-asset",
+        conversationId: "conv-1",
+        visualClips: [{ assetId: "generate:a plate of cheese", kind: "image" }],
+        audioClips: [{ assetId: "uf_audio_1", kind: "audio" }],
+        subtitlePolicy: "none",
+      },
+    };
+
+    expect(() => parseComposeMediaInput(input)).toThrow(/Invalid visual clip assetId/);
   });
 
   it("throws on invalid input missing the plan field", () => {
@@ -77,7 +90,7 @@ describe("ComposeMediaCommand.execute", () => {
       plan: {
         id: "p-exec-1",
         conversationId: "conv-1",
-        visualClips: [{ assetId: "v1", kind: "video" as const }],
+        visualClips: [{ assetId: "asset_v1", kind: "video" as const }],
         audioClips: [],
         subtitlePolicy: "none" as const,
         waveformPolicy: "none" as const,

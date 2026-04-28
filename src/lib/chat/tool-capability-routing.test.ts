@@ -97,4 +97,107 @@ describe("getRequestScopedToolSelection", () => {
       "generate_audio",
     ]);
   });
+
+  it("prefers compose_media for video intent by removing blog image tools", () => {
+    const tools = [
+      createTool("compose_media"),
+      createTool("generate_blog_image"),
+      createTool("generate_blog_image_prompt"),
+      createTool("search_corpus"),
+    ];
+
+    const selection = getRequestScopedToolSelection(
+      createRegistry(tools),
+      "ADMIN",
+      createConversationRoutingSnapshot({ lane: "uncertain", confidence: 0.35 }),
+      "can you make a short video from this?",
+    );
+
+    expect(selection.prefiltered).toBe(true);
+    expect(selection.tools.map((tool) => tool.name)).toEqual([
+      "compose_media",
+      "search_corpus",
+    ]);
+    expect(selection.allowedToolNames).toEqual([
+      "compose_media",
+      "search_corpus",
+    ]);
+  });
+
+  it("does not remove image tools when image intent is explicit", () => {
+    const tools = [
+      createTool("compose_media"),
+      createTool("generate_blog_image"),
+    ];
+
+    const selection = getRequestScopedToolSelection(
+      createRegistry(tools),
+      "ADMIN",
+      createConversationRoutingSnapshot({ lane: "uncertain", confidence: 0.4 }),
+      "make a video and also generate a hero image",
+    );
+
+    expect(selection.prefiltered).toBe(false);
+    expect(selection.tools.map((tool) => tool.name)).toEqual([
+      "compose_media",
+      "generate_blog_image",
+    ]);
+  });
+
+  it("keeps conversation media discovery available in the admin development lane", () => {
+    const tools = [
+      createTool("navigate_to_page"),
+      createTool("search_corpus"),
+      createTool("generate_audio"),
+      createTool("generate_chart"),
+      createTool("list_conversation_media_assets"),
+      createTool("compose_media"),
+    ];
+
+    const selection = getRequestScopedToolSelection(
+      createRegistry(tools),
+      "ADMIN",
+      createConversationRoutingSnapshot({ lane: "development", confidence: 0.95 }),
+      "combine the chart and audio into a video",
+    );
+
+    expect(selection.prefiltered).toBe(false);
+    expect(selection.tools.map((tool) => tool.name)).toEqual([
+      "navigate_to_page",
+      "search_corpus",
+      "generate_audio",
+      "generate_chart",
+      "list_conversation_media_assets",
+      "compose_media",
+    ]);
+  });
+
+  it("filters fresh media generators when reuse-ready audio and visuals already exist", () => {
+    const tools = [
+      createTool("generate_audio"),
+      createTool("generate_chart"),
+      createTool("generate_graph"),
+      createTool("list_conversation_media_assets"),
+      createTool("compose_media"),
+    ];
+
+    const selection = getRequestScopedToolSelection(
+      createRegistry(tools),
+      "ADMIN",
+      createConversationRoutingSnapshot({ lane: "uncertain", confidence: 0.35 }),
+      "combine the chart and narration into a video",
+      {
+        assets: [
+          { assetId: "uf_chart_1", kind: "chart", aliases: ["growth chart"] },
+          { assetId: "uf_audio_1", kind: "audio", aliases: ["growth narration"] },
+        ],
+      },
+    );
+
+    expect(selection.prefiltered).toBe(true);
+    expect(selection.tools.map((tool) => tool.name)).toEqual([
+      "list_conversation_media_assets",
+      "compose_media",
+    ]);
+  });
 });

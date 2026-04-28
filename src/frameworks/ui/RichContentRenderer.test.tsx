@@ -261,8 +261,7 @@ describe("RichContentRenderer", () => {
 
     expect(screen.getByLabelText("Draft Content status")).toBeInTheDocument();
     expect(screen.getByText("Running")).toBeInTheDocument();
-    expect(screen.getByText("Drafting")).toBeInTheDocument();
-    expect(screen.getByText("60%")).toBeInTheDocument();
+    expect(screen.getByText(/Drafting\s+60%/)).toBeInTheDocument();
   });
 
   it("renders job-status actions and dispatches them", () => {

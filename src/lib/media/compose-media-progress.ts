@@ -26,6 +26,12 @@ type ComposeMediaProgressContext = {
   progressPercent?: number | null;
 };
 
+function hasMediaClipArrays(
+  plan: ComposeMediaProgressContext["plan"],
+): plan is Pick<MediaCompositionPlan, "profile" | "visualClips" | "audioClips"> {
+  return Array.isArray(plan?.visualClips) && Array.isArray(plan?.audioClips);
+}
+
 export function getComposeMediaProgressPhase(
   key: ComposeMediaProgressPhaseKey,
 ): (typeof COMPOSE_MEDIA_PROGRESS_PHASES)[number] {
@@ -115,11 +121,11 @@ export function getComposeMediaProgressLabel(
   key: ComposeMediaProgressPhaseKey,
   context?: ComposeMediaProgressContext,
 ): string {
-  const baseLabel = context?.plan
+  const baseLabel = hasMediaClipArrays(context?.plan)
     ? getProfileAwarePhaseLabel(key, context.plan)
     : getComposeMediaProgressPhase(key).label;
 
-  if (!context?.plan || context.progressPercent == null || key === "persisting" || key === "verifying_playback") {
+  if (!hasMediaClipArrays(context?.plan) || context.progressPercent == null || key === "persisting" || key === "verifying_playback") {
     return baseLabel;
   }
 

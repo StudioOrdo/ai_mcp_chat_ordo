@@ -318,35 +318,27 @@ export class JobQueueDataMapper implements JobQueueRepository {
   }
 
   async appendEvent(seed: JobEventSeed): Promise<JobEvent> {
-    const insertEvent = this.db.transaction((eventSeed: JobEventSeed) => {
-      const id = `jobevt_${randomUUID()}`;
-      const nextSequenceRow = this.db.prepare(
-        `SELECT COALESCE(MAX(sequence), 0) + 1 AS next_sequence
-         FROM job_events
-         WHERE conversation_id = ?`,
-      ).get(eventSeed.conversationId) as { next_sequence: number };
-      const sequence = nextSequenceRow.next_sequence;
-      const now = new Date().toISOString();
+    const id = `jobevt_${randomUUID()}`;
+    const now = new Date().toISOString();
 
-      this.db.prepare(
-        `INSERT INTO job_events (id, job_id, conversation_id, sequence, event_type, event_payload_json, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      ).run(
-        id,
-        eventSeed.jobId,
-        eventSeed.conversationId,
-        sequence,
-        eventSeed.eventType,
-        JSON.stringify(eventSeed.payload ?? {}),
-        now,
-      );
+    const row = this.db.prepare(
+      `INSERT INTO job_events (id, job_id, conversation_id, sequence, event_type, event_payload_json, created_at)
+       VALUES (
+         ?, ?, ?, 
+         (SELECT COALESCE(MAX(sequence), 0) + 1 FROM job_events WHERE conversation_id = ?), 
+         ?, ?, ?
+       ) RETURNING *`
+    ).get(
+      id,
+      seed.jobId,
+      seed.conversationId,
+      seed.conversationId, // for the subquery
+      seed.eventType,
+      JSON.stringify(seed.payload ?? {}),
+      now,
+    ) as JobEventRow;
 
-      return this.db
-        .prepare(`SELECT * FROM job_events WHERE id = ?`)
-        .get(id) as JobEventRow;
-    });
-
-    return mapJobEvent(insertEvent(seed));
+    return mapJobEvent(row);
   }
 
   async requeueExpiredRunningJobs(now: string): Promise<JobLeaseRecovery[]> {

@@ -2,8 +2,15 @@ import type { JobStatusMessagePart } from "./message-parts";
 
 export type StreamEvent =
   | { type: "text"; delta: string }
-  | { type: "tool_call"; name: string; args: Record<string, unknown> }
-  | { type: "tool_result"; name: string; result: unknown }
+    | { type: "tool_call"; name: string; args: Record<string, unknown>; toolInvocationId?: string }
+  | {
+      type: "tool_result";
+      name: string;
+      result: unknown;
+      toolInvocationId?: string;
+      sourceMessageId?: string;
+      contentHash?: string;
+    }
   | { type: "stream_id"; id: string }
   | { type: "conversation_id"; id: string }
   | {

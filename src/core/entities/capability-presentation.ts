@@ -16,6 +16,7 @@ export type CapabilityCardKind =
   | "profile_summary"
   | "journal_workflow"
   | "media_render"
+  | "lifecycle"
   | "fallback";
 
 export type CapabilityExecutionMode = "inline" | "deferred" | "browser" | "hybrid";

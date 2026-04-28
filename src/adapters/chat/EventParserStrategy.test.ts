@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { EventParser, JobProgressParser } from "./EventParserStrategy";
+import { EventParser, JobProgressParser, ToolCallParser, ToolResultParser } from "./EventParserStrategy";
 
 describe("EventParserStrategy", () => {
   it("preserves normalized job parts on parsed SSE payloads", () => {
@@ -20,6 +20,7 @@ describe("EventParserStrategy", () => {
         toolName: "produce_blog_article",
         label: "Produce Blog Article",
         status: "running",
+        toolInvocationId: "toolu_job_1",
         sequence: 8,
         progressPercent: 42,
         progressLabel: "Reviewing article",
@@ -53,6 +54,7 @@ describe("EventParserStrategy", () => {
       type: "job_progress",
       part: expect.objectContaining({
         type: "job_status",
+        toolInvocationId: "toolu_job_1",
         lifecyclePhase: "compose_running_deferred",
         failureCode: null,
         failureStage: null,
@@ -62,6 +64,46 @@ describe("EventParserStrategy", () => {
           payload: null,
         }),
       }),
+    });
+  });
+
+  it("preserves tool_result source metadata when provided", () => {
+    const parser = new EventParser([new ToolResultParser()]);
+    const event = parser.parse({
+      tool_result: {
+        name: "generate_audio",
+        result: { assetId: "uf_audio_1" },
+        toolInvocationId: "toolu_audio_1",
+        sourceMessageId: "msg_1",
+        contentHash: "hash_audio_1",
+      },
+    });
+
+    expect(event).toEqual({
+      type: "tool_result",
+      name: "generate_audio",
+      result: { assetId: "uf_audio_1" },
+      toolInvocationId: "toolu_audio_1",
+      sourceMessageId: "msg_1",
+      contentHash: "hash_audio_1",
+    });
+  });
+
+  it("preserves tool_call invocation identity when provided", () => {
+    const parser = new EventParser([new ToolCallParser()]);
+    const event = parser.parse({
+      tool_call: {
+        name: "generate_chart",
+        args: { title: "Cheese Flow" },
+        toolInvocationId: "toolu_chart_1",
+      },
+    });
+
+    expect(event).toEqual({
+      type: "tool_call",
+      name: "generate_chart",
+      args: { title: "Cheese Flow" },
+      toolInvocationId: "toolu_chart_1",
     });
   });
 });

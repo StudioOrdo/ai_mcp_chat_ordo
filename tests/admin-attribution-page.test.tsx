@@ -2,15 +2,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
 const {
-  requireAdminPageAccessMock,
+  requireJournalWorkspaceAccessMock,
   loadJournalAttributionMock,
 } = vi.hoisted(() => ({
-  requireAdminPageAccessMock: vi.fn(),
+  requireJournalWorkspaceAccessMock: vi.fn(),
   loadJournalAttributionMock: vi.fn(),
 }));
 
 vi.mock("@/lib/journal/admin-journal", () => ({
-  requireAdminPageAccess: requireAdminPageAccessMock,
+  requireJournalWorkspaceAccess: requireJournalWorkspaceAccessMock,
 }));
 
 vi.mock("@/lib/admin/attribution/admin-attribution", () => ({
@@ -28,7 +28,7 @@ import AttributionPage from "@/app/admin/journal/attribution/page";
 describe("AttributionPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireAdminPageAccessMock.mockResolvedValue({ id: "admin_1", roles: ["ADMIN"] });
+    requireJournalWorkspaceAccessMock.mockResolvedValue({ id: "admin_1", roles: ["ADMIN"] });
   });
 
   it("renders the Content Attribution heading", async () => {
@@ -76,7 +76,7 @@ describe("AttributionPage", () => {
   });
 
   it("enforces admin access", async () => {
-    requireAdminPageAccessMock.mockRejectedValue(new Error("redirect:/"));
+    requireJournalWorkspaceAccessMock.mockRejectedValue(new Error("redirect:/"));
     loadJournalAttributionMock.mockResolvedValue([]);
 
     await expect(

@@ -1,6 +1,10 @@
 import type { ChatMessage } from "@/core/entities/chat-message";
 import type { MessagePart } from "@/core/entities/message-parts";
 import { MessageFactory } from "@/core/entities/MessageFactory";
+import {
+  buildMediaContinuityHandoff,
+  type MediaContinuityHandoff,
+} from "@/lib/chat/media-continuity-handoff";
 import type { AttachmentPart } from "@/lib/chat/message-attachments";
 
 export interface SendValidationResult {
@@ -12,6 +16,7 @@ export interface PreparedChatSend {
   assistantIndex: number;
   optimisticMessages: ChatMessage[];
   historyForBackend: BackendHistoryMessage[];
+  mediaContinuityHandoff: MediaContinuityHandoff | null;
 }
 
 export interface BackendHistoryMessage {
@@ -122,6 +127,7 @@ export function prepareChatSend(
     assistantIndex: nextMessages.length,
     optimisticMessages: [...nextMessages, MessageFactory.createAssistantMessage()],
     historyForBackend: buildBackendHistory(nextMessages),
+    mediaContinuityHandoff: buildMediaContinuityHandoff(nextMessages),
   };
 }
 

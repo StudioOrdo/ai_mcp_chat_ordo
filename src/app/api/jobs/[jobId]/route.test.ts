@@ -16,9 +16,8 @@ const {
   findActiveJobByDedupeKeyMock,
   updateJobStatusMock,
   getConversationMock,
-  getJobSnapshotMock,
-  getDescriptorMock,
-  projectMock,
+  getJobInteractionMock,
+  reviseExecutionMock,
 } = vi.hoisted(() => ({
   getSessionUserMock: vi.fn(),
   findJobByIdMock: vi.fn(),
@@ -29,34 +28,24 @@ const {
   findActiveJobByDedupeKeyMock: vi.fn(),
   updateJobStatusMock: vi.fn(),
   getConversationMock: vi.fn(),
-  getJobSnapshotMock: vi.fn(),
-  getDescriptorMock: vi.fn(),
-  projectMock: vi.fn(),
+  getJobInteractionMock: vi.fn(),
+  reviseExecutionMock: vi.fn(),
 }));
 
+// Phase 7 Mock Density Exception: This file tests a complex composition root or integration pipeline and legitimately requires extensive boundary mocking for external services (auth, db, observability, etc.).
 vi.mock("@/lib/auth", () => ({
   getSessionUser: getSessionUserMock,
 }));
 
 vi.mock("@/adapters/RepositoryFactory", () => ({
-  getJobQueueRepository: () => ({
-    findJobById: findJobByIdMock,
-    findLatestRenderableEventForJob: findLatestRenderableEventForJobMock,
-    cancelJob: cancelJobMock,
-    appendEvent: appendEventMock,
-    createJob: createJobMock,
-    findActiveJobByDedupeKey: findActiveJobByDedupeKeyMock,
-    updateJobStatus: updateJobStatusMock,
-  }),
-  getJobStatusQuery: () => ({
-    getJobSnapshot: getJobSnapshotMock,
+  getPlatformInteractionFacade: () => ({
+    getJobInteraction: getJobInteractionMock,
   }),
 }));
 
-vi.mock("@/lib/chat/tool-composition-root", () => ({
-  getToolComposition: () => ({
-    registry: { getDescriptor: getDescriptorMock },
-    executor: vi.fn(),
+vi.mock("@/lib/platform/agent-platform-facade-root", () => ({
+  getAgentPlatformFacade: () => ({
+    reviseExecution: reviseExecutionMock,
   }),
 }));
 
@@ -68,25 +57,10 @@ vi.mock("@/lib/chat/conversation-root", () => ({
   }),
 }));
 
-vi.mock("@/lib/jobs/deferred-job-projector-root", () => ({
-  createDeferredJobConversationProjector: () => ({
-    project: projectMock,
-  }),
-}));
-
 describe("/api/jobs/[jobId]", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getConversationMock.mockResolvedValue({ conversation: { id: "conv_jobs" }, messages: [] });
-    appendEventMock.mockResolvedValue({ sequence: 12 });
-    projectMock.mockResolvedValue(undefined);
-    findLatestRenderableEventForJobMock.mockResolvedValue(null);
-    findActiveJobByDedupeKeyMock.mockResolvedValue(null);
-    updateJobStatusMock.mockResolvedValue({ id: "job_1" });
-    getDescriptorMock.mockReturnValue({
-      executionMode: "deferred",
-      deferred: { dedupeStrategy: "per-conversation-payload" },
-    });
   });
 
   it("returns 401 for anonymous callers", async () => {
@@ -101,17 +75,33 @@ describe("/api/jobs/[jobId]", () => {
 
   it("returns a migrated anonymous job for the signed-in owner", async () => {
     getSessionUserMock.mockResolvedValue(createAuthenticatedSessionUser({ id: "usr_owner" }));
-    getJobSnapshotMock.mockResolvedValue({
-      jobId: "job_1",
-      conversationId: "conv_migrated",
-      toolName: "publish_content",
-      status: "running",
-      progressPercent: 80,
-      progressLabel: "Publishing",
-      part: {
+    getJobInteractionMock.mockResolvedValue({
+      job: {
+        id: "job_1",
+        conversationId: "conv_migrated",
+      },
+      snapshot: {
         jobId: "job_1",
+        conversationId: "conv_migrated",
+        toolName: "publish_content",
         status: "running",
+        progressPercent: 80,
         progressLabel: "Publishing",
+        part: {
+          jobId: "job_1",
+          status: "running",
+          progressLabel: "Publishing",
+        },
+      },
+      timeline: { executionId: "job_1" },
+      revision: {
+        executionId: "job_1",
+        executionKind: "job",
+        supportLevel: "reduced",
+        state: "active",
+        title: "Publish Content",
+        actions: [{ key: "cancel", label: "Cancel", operation: "cancel", transportKind: "job", value: "job_1", available: true }],
+        checkpoints: [],
       },
     });
     getConversationMock.mockResolvedValue({ conversation: { id: "conv_migrated" }, messages: [] });
@@ -128,29 +118,38 @@ describe("/api/jobs/[jobId]", () => {
       status: "running",
       progressLabel: "Publishing",
     });
+    expect(payload.revision).toMatchObject({
+      executionId: "job_1",
+      supportLevel: "reduced",
+      state: "active",
+    });
   });
 
   it("replays failed jobs with explicit lineage metadata", async () => {
     getSessionUserMock.mockResolvedValue(createAuthenticatedSessionUser({ id: "usr_owner" }));
-    findJobByIdMock.mockResolvedValue({
-      id: "job_failed",
-      conversationId: "conv_jobs",
-      userId: null,
-      toolName: "publish_content",
-      status: "failed",
-      priority: 100,
-      dedupeKey: null,
-      initiatorType: "anonymous_session",
-      requestPayload: { post_id: "post_1" },
+    getJobInteractionMock.mockResolvedValue({
+      job: { id: "job_failed", conversationId: "conv_jobs" },
     });
-    createJobMock.mockResolvedValue({
-      id: "job_retry",
-      conversationId: "conv_jobs",
-      userId: "usr_owner",
-      toolName: "publish_content",
-      status: "queued",
-      recoveryMode: "rerun",
-      replayedFromJobId: "job_failed",
+    reviseExecutionMock.mockResolvedValue({
+      payload: {
+        deduped: false,
+        replay: {
+          outcome: "queued",
+          sourceJobId: "job_failed",
+          targetJobId: "job_retry",
+          dedupeKey: "conv_jobs:publish_content",
+        },
+        job: {
+          id: "job_retry",
+          conversationId: "conv_jobs",
+          userId: "usr_owner",
+          toolName: "publish_content",
+          status: "queued",
+          recoveryMode: "rerun",
+          replayedFromJobId: "job_failed",
+        },
+        eventSequence: 12,
+      },
     });
 
     const response = await POST(createRouteRequest("/api/jobs/job_failed", "POST", { action: "retry" }), {
@@ -159,23 +158,11 @@ describe("/api/jobs/[jobId]", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(createJobMock).toHaveBeenCalledWith(expect.objectContaining({
-      conversationId: "conv_jobs",
+    expect(reviseExecutionMock).toHaveBeenCalledWith(expect.objectContaining({
+      executionKind: "job",
+      executionId: "job_failed",
+      action: "retry",
       userId: "usr_owner",
-      toolName: "publish_content",
-      recoveryMode: "rerun",
-      replayedFromJobId: "job_failed",
-    }));
-    expect(updateJobStatusMock).toHaveBeenCalledWith("job_failed", {
-      status: "failed",
-      supersededByJobId: "job_retry",
-    });
-    expect(appendEventMock).toHaveBeenCalledWith(expect.objectContaining({
-      eventType: "queued",
-      payload: expect.objectContaining({
-        replayedFromJobId: "job_failed",
-        recoveryMode: "rerun",
-      }),
     }));
     expect(body.replay).toEqual({
       outcome: "queued",
@@ -188,23 +175,20 @@ describe("/api/jobs/[jobId]", () => {
 
   it("returns an explicit dedupe replay outcome when equivalent active work already exists", async () => {
     getSessionUserMock.mockResolvedValue(createAuthenticatedSessionUser({ id: "usr_owner" }));
-    findJobByIdMock.mockResolvedValue({
-      id: "job_failed",
-      conversationId: "conv_jobs",
-      userId: "usr_owner",
-      toolName: "publish_content",
-      status: "failed",
-      priority: 100,
-      dedupeKey: null,
-      initiatorType: "user",
-      requestPayload: { post_id: "post_1" },
+    getJobInteractionMock.mockResolvedValue({
+      job: { id: "job_failed", conversationId: "conv_jobs" },
     });
-    findActiveJobByDedupeKeyMock.mockResolvedValue({
-      id: "job_active",
-      conversationId: "conv_jobs",
-      userId: "usr_owner",
-      toolName: "publish_content",
-      status: "running",
+    reviseExecutionMock.mockResolvedValue({
+      payload: {
+        deduped: true,
+        replay: {
+          outcome: "deduped",
+          sourceJobId: "job_failed",
+          targetJobId: "job_active",
+          dedupeKey: "conv_jobs:publish_content",
+        },
+        job: { id: "job_active", conversationId: "conv_jobs" },
+      },
     });
 
     const response = await POST(createRouteRequest("/api/jobs/job_failed", "POST", { action: "retry" }), {
@@ -213,11 +197,6 @@ describe("/api/jobs/[jobId]", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(createJobMock).not.toHaveBeenCalled();
-    expect(updateJobStatusMock).toHaveBeenCalledWith("job_failed", {
-      status: "failed",
-      supersededByJobId: "job_active",
-    });
     expect(body.deduped).toBe(true);
     expect(body.replay).toEqual({
       outcome: "deduped",

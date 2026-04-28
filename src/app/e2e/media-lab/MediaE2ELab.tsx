@@ -131,6 +131,40 @@ async function uploadBlob(blob: Blob, fileName: string): Promise<ArtifactEntry> 
   };
 }
 
+async function composeRemotely(plan: MediaCompositionPlan): Promise<ArtifactEntry> {
+  const response = await fetch("/api/e2e/media/compose", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ plan }),
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null) as { error?: string } | null;
+    throw new Error(payload?.error || `Remote media compose failed (${response.status}).`);
+  }
+
+  const payload = await response.json() as {
+    assetId: string;
+    uri: string;
+    mimeType?: string;
+    route?: string;
+  };
+
+  if (!payload.assetId || !payload.uri) {
+    throw new Error("Remote media compose completed without an artifact.");
+  }
+
+  return {
+    key: payload.assetId,
+    label: payload.assetId,
+    kind: "video",
+    assetId: payload.assetId,
+    uri: payload.uri,
+    mimeType: payload.mimeType,
+    note: typeof payload.route === "string" ? payload.route : undefined,
+  };
+}
+
 export function MediaE2ELab() {
   const [artifacts, setArtifacts] = useState<Record<string, ArtifactEntry>>({});
   const [workflows, setWorkflows] = useState<Record<string, WorkflowState>>({
@@ -375,19 +409,7 @@ export function MediaE2ELab() {
       outputFormat: "mp4",
     };
 
-    const result = await new FfmpegBrowserExecutor().execute(plan, {
-      conversationId: null,
-      userId: "browser",
-    });
-
-    if (result.status !== "succeeded" || !result.envelope) {
-      throw new Error(result.failureCode || "Video concatenation failed.");
-    }
-
-    const artifact = result.envelope.artifacts?.[0];
-    if (!artifact?.assetId || !artifact.uri) {
-      throw new Error("Combined video returned no artifact.");
-    }
+    const artifact = await composeRemotely(plan);
 
     const entry: ArtifactEntry = {
       key,
@@ -396,7 +418,9 @@ export function MediaE2ELab() {
       assetId: artifact.assetId,
       uri: artifact.uri,
       mimeType: artifact.mimeType,
-      note: "Concatenated browser video",
+      note: artifact.note === "deferred_remote"
+        ? "Concatenated media worker video"
+        : artifact.note,
     };
     upsertArtifact(key, entry);
     return entry;
@@ -513,7 +537,8 @@ export function MediaE2ELab() {
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-foreground/55">Media E2E Harness</p>
         <h1 className="text-3xl font-semibold tracking-[-0.03em] text-foreground">Live media workflow lab</h1>
         <p className="max-w-3xl text-sm text-foreground/70">
-          This harness uses the real image provider, the real TTS route, the real upload store, and the real browser FFmpeg worker.
+          This harness uses the real image provider, the real TTS route, the real upload store, the real browser FFmpeg worker,
+          and the real server media worker for concat validation.
           The Playwright suite copies the finished MP4 files into test-results for inspection after the run.
         </p>
       </header>

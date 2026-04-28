@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  getJobPhaseDefinitions,
   normalizeJobProgressState,
   PRODUCE_BLOG_ARTICLE_PHASES,
 } from "./job-progress-state";
@@ -53,5 +54,16 @@ describe("job-progress-state", () => {
       progressPercent: 55,
       progressLabel: "Drafting",
     });
+  });
+
+  it("reads phase definitions from the capability runtime view", () => {
+    expect(getJobPhaseDefinitions("compose_media")?.map((phase) => phase.key)).toEqual([
+      "staging_assets",
+      "rendering_media",
+      "packaging_artifacts",
+      "persisting",
+      "verifying_playback",
+    ]);
+    expect(getJobPhaseDefinitions("not_a_real_tool")).toBeUndefined();
   });
 });

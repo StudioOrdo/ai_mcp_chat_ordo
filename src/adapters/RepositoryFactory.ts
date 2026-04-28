@@ -6,10 +6,12 @@ import type { BlogAssetRepository } from "../core/use-cases/BlogAssetRepository"
 import type { BlogPostArtifactRepository } from "../core/use-cases/BlogPostArtifactRepository";
 import type { BlogPostRevisionRepository } from "../core/use-cases/BlogPostRevisionRepository";
 import type { JournalEditorialMutationRepository } from "../core/use-cases/JournalEditorialMutationRepository";
+import type { FactoryRepository } from "../core/use-cases/FactoryRepository";
 import { BlogAssetDataMapper } from "./BlogAssetDataMapper";
 import { BlogPostArtifactDataMapper } from "./BlogPostArtifactDataMapper";
 import { BlogPostDataMapper } from "./BlogPostDataMapper";
 import { BlogPostRevisionDataMapper } from "./BlogPostRevisionDataMapper";
+import { FactoryDataMapper } from "./FactoryDataMapper";
 import { JournalEditorialMutationDataMapper } from "./JournalEditorialMutationDataMapper";
 import type { JobQueueRepository } from "../core/use-cases/JobQueueRepository";
 import type { JobStatusQuery } from "../core/use-cases/JobStatusQuery";
@@ -22,6 +24,7 @@ import { ConsultationRequestDataMapper } from "./ConsultationRequestDataMapper";
 import { DealRecordDataMapper } from "./DealRecordDataMapper";
 import { TrainingPathRecordDataMapper } from "./TrainingPathRecordDataMapper";
 import { SystemPromptDataMapper } from "./SystemPromptDataMapper";
+import { SystemSettingsDataMapper } from "./SystemSettingsDataMapper";
 import { ConversationDataMapper } from "./ConversationDataMapper";
 import { MessageDataMapper } from "./MessageDataMapper";
 import { ConversationEventDataMapper } from "./ConversationEventDataMapper";
@@ -30,7 +33,15 @@ import { UserPreferencesDataMapper } from "./UserPreferencesDataMapper";
 import { UserFileDataMapper } from "./UserFileDataMapper";
 import { SQLiteVectorStore } from "./SQLiteVectorStore";
 import { getDb } from "@/lib/db";
-import { createJobStatusQuery } from "@/lib/jobs/job-status-query";
+import {
+  createExecutionTimelineReader,
+  type ExecutionTimelineReader,
+} from "@/core/platform/execution/ExecutionTimelineReader";
+import {
+  createRevisionReader,
+  type RevisionReader,
+} from "@/core/platform/revision/RevisionReader";
+import { PlatformInteractionFacade } from "@/core/platform/facade/PlatformInteractionFacade";
 
 /**
  * Repository Factory — Service Locator
@@ -77,6 +88,11 @@ let journalEditorialMutationRepo: JournalEditorialMutationRepository | null = nu
 let jobQueueRepo: JobQueueRepository | null = null;
 let jobQueueRepoDb: ReturnType<typeof getDb> | null = null;
 let jobStatusQuery: JobStatusQuery | null = null;
+let executionTimelineReader: ExecutionTimelineReader | null = null;
+let revisionReader: RevisionReader | null = null;
+let platformInteractionFacade: PlatformInteractionFacade | null = null;
+let factoryRepo: FactoryRepository | null = null;
+let factoryRepoDb: ReturnType<typeof getDb> | null = null;
 let pushSubscriptionRepo: PushSubscriptionRepository | null = null;
 let userDataMapper: UserDataMapper | null = null;
 let leadRecordDataMapper: LeadRecordDataMapper | null = null;
@@ -84,6 +100,7 @@ let consultationRequestDataMapper: ConsultationRequestDataMapper | null = null;
 let dealRecordDataMapper: DealRecordDataMapper | null = null;
 let trainingPathRecordDataMapper: TrainingPathRecordDataMapper | null = null;
 let systemPromptDataMapper: SystemPromptDataMapper | null = null;
+let systemSettingsDataMapper: SystemSettingsDataMapper | null = null;
 let conversationDataMapper: ConversationDataMapper | null = null;
 let messageDataMapper: MessageDataMapper | null = null;
 let conversationEventDataMapper: ConversationEventDataMapper | null = null;
@@ -133,6 +150,21 @@ export function getJournalEditorialMutationRepository(): JournalEditorialMutatio
 }
 
 /** @lifetime process-cached singleton (invalidated on DB handle change) */
+export function getFactoryRepository(): FactoryRepository {
+  const db = getDb();
+
+  if (!factoryRepo || factoryRepoDb !== db) {
+    factoryRepo = new FactoryDataMapper(db);
+    factoryRepoDb = db;
+    executionTimelineReader = null;
+    revisionReader = null;
+    platformInteractionFacade = null;
+  }
+
+  return factoryRepo;
+}
+
+/** @lifetime process-cached singleton (invalidated on DB handle change) */
 export function getJobQueueRepository(): JobQueueRepository {
   const db = getDb();
 
@@ -140,6 +172,9 @@ export function getJobQueueRepository(): JobQueueRepository {
     jobQueueRepo = new JobQueueDataMapper(db);
     jobQueueRepoDb = db;
     jobStatusQuery = null;
+    executionTimelineReader = null;
+    revisionReader = null;
+    platformInteractionFacade = null;
   }
   return jobQueueRepo;
 }
@@ -150,9 +185,49 @@ export function getJobQueueDataMapper(): JobQueueDataMapper {
 }
 
 /** @lifetime process-cached singleton */
+export function getExecutionTimelineReader(): ExecutionTimelineReader {
+  if (!executionTimelineReader) {
+    executionTimelineReader = createExecutionTimelineReader(
+      getJobQueueRepository(),
+      getFactoryRepository(),
+      {
+        promptTurnReader: getPromptProvenanceDataMapper(),
+        messageRepository: getMessageDataMapper(),
+      },
+    );
+  }
+
+  return executionTimelineReader;
+}
+
+/** @lifetime process-cached singleton */
+export function getRevisionReader(): RevisionReader {
+  if (!revisionReader) {
+    revisionReader = createRevisionReader(
+      getJobQueueRepository(),
+      getFactoryRepository(),
+      getExecutionTimelineReader(),
+    );
+  }
+
+  return revisionReader;
+}
+
+/** @lifetime process-cached singleton */
+export function getPlatformInteractionFacade(): PlatformInteractionFacade {
+  if (!platformInteractionFacade) {
+    platformInteractionFacade = new PlatformInteractionFacade({
+      executionTimelineReader: getExecutionTimelineReader(),
+    });
+  }
+
+  return platformInteractionFacade;
+}
+
+/** @lifetime process-cached singleton */
 export function getJobStatusQuery(): JobStatusQuery {
   if (!jobStatusQuery) {
-    jobStatusQuery = createJobStatusQuery(getJobQueueRepository());
+    jobStatusQuery = getExecutionTimelineReader();
   }
 
   return jobStatusQuery;
@@ -212,6 +287,14 @@ export function getSystemPromptDataMapper(): SystemPromptDataMapper {
     systemPromptDataMapper = new SystemPromptDataMapper(getDb());
   }
   return systemPromptDataMapper;
+}
+
+/** @lifetime process-cached singleton */
+export function getSystemSettingsDataMapper(): SystemSettingsDataMapper {
+  if (!systemSettingsDataMapper) {
+    systemSettingsDataMapper = new SystemSettingsDataMapper(getDb());
+  }
+  return systemSettingsDataMapper;
 }
 
 /** @lifetime process-cached singleton */
@@ -289,4 +372,39 @@ export function getDbBusyTimeoutMs(): number | null {
       return null;
     }
   }
+}
+
+/**
+ * FOR TESTS ONLY — resets all process-cached singleton references so the
+ * next call will re-initialize against the current `getDb()` handle.
+ * This prevents stale DB references when tests swap the DB instance.
+ */
+export function _resetRepositorySingletons(): void {
+  repository = null;
+  blogRepo = null;
+  blogAssetRepo = null;
+  blogArtifactRepo = null;
+  blogRevisionRepo = null;
+  journalEditorialMutationRepo = null;
+  factoryRepo = null;
+  factoryRepoDb = null;
+  jobQueueRepo = null;
+  jobQueueRepoDb = null;
+  jobStatusQuery = null;
+  executionTimelineReader = null;
+  pushSubscriptionRepo = null;
+  userDataMapper = null;
+  leadRecordDataMapper = null;
+  consultationRequestDataMapper = null;
+  dealRecordDataMapper = null;
+  trainingPathRecordDataMapper = null;
+  systemPromptDataMapper = null;
+  systemSettingsDataMapper = null;
+  conversationDataMapper = null;
+  messageDataMapper = null;
+  conversationEventDataMapper = null;
+  promptProvenanceDataMapper = null;
+  userPreferencesDataMapper = null;
+  userFileDataMapper = null;
+  vectorStore = null;
 }

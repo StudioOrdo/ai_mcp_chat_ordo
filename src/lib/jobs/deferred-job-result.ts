@@ -9,6 +9,7 @@ export interface DeferredJobEnvelope {
   jobId: string;
   conversationId: string;
   toolName: string;
+  assetId?: string | null;
   label: string;
   title?: string;
   subtitle?: string;
@@ -29,6 +30,7 @@ export interface DeferredJobEnvelope {
   supersededByJobId?: string | null;
   updatedAt?: string;
   deduped?: boolean;
+  toolInvocationId?: string;
 }
 
 export interface DeferredJobResultPayload {
@@ -38,15 +40,22 @@ export interface DeferredJobResultPayload {
 export function createDeferredJobResultPayload(
   job: JobRequest,
   event: JobEvent,
-  options?: { deduped?: boolean },
+  options?: { deduped?: boolean; toolInvocationId?: string },
 ): DeferredJobResultPayload {
   const part = buildJobStatusPart(job, event);
 
   return {
     deferred_job: {
       jobId: job.id,
+      ...(options?.toolInvocationId ?? part.toolInvocationId
+        ? { toolInvocationId: options?.toolInvocationId ?? part.toolInvocationId }
+        : {}),
       conversationId: job.conversationId,
       toolName: job.toolName,
+      assetId:
+        typeof job.requestPayload.assetId === "string" && job.requestPayload.assetId.trim().length > 0
+          ? job.requestPayload.assetId
+          : null,
       label: part.label,
       title: part.title,
       subtitle: part.subtitle,
@@ -81,7 +90,10 @@ export function isDeferredJobResultPayload(value: unknown): value is DeferredJob
   );
 }
 
-export function deferredJobResultToMessagePart(payload: DeferredJobResultPayload): JobStatusMessagePart {
+export function deferredJobResultToMessagePart(
+  payload: DeferredJobResultPayload,
+  fallbackToolInvocationId?: string,
+): JobStatusMessagePart {
   const deferredJob = payload.deferred_job;
   const resultEnvelope = deferredJob.resultEnvelope ?? null;
   const envelopeSummary = resultEnvelope?.summary;
@@ -93,6 +105,9 @@ export function deferredJobResultToMessagePart(payload: DeferredJobResultPayload
   return {
     type: "job_status",
     jobId: deferredJob.jobId,
+    ...(deferredJob.toolInvocationId ?? fallbackToolInvocationId
+      ? { toolInvocationId: deferredJob.toolInvocationId ?? fallbackToolInvocationId }
+      : {}),
     toolName: deferredJob.toolName,
     label: deferredJob.label,
     title: deferredJob.title ?? envelopeSummary?.title,
@@ -116,12 +131,15 @@ export function deferredJobResultToMessagePart(payload: DeferredJobResultPayload
   };
 }
 
-export function deferredJobResultToStreamEvent(payload: DeferredJobResultPayload): Extract<
+export function deferredJobResultToStreamEvent(
+  payload: DeferredJobResultPayload,
+  fallbackToolInvocationId?: string,
+): Extract<
   StreamEvent,
   { type: "job_queued" | "job_started" | "job_progress" | "job_completed" | "job_failed" | "job_canceled" }
 > {
   const deferredJob = payload.deferred_job;
-  return jobStatusPartToStreamEvent(deferredJobResultToMessagePart(payload), {
+  return jobStatusPartToStreamEvent(deferredJobResultToMessagePart(payload, fallbackToolInvocationId), {
     conversationId: deferredJob.conversationId,
     sequence: deferredJob.sequence,
   });

@@ -24,6 +24,14 @@ import { NAVIGATION_CAPABILITIES } from "./families/navigation-capabilities";
 import { PROFILE_CAPABILITIES } from "./families/profile-capabilities";
 import { THEME_CAPABILITIES } from "./families/theme-capabilities";
 
+// These tool names are currently declared by multiple families.
+// Resolve them explicitly so behavior does not silently depend on spread order.
+const COLLISION_RESOLVED_CAPABILITIES = {
+  generate_audio: CALCULATOR_CAPABILITIES.generate_audio,
+  generate_chart: CALCULATOR_CAPABILITIES.generate_chart,
+  generate_graph: CALCULATOR_CAPABILITIES.generate_graph,
+} as const;
+
 // ---------------------------------------------------------------------------
 // Pilot catalog
 // ---------------------------------------------------------------------------
@@ -89,6 +97,9 @@ export const CAPABILITY_CATALOG = {
 
   ...BLOG_JOURNAL_CAPABILITIES,
   ...BLOG_PRODUCTION_CAPABILITIES,
+
+  // Explicit collision resolution (must come last).
+  ...COLLISION_RESOLVED_CAPABILITIES,
 } as const satisfies Record<string, CapabilityDefinition>;
 
 export type PilotCapabilityName = keyof typeof CAPABILITY_CATALOG;

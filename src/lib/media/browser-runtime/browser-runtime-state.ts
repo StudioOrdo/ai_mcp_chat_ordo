@@ -89,3 +89,26 @@ export function removePersistedBrowserRuntimeEntry(jobId: string): void {
   const nextEntries = entries.filter((entry) => entry.jobId !== jobId);
   writeStorageEntries(storage, nextEntries);
 }
+
+export function clearPersistedBrowserRuntimeEntries(): void {
+  const storage = getStorage();
+  if (storage) {
+    storage.removeItem(STORAGE_KEY);
+  }
+}
+
+export function clearPersistedBrowserRuntimeEntriesForConversation(
+  conversationId: string | null,
+): void {
+  const storage = getStorage();
+  const entries = readStorageEntries(storage);
+  const nextEntries = entries.filter((entry) => entry.conversationId !== conversationId);
+  writeStorageEntries(storage, nextEntries);
+}
+
+export function restorePersistedBrowserRuntimeEntry(
+  jobId: string,
+): PersistedBrowserRuntimeEntry | null {
+  const entries = readStorageEntries(getStorage());
+  return entries.find((entry) => entry.jobId === jobId) ?? null;
+}

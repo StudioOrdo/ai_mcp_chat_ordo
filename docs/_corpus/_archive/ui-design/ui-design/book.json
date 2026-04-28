@@ -1,0 +1,15 @@
+{
+  "slug": "ui-design",
+  "title": "UI Design",
+  "number": "III",
+  "sortOrder": 3,
+  "domain": [
+    "teaching",
+    "reference"
+  ],
+  "tags": [
+    "ui-design",
+    "interface",
+    "visual-design"
+  ]
+}

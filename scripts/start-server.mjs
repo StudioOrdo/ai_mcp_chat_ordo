@@ -1,5 +1,6 @@
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
+import { once } from "node:events";
 import { resolve } from "node:path";
 import { existsSync, mkdirSync, writeFileSync, readFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
@@ -135,6 +136,24 @@ await app.prepare();
 let shuttingDown = false;
 const sockets = new Set();
 
+async function waitForChildExit(child, timeoutMs = shutdownTimeoutMs) {
+  if (!child || child.exitCode !== null || child.signalCode !== null) {
+    return;
+  }
+
+  const forceKillTimer = setTimeout(() => {
+    if (!child.killed) {
+      child.kill("SIGKILL");
+    }
+  }, timeoutMs);
+
+  try {
+    await once(child, "exit");
+  } finally {
+    clearTimeout(forceKillTimer);
+  }
+}
+
 const server = createServer((req, res) => {
   if (shuttingDown) {
     res.statusCode = 503;
@@ -166,7 +185,8 @@ function shutdown(signal) {
     workerProcess.kill(signal);
   }
 
-  server.close(() => {
+  server.close(async () => {
+    await waitForChildExit(workerProcess);
     console.info("[shutdown] server closed cleanly");
     process.exit(0);
   });

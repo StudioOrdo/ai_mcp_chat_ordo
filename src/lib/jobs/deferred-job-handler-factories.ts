@@ -3,6 +3,7 @@ import {
   getBlogPostRepository,
   getBlogPostRevisionRepository,
   getJobStatusQuery,
+  getUserFileDataMapper,
 } from "@/adapters/RepositoryFactory";
 import {
 } from "@/core/use-cases/tools/blog-production.tool";
@@ -21,8 +22,6 @@ import {
 } from "@/core/capability-catalog/runtime-tool-binding";
 import type { DeferredJobHandler, DeferredJobHandlerContext } from "@/lib/jobs/deferred-job-worker";
 
-type DeferredJobRequest = Parameters<DeferredJobHandler>[0];
-
 export interface DeferredJobHandlerDependencies {
   blogRepo: ReturnType<typeof getBlogPostRepository>;
   blogAssetRepo: ReturnType<typeof getBlogAssetRepository>;
@@ -31,6 +30,7 @@ export interface DeferredJobHandlerDependencies {
   prepareJournalPostForPublishInteractor: PrepareJournalPostForPublishInteractor;
   blogImageService: ReturnType<typeof getBlogImageGenerationService>;
   blogArticleService: ReturnType<typeof getBlogArticleProductionService>;
+  userFileRepository: ReturnType<typeof getUserFileDataMapper>;
 }
 
 export type DeferredJobHandlerFactory = (
@@ -77,6 +77,7 @@ export function buildDeferredJobHandlerDependencies(): DeferredJobHandlerDepende
     ),
     blogImageService: getBlogImageGenerationService(),
     blogArticleService,
+    userFileRepository: getUserFileDataMapper(),
   };
 }
 
@@ -90,6 +91,7 @@ function toCatalogToolBindingDeps(
     jobStatusQuery: dependencies.jobStatusQuery,
     blogArticleService: dependencies.blogArticleService,
     blogImageService: dependencies.blogImageService,
+    userFileRepository: dependencies.userFileRepository,
   };
 }
 

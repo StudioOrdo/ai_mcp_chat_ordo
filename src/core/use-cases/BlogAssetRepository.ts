@@ -9,6 +9,7 @@ export interface BlogAssetRepository {
   create(seed: BlogAssetSeed): Promise<BlogAsset>;
   findById(id: string): Promise<BlogAsset | null>;
   listByPost(postId: string): Promise<BlogAsset[]>;
+  listByUser(userId: string, options?: { limit?: number; kinds?: string[] }): Promise<BlogAsset[]>;
   listHeroCandidates(postId: string): Promise<BlogAsset[]>;
   attachToPost(id: string, postId: string): Promise<BlogAsset>;
   detachFromPost(id: string): Promise<BlogAsset>;

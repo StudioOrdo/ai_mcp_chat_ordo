@@ -135,7 +135,7 @@ export const CALCULATOR_CAPABILITIES = {
     executorBinding: {
       bundleId: "media",
       executorId: "generate_audio",
-      executionSurface: "browser",
+      executionSurface: "shared",
     },
     validationBinding: {
       validatorId: "generate_audio",

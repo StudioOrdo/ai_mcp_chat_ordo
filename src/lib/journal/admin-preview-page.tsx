@@ -8,7 +8,6 @@ import { getBlogAssetUrl } from "@/lib/blog/hero-images";
 import { normalizeBlogMarkdown } from "@/lib/blog/normalize-markdown";
 import { getSessionUser } from "@/lib/auth";
 import { getInstanceIdentity } from "@/lib/config/instance";
-import { requireAdminPageAccess } from "@/lib/journal/admin-journal";
 import { canAccessJournalWorkspace, requireJournalWorkspaceAccess } from "@/lib/journal/admin-journal";
 
 async function loadPreviewHeroAsset(post: { id: string; heroImageAssetId: string | null }) {

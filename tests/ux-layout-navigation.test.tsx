@@ -239,13 +239,6 @@ describe("D10.6: Duplicate pipeline detail routes redirect to leads detail", () 
     expect(source).toContain("getAdminLeadsDetailPath");
     expect(source).not.toContain("/admin/deals");
   });
-
-  it("training detail route uses permanentRedirect", () => {
-    const source = readSource("src/app/admin/training/[id]/page.tsx");
-    expect(source).toContain("permanentRedirect");
-    expect(source).toContain("getAdminLeadsDetailPath");
-    expect(source).not.toContain("/admin/training");
-  });
 });
 
 // ── D10.7: Admin layout main landmark ────────────────────────────────

@@ -237,6 +237,39 @@ describe("ChatPresenter", () => {
     expect(presented.actions).toEqual([]);
   });
 
+  it("pairs repeated same-name tool calls and results by invocation id", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-tools-1",
+      role: "assistant",
+      content: "Two audio generations.",
+      timestamp: new Date("2023-01-01T12:00:00Z"),
+      parts: [
+        { type: "tool_call", name: "generate_audio", args: { text: "first" }, toolInvocationId: "toolu_audio_1" },
+        { type: "tool_call", name: "generate_audio", args: { text: "second" }, toolInvocationId: "toolu_audio_2" },
+        { type: "tool_result", name: "generate_audio", result: { assetId: "uf_audio_2" }, toolInvocationId: "toolu_audio_2" },
+        { type: "tool_result", name: "generate_audio", result: { assetId: "uf_audio_1" }, toolInvocationId: "toolu_audio_1" },
+      ],
+    };
+
+    const presented = presenter.present(message);
+
+    expect(presented.toolRenderEntries).toEqual([
+      expect.objectContaining({
+        kind: "tool-call",
+        args: { text: "first" },
+        result: { assetId: "uf_audio_1" },
+        toolInvocationId: "toolu_audio_1",
+      }),
+      expect.objectContaining({
+        kind: "tool-call",
+        args: { text: "second" },
+        result: { assetId: "uf_audio_2" },
+        toolInvocationId: "toolu_audio_2",
+      }),
+    ]);
+  });
+
   it("derives publish and revise actions for completed draft jobs", () => {
     const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
     const message: ChatMessage = {

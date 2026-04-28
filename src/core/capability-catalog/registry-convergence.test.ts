@@ -14,11 +14,14 @@ import * as fs from "fs";
 import * as path from "path";
 
 import {
-  CAPABILITY_CATALOG,
   projectPresentationDescriptor,
   projectJobCapability,
   projectBrowserCapability,
 } from "./catalog";
+import {
+  projectAllCapabilityRuntimeStatics,
+  projectCapabilityRuntimeStaticByName,
+} from "@/core/platform/capability-runtime/CapabilityRuntime";
 
 import {
   CHAT_CAPABILITY_PRESENTATION_TOOL_NAMES,
@@ -56,10 +59,9 @@ describe("Sprint 12 — Registry Convergence", () => {
     });
 
     it("covers every catalog tool", () => {
-      const catalogNames = Object.keys(CAPABILITY_CATALOG);
-      for (const name of catalogNames) {
-        const desc = getCapabilityPresentationDescriptor(name);
-        expect(desc, `Missing presentation descriptor for: ${name}`).toBeDefined();
+      for (const { capabilityName } of projectAllCapabilityRuntimeStatics()) {
+        const desc = getCapabilityPresentationDescriptor(capabilityName);
+        expect(desc, `Missing presentation descriptor for: ${capabilityName}`).toBeDefined();
       }
     });
 
@@ -68,10 +70,10 @@ describe("Sprint 12 — Registry Convergence", () => {
     });
 
     it("matches catalog metadata for every entry", () => {
-      for (const def of Object.values(CAPABILITY_CATALOG)) {
-        const expected = projectPresentationDescriptor(def);
-        const actual = getCapabilityPresentationDescriptor(def.core.name);
-        expect(actual, `Parity check failed for: ${def.core.name}`).toEqual(expected);
+      for (const runtime of projectAllCapabilityRuntimeStatics()) {
+        const expected = runtime.presentation;
+        const actual = getCapabilityPresentationDescriptor(runtime.capabilityName);
+        expect(actual, `Parity check failed for: ${runtime.capabilityName}`).toEqual(expected);
       }
     });
 
@@ -117,26 +119,24 @@ describe("Sprint 12 — Registry Convergence", () => {
     });
 
     it("derives the deferred job tool list from catalog job facets", () => {
-      const catalogJobNames = Object.entries(CAPABILITY_CATALOG)
-        .filter(([, capability]) => projectJobCapability(capability) !== null)
-        .map(([name]) => name);
+      const catalogJobNames = projectAllCapabilityRuntimeStatics()
+        .filter((runtime) => runtime.job !== null)
+        .map((runtime) => runtime.capabilityName);
 
       expect(JOB_CAPABILITY_TOOL_NAMES).toEqual(catalogJobNames);
     });
 
     it("matches catalog metadata for every deferred tool", () => {
       for (const name of JOB_CAPABILITY_TOOL_NAMES) {
-        const catalogDef = CAPABILITY_CATALOG[name as keyof typeof CAPABILITY_CATALOG];
-        expect(catalogDef, `Catalog missing: ${name}`).toBeDefined();
-        const expected = projectJobCapability(catalogDef);
+        const expected = projectCapabilityRuntimeStaticByName(name)?.job;
         expect(expected, `projectJobCapability returned null for: ${name}`).not.toBeNull();
         const actual = JOB_CAPABILITY_REGISTRY[name];
         expect(actual).toEqual(expected);
       }
     });
 
-    it("has exactly 10 entries", () => {
-      expect(Object.keys(JOB_CAPABILITY_REGISTRY)).toHaveLength(10);
+    it("has exactly 12 entries", () => {
+      expect(Object.keys(JOB_CAPABILITY_REGISTRY)).toHaveLength(12);
     });
   });
 
@@ -180,8 +180,7 @@ describe("Sprint 12 — Registry Convergence", () => {
 
     it("matches catalog metadata for every browser-capable tool", () => {
       for (const name of BROWSER_CAPABILITY_TOOL_NAMES) {
-        const catalogDef = CAPABILITY_CATALOG[name as keyof typeof CAPABILITY_CATALOG];
-        const expected = projectBrowserCapability(catalogDef);
+        const expected = projectCapabilityRuntimeStaticByName(name)?.browser;
         const actual = getBrowserCapabilityDescriptor(name);
         expect(actual).toEqual(expected);
       }
@@ -204,6 +203,28 @@ describe("Sprint 12 — Registry Convergence", () => {
   // Cross-registry consistency
   // ─────────────────────────────────────────────────────────────────────────
   describe("Cross-registry catalog parity", () => {
+    it("runtime-static projection files use runtime helpers instead of raw catalog iteration", () => {
+      const schemaProjectionSource = readSource("src/core/capability-catalog/schema-projection.ts");
+      const mcpExportSource = readSource("src/core/capability-catalog/mcp-export.ts");
+      const mcpSidecarSource = readSource("src/lib/capabilities/mcp-sidecar-inventory.ts");
+      const roleDirectiveSource = readSource("src/core/entities/role-directive-assembler.ts");
+      const localExternalTargetSource = readSource("src/lib/capabilities/local-external-target-inventory.ts");
+      const executionTargetsSource = readSource("src/lib/capabilities/execution-targets.ts");
+
+      expect(schemaProjectionSource).toContain("projectAllCapabilityRuntimeStatics");
+      expect(schemaProjectionSource).not.toContain("Object.values(CAPABILITY_CATALOG)");
+      expect(mcpExportSource).toContain("projectAllCapabilityRuntimeStatics");
+      expect(mcpExportSource).not.toContain("Object.values(CAPABILITY_CATALOG)");
+      expect(mcpSidecarSource).toContain("projectAllCapabilityRuntimeStatics");
+      expect(mcpSidecarSource).not.toContain("Object.entries(CAPABILITY_CATALOG)");
+      expect(roleDirectiveSource).toContain("projectAllCapabilityRuntimeStatics");
+      expect(roleDirectiveSource).not.toContain("Object.values(CAPABILITY_CATALOG)");
+      expect(localExternalTargetSource).toContain("projectAllCapabilityRuntimes");
+      expect(localExternalTargetSource).not.toContain("Object.values(CAPABILITY_CATALOG)");
+      expect(executionTargetsSource).toContain("projectCapabilityRuntimeDefinition");
+      expect(executionTargetsSource).not.toContain("Object.values(CAPABILITY_CATALOG)");
+    });
+
     it("no duplicate tool metadata outside the catalog", () => {
       // Presentation: no createDescriptor
       const presSource = readSource(

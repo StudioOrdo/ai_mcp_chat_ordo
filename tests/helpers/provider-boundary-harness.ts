@@ -27,8 +27,8 @@ export interface ProviderBoundaryHarnessCall {
     signalProvided: boolean;
     signalAbortedAtStart: boolean;
   };
-  toolCalls: Array<{ name: string; args: Record<string, unknown> }>;
-  toolResults: Array<{ name: string; result: unknown; isError: boolean }>;
+  toolCalls: Array<{ name: string; args: Record<string, unknown>; toolInvocationId: string }>;
+  toolResults: Array<{ name: string; result: unknown; isError: boolean; toolInvocationId: string }>;
 }
 
 function resolveAbortReason(signal?: AbortSignal): string {
@@ -118,6 +118,8 @@ export function createProviderBoundaryHarness(options: {
 
     throwIfAborted(signal);
 
+    let toolInvocationIndex = 0;
+
     for (const step of options.steps) {
       throwIfAborted(signal);
 
@@ -127,19 +129,21 @@ export function createProviderBoundaryHarness(options: {
         continue;
       }
 
-      callbacks.onToolCall?.(step.name, step.args);
-      call.toolCalls.push({ name: step.name, args: step.args });
+      const toolInvocationId = `test_tool_${toolInvocationIndex += 1}`;
+      callbacks.onToolCall?.(step.name, step.args, toolInvocationId);
+      call.toolCalls.push({ name: step.name, args: step.args, toolInvocationId });
 
       try {
         const result = await toolExecutor(step.name, step.args);
         throwIfAborted(signal);
 
         const normalizedResult = normalizeToolResult(result);
-        callbacks.onToolResult?.(step.name, normalizedResult);
+        callbacks.onToolResult?.(step.name, normalizedResult, toolInvocationId);
         call.toolResults.push({
           name: step.name,
           result: normalizedResult,
           isError: false,
+          toolInvocationId,
         });
       } catch (error) {
         if (signal?.aborted || isAbortLikeError(error)) {
@@ -149,11 +153,12 @@ export function createProviderBoundaryHarness(options: {
         const failureResult = error instanceof Error
           ? error.message
           : "Tool execution failed.";
-        callbacks.onToolResult?.(step.name, failureResult);
+        callbacks.onToolResult?.(step.name, failureResult, toolInvocationId);
         call.toolResults.push({
           name: step.name,
           result: failureResult,
           isError: true,
+          toolInvocationId,
         });
       }
     }

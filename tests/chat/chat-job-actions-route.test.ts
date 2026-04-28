@@ -30,6 +30,7 @@ const {
   projectMock: vi.fn(),
 }));
 
+// Phase 7 Mock Density Exception: This file tests a complex composition root or integration pipeline and legitimately requires extensive boundary mocking for external services (auth, db, observability, etc.).
 vi.mock("@/adapters/RepositoryFactory", () => ({
   getJobQueueRepository: () => ({
     findJobById: findJobByIdMock,
@@ -74,10 +75,10 @@ vi.mock("@/adapters/MessageDataMapper", () => ({
   MessageDataMapper: class MessageDataMapper {},
 }));
 
-vi.mock("@/lib/jobs/deferred-job-conversation-projector", () => ({
-  DeferredJobConversationProjector: class DeferredJobConversationProjector {
-    project = projectMock;
-  },
+vi.mock("@/lib/jobs/deferred-job-projector-root", () => ({
+  createDeferredJobConversationProjector: () => ({
+    project: projectMock,
+  }),
 }));
 
 describe("POST /api/chat/jobs/[jobId]", () => {

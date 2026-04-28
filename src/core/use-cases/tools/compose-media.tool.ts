@@ -1,6 +1,10 @@
 import { CAPABILITY_CATALOG } from "@/core/capability-catalog/catalog";
 import { buildCatalogBoundToolDescriptor } from "@/core/capability-catalog/runtime-tool-projection";
-import { MediaCompositionPlanSchema } from "@/lib/media/ffmpeg/media-composition-plan";
+import {
+  MediaCompositionPlanSchema,
+  validateMediaCompositionAssetReferences,
+  validatePlanConstraints,
+} from "@/lib/media/ffmpeg/media-composition-plan";
 import { z } from "zod";
 
 const ComposeMediaInputSchema = z.object({
@@ -24,5 +28,16 @@ export const composeMediaTool = buildCatalogBoundToolDescriptor(CAPABILITY_CATAL
 });
 
 export function parseComposeMediaInput(input: unknown): ComposeMediaInput {
-  return ComposeMediaInputSchema.parse(input);
+  const parsed = ComposeMediaInputSchema.parse(input);
+  const constraintError = validatePlanConstraints(parsed.plan);
+  if (constraintError) {
+    throw new Error(constraintError);
+  }
+
+  const assetReferenceError = validateMediaCompositionAssetReferences(parsed.plan);
+  if (assetReferenceError) {
+    throw new Error(assetReferenceError);
+  }
+
+  return parsed;
 }

@@ -179,6 +179,27 @@ describe("upsertJobStatusMessage", () => {
     expect(result[0].parts).toHaveLength(0);
   });
 
+  it("updates only the matching job when a message contains multiple job cards", () => {
+    const messages = [makeMessage({
+      id: "msg_multi_job",
+      parts: [
+        makeJobPart({ jobId: "job_audio", toolName: "generate_audio", status: "succeeded", sequence: 3 }),
+        makeJobPart({ jobId: "job_video", toolName: "compose_media", status: "running", sequence: 4 }),
+      ],
+    })];
+
+    const result = upsertJobStatusMessage(
+      messages,
+      makeJobPart({ jobId: "job_video", toolName: "compose_media", status: "succeeded", sequence: 5 }),
+      "msg_multi_job",
+    );
+
+    expect(result[0].parts).toEqual([
+      expect.objectContaining({ jobId: "job_audio", toolName: "generate_audio", status: "succeeded" }),
+      expect.objectContaining({ jobId: "job_video", toolName: "compose_media", status: "succeeded", sequence: 5 }),
+    ]);
+  });
+
   it("preserves richer job envelopes when a thinner live update arrives with a newer sequence", () => {
     const messages = [makeMessage({
       parts: [makeJobPart({

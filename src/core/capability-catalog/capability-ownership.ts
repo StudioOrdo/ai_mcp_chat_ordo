@@ -3,7 +3,7 @@ import { CAPABILITY_CATALOG } from "./catalog";
 import type {
   ExecutionPlanningContext,
   ExecutionTargetKind,
-} from "@/lib/capabilities/execution-targets";
+} from "@/core/platform/execution/ExecutionPlanner";
 import {
   ADMIN_OPERATIONS_CAPABILITIES,
   ADMIN_PILOT_CAPABILITIES,

@@ -121,9 +121,9 @@ describe("Tool manifest contract — manifest formatting", () => {
     const registry = getToolComposition().registry;
     const graphTool = registry.getSchemasForRole("AUTHENTICATED").find((schema) => schema.name === "generate_graph");
 
-    expect(graphTool?.description).toContain("time-series questions");
-    expect(graphTool?.description).toContain("comparisons across segments or categories");
-    expect(graphTool?.description).toContain("explicit requests for a graph");
+    expect(graphTool?.description).toContain("time-series");
+    expect(graphTool?.description).toContain("comparisons");
+    expect(graphTool?.description).toContain("trend visualizations");
   });
 
   it("ends with the user-facing capability instruction", () => {

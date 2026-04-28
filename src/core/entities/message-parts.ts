@@ -19,6 +19,7 @@ import type {
 export interface JobStatusMessagePart {
   type: "job_status";
   jobId: string;
+  toolInvocationId?: string;
   toolName: string;
   label: string;
   title?: string;
@@ -37,8 +38,15 @@ export interface JobStatusMessagePart {
   resultEnvelope?: CapabilityResultEnvelope | null;
   failureClass?: JobFailureClass | null;
   recoveryMode?: JobRecoveryMode | null;
+  nextRetryAt?: string | null;
+  lastCheckpointId?: string | null;
   replayedFromJobId?: string | null;
   supersededByJobId?: string | null;
+  attemptCount?: number | null;
+  maxAttempts?: number | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  claimedBy?: string | null;
   actions?: Array<{
     label: string;
     actionType: ActionLinkType;
@@ -99,8 +107,8 @@ export interface CompactionMarkerMessagePart {
 export type MessagePart =
   | { type: "text"; text: string }
   | { type: "error"; text: string }
-  | { type: "tool_call"; name: string; args: Record<string, unknown> }
-  | { type: "tool_result"; name: string; result: unknown }
+  | { type: "tool_call"; name: string; args: Record<string, unknown>; toolInvocationId?: string }
+  | { type: "tool_result"; name: string; result: unknown; toolInvocationId?: string }
   | JobStatusMessagePart
   | GenerationStatusMessagePart
   | AttachmentMessagePart

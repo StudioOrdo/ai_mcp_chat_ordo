@@ -9,7 +9,7 @@ import type {
 import type { CurrentPageSnapshot } from "@/lib/chat/current-page-context";
 import type { PromptRuntimeResult } from "@/lib/chat/prompt-runtime";
 import type { Logger } from "@/core/services/ErrorHandler";
-import type { ExecutionPlanningContext } from "@/lib/capabilities/execution-targets";
+import type { ExecutionPlanningContext } from "@/core/platform/execution/ExecutionPlanner";
 
 export type ToolDeniedReason = "role_denied" | "manifest_prefiltered";
 
@@ -37,6 +37,7 @@ export interface ToolProgressUpdate {
 export interface ToolExecutionContext {
   role: RoleName;
   userId: string;
+  toolInvocationId?: string;
   executionPrincipal?: JobExecutionPrincipal;
   executionAllowedRoles?: readonly RoleName[];
   conversationId?: string;

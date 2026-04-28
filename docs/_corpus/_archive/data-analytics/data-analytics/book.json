@@ -1,0 +1,15 @@
+{
+  "slug": "data-analytics",
+  "title": "Data & Analytics",
+  "number": "X",
+  "sortOrder": 10,
+  "domain": [
+    "teaching",
+    "reference"
+  ],
+  "tags": [
+    "data-analytics",
+    "metrics",
+    "insights"
+  ]
+}

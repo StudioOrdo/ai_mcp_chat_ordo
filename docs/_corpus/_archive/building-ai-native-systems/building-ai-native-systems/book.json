@@ -1,0 +1,8 @@
+{
+  "slug": "building-ai-native-systems",
+  "title": "Building AI-Native Systems",
+  "number": "VII",
+  "sortOrder": 7,
+  "domain": ["teaching", "reference"],
+  "tags": ["ai-engineering", "llm", "rag", "agents", "evaluation", "lllmops"]
+}

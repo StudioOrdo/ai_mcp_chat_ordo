@@ -6,6 +6,7 @@ services:
       dockerfile: Dockerfile
     container_name: studioordo
     restart: unless-stopped
+    stop_grace_period: 15s
     read_only: true
     security_opt:
       - no-new-privileges:true
@@ -33,6 +34,9 @@ services:
       MEDIA_WORKER_URL: ${MEDIA_WORKER_URL:-http://media-worker:3101}
       MEDIA_WORKER_SHARED_SECRET: ${MEDIA_WORKER_SHARED_SECRET:-}
       SHUTDOWN_TIMEOUT_MS: ${SHUTDOWN_TIMEOUT_MS:-10000}
+    depends_on:
+      media-worker:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ >/dev/null 2>&1 || exit 1"]
       interval: 10s
@@ -66,6 +70,7 @@ services:
       dockerfile: Dockerfile.media
     container_name: studioordo-media-worker
     restart: unless-stopped
+    stop_grace_period: 15s
     read_only: true
     security_opt:
       - no-new-privileges:true
@@ -80,3 +85,8 @@ services:
       NODE_ENV: production
       MEDIA_WORKER_PORT: 3101
       MEDIA_WORKER_SHARED_SECRET: ${MEDIA_WORKER_SHARED_SECRET:-}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3101/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

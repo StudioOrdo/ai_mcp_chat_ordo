@@ -15,10 +15,10 @@ import { findLatestUserMessage } from "@/lib/chat/validation";
 import { createSystemPromptBuilder } from "@/lib/chat/policy";
 import { getPromptAssemblyReplayContext } from "@/lib/chat/prompt-runtime";
 import { getRequestScopedToolSelection } from "@/lib/chat/tool-capability-routing";
-import { getToolComposition } from "@/lib/chat/tool-composition-root";
 import { getAnthropicApiKey } from "@/lib/config/env";
 import { logDegradation } from "@/lib/observability/logger";
 import { REASON_CODES } from "@/lib/observability/reason-codes";
+import { getAgentPlatformFacade } from "@/lib/platform/agent-platform-facade-root";
 import { recordPromptTurnProvenance } from "@/lib/prompts/prompt-provenance-service";
 import { getReferralLedgerService } from "@/lib/referrals/referral-ledger";
 
@@ -57,7 +57,7 @@ export async function executeChatStreamRoute(options: {
   }
 
   const {
-    parsed: { incomingMessages, incomingAttachments, taskOriginHandoff },
+    parsed: { incomingMessages, incomingAttachments, taskOriginHandoff, mediaContinuityHandoff },
     body,
   } = parseResultOrResponse;
 
@@ -67,7 +67,7 @@ export async function executeChatStreamRoute(options: {
     ...(body.currentPageSnapshot ? { currentPageSnapshot: body.currentPageSnapshot } : {}),
   };
   const builder = await createSystemPromptBuilder(role, systemPromptOptions);
-  const { registry: toolRegistry, executor: baseToolExecutor } = getToolComposition();
+  const { registry: toolRegistry, executor: baseToolExecutor } = getAgentPlatformFacade().getExecutionSurface();
 
   if (!user.roles.includes("ANONYMOUS")) {
     const prefRepo = getUserPreferencesDataMapper();
@@ -152,6 +152,7 @@ export async function executeChatStreamRoute(options: {
       latestUserText,
       latestUserContent,
       taskOriginHandoff,
+      mediaContinuityHandoff,
     );
   } catch (error) {
     if (!options.pipeline.isSafePreparationFallback(error)) {
@@ -163,6 +164,7 @@ export async function executeChatStreamRoute(options: {
       incomingMessages,
       latestUserContent,
       taskOriginHandoff,
+      mediaContinuityHandoff,
     );
   }
 
@@ -194,6 +196,8 @@ export async function executeChatStreamRoute(options: {
     toolRegistry,
     role,
     preparedContext.routingSnapshot,
+    latestUserText,
+    mediaContinuityHandoff,
   );
   const tools = toolSelection.tools ?? [];
   builder.withToolManifest(
@@ -209,6 +213,7 @@ export async function executeChatStreamRoute(options: {
     latestUserContent,
     latestUserText,
     taskOriginHandoff,
+    mediaContinuityHandoff,
     routeContext: options.context,
     conversationId,
     userId,

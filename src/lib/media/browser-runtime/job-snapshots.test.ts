@@ -19,8 +19,8 @@ describe("browser runtime job snapshots", () => {
         content: "",
         timestamp: new Date("2026-04-11T10:00:00.000Z"),
         parts: [
-          { type: "tool_call", name: "generate_chart", args: { code: "flowchart TD\nA-->B" } },
-          { type: "tool_result", name: "generate_chart", result: { code: "flowchart TD\nA-->B" } },
+          { type: "tool_call", name: "generate_chart", args: { code: "flowchart TD\nA-->B" }, toolInvocationId: "toolu_chart_1" },
+          { type: "tool_result", name: "generate_chart", result: { code: "flowchart TD\nA-->B" }, toolInvocationId: "toolu_chart_1" },
         ],
       },
     ];
@@ -29,6 +29,7 @@ describe("browser runtime job snapshots", () => {
       expect.objectContaining({
         jobId: "browser:msg_1:generate_chart:1",
         messageId: "msg_1",
+        toolInvocationId: "toolu_chart_1",
         toolName: "generate_chart",
         resultIndex: 1,
       }),
@@ -40,6 +41,7 @@ describe("browser runtime job snapshots", () => {
       candidate: {
         jobId: createBrowserRuntimeJobId("msg_1", "generate_audio", 1),
         messageId: "msg_1",
+        toolInvocationId: "toolu_audio_1",
         toolName: "generate_audio",
         args: { text: "Hello", title: "Greeting" },
       },
@@ -72,6 +74,7 @@ describe("browser runtime job snapshots", () => {
         expect.objectContaining({ kind: "audio", retentionClass: "conversation", source: "generated" }),
       ],
     });
+    expect(part.toolInvocationId).toBe("toolu_audio_1");
     expect(part.lifecyclePhase).toBe("pending_local_generation");
     expect(part.progressLabel).toBe("Generating audio");
   });
@@ -118,6 +121,80 @@ describe("browser runtime job snapshots", () => {
       failureClass: "transient",
       recoveryMode: "rerun",
     });
+  });
+
+  it("canonicalizes failed generate_audio snapshots with durable assets to succeeded", () => {
+    const part = buildBrowserRuntimeJobStatusPart({
+      candidate: {
+        jobId: createBrowserRuntimeJobId("msg_3", "generate_audio", 1),
+        messageId: "msg_3",
+        toolName: "generate_audio",
+        args: { text: "Ode to cheese", title: "Ode to Cheese" },
+      },
+      payload: {
+        action: "generate_audio",
+        title: "Ode to Cheese",
+        text: "Ode to cheese",
+        assetId: "uf_6e9cee49-5d47-4497-89d2-0171e4b73b36",
+        provider: "user-file-cache",
+        generationStatus: "cached_asset",
+        estimatedDurationSeconds: 18,
+        estimatedGenerationSeconds: 4,
+      },
+      status: "failed",
+      browserExecutionStatus: "fallback_required",
+      sequence: 3,
+      error: "fallback_required",
+      failureCode: "fallback_required",
+      failureStage: "recovery",
+      conversationId: "conv_1",
+    });
+
+    expect(part).toMatchObject({
+      status: "succeeded",
+      lifecyclePhase: "durable_asset_available",
+      failureCode: null,
+      failureStage: null,
+    });
+    expect(part.failureClass).toBeUndefined();
+    expect(part.error).toBeUndefined();
+  });
+
+  it("canonicalizes failed compose_media snapshots with durable videos to succeeded", () => {
+    const part = buildBrowserRuntimeJobStatusPart({
+      candidate: {
+        jobId: createBrowserRuntimeJobId("msg_4", "compose_media", 1),
+        messageId: "msg_4",
+        toolName: "compose_media",
+        toolInvocationId: "toolu_compose_1",
+        args: { plan: { id: "plan_1" } },
+      },
+      payload: {
+        route: "browser_wasm",
+        planId: "plan_1",
+        primaryAssetId: "uf_video_1",
+        outputFormat: "mp4",
+      },
+      status: "failed",
+      browserExecutionStatus: "failed",
+      sequence: 4,
+      error: "Timed out waiting for video playback readiness.",
+      failureCode: "playback_readiness_timeout",
+      failureStage: "playback_verification",
+      conversationId: "conv_1",
+    });
+
+    expect(part).toMatchObject({
+      status: "succeeded",
+      toolInvocationId: "toolu_compose_1",
+      failureCode: null,
+      failureStage: null,
+      resultPayload: expect.objectContaining({ primaryAssetId: "uf_video_1" }),
+    });
+    expect(part.error).toBeUndefined();
+    expect(part.resultEnvelope?.artifacts).toEqual([
+      expect.objectContaining({ kind: "video", assetId: "uf_video_1" }),
+    ]);
   });
 
   it("rewrites tool results into embedded job snapshots without losing the tool call", () => {

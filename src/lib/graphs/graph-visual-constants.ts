@@ -1,0 +1,9 @@
+export const GRAPH_SVG_WIDTH = 760;
+export const GRAPH_SVG_HEIGHT = 420;
+export const GRAPH_MAX_CATEGORICAL_TICKS = 6;
+export const GRAPH_TABLE_MAX_COLUMNS = 6;
+export const GRAPH_TABLE_MAX_ROWS = 6;
+export const GRAPH_BUBBLE_MIN_RADIUS = 5;
+export const GRAPH_BUBBLE_RADIUS_SPAN = 11;
+export const GRAPH_HEATMAP_MIN_ALPHA = 0.18;
+export const GRAPH_HEATMAP_ALPHA_SPAN = 0.72;

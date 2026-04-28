@@ -1,5 +1,13 @@
 import type { ToolDescriptor } from "@/core/tool-registry/ToolDescriptor";
 import { GenerateChartCommand } from "./UiTools";
+import type { GenerateStoredChartInput } from "@/lib/media/server/chart-generation-service";
+
+export function parseGenerateChartInput(value: unknown): GenerateStoredChartInput {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("generate_chart input must be an object.");
+  }
+  return value as GenerateStoredChartInput;
+}
 
 export const generateChartTool: ToolDescriptor = {
   name: "generate_chart",
@@ -8,6 +16,10 @@ export const generateChartTool: ToolDescriptor = {
     input_schema: {
       type: "object",
       properties: {
+        assetId: {
+          type: "string",
+          description: "Optional pre-allocated asset identifier.",
+        },
         code: {
           type: "string",
           description: "Optional raw Mermaid code for advanced diagrams. Must start with a Mermaid type such as 'flowchart TD', 'graph LR', 'pie', 'mindmap', or 'xychart-beta'.",

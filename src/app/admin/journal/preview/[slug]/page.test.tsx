@@ -22,6 +22,7 @@ const {
   markdownProseMock: vi.fn(({ content }: { content: string }) => <div data-testid="markdown">{content}</div>),
 }));
 
+// Phase 7 Mock Density Exception: This file tests a complex composition root or integration pipeline and legitimately requires extensive boundary mocking for external services (auth, db, observability, etc.).
 vi.mock("next/image", () => ({
   default: (props: ImgHTMLAttributes<HTMLImageElement> & { priority?: boolean; unoptimized?: boolean }) => {
     const imageProps = { ...props };

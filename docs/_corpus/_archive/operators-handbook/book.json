@@ -1,0 +1,12 @@
+{
+  "slug": "operators-handbook",
+  "title": "The Operator's Handbook",
+  "number": "II",
+  "sortOrder": 2,
+  "description": "Day-by-day operational guide to the Studio Ordo cockpit. From first login to daily practice — every chapter leaves you able to DO the thing described.",
+  "domain": ["internal"],
+  "audience": "staff",
+  "class": "training",
+  "rolePersona": "operator",
+  "tags": ["operations", "handbook", "onboarding", "daily-practice", "solopreneur"]
+}

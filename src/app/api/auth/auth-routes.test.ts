@@ -76,6 +76,7 @@ import { GET as meRoute } from "@/app/api/auth/me/route";
 import { POST as logoutRoute } from "@/app/api/auth/logout/route";
 import { JobQueueDataMapper } from "@/adapters/JobQueueDataMapper";
 import { getSessionUser } from "@/lib/auth";
+import { _resetRepositorySingletons } from "@/adapters/RepositoryFactory";
 import {
   createPublicFormMetadata,
   PUBLIC_FORM_HONEYPOT_FIELD_NAME,
@@ -98,6 +99,7 @@ function jsonRequest(body: Record<string, unknown>, headers?: HeadersInit): Requ
 
 describe("Auth API routes — full lifecycle", () => {
   beforeEach(() => {
+    _resetRepositorySingletons();
     authTestState.testDb = new Database(":memory:");
     ensureSchema(authTestState.testDb);
     authTestState.cookieJar = new Map();

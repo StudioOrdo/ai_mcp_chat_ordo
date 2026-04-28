@@ -13,6 +13,7 @@ const {
   readFileSyncMock: vi.fn(() => Buffer.from("fake-video-content")),
 }));
 
+// Phase 7 Mock Density Exception: This file tests a complex composition root or integration pipeline and legitimately requires extensive boundary mocking for external services (auth, db, observability, etc.).
 vi.mock("@/lib/auth", () => ({
   getSessionUser: getSessionUserMock,
 }));

@@ -118,7 +118,7 @@ export default async function AdminJobsPage({
   return (
     <AdminSection
       title="Jobs"
-      description="Background job queue. Browse, inspect, cancel, and retry deferred tool jobs."
+      description="Platform job interactions. Browse execution, revision, and retry state for deferred jobs without leaving the admin queue."
     >
       <div className="admin-route-stack">
         <AdminStatusCounts items={statusCounts} />

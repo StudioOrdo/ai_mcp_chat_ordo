@@ -119,9 +119,8 @@ describe("Sprint 11 — MCP Domain/Transport Separation", () => {
       );
       // Should NOT contain the hardcoded pilot list
       expect(mcpExportSource).not.toContain("pilotTools");
-      // Should iterate CAPABILITY_CATALOG
-      expect(mcpExportSource).toContain("CAPABILITY_CATALOG");
-      expect(mcpExportSource).toContain("Object.values(CAPABILITY_CATALOG)");
+      // Should iterate the static CapabilityRuntime projection
+      expect(mcpExportSource).toContain("projectAllCapabilityRuntimeStatics");
     });
   });
 

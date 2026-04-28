@@ -60,4 +60,116 @@ describe("chatStreamDispatch", () => {
     expect(streamDispatch.getResolvedConversationId()).toBeNull();
     expect(streamDispatch.getResolvedStreamId()).toBeNull();
   });
+
+  it("drops duplicate APPEND_TOOL_RESULT actions with the same dedupe identity", () => {
+    const dispatch = vi.fn();
+    const setConversationId = vi.fn();
+    const setStreamId = vi.fn();
+    const streamDispatch = createChatStreamDispatcher({
+      initialConversationId: "conv_initial",
+      dispatch,
+      setConversationId,
+      setStreamId,
+    });
+
+    const duplicateAction = {
+      type: "APPEND_TOOL_RESULT" as const,
+      index: 0,
+      name: "generate_audio",
+      result: { assetId: "uf_audio_1" },
+      sourceMessageId: "msg_1",
+      contentHash: "hash_audio_1",
+    };
+
+    streamDispatch.dispatchStreamAction(duplicateAction);
+    streamDispatch.dispatchStreamAction(duplicateAction);
+
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledWith(duplicateAction);
+  });
+
+  it("keeps APPEND_TOOL_RESULT actions when source message differs", () => {
+    const dispatch = vi.fn();
+    const setConversationId = vi.fn();
+    const setStreamId = vi.fn();
+    const streamDispatch = createChatStreamDispatcher({
+      initialConversationId: "conv_initial",
+      dispatch,
+      setConversationId,
+      setStreamId,
+    });
+
+    streamDispatch.dispatchStreamAction({
+      type: "APPEND_TOOL_RESULT",
+      index: 0,
+      name: "generate_audio",
+      result: { assetId: "uf_audio_1" },
+      sourceMessageId: "msg_1",
+      contentHash: "hash_audio_1",
+    });
+
+    streamDispatch.dispatchStreamAction({
+      type: "APPEND_TOOL_RESULT",
+      index: 0,
+      name: "generate_audio",
+      result: { assetId: "uf_audio_1" },
+      sourceMessageId: "msg_2",
+      contentHash: "hash_audio_1",
+    });
+
+    expect(dispatch).toHaveBeenCalledTimes(2);
+  });
+
+  it("uses toolInvocationId as the primary tool result dedupe identity", () => {
+    const dispatch = vi.fn();
+    const streamDispatch = createChatStreamDispatcher({
+      initialConversationId: "conv_initial",
+      dispatch,
+      setConversationId: vi.fn(),
+      setStreamId: vi.fn(),
+    });
+
+    streamDispatch.dispatchStreamAction({
+      type: "APPEND_TOOL_RESULT",
+      index: 0,
+      name: "generate_audio",
+      result: { assetId: "uf_audio_1" },
+      toolInvocationId: "toolu_audio_1",
+      sourceMessageId: "msg_1",
+      contentHash: "hash_1",
+    });
+    streamDispatch.dispatchStreamAction({
+      type: "APPEND_TOOL_RESULT",
+      index: 0,
+      name: "generate_audio",
+      result: { assetId: "uf_audio_2" },
+      toolInvocationId: "toolu_audio_1",
+      sourceMessageId: "msg_2",
+      contentHash: "hash_2",
+    });
+
+    expect(dispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps identical tool results when invocation ids differ", () => {
+    const dispatch = vi.fn();
+    const streamDispatch = createChatStreamDispatcher({
+      initialConversationId: "conv_initial",
+      dispatch,
+      setConversationId: vi.fn(),
+      setStreamId: vi.fn(),
+    });
+
+    for (const toolInvocationId of ["toolu_audio_1", "toolu_audio_2"]) {
+      streamDispatch.dispatchStreamAction({
+        type: "APPEND_TOOL_RESULT",
+        index: 0,
+        name: "generate_audio",
+        result: { assetId: "uf_audio_1" },
+        toolInvocationId,
+      });
+    }
+
+    expect(dispatch).toHaveBeenCalledTimes(2);
+  });
 });

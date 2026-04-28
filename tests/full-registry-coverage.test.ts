@@ -57,7 +57,6 @@ describe("Default tool registry coverage", () => {
     "get_checklist",
     "list_available_pages",
     "get_current_page",
-    "navigate",
     "navigate_to_page",
     "calculator",
     "inspect_runtime_context",
@@ -73,7 +72,6 @@ describe("Default tool registry coverage", () => {
     "list_deferred_jobs",
     "get_my_job_status",
     "list_my_jobs",
-    "admin_search",
     "admin_prioritize_leads",
     "admin_prioritize_offer",
     "admin_triage_routing_risk",
@@ -85,6 +83,11 @@ describe("Default tool registry coverage", () => {
       expect(registry.getRenderer(tool)).toBe(JobStatusFallbackCard);
     });
   }
+
+  it("maps admin_search to the search result renderer", () => {
+    expect(getCapabilityPresentationDescriptor("admin_search")).toBeDefined();
+    expect(registry.getRenderer("admin_search")).not.toBe(JobStatusFallbackCard);
+  });
 
   it("falls back cleanly for unknown tools", () => {
     expect(getCapabilityPresentationDescriptor("nonexistent_tool")).toBeUndefined();

@@ -44,7 +44,7 @@ describe("Tool Registry Integration", () => {
   // TEST-REG-01
   it("registry has the full Sprint 3 tool surface after composition", () => {
     const { registry } = buildStack();
-    expect(registry.getToolNames()).toHaveLength(55);
+    expect(registry.getToolNames()).toHaveLength(56);
   });
 
   // TEST-REG-02
@@ -67,11 +67,17 @@ describe("Tool Registry Integration", () => {
     expect(names).toEqual([
       "adjust_ui",
       "calculator",
+      "generate_audio",
+      "generate_chart",
+      "generate_graph",
+      "get_checklist",
       "get_corpus_summary",
       "get_current_page",
+      "get_section",
       "inspect_runtime_context",
       "inspect_theme",
       "list_available_pages",
+      "list_practitioners",
       "navigate_to_page",
       "search_corpus",
       "set_theme",
@@ -82,7 +88,7 @@ describe("Tool Registry Integration", () => {
   it("AUTHENTICATED gets all member tools", () => {
     const { registry } = buildStack();
     const schemas = registry.getSchemasForRole("AUTHENTICATED");
-    expect(schemas).toHaveLength(26);
+    expect(schemas).toHaveLength(27);
   });
 
   it("ADMIN gets the journal wrapper tools alongside compatibility-safe blog tools", () => {
@@ -115,9 +121,9 @@ describe("Tool Registry Integration", () => {
   });
 
   // TEST-REG-06
-  it("ANONYMOUS executing get_section → ToolAccessDeniedError, command never called", async () => {
+  it("ANONYMOUS executing compose_media → ToolAccessDeniedError, command never called", async () => {
     const { executor } = buildStack();
-    await expect(executor("get_section", { document_slug: "x", section_slug: "y" }, anonCtx))
+    await expect(executor("compose_media", { prompt: "test" }, anonCtx))
       .rejects.toThrow(ToolAccessDeniedError);
   });
 
@@ -138,9 +144,9 @@ describe("Tool Registry Integration", () => {
 
   it("logs START + ERROR for denied access", async () => {
     const { executor } = buildStack();
-    try { await executor("get_section", {}, anonCtx); } catch { /* expected */ }
-    expect(logEventMock).toHaveBeenCalledWith("info", "tool.start", expect.objectContaining({ tool: "get_section" }));
-    expect(logEventMock).toHaveBeenCalledWith("error", "tool.error", expect.objectContaining({ tool: "get_section" }));
+    try { await executor("compose_media", {}, anonCtx); } catch { /* expected */ }
+    expect(logEventMock).toHaveBeenCalledWith("info", "tool.start", expect.objectContaining({ tool: "compose_media" }));
+    expect(logEventMock).toHaveBeenCalledWith("error", "tool.error", expect.objectContaining({ tool: "compose_media" }));
   });
 });
 
@@ -158,14 +164,14 @@ describe("Security Verification", () => {
     const result = await executor("calculator", { operation: "add", a: 1, b: 1 }, authCtx);
     expect(result).toMatchObject({ result: 2 });
     // Also verify ANONYMOUS is still blocked from restricted tools regardless of input
-    await expect(executor("generate_chart", { data: [], type: "bar", role: "ADMIN" }, anonCtx))
+    await expect(executor("compose_media", { prompt: "test", role: "ADMIN" }, anonCtx))
       .rejects.toThrow(ToolAccessDeniedError);
   });
 
   // TEST-SEC-02: RBAC blocks at middleware, not command
-  it("ANONYMOUS executing generate_audio → ToolAccessDeniedError", async () => {
+  it("ANONYMOUS executing list_my_jobs → ToolAccessDeniedError", async () => {
     const { executor } = buildStack();
-    await expect(executor("generate_audio", { text: "hi", title: "test" }, anonCtx))
+    await expect(executor("list_my_jobs", {}, anonCtx))
       .rejects.toThrow(ToolAccessDeniedError);
   });
 

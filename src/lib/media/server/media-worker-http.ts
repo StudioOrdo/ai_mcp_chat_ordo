@@ -9,6 +9,7 @@ export interface ComposeMediaWorkerRequest {
   plan: unknown;
   userId?: unknown;
   conversationId?: unknown;
+  toolInvocationId?: unknown;
 }
 
 type ProgressEvent = {
@@ -83,11 +84,23 @@ export function createMediaWorkerServer(deps: MediaWorkerServerDeps = {}): Serve
 
     try {
       const raw = await readJsonBody(request) as ComposeMediaWorkerRequest;
-      const plan = MediaCompositionPlanSchema.parse(raw.plan);
       const userId = typeof raw.userId === "string" && raw.userId.trim().length > 0 ? raw.userId.trim() : null;
       const conversationId = typeof raw.conversationId === "string" && raw.conversationId.trim().length > 0
         ? raw.conversationId.trim()
         : null;
+      const toolInvocationId = typeof raw.toolInvocationId === "string" && raw.toolInvocationId.trim().length > 0
+        ? raw.toolInvocationId.trim()
+        : undefined;
+
+      // Defensively overwrite any agent-hallucinated conversationId in the plan
+      // with the authoritative one from the request root, preventing asset
+      // readiness check failures caused by IDs like "conv_media_1".
+      const rawPlan = raw.plan && typeof raw.plan === "object"
+        ? { ...(raw.plan as Record<string, unknown>), ...(conversationId ? { conversationId } : {}) }
+        : raw.plan;
+
+      const plan = MediaCompositionPlanSchema.parse(rawPlan);
+
 
       if (!userId) {
         throw new Error("userId is required.");
@@ -104,6 +117,7 @@ export function createMediaWorkerServer(deps: MediaWorkerServerDeps = {}): Serve
         plan,
         userId,
         conversationId,
+        toolInvocationId,
         onProgress: (update) => {
           writeStreamEvent(response, {
             type: "progress",

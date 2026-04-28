@@ -88,10 +88,13 @@ export const MEDIA_COMPOSITION_PROFILES: Record<ResolvedMediaCompositionProfile,
 };
 
 export function isStillImageNarrationPlan(plan: Pick<MediaCompositionPlan, "visualClips" | "audioClips">): boolean {
-  return plan.visualClips.length === 1
-    && plan.visualClips.every((clip) => clip.kind === "image")
-    && plan.audioClips.length <= 1
-    && plan.audioClips.every((clip) => clip.kind === "audio");
+  const visualClips = Array.isArray(plan.visualClips) ? plan.visualClips : [];
+  const audioClips = Array.isArray(plan.audioClips) ? plan.audioClips : [];
+
+  return visualClips.length === 1
+    && visualClips.every((clip) => clip.kind === "image")
+    && audioClips.length <= 1
+    && audioClips.every((clip) => clip.kind === "audio");
 }
 
 export function resolveMediaCompositionProfile(plan: Pick<MediaCompositionPlan, "profile" | "visualClips" | "audioClips">): ResolvedMediaCompositionProfile {

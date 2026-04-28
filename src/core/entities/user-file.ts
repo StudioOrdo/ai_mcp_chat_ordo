@@ -37,6 +37,8 @@ export interface UserFileMetadata {
   height?: number;
   durationSeconds?: number;
   toolName?: string;
+  toolInvocationId?: string;
+  derivativeOfToolInvocationId?: string | null;
   retentionClass?: MediaAssetRetentionClass;
   derivativeOfAssetId?: string | null;
   subtitleCueCount?: number;
@@ -46,6 +48,7 @@ export interface UserFile {
   id: string;
   userId: string;
   conversationId: string | null;
+  status: "pending" | "ready" | "failed";
   contentHash: string;
   fileType: UserFileType;
   fileName: string;

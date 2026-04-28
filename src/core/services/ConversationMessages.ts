@@ -119,6 +119,8 @@ function mergeJobStatusMessagePart(
     resultEnvelope: mergeNullable(newer.resultEnvelope, older.resultEnvelope),
     failureClass: newer.failureClass ?? older.failureClass,
     recoveryMode: newer.recoveryMode ?? older.recoveryMode,
+    nextRetryAt: mergeNullable(newer.nextRetryAt, older.nextRetryAt),
+    lastCheckpointId: mergeNullable(newer.lastCheckpointId, older.lastCheckpointId),
     replayedFromJobId: newer.replayedFromJobId ?? older.replayedFromJobId,
     supersededByJobId: newer.supersededByJobId ?? older.supersededByJobId,
     actions: newer.actions ?? older.actions,
@@ -143,19 +145,26 @@ export function upsertJobStatusMessage(
   if (targetIndex >= 0) {
     return updateMessageAtIndex(state, targetIndex, (message) => ({
       ...(() => {
-        const existingPart = (message.parts ?? []).find(isJobStatusMessagePart);
+        const existingPart = (message.parts ?? []).find(
+          (candidate): candidate is JobStatusMessagePart => (
+            isJobStatusMessagePart(candidate) && candidate.jobId === part.jobId
+          ),
+        );
         const mergedPart = existingPart ? mergeJobStatusMessagePart(existingPart, part) : part;
+        const parts = message.parts ?? [];
+        const nextParts = existingPart
+          ? parts.map((candidate) => (
+            isJobStatusMessagePart(candidate) && candidate.jobId === part.jobId
+              ? mergedPart
+              : candidate
+          ))
+          : [...parts, mergedPart];
 
         return {
           ...message,
           content: "",
           timestamp: mergedPart.updatedAt ? new Date(mergedPart.updatedAt) : message.timestamp,
-          parts: [
-            ...(message.parts ?? []).filter(
-              (candidate) => !isJobStatusMessagePart(candidate),
-            ),
-            mergedPart,
-          ],
+          parts: nextParts,
         };
       })(),
     }));

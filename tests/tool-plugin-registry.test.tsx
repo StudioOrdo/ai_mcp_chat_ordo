@@ -1,5 +1,5 @@
 import { renderHook } from "@testing-library/react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import React from "react";
 import {
@@ -81,15 +81,15 @@ describe("JobStatusFallbackCard", () => {
   });
 
   it("renders progress bar when progressPercent is present", () => {
-    const { container } = render(
+    render(
       <JobStatusFallbackCard
-        part={makePart({ progressPercent: 45 })}
+        part={makePart({ progressPercent: 45, claimedBy: "worker_1" })}
         isStreaming={false}
+        viewerRole="ADMIN"
       />,
     );
-    expect(screen.getByText("45%")).toBeInTheDocument();
-    const bar = container.querySelector("[style]");
-    expect(bar).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Test Job/i }));
+    expect(screen.getByRole("progressbar", { name: "Test Job progress" })).toHaveAttribute("aria-valuenow", "45");
   });
 
   it("renders without crashing for succeeded status", () => {
@@ -99,7 +99,7 @@ describe("JobStatusFallbackCard", () => {
         isStreaming={false}
       />,
     );
-    expect(screen.getByText("Succeeded")).toBeInTheDocument();
+    expect(screen.getByText("Completed")).toBeInTheDocument();
   });
 
   it("renders without crashing for failed status", () => {
@@ -113,25 +113,24 @@ describe("JobStatusFallbackCard", () => {
     expect(screen.getByText("Something broke")).toBeInTheDocument();
   });
 
-  it("renders title and subtitle when present", () => {
+  it("renders compact row even when title and subtitle are provided", () => {
     render(
       <JobStatusFallbackCard
         part={makePart({ title: "Job Title", subtitle: "Job Subtitle" })}
         isStreaming={false}
       />,
     );
-    expect(screen.getByText("Job Title")).toBeInTheDocument();
-    expect(screen.getByText("Job Subtitle")).toBeInTheDocument();
+    expect(screen.getByText("Test Job")).toBeInTheDocument();
   });
 
-  it("renders summary when present", () => {
+  it("renders compact status when summary is present", () => {
     render(
       <JobStatusFallbackCard
         part={makePart({ status: "succeeded", summary: "All done" })}
         isStreaming={false}
       />,
     );
-    expect(screen.getByText("All done")).toBeInTheDocument();
+    expect(screen.getByText("Completed")).toBeInTheDocument();
   });
 
   it("renders action buttons when computedActions are present", () => {
@@ -146,7 +145,7 @@ describe("JobStatusFallbackCard", () => {
         onActionClick={onClick}
       />,
     );
-    const button = screen.getByText("Retry");
+    const button = screen.getByRole("button", { name: "Retry (job)" });
     expect(button).toBeInTheDocument();
     button.click();
     expect(onClick).toHaveBeenCalledWith("job", "job_test_1", undefined);

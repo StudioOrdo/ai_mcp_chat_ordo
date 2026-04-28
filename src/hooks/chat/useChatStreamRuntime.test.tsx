@@ -46,6 +46,7 @@ describe("useChatStreamRuntime", () => {
       currentPathname: "/register",
       attachments: [],
       taskOriginHandoff: undefined,
+      mediaContinuityHandoff: undefined,
     });
 
     expect(dispatch).toHaveBeenNthCalledWith(1, {
@@ -215,6 +216,54 @@ describe("useChatStreamRuntime", () => {
         },
         attachments: [],
         taskOriginHandoff: undefined,
+        mediaContinuityHandoff: undefined,
+      },
+    );
+  });
+
+  it("forwards media continuity handoff payloads to the stream adapter", async () => {
+    fetchStreamMock.mockResolvedValue({
+      async *events() {
+        yield { type: "done" };
+      },
+    });
+
+    const dispatch = vi.fn();
+    const setConversationId = vi.fn();
+    const { result } = renderHook(() => useChatStreamRuntime({
+      conversationId: "conv_media",
+      currentPathname: "/chat",
+      dispatch,
+      setConversationId,
+    }));
+
+    await result.current.runStream(
+      [{ role: "user", content: "combine them into a video" }],
+      1,
+      [],
+      undefined,
+      undefined,
+      {
+        assets: [
+          { assetId: "uf_chart_1", kind: "chart", aliases: ["growth chart"] },
+          { assetId: "uf_audio_1", kind: "audio", aliases: ["growth narration"] },
+        ],
+      },
+    );
+
+    expect(fetchStreamMock).toHaveBeenCalledWith(
+      [{ role: "user", content: "combine them into a video" }],
+      {
+        conversationId: "conv_media",
+        currentPathname: "/chat",
+        attachments: [],
+        taskOriginHandoff: undefined,
+        mediaContinuityHandoff: {
+          assets: [
+            { assetId: "uf_chart_1", kind: "chart", aliases: ["growth chart"] },
+            { assetId: "uf_audio_1", kind: "audio", aliases: ["growth narration"] },
+          ],
+        },
       },
     );
   });

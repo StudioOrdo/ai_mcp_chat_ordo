@@ -55,6 +55,7 @@ export class ChatStreamAdapter implements ChatStreamProvider {
         currentPageSnapshot: options?.currentPageSnapshot,
         attachments: options?.attachments,
         taskOriginHandoff: options?.taskOriginHandoff,
+        mediaContinuityHandoff: options?.mediaContinuityHandoff,
       }),
     });
 

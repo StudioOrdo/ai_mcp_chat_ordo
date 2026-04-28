@@ -27,7 +27,6 @@ describe("TD-C — job visibility SRP", () => {
 
     for (const source of [userListRoute, userDetailRoute, chatListRoute, chatDetailRoute]) {
       expect(source).toContain("getJobStatusQuery");
-      expect(source).not.toContain("buildJobStatusSnapshot");
       expect(source).not.toContain("findLatestEventForJob");
     }
   });
@@ -60,16 +59,16 @@ describe("TD-C — job visibility OCP", () => {
     const shellNavigation = readSource("src/lib/shell/shell-navigation.ts");
 
     expect(shellNavigation).toContain('id: "jobs"');
-    expect(shellNavigation).toContain('ACCOUNT_MENU_ROUTE_IDS = ["jobs", "profile"]');
+    expect(shellNavigation).toContain('ACCOUNT_MENU_ROUTE_IDS = ["jobs", "my-media", "operations-media", "profile"]');
     expect(shellNavigation).not.toContain('if (route.id === "jobs")');
   });
 
   it("P6: role directives extend signed-in status guidance without sending anonymous users to /jobs", () => {
-    const directives = readSource("src/core/entities/role-directives.ts");
+    const directives = readSource("src/core/entities/role-directive-assembler.ts");
     const jobStatusStrategy = readSource("src/core/entities/job-status-response-strategy.ts");
 
-    expect(directives).toContain('getJobStatusDirectiveLines("signed-in")');
-    expect(directives).toContain('getJobStatusDirectiveLines("anonymous")');
+    expect(directives).toContain('const jobAudience = role === "ANONYMOUS" ? "anonymous" : "signed-in"');
+    expect(directives).toContain("getJobStatusDirectiveLines(jobAudience)");
     expect(jobStatusStrategy).toContain('When useful, signed-in users can review the full operational view at /jobs.');
     expect(jobStatusStrategy).toContain('If the user asks about job status, keep the answer chat-native and sign-in-aware. Do not send them to /jobs because that route is only useful after sign-in.');
   });

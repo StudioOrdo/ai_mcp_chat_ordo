@@ -60,3 +60,7 @@ export function withDb<T>(
   }
   return result;
 }
+
+export function ensureDbSchema(): void {
+  getDb();
+}

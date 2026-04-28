@@ -79,6 +79,10 @@ export function canAccessAdminPage(userRoles: readonly RoleName[]): boolean {
   return userRoles.includes("ADMIN");
 }
 
+export function canAccessStaffOrAdmin(userRoles: readonly RoleName[]): boolean {
+  return userRoles.includes("STAFF") || userRoles.includes("ADMIN");
+}
+
 function readSingleValue(value: string | string[] | undefined): string {
   if (Array.isArray(value)) {
     return typeof value[0] === "string" ? value[0] : "";
@@ -176,6 +180,20 @@ export async function requireAdminPageAccess(): Promise<SessionUser> {
   }
 
   if (!canAccessAdminPage(user.roles)) {
+    notFound();
+  }
+
+  return user;
+}
+
+export async function requireStaffOrAdmin(): Promise<SessionUser> {
+  const user = await getSessionUser();
+
+  if (user.roles.includes("ANONYMOUS")) {
+    redirect("/login");
+  }
+
+  if (!canAccessStaffOrAdmin(user.roles)) {
     notFound();
   }
 

@@ -4,7 +4,7 @@ import {
   planCapabilityExecution,
   type CapabilityExecutionPlan,
   type ExecutionPlanningContext,
-} from "@/lib/capabilities/execution-targets";
+} from "@/core/platform/execution/ExecutionPlanner";
 
 function shouldReplacePlanningArray(
   defaults: readonly unknown[] | undefined,

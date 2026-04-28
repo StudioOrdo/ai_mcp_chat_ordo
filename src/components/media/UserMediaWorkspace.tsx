@@ -1,8 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+
+const MermaidRenderer = dynamic(
+  () => import("@/components/MermaidRenderer").then((mod) => mod.MermaidRenderer),
+  { ssr: false }
+);
+
+const GraphRenderer = dynamic(
+  () => import("@/components/GraphRenderer").then((mod) => mod.GraphRenderer),
+  { ssr: false }
+);
 
 import type { UserMediaFilters, UserMediaItem } from "@/lib/media/user-media";
 import type { UserFileStorageSummary } from "@/core/entities/user-file-storage";
@@ -85,6 +96,81 @@ function SummaryCard({
   );
 }
 
+function DataAssetPreview({ item }: { item: UserMediaItem }) {
+  const [data, setData] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    fetch(item.previewUrl)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load asset data");
+        return res.text();
+      })
+      .then((text) => {
+        if (active) {
+          setData(text);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (active) {
+          setError(err.message);
+          setLoading(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [item.previewUrl]);
+
+  if (loading) {
+    return <div className="animate-pulse rounded-lg bg-surface-muted p-8 text-center text-sm text-foreground/50">Loading asset data...</div>;
+  }
+
+  if (error || !data) {
+    return <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-700">Error loading asset: {error}</div>;
+  }
+
+  if (item.fileType === "chart" || item.mimeType === "text/vnd.mermaid") {
+    return (
+      <div className="rounded-lg border border-border/60 bg-white dark:bg-black p-4">
+        <MermaidRenderer code={data} />
+      </div>
+    );
+  }
+
+  if (item.fileType === "graph" || item.mimeType === "application/json") {
+    try {
+      const graphData = JSON.parse(data);
+      // Determine if it is a resolved graph payload or just the raw graph
+      const actualGraph = graphData.graph ? graphData.graph : graphData;
+      return (
+        <div className="rounded-lg border border-border/60 bg-white dark:bg-black p-4">
+          <GraphRenderer graph={actualGraph} />
+        </div>
+      );
+    } catch {
+      return <div className="rounded-lg border border-red-500/20 p-4 text-sm text-red-700">Invalid graph JSON</div>;
+    }
+  }
+
+  // Fallback for document or text
+  if (item.fileType === "document" || item.mimeType.startsWith("text/")) {
+    return (
+      <div className="max-h-96 overflow-auto rounded-lg border border-border/60 bg-surface-muted p-4">
+        <pre className="whitespace-pre-wrap text-xs text-foreground/80 font-mono">
+          {data}
+        </pre>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 function PreviewPane({ item }: { item: UserMediaItem }) {
   if (item.fileType === "image") {
     return (
@@ -112,6 +198,10 @@ function PreviewPane({ item }: { item: UserMediaItem }) {
 
   if (item.fileType === "audio") {
     return <audio controls src={item.previewUrl} className="w-full" preload="metadata" />;
+  }
+
+  if (item.fileType === "chart" || item.fileType === "graph" || item.fileType === "document") {
+    return <DataAssetPreview item={item} />;
   }
 
   return (

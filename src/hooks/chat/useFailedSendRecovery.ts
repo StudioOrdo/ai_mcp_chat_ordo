@@ -41,6 +41,9 @@ export function useFailedSendRecovery(
         ...(existing?.taskOriginHandoff
           ? { taskOriginHandoff: existing.taskOriginHandoff }
           : {}),
+        ...(existing?.mediaContinuityHandoff
+          ? { mediaContinuityHandoff: existing.mediaContinuityHandoff }
+          : {}),
       });
     }
 

@@ -18,6 +18,9 @@ export interface ConversationMediaAssetCandidate {
   createdAt: string;
   conversationId: string | null;
   toolName?: string;
+  toolInvocationId?: string;
+  derivativeOfToolInvocationId?: string | null;
+  derivativeOfAssetId?: string | null;
   width?: number;
   height?: number;
   durationSeconds?: number;
@@ -83,6 +86,10 @@ export function buildUserFileMetadata(
     ...(typeof metadata?.height === "number" ? { height: metadata.height } : {}),
     ...(typeof metadata?.durationSeconds === "number" ? { durationSeconds: metadata.durationSeconds } : {}),
     ...(metadata?.toolName ? { toolName: metadata.toolName } : {}),
+    ...(metadata?.toolInvocationId ? { toolInvocationId: metadata.toolInvocationId } : {}),
+    ...(metadata?.derivativeOfToolInvocationId !== undefined
+      ? { derivativeOfToolInvocationId: metadata.derivativeOfToolInvocationId }
+      : {}),
     ...(metadata?.retentionClass ? { retentionClass: metadata.retentionClass } : {}),
     ...(metadata?.derivativeOfAssetId !== undefined ? { derivativeOfAssetId: metadata.derivativeOfAssetId } : {}),
     ...(typeof metadata?.subtitleCueCount === "number" ? { subtitleCueCount: metadata.subtitleCueCount } : {}),
@@ -110,6 +117,13 @@ export function projectUserFileToMediaAssetDescriptor(
       : {}),
     ...(file.conversationId ? { conversationId: file.conversationId } : {}),
     ...(file.metadata.toolName ? { toolName: file.metadata.toolName } : {}),
+    ...(file.metadata.toolInvocationId ? { toolInvocationId: file.metadata.toolInvocationId } : {}),
+    ...(file.metadata.derivativeOfToolInvocationId !== undefined
+      ? { derivativeOfToolInvocationId: file.metadata.derivativeOfToolInvocationId }
+      : {}),
+    ...(file.metadata.derivativeOfAssetId !== undefined
+      ? { derivativeOfAssetId: file.metadata.derivativeOfAssetId }
+      : {}),
     retentionClass: resolveUserFileRetentionClass(file),
   };
 }
@@ -133,6 +147,13 @@ export function projectUserFileToConversationMediaAssetCandidate(
     createdAt: file.createdAt,
     conversationId: file.conversationId,
     ...(asset.toolName ? { toolName: asset.toolName } : {}),
+    ...(asset.toolInvocationId ? { toolInvocationId: asset.toolInvocationId } : {}),
+    ...(asset.derivativeOfToolInvocationId !== undefined
+      ? { derivativeOfToolInvocationId: asset.derivativeOfToolInvocationId }
+      : {}),
+    ...(asset.derivativeOfAssetId !== undefined
+      ? { derivativeOfAssetId: asset.derivativeOfAssetId }
+      : {}),
     ...(typeof asset.width === "number" ? { width: asset.width } : {}),
     ...(typeof asset.height === "number" ? { height: asset.height } : {}),
     ...(typeof asset.durationSeconds === "number"
@@ -158,6 +179,10 @@ export function projectMediaAssetToArtifactRef(
       ? { durationSeconds: asset.durationSeconds }
       : {}),
     source: asset.source,
+    ...(asset.toolInvocationId ? { toolInvocationId: asset.toolInvocationId } : {}),
+    ...(asset.derivativeOfToolInvocationId !== undefined
+      ? { derivativeOfToolInvocationId: asset.derivativeOfToolInvocationId }
+      : {}),
   };
 }
 

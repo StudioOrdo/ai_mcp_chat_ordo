@@ -174,6 +174,16 @@ export const SHELL_ROUTES: readonly ShellRouteDefinition[] = [
     showInCommands: true,
   },
   {
+    id: "admin-training",
+    label: "Training",
+    href: "/admin/training",
+    kind: "internal",
+    description: "Access internal training references and operator playbooks.",
+    accountVisibility: ["STAFF", "ADMIN"],
+    footerVisibility: ["ADMIN"],
+    showInCommands: true,
+  },
+  {
     id: "admin-affiliates",
     label: "Affiliates",
     href: "/admin/affiliates",

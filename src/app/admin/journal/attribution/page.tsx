@@ -4,7 +4,6 @@ import { AdminBrowseFilters } from "@/components/admin/AdminBrowseFilters";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
 import { AdminSection } from "@/components/admin/AdminSection";
 import { loadJournalAttribution } from "@/lib/admin/attribution/admin-attribution";
-import { requireAdminPageAccess } from "@/lib/journal/admin-journal";
 import { requireJournalWorkspaceAccess } from "@/lib/journal/admin-journal";
 import {
   getAdminJournalDetailPath,

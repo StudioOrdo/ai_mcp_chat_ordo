@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState, type Dispatch } from "react";
 
 import type { AttachmentPart } from "@/lib/chat/message-attachments";
+import type { MediaContinuityHandoff } from "@/lib/chat/media-continuity-handoff";
 import type { CurrentPageSnapshot } from "@/lib/chat/current-page-context";
 import type { TaskOriginHandoff } from "@/lib/chat/task-origin-handoff";
 
@@ -53,12 +54,14 @@ export function useChatStreamRuntime({
       attachments: AttachmentPart[],
       taskOriginHandoff?: TaskOriginHandoff,
       currentPageSnapshot?: CurrentPageSnapshot,
+      mediaContinuityHandoff?: MediaContinuityHandoff | null,
     ): Promise<RunChatStreamResult> => {
       const streamOptions = {
         conversationId: conversationId || undefined,
         currentPathname,
         attachments,
         taskOriginHandoff,
+        ...(mediaContinuityHandoff ? { mediaContinuityHandoff } : {}),
         ...(currentPageSnapshot ? { currentPageSnapshot } : {}),
       };
       const stream = await streamAdapter.fetchStream(historyForBackend, streamOptions);

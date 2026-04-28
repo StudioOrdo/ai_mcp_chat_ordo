@@ -401,7 +401,9 @@ function buildCodeFromSpec(spec: Record<string, unknown>): string {
   }
 }
 
-export function resolveGenerateChartPayload(input: Record<string, unknown>): ResolvedChartPayload {
+export function resolveGenerateChartPayload(
+  input: GenerateChartInput | Record<string, unknown>,
+): ResolvedChartPayload {
   const code = asString(input.code);
   const title = asString(input.title);
   const caption = asString(input.caption);

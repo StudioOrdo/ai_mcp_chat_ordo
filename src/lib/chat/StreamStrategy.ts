@@ -140,6 +140,7 @@ export class ToolCallStrategy implements StreamEventStrategy {
         index: assistantIndex,
         name: event.name,
         args: event.args,
+        toolInvocationId: event.toolInvocationId,
       });
     }
   }
@@ -156,6 +157,9 @@ export class ToolResultStrategy implements StreamEventStrategy {
         index: assistantIndex,
         name: event.name,
         result: event.result,
+        toolInvocationId: event.toolInvocationId,
+        sourceMessageId: event.sourceMessageId,
+        contentHash: event.contentHash,
       });
     }
   }

@@ -93,6 +93,16 @@ describe("job capability registry", () => {
     expect(JOB_CAPABILITY_REGISTRY.compose_media.progressPhases).toEqual(
       COMPOSE_MEDIA_PHASES,
     );
+    expect(JOB_CAPABILITY_REGISTRY.produce_product.progressPhases?.map((phase) => phase.key)).toEqual([
+      "research",
+      "draft",
+      "asset_generation_image_1",
+      "composition",
+      "qa_asset",
+      "qa_page",
+      "qa_resolution",
+      "release",
+    ]);
   });
 
   it("keeps automatic retry limited to the bounded safe editorial capabilities", () => {
@@ -126,6 +136,7 @@ describe("job capability registry", () => {
       backoffStrategy: "fixed",
       baseDelayMs: 3000,
     });
+    expect(JOB_CAPABILITY_REGISTRY.produce_product.retryPolicy).toEqual({ mode: "manual_only" });
     expect(JOB_CAPABILITY_REGISTRY.produce_blog_article.retryPolicy).toEqual({ mode: "manual_only" });
     expect(JOB_CAPABILITY_REGISTRY.qa_blog_article.retryPolicy).toEqual({ mode: "manual_only" });
     expect(JOB_CAPABILITY_REGISTRY.resolve_blog_article_qa.retryPolicy).toEqual({ mode: "manual_only" });
@@ -135,6 +146,7 @@ describe("job capability registry", () => {
   it("advertises artifact-open policy only for artifact-producing editorial capabilities", () => {
     expect(JOB_CAPABILITY_REGISTRY.publish_content.artifactPolicy).toEqual({ mode: "open_artifact" });
     expect(JOB_CAPABILITY_REGISTRY.draft_content.artifactPolicy).toEqual({ mode: "open_artifact" });
+    expect(JOB_CAPABILITY_REGISTRY.produce_product.artifactPolicy).toEqual({ mode: "open_artifact" });
     expect(JOB_CAPABILITY_REGISTRY.produce_blog_article.artifactPolicy).toEqual({ mode: "open_artifact" });
     expect(JOB_CAPABILITY_REGISTRY.resolve_blog_article_qa.artifactPolicy).toEqual({ mode: "open_artifact" });
     expect(JOB_CAPABILITY_REGISTRY.qa_blog_article.artifactPolicy).toEqual({ mode: "retain" });

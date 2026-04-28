@@ -30,6 +30,7 @@ const {
   },
 }));
 
+// Phase 7 Mock Density Exception: This file tests a complex composition root or integration pipeline and legitimately requires extensive boundary mocking for external services (auth, db, observability, etc.).
 vi.mock("@/lib/chat/resolve-user", () => ({
   resolveUserId: resolveUserIdMock,
 }));
@@ -161,6 +162,76 @@ describe("POST /api/chat/uploads", () => {
       }),
     ]);
     expect(payload.quota).toMatchObject({ status: "normal", usedBytes: 5 });
+  });
+
+  it("preserves tool invocation provenance for derived browser-runtime uploads", async () => {
+    storeBinaryBatchWithinQuotaMock.mockImplementationOnce(async (input: {
+      files: Array<{ metadata?: Record<string, unknown> }>;
+    }) => ({
+      files: [{
+        id: "uf_derived_1",
+        userId: "usr_test",
+        conversationId: "conv_1",
+        contentHash: "hash-1",
+        fileType: "image",
+        fileName: "hash-1.png",
+        mimeType: "image/png",
+        fileSize: 5,
+        metadata: input.files[0]?.metadata ?? {},
+        createdAt: "2026-04-15T00:00:00.000Z",
+      }],
+      quota: {
+        quotaBytes: 1000,
+        usedBytes: 5,
+        remainingBytes: 995,
+        percentUsed: 0.5,
+        warnAtPercent: 80,
+        hardBlockUploadsAtQuota: false,
+        isWarning: false,
+        isOverQuota: false,
+        status: "normal",
+      },
+      incomingBytes: 5,
+    }));
+    const formData = new FormData();
+    formData.append(
+      "files",
+      new File([new Uint8Array([137, 80, 78, 71])], "chart.png", { type: "image/png" }),
+    );
+    formData.append("conversationId", "conv_1");
+    formData.append("derivativeOfAssetId", "uf_chart_1");
+    formData.append("toolInvocationId", "toolu_compose_1");
+    formData.append("derivativeOfToolInvocationId", "toolu_chart_1");
+
+    const response = await POST(
+      {
+        formData: async () => formData,
+      } as unknown as Request,
+    );
+
+    expect(storeBinaryBatchWithinQuotaMock).toHaveBeenCalledWith(expect.objectContaining({
+      files: [expect.objectContaining({
+        metadata: expect.objectContaining({
+          derivativeOfAssetId: "uf_chart_1",
+          toolInvocationId: "toolu_compose_1",
+          derivativeOfToolInvocationId: "toolu_chart_1",
+        }),
+      })],
+    }));
+    const payload = await response.json() as {
+      attachments: Array<{
+        assetId: string;
+        derivativeOfAssetId?: string;
+        toolInvocationId?: string;
+        derivativeOfToolInvocationId?: string;
+      }>;
+    };
+    expect(payload.attachments[0]).toMatchObject({
+      assetId: "uf_derived_1",
+      derivativeOfAssetId: "uf_chart_1",
+      toolInvocationId: "toolu_compose_1",
+      derivativeOfToolInvocationId: "toolu_chart_1",
+    });
   });
 
   it("rejects empty uploads", async () => {

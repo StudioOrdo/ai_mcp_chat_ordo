@@ -24,6 +24,7 @@ const {
   withToolManifestMock: vi.fn(),
 }));
 
+// Phase 7 Mock Density Exception: This file tests a complex composition root or integration pipeline and legitimately requires extensive boundary mocking for external services (auth, db, observability, etc.).
 vi.mock("@anthropic-ai/sdk", () => ({
   default: class MockAnthropic {
     messages = {
@@ -67,12 +68,14 @@ vi.mock("@/lib/observability/logger", () => ({
   logEvent: logEventMock,
 }));
 
-vi.mock("@/lib/chat/tool-composition-root", () => ({
-  getToolComposition: vi.fn(() => ({
-    registry: {
-      getSchemasForRole: getSchemasForRoleMock,
-    },
-    executor: getToolExecutorFactoryMock(),
+vi.mock("@/lib/platform/agent-platform-facade-root", () => ({
+  getAgentPlatformFacade: vi.fn(() => ({
+    getExecutionSurface: () => ({
+      registry: {
+        getSchemasForRole: getSchemasForRoleMock,
+      },
+      executor: getToolExecutorFactoryMock(),
+    }),
   })),
 }));
 

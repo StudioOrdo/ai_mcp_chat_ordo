@@ -69,6 +69,13 @@ export function getAnthropicRequestTimeoutMs(): number {
   );
 }
 
+export function getTtsFetchTimeoutMs(): number {
+  return parsePositiveIntegerEnv(
+    readPrimary("TTS_FETCH_TIMEOUT_MS"),
+    30000,
+  );
+}
+
 export function getAnthropicRequestRetryAttempts(): number {
   return parsePositiveIntegerEnv(
     readPrimary("ANTHROPIC_RETRY_ATTEMPTS"),
@@ -112,4 +119,8 @@ export function getWebPushPrivateKey(): string | null {
 
 export function getWebPushSubject(): string {
   return readEnv("WEB_PUSH_SUBJECT") ?? "mailto:no-reply@studioordo.local";
+}
+
+export function getInternalRuntimeServiceToken(): string {
+  return readEnv("ORDO_INTERNAL_RUNTIME_SERVICE_TOKEN") ?? "local-dev-runtime-token";
 }

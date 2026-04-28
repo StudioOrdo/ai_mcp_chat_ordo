@@ -1,0 +1,11 @@
+{
+  "slug": "campaign",
+  "title": "Campaign Playbook",
+  "number": "V",
+  "sortOrder": 50,
+  "description": "Short, honest guides for the three starter campaign presets: friends-and-family, local flyers, and lightweight paid outreach. Each guide is a narrative companion to the in-product coach steps rendered on the referrals surface.",
+  "domain": ["teaching"],
+  "tags": ["campaign", "referral", "solopreneur", "guide"],
+  "audience": "public",
+  "class": "guide"
+}

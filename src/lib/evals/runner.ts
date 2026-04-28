@@ -529,29 +529,30 @@ export async function runDeterministicEvalScenario(
       case "integrity-retrieval-quality-deterministic": {
         const searchCommand = new SearchCorpusCommand(getCorpusRepository());
         const authUser = { role: "AUTHENTICATED", userId: inflated.refs.authenticatedUserId ?? conversation.userId } as const;
+        type RetrievalQualityPayload = { retrievalQuality?: string };
 
-        const strongPayload = await searchCommand.execute({ query: "technology" }, authUser) as any;
-        const partialPayload = await searchCommand.execute({ query: "technology technology technology technology technology" }, authUser) as any;
-        const nonePayload = await searchCommand.execute({ query: "zzxz zzyz zzzx" }, authUser) as any;
+        const strongPayload = await searchCommand.execute({ query: "technology" }, authUser) as RetrievalQualityPayload;
+        const partialPayload = await searchCommand.execute({ query: "technology technology technology technology technology" }, authUser) as RetrievalQualityPayload;
+        const nonePayload = await searchCommand.execute({ query: "zzxz zzyz zzzx" }, authUser) as RetrievalQualityPayload;
 
         checkpointResults.push(
           createCheckpointResult(
             scenario,
             "quality-strong",
             strongPayload.retrievalQuality === "strong",
-            strongPayload.retrievalQuality,
+            strongPayload.retrievalQuality ?? null,
           ),
           createCheckpointResult(
             scenario,
             "quality-partial",
             partialPayload.retrievalQuality === "partial",
-            partialPayload.retrievalQuality,
+            partialPayload.retrievalQuality ?? null,
           ),
           createCheckpointResult(
             scenario,
             "quality-none",
             nonePayload.retrievalQuality === "none",
-            nonePayload.retrievalQuality,
+            nonePayload.retrievalQuality ?? null,
           ),
         );
 

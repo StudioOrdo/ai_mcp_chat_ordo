@@ -126,6 +126,6 @@ describe("custom tool card compliance", () => {
     });
 
     expect(screen.getByText("Admin Web Search")).toBeInTheDocument();
-    expect(screen.getByText("Succeeded")).toBeInTheDocument();
+    expect(screen.getByText("Completed")).toBeInTheDocument();
   });
 });

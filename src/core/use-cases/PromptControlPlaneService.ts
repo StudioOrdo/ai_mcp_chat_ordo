@@ -1,6 +1,6 @@
 import type { SystemPrompt } from "@/core/use-cases/SystemPromptRepository";
 
-export type PromptSlotType = "base" | "role_directive";
+export type PromptSlotType = "base" | "role_directive" | "coach";
 export type PromptRuntimeCoverage = "db" | "fallback" | "missing";
 
 export interface PromptSlotRef {

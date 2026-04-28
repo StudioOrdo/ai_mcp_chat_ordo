@@ -6,6 +6,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { CAPABILITY_CATALOG } from "./catalog";
+import { projectAllCapabilityRuntimeStatics } from "@/core/platform/capability-runtime/CapabilityRuntime";
 
 // Import all bundle descriptors
 import { ADMIN_BUNDLE } from "@/lib/chat/tool-bundles/admin-tools";
@@ -47,6 +48,9 @@ function getAllBundleToolNames(): string[] {
 
 describe("Sprint 10 — Catalog Coverage", () => {
   const catalogNames = Object.keys(CAPABILITY_CATALOG).sort();
+  const runtimeNames = projectAllCapabilityRuntimeStatics()
+    .map((runtime) => runtime.capabilityName)
+    .sort();
   const bundleToolNames = getAllBundleToolNames();
 
   it("every bundle tool has a catalog entry", () => {
@@ -61,6 +65,10 @@ describe("Sprint 10 — Catalog Coverage", () => {
       (name) => !bundleToolNames.includes(name),
     );
     expect(orphaned).toEqual([]);
+  });
+
+  it("runtime-static capability names match catalog keys", () => {
+    expect(runtimeNames).toEqual(catalogNames);
   });
 
   it("catalog has exactly the right count", () => {

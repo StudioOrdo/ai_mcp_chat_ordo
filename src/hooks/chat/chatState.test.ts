@@ -51,6 +51,30 @@ describe("chatReducer", () => {
     expect(next[0]?.parts?.[1]).toEqual({ type: "tool_call", name: "search", args: { query: "workflow" } });
   });
 
+  it("stores tool invocation ids on tool calls and results", () => {
+    const state = [makeMessage()];
+
+    const withCall = chatReducer(state, {
+      type: "APPEND_TOOL_CALL",
+      index: 0,
+      name: "generate_audio",
+      args: { text: "cheese" },
+      toolInvocationId: "toolu_audio_1",
+    });
+    const withResult = chatReducer(withCall, {
+      type: "APPEND_TOOL_RESULT",
+      index: 0,
+      name: "generate_audio",
+      result: { assetId: "uf_audio_1" },
+      toolInvocationId: "toolu_audio_1",
+    });
+
+    expect(withResult[0]?.parts?.slice(1)).toEqual([
+      { type: "tool_call", name: "generate_audio", args: { text: "cheese" }, toolInvocationId: "toolu_audio_1" },
+      { type: "tool_result", name: "generate_audio", result: { assetId: "uf_audio_1" }, toolInvocationId: "toolu_audio_1" },
+    ]);
+  });
+
   it("appends tool result parts without changing content", () => {
     const state = [makeMessage()];
 
@@ -63,6 +87,88 @@ describe("chatReducer", () => {
 
     expect(next[0]?.content).toBe("Hello");
     expect(next[0]?.parts?.[1]).toEqual({ type: "tool_result", name: "search", result: { items: 3 } });
+  });
+
+  it("drops replayed duplicate tool results when no matching tool call is pending", () => {
+    const state = [makeMessage({
+      parts: [
+        { type: "text", text: "Hello" },
+        { type: "tool_call", name: "generate_audio", args: { prompt: "cheese" } },
+        { type: "tool_result", name: "generate_audio", result: { assetId: "uf_audio_1" } },
+        { type: "tool_call", name: "compose_media", args: { id: "plan_1" } },
+        { type: "tool_result", name: "compose_media", result: { error: "invalid visual clip" } },
+      ],
+    })];
+
+    const next = chatReducer(state, {
+      type: "APPEND_TOOL_RESULT",
+      index: 0,
+      name: "generate_audio",
+      result: { assetId: "uf_audio_1" },
+    });
+
+    expect(next[0]?.parts).toHaveLength(5);
+    expect(next[0]?.parts?.filter((part) => part.type === "tool_result" && part.name === "generate_audio")).toHaveLength(1);
+  });
+
+  it("keeps tool results that correspond to a newly pending matching tool call", () => {
+    const state = [makeMessage({
+      parts: [
+        { type: "text", text: "Hello" },
+        { type: "tool_call", name: "generate_audio", args: { prompt: "cheese" } },
+        { type: "tool_result", name: "generate_audio", result: { assetId: "uf_audio_1" } },
+        { type: "tool_call", name: "generate_audio", args: { prompt: "cheese retry" } },
+      ],
+    })];
+
+    const next = chatReducer(state, {
+      type: "APPEND_TOOL_RESULT",
+      index: 0,
+      name: "generate_audio",
+      result: { assetId: "uf_audio_1" },
+    });
+
+    expect(next[0]?.parts).toHaveLength(5);
+    expect(next[0]?.parts?.filter((part) => part.type === "tool_result" && part.name === "generate_audio")).toHaveLength(2);
+  });
+
+  it("drops duplicate tool results with the same invocation id", () => {
+    const state = [makeMessage({
+      parts: [
+        { type: "tool_call", name: "generate_audio", args: { text: "cheese" }, toolInvocationId: "toolu_audio_1" },
+        { type: "tool_result", name: "generate_audio", result: { assetId: "uf_audio_1" }, toolInvocationId: "toolu_audio_1" },
+      ],
+    })];
+
+    const next = chatReducer(state, {
+      type: "APPEND_TOOL_RESULT",
+      index: 0,
+      name: "generate_audio",
+      result: { assetId: "uf_audio_1" },
+      toolInvocationId: "toolu_audio_1",
+    });
+
+    expect(next[0]?.parts).toHaveLength(2);
+  });
+
+  it("keeps identical tool results with different invocation ids", () => {
+    const state = [makeMessage({
+      parts: [
+        { type: "tool_call", name: "generate_audio", args: { text: "cheese" }, toolInvocationId: "toolu_audio_1" },
+        { type: "tool_result", name: "generate_audio", result: { assetId: "uf_audio_1" }, toolInvocationId: "toolu_audio_1" },
+        { type: "tool_call", name: "generate_audio", args: { text: "cheese" }, toolInvocationId: "toolu_audio_2" },
+      ],
+    })];
+
+    const next = chatReducer(state, {
+      type: "APPEND_TOOL_RESULT",
+      index: 0,
+      name: "generate_audio",
+      result: { assetId: "uf_audio_1" },
+      toolInvocationId: "toolu_audio_2",
+    });
+
+    expect(next[0]?.parts?.filter((part) => part.type === "tool_result")).toHaveLength(2);
   });
 
   it("replaces the active assistant tail with an error message", () => {

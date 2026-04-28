@@ -17,6 +17,7 @@ export interface TranscriptEntry {
   tokenEstimate: number;
   inContextWindow: boolean;
   sourceMessageId?: string;
+  toolInvocationId?: string;
   compactedCount?: number;
   compactionKind?: CompactionMarkerMessagePart["kind"];
   coversUpToMessageId?: string;
@@ -168,6 +169,7 @@ export class TranscriptStore {
       tokenEstimate: Math.ceil(contentSummary.length / 4),
       inContextWindow: true,
       sourceMessageId: messageId,
+      ...(part.toolInvocationId ? { toolInvocationId: part.toolInvocationId } : {}),
     });
   }
 

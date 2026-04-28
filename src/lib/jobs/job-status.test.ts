@@ -198,6 +198,81 @@ describe("job-status", () => {
     );
   });
 
+  it("presents standalone image generation jobs with generic image wording", () => {
+    const part = buildJobStatusPartFromProjection(
+      {
+        id: "job_image_1",
+        status: "running",
+        toolName: "generate_blog_image",
+        requestPayload: {
+          prompt: "A geometric operator portrait in a bright workspace",
+          alt_text: "Operator portrait in a bright workspace",
+        },
+        progressPercent: 18,
+        progressLabel: "Generating image",
+        resultPayload: null,
+        errorMessage: null,
+        failureClass: null,
+        recoveryMode: "rerun",
+        replayedFromJobId: null,
+        supersededByJobId: null,
+      },
+      {
+        id: "evt_image_1",
+        jobId: "job_image_1",
+        conversationId: "conv_1",
+        sequence: 9,
+        eventType: "progress",
+        payload: {
+          progressPercent: 18,
+          progressLabel: "Generating image",
+        },
+        createdAt: "2026-04-10T12:25:00.000Z",
+      },
+    );
+
+    expect(part.label).toBe("Generate Image");
+    expect(part.title).toBe("Operator portrait in a bright workspace");
+    expect(part.subtitle).toBe("Generate and store an image asset for reuse in the conversation.");
+  });
+
+  it("keeps editorial wording for blog image jobs that target a post", () => {
+    const part = buildJobStatusPartFromProjection(
+      {
+        id: "job_blog_image_1",
+        status: "running",
+        toolName: "generate_blog_image",
+        requestPayload: {
+          post_id: "post_1",
+          prompt: "A founder strategy room",
+          alt_text: "Founders in a strategy room",
+        },
+        progressPercent: 30,
+        progressLabel: "Generating hero image",
+        resultPayload: null,
+        errorMessage: null,
+        failureClass: null,
+        recoveryMode: "rerun",
+        replayedFromJobId: null,
+        supersededByJobId: null,
+      },
+      {
+        id: "evt_blog_image_1",
+        jobId: "job_blog_image_1",
+        conversationId: "conv_1",
+        sequence: 10,
+        eventType: "progress",
+        payload: {
+          progressPercent: 30,
+          progressLabel: "Generating hero image",
+        },
+        createdAt: "2026-04-10T12:26:00.000Z",
+      },
+    );
+
+    expect(part.label).toBe("Generate Blog Image");
+  });
+
   it("prefers payload context over registry description when editorial context is available", () => {
     const part = buildJobStatusPartFromProjection(
       {

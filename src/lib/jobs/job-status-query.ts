@@ -1,5 +1,6 @@
 import type { JobQueueRepository } from "@/core/use-cases/JobQueueRepository";
 import type { JobStatusQuery, JobStatusQueryOptions } from "@/core/use-cases/JobStatusQuery";
+import { createExecutionTimelineReader } from "@/core/platform/execution/ExecutionTimelineReader";
 import {
   buildJobStatusSnapshot,
   type JobStatusSnapshot,
@@ -65,5 +66,5 @@ export class RepositoryBackedJobStatusQuery implements JobStatusQuery {
 }
 
 export function createJobStatusQuery(repository: JobQueueRepository): JobStatusQuery {
-  return new RepositoryBackedJobStatusQuery(repository);
+  return createExecutionTimelineReader(repository);
 }

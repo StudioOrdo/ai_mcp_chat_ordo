@@ -1,6 +1,14 @@
 import type { ToolDescriptor } from "@/core/tool-registry/ToolDescriptor";
 import { ANALYTICS_GRAPH_SOURCE_TYPES } from "@/lib/analytics/analytics-dataset-registry";
 import { GenerateGraphCommand } from "./UiTools";
+import type { GenerateStoredGraphInput } from "@/lib/media/server/graph-generation-service";
+
+export function parseGenerateGraphInput(value: unknown): GenerateStoredGraphInput {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("generate_graph input must be an object.");
+  }
+  return value as GenerateStoredGraphInput;
+}
 
 export const generateGraphTool: ToolDescriptor = {
   name: "generate_graph",
@@ -9,6 +17,10 @@ export const generateGraphTool: ToolDescriptor = {
     input_schema: {
       type: "object",
       properties: {
+        assetId: {
+          type: "string",
+          description: "Optional pre-allocated asset identifier.",
+        },
         title: {
           type: "string",
           description: "Primary graph title shown in the UI card header.",

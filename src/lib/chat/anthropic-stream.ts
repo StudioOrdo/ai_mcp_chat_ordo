@@ -15,19 +15,21 @@ import {
 
 export interface StreamCallbacks {
   onDelta?: (text: string) => void;
-  onToolCall?: (name: string, args: Record<string, unknown>) => void;
-  onToolResult?: (name: string, result: unknown) => void;
+  onToolCall?: (name: string, args: Record<string, unknown>, toolInvocationId: string) => void;
+  onToolResult?: (name: string, result: unknown, toolInvocationId: string) => void;
 }
 
 export interface ClaudeAgentLoopToolCall {
   name: string;
   args: Record<string, unknown>;
+  toolInvocationId: string;
 }
 
 export interface ClaudeAgentLoopToolResult {
   name: string;
   result: unknown;
   isError: boolean;
+  toolInvocationId: string;
 }
 
 export interface ClaudeAgentLoopResult {
@@ -114,7 +116,7 @@ export async function runClaudeAgentLoopStream(options: {
   signal?: AbortSignal;
   systemPrompt: string;
   tools: Anthropic.Tool[];
-  toolExecutor: (name: string, input: Record<string, unknown>) => Promise<unknown>;
+  toolExecutor: (name: string, input: Record<string, unknown>, toolInvocationId: string) => Promise<unknown>;
   client?: Anthropic;
   modelCandidates?: string[];
   retryAttempts?: number;
@@ -160,6 +162,11 @@ export async function runClaudeAgentLoopStream(options: {
   let stopReason: string | null = null;
   let round = 0;
   let completedRounds = 0;
+  const executedToolResults = new Map<string, {
+    resultBlock: Anthropic.Messages.ToolResultBlockParam;
+    finalResult: unknown;
+    isError: boolean;
+  }>();
 
   function resetModelState(model: string): void {
     activeModel = model;
@@ -238,43 +245,56 @@ export async function runClaudeAgentLoopStream(options: {
             }
 
             const args = use.input as Record<string, unknown>;
-            toolCalls.push({ name: use.name, args });
-            callbacks.onToolCall?.(use.name, args);
+            const toolInvocationId = use.id;
 
-            let resultBlock: Anthropic.Messages.ToolResultBlockParam;
-            let isError = false;
-            try {
-              const result = await toolExecutor(use.name, args);
-              if (signal?.aborted) {
-                throw createAbortError(signal);
-              }
-              const content = typeof result === "string" ? result : JSON.stringify(result);
-              resultBlock = { type: "tool_result", tool_use_id: use.id, content };
-            } catch (error) {
-              if (signal?.aborted || isAbortLikeError(error)) {
-                throw error;
-              }
+            const priorExecution = executedToolResults.get(toolInvocationId);
+            let resultBlock = priorExecution?.resultBlock;
+            let finalResult = priorExecution?.finalResult;
+            let isError = priorExecution?.isError ?? false;
 
-              isError = true;
-              resultBlock = {
-                type: "tool_result",
-                tool_use_id: use.id,
-                content: error instanceof Error ? error.message : "Tool execution failed.",
-                is_error: true,
-              };
-            }
+            if (!priorExecution) {
+              toolCalls.push({ name: use.name, args, toolInvocationId });
+              callbacks.onToolCall?.(use.name, args, toolInvocationId);
 
-            let finalResult: unknown = resultBlock.content;
-            if (typeof resultBlock.content === "string") {
               try {
-                finalResult = JSON.parse(resultBlock.content);
-              } catch {
-                // Leave non-JSON tool content as-is.
+                const result = await toolExecutor(use.name, args, toolInvocationId);
+                if (signal?.aborted) {
+                  throw createAbortError(signal);
+                }
+                const content = typeof result === "string" ? result : JSON.stringify(result);
+                resultBlock = { type: "tool_result", tool_use_id: use.id, content };
+              } catch (error) {
+                if (signal?.aborted || isAbortLikeError(error)) {
+                  throw error;
+                }
+
+                isError = true;
+                resultBlock = {
+                  type: "tool_result",
+                  tool_use_id: use.id,
+                  content: error instanceof Error ? error.message : "Tool execution failed.",
+                  is_error: true,
+                };
               }
+
+              finalResult = resultBlock.content;
+              if (typeof resultBlock.content === "string") {
+                try {
+                  finalResult = JSON.parse(resultBlock.content);
+                } catch {
+                  // Leave non-JSON tool content as-is.
+                }
+              }
+
+              executedToolResults.set(toolInvocationId, { resultBlock, finalResult, isError });
+              callbacks.onToolResult?.(use.name, finalResult, toolInvocationId);
+              toolResults.push({ name: use.name, result: finalResult, isError, toolInvocationId });
             }
 
-            callbacks.onToolResult?.(use.name, finalResult);
-            toolResults.push({ name: use.name, result: finalResult, isError });
+            if (!resultBlock) {
+              throw new Error(`Missing tool result block for ${use.name}.`);
+            }
+
             toolResultContents.push(resultBlock);
           }
 

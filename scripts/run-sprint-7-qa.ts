@@ -22,12 +22,16 @@ const ROOT = process.cwd();
 const SPRINT_7_UNIT_TESTS = [
   // Task 7.1 — Plan contracts
   "src/lib/media/ffmpeg/media-composition-plan.test.ts",
+  "src/lib/media/media-composition-asset-identity.test.ts",
+  "src/core/use-cases/tools/list-conversation-media-assets.tool.test.ts",
+  "src/lib/media/compose-media-preflight.test.ts",
   "src/lib/media/ffmpeg/media-execution-router.test.ts",
 
   // Task 7.2 — Browser WASM path
   "src/lib/media/browser-runtime/ffmpeg-capability-probe.test.ts",
   "src/lib/media/browser-runtime/ffmpeg-browser-executor.test.ts",
   "src/lib/media/browser-runtime/browser-capability-registry.test.ts",
+  "src/lib/media/browser-runtime/job-snapshots.test.ts",
 
   // Task 7.3 — Server path + governance
   "src/lib/media/ffmpeg/server/ffmpeg-server-executor.test.ts",

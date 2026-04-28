@@ -84,7 +84,7 @@ export const DEFAULT_IDENTITY: InstanceIdentity = {
   description:
     "A governed all-in-one AI workspace for solopreneurs who want chat, search, workflows, and publishing in one easy-to-host system.",
   domain: "studioordo.com",
-  logoPath: "/ordo-avatar.png",
+  logoPath: "/logo_with_words.png",
   markText: "O",
   copyright: "© 2026 Studio Ordo. All rights reserved.",
   serviceChips: [

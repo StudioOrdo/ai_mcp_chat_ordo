@@ -24,6 +24,9 @@ import {
 } from "@/lib/referrals/referral-visit";
 import { getReferralLedgerService } from "@/lib/referrals/referral-ledger";
 import {
+  normalizeMediaContinuityHandoff,
+} from "@/lib/chat/media-continuity-handoff";
+import {
   normalizeTaskOriginHandoff,
 } from "@/lib/chat/task-origin-handoff";
 import { UserFileSystem } from "@/lib/user-files";
@@ -37,6 +40,7 @@ export type ParsedRequestBody = {
   incomingMessages: ChatMessage[];
   incomingAttachments: AttachmentPart[];
   taskOriginHandoff: ReturnType<typeof normalizeTaskOriginHandoff>;
+  mediaContinuityHandoff: ReturnType<typeof normalizeMediaContinuityHandoff>;
 };
 
 export type NormalizedChatStreamRequest = Omit<ChatStreamRequest, "currentPageSnapshot"> & {
@@ -80,10 +84,12 @@ function parseRequestBody(body: {
   messages?: ChatMessage[];
   attachments?: unknown[];
   taskOriginHandoff?: unknown;
+  mediaContinuityHandoff?: unknown;
 }): ParsedRequestBody {
   return {
     incomingMessages: body.messages ?? [],
     taskOriginHandoff: normalizeTaskOriginHandoff(body.taskOriginHandoff),
+    mediaContinuityHandoff: normalizeMediaContinuityHandoff(body.mediaContinuityHandoff),
     incomingAttachments: (body.attachments ?? [])
       .filter(isAttachmentCandidate)
       .map((attachment) => ({

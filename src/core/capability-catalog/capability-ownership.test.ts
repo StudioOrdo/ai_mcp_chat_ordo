@@ -12,12 +12,21 @@ import {
   getExtensionPackRuntimeOwnership,
   isHostCoreCapability,
 } from "./capability-ownership";
+import { projectAllCapabilityRuntimeStatics } from "@/core/platform/capability-runtime/CapabilityRuntime";
 
 describe("capability-ownership", () => {
-  it("assigns every catalog capability to core or a named pack", () => {
-    for (const toolName of Object.keys(CAPABILITY_CATALOG)) {
+  it("assigns every runtime capability to core or a named pack", () => {
+    for (const toolName of projectAllCapabilityRuntimeStatics().map((runtime) => runtime.capabilityName)) {
       expect(getCapabilityOwnership(toolName), `Missing ownership for ${toolName}`).toBeDefined();
     }
+  });
+
+  it("runtime capability names still align with catalog keys", () => {
+    expect(
+      projectAllCapabilityRuntimeStatics()
+        .map((runtime) => runtime.capabilityName)
+        .sort(),
+    ).toEqual(Object.keys(CAPABILITY_CATALOG).sort());
   });
 
   it("marks the standard host core explicitly", () => {

@@ -88,6 +88,14 @@ function formatRoleList(roles: readonly string[]): string {
   return roles.join(", ");
 }
 
+function formatTokenLabel(value: string | null | undefined): string {
+  if (!value) {
+    return "Unknown";
+  }
+
+  return value.replace(/_/g, " ").replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
 export default async function AdminJobDetailPage({
   params,
 }: {
@@ -96,7 +104,7 @@ export default async function AdminJobDetailPage({
   const admin = await requireAdminPageAccess();
   const { id } = await params;
   const detail = await loadAdminJobDetail(id, admin.roles);
-  const { job, events, policy, capabilityPolicy } = detail;
+  const { job, events, policy, capabilityPolicy, interaction } = detail;
 
   const canCancel = policy.canCancel;
   const canRequeue = policy.canRequeue;
@@ -144,7 +152,43 @@ export default async function AdminJobDetailPage({
                     This job is visible to your role, but global mutating actions are disabled by capability policy.
                   </p>
                 )}
+                <dl className="mt-(--space-3) grid gap-(--space-2) text-xs text-foreground/55">
+                  <div className="flex justify-between gap-(--space-3)">
+                    <dt>Timeline</dt>
+                    <dd>{formatTokenLabel(interaction.timeline.state)} • {formatTokenLabel(interaction.timeline.supportLevel)}</dd>
+                  </div>
+                  <div className="flex justify-between gap-(--space-3)">
+                    <dt>Revision</dt>
+                    <dd>{formatTokenLabel(interaction.revision.state)} • {formatTokenLabel(interaction.revision.supportLevel)}</dd>
+                  </div>
+                  <div className="flex justify-between gap-(--space-3)">
+                    <dt>Next actions</dt>
+                    <dd>{interaction.timeline.nextActions.length} timeline • {interaction.revision.actions.length} revision</dd>
+                  </div>
+                </dl>
               </AdminCard>
+
+              <section className="rounded-xl border border-foreground/8 p-(--space-inset-panel)">
+                <h2 className="text-sm font-semibold text-foreground/60">Platform interaction</h2>
+                <dl className="mt-(--space-3) grid gap-(--space-2) text-sm">
+                  <div className="flex justify-between gap-(--space-3)">
+                    <dt className="text-foreground/50">Timeline summary</dt>
+                    <dd className="text-right text-foreground text-xs">{interaction.timeline.summary ?? "No timeline summary recorded."}</dd>
+                  </div>
+                  <div className="flex justify-between gap-(--space-3)">
+                    <dt className="text-foreground/50">Timeline events</dt>
+                    <dd className="text-right text-foreground text-xs">{interaction.timeline.events.length}</dd>
+                  </div>
+                  <div className="flex justify-between gap-(--space-3)">
+                    <dt className="text-foreground/50">Artifacts</dt>
+                    <dd className="text-right text-foreground text-xs">{interaction.timeline.artifacts.length}</dd>
+                  </div>
+                  <div className="flex justify-between gap-(--space-3)">
+                    <dt className="text-foreground/50">Revision summary</dt>
+                    <dd className="text-right text-foreground text-xs">{interaction.revision.summary ?? "No revision summary recorded."}</dd>
+                  </div>
+                </dl>
+              </section>
 
               {/* Request payload */}
               <section className="rounded-xl border border-foreground/8 p-(--space-inset-panel)">

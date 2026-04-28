@@ -6,9 +6,9 @@ import {
   createRouteRequest,
 } from "../../../../tests/helpers/workflow-route-fixture";
 
-const { getSessionUserMock, listUserJobSnapshotsMock } = vi.hoisted(() => ({
+const { getSessionUserMock, listUserJobInteractionsMock } = vi.hoisted(() => ({
   getSessionUserMock: vi.fn(),
-  listUserJobSnapshotsMock: vi.fn(),
+  listUserJobInteractionsMock: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -16,8 +16,8 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 vi.mock("@/adapters/RepositoryFactory", () => ({
-  getJobStatusQuery: () => ({
-    listUserJobSnapshots: listUserJobSnapshotsMock,
+  getPlatformInteractionFacade: () => ({
+    listUserJobInteractions: listUserJobInteractionsMock,
   }),
 }));
 
@@ -36,19 +36,21 @@ describe("GET /api/jobs", () => {
 
   it("lists signed-in jobs from the user-scoped read model", async () => {
     getSessionUserMock.mockResolvedValue(createAuthenticatedSessionUser({ id: "usr_owner" }));
-    listUserJobSnapshotsMock.mockResolvedValue([
+    listUserJobInteractionsMock.mockResolvedValue([
       {
-        messageId: "jobmsg_job_1",
-        part: {
-          type: "job_status",
-          jobId: "job_1",
-          toolName: "publish_content",
-          label: "Publish Content",
-          title: "Publish journal draft post_1",
-          status: "running",
-          progressPercent: 80,
-          progressLabel: "Publishing",
-          updatedAt: "2026-03-25T03:00:02.000Z",
+        snapshot: {
+          messageId: "jobmsg_job_1",
+          part: {
+            type: "job_status",
+            jobId: "job_1",
+            toolName: "publish_content",
+            label: "Publish Content",
+            title: "Publish journal draft post_1",
+            status: "running",
+            progressPercent: 80,
+            progressLabel: "Publishing",
+            updatedAt: "2026-03-25T03:00:02.000Z",
+          },
         },
       },
     ]);
@@ -57,7 +59,7 @@ describe("GET /api/jobs", () => {
     const payload = await response.json();
 
     expect(response.status).toBe(200);
-    expect(listUserJobSnapshotsMock).toHaveBeenCalledWith("usr_owner", {
+    expect(listUserJobInteractionsMock).toHaveBeenCalledWith("usr_owner", {
       statuses: ["queued", "running"],
       limit: 5,
     });

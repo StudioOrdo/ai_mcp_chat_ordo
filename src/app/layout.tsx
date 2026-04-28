@@ -1,32 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Script from "next/script";
-import {
-  Fraunces,
-  IBM_Plex_Mono,
-  IBM_Plex_Sans,
-} from "next/font/google";
 import "./globals.css";
-
-const ibmPlexSans = IBM_Plex_Sans({
-  variable: "--font-ibm-plex-sans",
-  weight: ["400", "500", "600", "700"],
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const ibmPlexMono = IBM_Plex_Mono({
-  variable: "--font-ibm-plex-mono",
-  weight: ["400", "500", "600"],
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
-  subsets: ["latin"],
-  display: "swap",
-});
 
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { UserPreferencesDataMapper } from "@/adapters/UserPreferencesDataMapper";
@@ -139,9 +114,7 @@ export default async function RootLayout({
           {buildThemeBootstrapScript({ respectSystemDarkMode })}
         </Script>
       </head>
-      <body
-        className={`${ibmPlexSans.variable} ${ibmPlexMono.variable} ${fraunces.variable} antialiased`}
-      >
+      <body className="antialiased">
         <ThemeProvider
           respectSystemDarkMode={respectSystemDarkMode}
           initialThemeState={initialThemeState}

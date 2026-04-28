@@ -18,7 +18,6 @@ import type { ChatAction } from "./chatState";
 import {
   buildBrowserRuntimeJobStatusPart,
   getBrowserRuntimeCandidates,
-  withResolvedAudioAsset,
 } from "@/lib/media/browser-runtime/job-snapshots";
 import { FfmpegBrowserExecutor } from "@/lib/media/browser-runtime/ffmpeg-browser-executor";
 import { renderGraphToPngBlob } from "@/lib/media/browser-runtime/graph-image-derivation";
@@ -42,8 +41,9 @@ import {
 import type { MediaCompositionPlan } from "@/core/entities/media-composition";
 import {
   normalizeMediaCompositionPlan,
-  validatePlanConstraints,
+  validateExecutablePlanConstraints,
 } from "@/lib/media/ffmpeg/media-composition-plan";
+import { COMPOSE_MEDIA_INVALID_PLAN_FAILURE_CODE } from "@/lib/media/compose-media-errors";
 import {
   planBrowserCapabilityRuntimeCycle,
 } from "@/lib/media/browser-runtime/browser-capability-runtime";
@@ -59,6 +59,8 @@ type BrowserRuntimeStoredAsset = {
   assetKind?: MediaAssetKind;
   source?: MediaAssetSource;
   retentionClass?: MediaAssetRetentionClass;
+  toolInvocationId?: string;
+  derivativeOfToolInvocationId?: string | null;
 };
 
 type BrowserRuntimeStoredPayloadFields = {
@@ -67,6 +69,8 @@ type BrowserRuntimeStoredPayloadFields = {
   assetKind?: MediaAssetKind;
   assetSource?: MediaAssetSource;
   retentionClass?: MediaAssetRetentionClass;
+  toolInvocationId?: string;
+  derivativeOfToolInvocationId?: string | null;
 };
 
 type ResolvedChartRuntimePayload = ReturnType<typeof resolveGenerateChartPayload> & BrowserRuntimeStoredPayloadFields;
@@ -103,23 +107,6 @@ function resolveComposeMediaRuntimeFailure(error: unknown): {
     failureCode: "runtime_exception",
     failureStage: "local_execution",
   };
-}
-
-function isGenerateAudioPayload(value: unknown): value is {
-  action: "generate_audio";
-  title: string;
-  text: string;
-  assetId: string | null;
-  provider: string;
-  generationStatus: "client_fetch_pending" | "cached_asset";
-  estimatedDurationSeconds: number;
-  estimatedGenerationSeconds: number;
-} {
-  return typeof value === "object"
-    && value !== null
-    && (value as { action?: unknown }).action === "generate_audio"
-    && typeof (value as { text?: unknown }).text === "string"
-    && typeof (value as { title?: unknown }).title === "string";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -165,6 +152,10 @@ function readStoredPayloadFields(value: unknown): BrowserRuntimeStoredPayloadFie
       || value.retentionClass === "durable"
       ? { retentionClass: value.retentionClass }
       : {}),
+    ...(typeof value.toolInvocationId === "string" ? { toolInvocationId: value.toolInvocationId } : {}),
+    ...(value.derivativeOfToolInvocationId === null || typeof value.derivativeOfToolInvocationId === "string"
+      ? { derivativeOfToolInvocationId: value.derivativeOfToolInvocationId }
+      : {}),
   };
 }
 
@@ -172,29 +163,11 @@ function isResolvedBrowserRuntimeCandidate(candidate: {
   toolName: string;
   payload: unknown;
 }): boolean {
-  if (candidate.toolName === "generate_audio") {
-    return isGenerateAudioPayload(candidate.payload) && Boolean(candidate.payload.assetId);
-  }
-
-  if (candidate.toolName === "generate_chart" || candidate.toolName === "generate_graph") {
-    return Boolean(readStoredPayloadFields(candidate.payload).assetId);
-  }
-
   if (candidate.toolName === "compose_media") {
     return isRecord(candidate.payload) && typeof candidate.payload.primaryAssetId === "string";
   }
 
   return false;
-}
-
-function toStoredPayloadFields(stored: BrowserRuntimeStoredAsset): BrowserRuntimeStoredPayloadFields {
-  return {
-    assetId: stored.assetId,
-    mimeType: stored.mimeType,
-    ...(stored.assetKind ? { assetKind: stored.assetKind } : {}),
-    ...(stored.source ? { assetSource: stored.source } : {}),
-    ...(stored.retentionClass ? { retentionClass: stored.retentionClass } : {}),
-  };
 }
 
 function toFileStem(value: string | undefined, fallback: string): string {
@@ -291,6 +264,7 @@ async function materializeChartClip(options: {
   clip: MediaCompositionPlan["visualClips"][number];
   messages: ChatMessage[];
   conversationId: string | null;
+  toolInvocationId?: string;
   signal: AbortSignal;
 }): Promise<MediaCompositionPlan["visualClips"][number]> {
   const chart = findChartPayloadByAssetId(options.messages, options.clip.assetId);
@@ -306,6 +280,8 @@ async function materializeChartClip(options: {
     file: new File([pngBlob], fileName, { type: "image/png" }),
     conversationId: options.conversationId,
     derivativeOfAssetId: options.clip.sourceAssetId ?? options.clip.assetId,
+    toolInvocationId: options.toolInvocationId,
+    derivativeOfToolInvocationId: chart.toolInvocationId,
     signal: options.signal,
   });
 
@@ -321,6 +297,7 @@ async function materializeGraphClip(options: {
   clip: MediaCompositionPlan["visualClips"][number];
   messages: ChatMessage[];
   conversationId: string | null;
+  toolInvocationId?: string;
   signal: AbortSignal;
 }): Promise<MediaCompositionPlan["visualClips"][number]> {
   const graph = findGraphPayloadByAssetId(options.messages, options.clip.assetId);
@@ -336,6 +313,8 @@ async function materializeGraphClip(options: {
     file: new File([pngBlob], fileName, { type: "image/png" }),
     conversationId: options.conversationId,
     derivativeOfAssetId: options.clip.sourceAssetId ?? options.clip.assetId,
+    toolInvocationId: options.toolInvocationId,
+    derivativeOfToolInvocationId: graph.toolInvocationId,
     signal: options.signal,
   });
 
@@ -351,6 +330,7 @@ async function materializeComposeMediaPlan(options: {
   plan: MediaCompositionPlan;
   messages: ChatMessage[];
   conversationId: string | null;
+  toolInvocationId?: string;
   signal: AbortSignal;
 }): Promise<MediaCompositionPlan> {
   const visualClips = await Promise.all(
@@ -360,6 +340,7 @@ async function materializeComposeMediaPlan(options: {
           clip,
           messages: options.messages,
           conversationId: options.conversationId,
+          toolInvocationId: options.toolInvocationId,
           signal: options.signal,
         });
       }
@@ -369,6 +350,7 @@ async function materializeComposeMediaPlan(options: {
           clip,
           messages: options.messages,
           conversationId: options.conversationId,
+          toolInvocationId: options.toolInvocationId,
           signal: options.signal,
         });
       }
@@ -387,6 +369,8 @@ async function uploadBrowserRuntimeAsset(options: {
   file: File;
   conversationId: string | null;
   derivativeOfAssetId?: string;
+  toolInvocationId?: string;
+  derivativeOfToolInvocationId?: string;
   signal: AbortSignal;
 }): Promise<BrowserRuntimeStoredAsset> {
   const formData = new FormData();
@@ -396,6 +380,12 @@ async function uploadBrowserRuntimeAsset(options: {
   }
   if (options.derivativeOfAssetId) {
     formData.append("derivativeOfAssetId", options.derivativeOfAssetId);
+  }
+  if (options.toolInvocationId) {
+    formData.append("toolInvocationId", options.toolInvocationId);
+  }
+  if (options.derivativeOfToolInvocationId) {
+    formData.append("derivativeOfToolInvocationId", options.derivativeOfToolInvocationId);
   }
 
   const response = await fetch("/api/chat/uploads", {
@@ -416,6 +406,8 @@ async function uploadBrowserRuntimeAsset(options: {
       assetKind?: MediaAssetKind;
       source?: MediaAssetSource;
       retentionClass?: MediaAssetRetentionClass;
+      toolInvocationId?: string;
+      derivativeOfToolInvocationId?: string | null;
     }>;
   };
   const stored = payload.attachments?.[0];
@@ -524,55 +516,7 @@ async function resolveBrowserComposeMediaPreflightFailure(options: {
   });
 }
 
-async function persistBrowserRuntimePayload(options: {
-  toolName: "generate_chart" | "generate_graph";
-  payload: unknown;
-  args: Record<string, unknown>;
-  conversationId: string | null;
-  signal: AbortSignal;
-}): Promise<ResolvedChartRuntimePayload | ResolvedGraphRuntimePayload> {
-  if (options.toolName === "generate_chart") {
-    const chart = resolveChartRuntimePayload(options.payload, options.args);
-    if (chart.assetId) {
-      return chart;
-    }
 
-    const stored = await uploadBrowserRuntimeAsset({
-      file: new File(
-        [chart.code],
-        `${toFileStem(chart.downloadFileName || chart.title, "chart")}.mmd`,
-        { type: "text/vnd.mermaid" },
-      ),
-      conversationId: options.conversationId,
-      signal: options.signal,
-    });
-
-    return {
-      ...chart,
-      ...toStoredPayloadFields(stored),
-    };
-  }
-
-  const graph = resolveGraphRuntimePayload(options.payload, options.args);
-  if (graph.assetId) {
-    return graph;
-  }
-
-  const stored = await uploadBrowserRuntimeAsset({
-    file: new File(
-      [JSON.stringify(graph, null, 2)],
-      `${toFileStem(graph.downloadFileName || graph.title, "graph")}.json`,
-      { type: "application/vnd.studioordo.graph+json" },
-    ),
-    conversationId: options.conversationId,
-    signal: options.signal,
-  });
-
-  return {
-    ...graph,
-    ...toStoredPayloadFields(stored),
-  };
-}
 
 function isJobStatusMessagePart(value: unknown): value is JobStatusMessagePart {
   return isRecord(value)
@@ -661,6 +605,10 @@ export function useBrowserCapabilityRuntime({
   useEffect(() => {
     const controllers = activeRuntimeControllers.current;
     const candidates = getBrowserRuntimeCandidates(messages).filter((candidate) => {
+      if (candidate.toolName === "compose_media" && !isRecord(candidate.payload)) {
+        return false;
+      }
+
       if (
         candidate.snapshot?.status === "succeeded"
         || candidate.snapshot?.status === "failed"
@@ -907,6 +855,29 @@ export function useBrowserCapabilityRuntime({
           continue;
         }
 
+        const initialPlan = resolveComposeMediaPlanFromCandidate(candidate);
+        if (!initialPlan) {
+          completedRuntimeJobs.current.add(candidate.jobId);
+          dispatchSnapshot(
+            candidate.messageId,
+            candidate.resultIndex,
+            buildBrowserRuntimeJobStatusPart({
+              candidate,
+              payload: candidate.payload,
+              status: "failed",
+              browserExecutionStatus: "failed",
+              sequence: (candidate.snapshot?.sequence ?? 0) + 1,
+              progressPercent: 0,
+              progressLabel: COMPOSE_MEDIA_FAILURE_LABEL,
+              error: "Compose media plan is missing or invalid.",
+              failureCode: COMPOSE_MEDIA_INVALID_PLAN_FAILURE_CODE,
+              failureStage: "composition_preflight",
+              conversationId,
+            }),
+          );
+          continue;
+        }
+
         const controller = new AbortController();
         controllers.set(candidate.jobId, controller);
 
@@ -915,12 +886,12 @@ export function useBrowserCapabilityRuntime({
           candidate.resultIndex,
           buildBrowserRuntimeJobStatusPart({
             candidate,
-            payload: candidate.payload,
+            payload: initialPlan,
             status: "running",
             sequence: 1,
             progressPercent: 5,
             progressLabel: getComposeMediaProgressLabel("staging_assets", {
-              plan: candidate.payload as MediaCompositionPlan,
+              plan: initialPlan,
               progressPercent: 5,
             }),
             conversationId,
@@ -934,9 +905,10 @@ export function useBrowserCapabilityRuntime({
 
           try {
             plan = await materializeComposeMediaPlan({
-              plan: candidate.payload as MediaCompositionPlan,
+              plan: initialPlan,
               messages,
               conversationId,
+              toolInvocationId: candidate.toolInvocationId,
               signal: controller.signal,
             });
           } catch (error) {
@@ -960,7 +932,7 @@ export function useBrowserCapabilityRuntime({
             return null;
           }
 
-          const constraintError = validatePlanConstraints(plan);
+          const constraintError = validateExecutablePlanConstraints(plan);
 
           if (constraintError) {
             dispatchSnapshot(
@@ -1051,7 +1023,7 @@ export function useBrowserCapabilityRuntime({
 
           const result = await executor.execute(
             plan,
-            { conversationId, userId: "browser" },
+            { conversationId, userId: "browser", toolInvocationId: candidate.toolInvocationId },
             (progress, label) => {
               dispatchSnapshot(
                 candidate.messageId,
@@ -1126,6 +1098,12 @@ export function useBrowserCapabilityRuntime({
               return waitForPlayableVideoAsset({
                 uri: playbackUri,
                 signal: controller.signal,
+              }).catch((error) => {
+                if (error instanceof VideoPlaybackVerificationError) {
+                  return;
+                }
+
+                throw error;
               }).then(() => {
                 dispatchSnapshot(
                   candidate.messageId,
@@ -1247,171 +1225,6 @@ export function useBrowserCapabilityRuntime({
 
         continue;
       }
-
-      if (candidate.toolName === "generate_chart" || candidate.toolName === "generate_graph") {
-        const initialSequence = candidate.snapshot?.sequence ?? 1;
-        dispatchSnapshot(
-          candidate.messageId,
-          candidate.resultIndex,
-          buildBrowserRuntimeJobStatusPart({
-            candidate,
-            payload: candidate.payload,
-            status: "succeeded",
-            sequence: initialSequence,
-            conversationId,
-          }),
-        );
-
-        const existingAssetId = readStoredPayloadFields(candidate.payload).assetId;
-        if (existingAssetId || controllers.has(candidate.jobId)) {
-          continue;
-        }
-
-        const controller = new AbortController();
-        controllers.set(candidate.jobId, controller);
-
-        void persistBrowserRuntimePayload({
-          toolName: candidate.toolName,
-          payload: candidate.payload,
-          args: candidate.args,
-          conversationId,
-          signal: controller.signal,
-        })
-          .then((storedPayload) => {
-            completedRuntimeJobs.current.add(candidate.jobId);
-            dispatchSnapshot(
-              candidate.messageId,
-              candidate.resultIndex,
-              buildBrowserRuntimeJobStatusPart({
-                candidate,
-                payload: storedPayload,
-                status: "succeeded",
-                sequence: initialSequence + 1,
-                progressPercent: 100,
-                progressLabel: candidate.toolName === "generate_chart" ? "Chart stored" : "Graph stored",
-                conversationId,
-              }),
-            );
-          })
-          .catch(() => {
-            // Keep the payload-backed snapshot visible even if asset persistence fails.
-          })
-          .finally(() => {
-            controllers.delete(candidate.jobId);
-            removePersistedBrowserRuntimeEntry(candidate.jobId);
-            bumpRuntimeTick();
-          });
-        continue;
-      }
-
-      if (!isGenerateAudioPayload(candidate.payload)) {
-        continue;
-      }
-
-      const audioPayload = candidate.payload;
-
-      if (audioPayload.assetId) {
-        dispatchSnapshot(
-          candidate.messageId,
-          candidate.resultIndex,
-          buildBrowserRuntimeJobStatusPart({
-            candidate,
-            payload: audioPayload,
-            status: "succeeded",
-            sequence: candidate.snapshot?.sequence ?? 1,
-            conversationId,
-          }),
-        );
-        completedRuntimeJobs.current.add(candidate.jobId);
-        removePersistedBrowserRuntimeEntry(candidate.jobId);
-        continue;
-      }
-
-      if (controllers.has(candidate.jobId)) {
-        continue;
-      }
-
-      const controller = new AbortController();
-      controllers.set(candidate.jobId, controller);
-
-      dispatchSnapshot(
-        candidate.messageId,
-        candidate.resultIndex,
-        buildBrowserRuntimeJobStatusPart({
-          candidate,
-          payload: candidate.payload,
-          status: "running",
-          sequence: 1,
-          progressPercent: 15,
-          progressLabel: "Generating audio",
-          conversationId,
-        }),
-      );
-
-      void fetch("/api/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: audioPayload.text,
-          conversationId,
-        }),
-        signal: controller.signal,
-      })
-        .then(async (response) => {
-          if (!response.ok) {
-            const payload = await response.json().catch(() => null) as { error?: string } | null;
-            throw new Error(payload?.error || `Audio generation failed (${response.status})`);
-          }
-
-          const assetId = response.headers.get("X-User-File-Id");
-          await response.body?.cancel().catch(() => undefined);
-
-          if (!assetId) {
-            throw new Error("Audio generation completed without returning a stored asset id.");
-          }
-
-          dispatchSnapshot(
-            candidate.messageId,
-            candidate.resultIndex,
-            buildBrowserRuntimeJobStatusPart({
-              candidate,
-              payload: withResolvedAudioAsset(audioPayload, { assetId, conversationId }),
-              status: "succeeded",
-              sequence: 2,
-              progressPercent: 100,
-              progressLabel: "Audio ready",
-              conversationId,
-            }),
-          );
-          completedRuntimeJobs.current.add(candidate.jobId);
-        })
-        .catch((error) => {
-          if (controller.signal.aborted) {
-            return;
-          }
-
-          completedRuntimeJobs.current.add(candidate.jobId);
-          dispatchSnapshot(
-            candidate.messageId,
-            candidate.resultIndex,
-            buildBrowserRuntimeJobStatusPart({
-              candidate,
-              payload: audioPayload,
-              status: "failed",
-              browserExecutionStatus: "failed",
-              sequence: 2,
-              error: error instanceof Error ? error.message : "Audio generation failed.",
-              failureCode: "audio_generation_failed",
-              failureStage: "asset_generation",
-              conversationId,
-            }),
-          );
-        })
-        .finally(() => {
-          controllers.delete(candidate.jobId);
-          removePersistedBrowserRuntimeEntry(candidate.jobId);
-          bumpRuntimeTick();
-        });
     }
   }, [conversationId, dispatch, messages, runtimeTick]);
 }

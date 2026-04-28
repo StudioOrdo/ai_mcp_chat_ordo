@@ -7,6 +7,8 @@ export interface Document {
   id?: string;
   number: string;
   audience: ContentAudience;
+  class?: string;
+  rolePersona?: string;
 }
 
 export class Section {
@@ -19,6 +21,8 @@ export class Section {
     public readonly supplements: string[],
     public readonly headings: string[],
     public readonly audience: ContentAudience = "public",
+    public readonly contentClass?: string,
+    public readonly rolePersona?: string,
   ) {}
 
   get bookSlug(): string {

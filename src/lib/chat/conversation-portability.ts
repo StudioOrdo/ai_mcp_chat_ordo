@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import type { ChatMessage } from "@/core/entities/chat-message";
 import type { Conversation, Message } from "@/core/entities/conversation";
+import type { UserFileRepository } from "@/core/use-cases/UserFileRepository";
 import { createConversationRoutingSnapshot } from "@/core/entities/conversation-routing";
 import { isCapabilityResultEnvelope } from "@/lib/capabilities/capability-result-envelope";
 import { projectCapabilityResultEnvelope } from "@/lib/capabilities/capability-result-envelope";
@@ -93,10 +94,11 @@ export interface ConversationExportPayload {
   transcript?: TranscriptEntry[];
 }
 
-interface BuildConversationExportOptions {
+export interface BuildConversationExportOptions {
   conversation: Conversation;
   messages: Message[];
   exportedAt?: string;
+  userFileRepository?: UserFileRepository;
 }
 
 interface PurgeEligibilityInput {
@@ -213,7 +215,7 @@ const exportConversationSchema = z.object({
   })).default([]),
 });
 
-function deepCloneParts(parts: MessagePart[]): MessagePart[] {
+export function deepCloneParts(parts: MessagePart[]): MessagePart[] {
   return JSON.parse(JSON.stringify(parts)) as MessagePart[];
 }
 
@@ -553,6 +555,19 @@ function normalizePortableMessagePart(
   }
 
   return part;
+}
+
+export async function normalizePortableMessagePartAsync(
+  part: MessagePart,
+  hasConversationContext: boolean,
+  _userFileRepository?: UserFileRepository,
+  _rehydratePortableMediaPayload?: (
+    toolName: string,
+    payload: unknown,
+    userFileRepository?: UserFileRepository,
+  ) => Promise<unknown>,
+): Promise<MessagePart> {
+  return normalizePortableMessagePart(part, hasConversationContext);
 }
 
 function toAttachmentManifestId(messageId: string, partIndex: number): string {

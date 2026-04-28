@@ -21,7 +21,7 @@ import { useChatJobEvents } from "@/hooks/chat/useChatJobEvents";
 import { useChatPushNotifications } from "@/hooks/useChatPushNotifications";
 import { useChatConversationSession } from "@/hooks/chat/useChatConversationSession";
 import { useCurrentPageMemento } from "@/hooks/chat/useCurrentPageMemento";
-import { useChatSend } from "@/hooks/chat/useChatSend";
+import { usePlatformChatInteraction } from "@/hooks/chat/usePlatformChatInteraction";
 import type { RoleName } from "@/core/entities/user";
 import type { TaskOriginHandoff } from "@/lib/chat/task-origin-handoff";
 import { useInstancePrompts } from "@/lib/config/InstanceConfigContext";
@@ -92,7 +92,7 @@ export function ChatProvider({
   const memento = useCurrentPageMemento(currentPathname);
   const referralCtx = useReferralContext(initialRole, prompts, dispatch, canResolveReferralVisit);
 
-  const { activeStreamId, sendMessage, retryFailedMessage, stopStream } = useChatSend({
+  const { activeStreamId, sendMessage, retryFailedMessage, stopStream } = usePlatformChatInteraction({
     conversationId,
     currentPathname,
     memento,
@@ -105,9 +105,6 @@ export function ChatProvider({
     setIsSending,
     clearFailedSend,
   });
-
-  useChatJobEvents({ conversationId, dispatch });
-  useBrowserCapabilityRuntime({ conversationId, messages, dispatch });
   useChatPushNotifications(initialRole);
 
   useBootstrapMessages({

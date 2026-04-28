@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/observability/runtime-audit-log", () => ({
+  appendRuntimeAuditLog: vi.fn().mockResolvedValue(undefined),
+}));
+
 import {
   createNativeProcessExecutionTargetAdapter,
   createRemoteServiceExecutionTargetAdapter,

@@ -9,9 +9,9 @@ import { isTrainingPathCustomerVisibleStatus } from "@/core/entities/training-pa
 import { executePublishContent } from "@/core/use-cases/tools/admin-content.tool";
 import { createSystemPromptBuilder } from "@/lib/chat/policy";
 import type { PromptRuntimeResult } from "@/lib/chat/prompt-runtime";
-import { getToolComposition } from "@/lib/chat/tool-composition-root";
 import { buildJobStatusSnapshot, getActiveJobStatuses } from "@/lib/jobs/job-read-model";
 import { compactProvenance } from "@/lib/prompts/prompt-provenance-store";
+import { getAgentPlatformFacade } from "@/lib/platform/agent-platform-facade-root";
 import type { EvalObservation, EvalRunConfig, EvalScenario, EvalTargetEnvironment } from "./domain";
 import { resolveEvalRuntimeConfig } from "./config";
 import { getEvalScenarioById } from "./scenarios";
@@ -260,7 +260,7 @@ function createLiveEvalToolExecutor(options: {
     currentPageSnapshot: options.currentPageSnapshot,
     ...(options.promptRuntime ? { promptRuntime: options.promptRuntime } : {}),
   };
-  const baseExecutor = getToolComposition().executor;
+  const baseExecutor = getAgentPlatformFacade().getExecutionSurface().executor;
 
   if (LIVE_BLOG_SCENARIOS.has(options.scenarioId)) {
     const jobRepo = new JobQueueDataMapper(options.workspace.db);

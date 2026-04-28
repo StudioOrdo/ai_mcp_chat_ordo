@@ -13,6 +13,7 @@ export interface ExecuteComposeMediaJobRequest {
   plan: MediaCompositionPlan;
   userId: string;
   conversationId: string | null;
+  toolInvocationId?: string;
 }
 
 async function parseNdjsonResponse(

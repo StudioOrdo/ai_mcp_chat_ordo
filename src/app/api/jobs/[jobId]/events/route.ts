@@ -1,7 +1,6 @@
 import type { NextRequest } from "next/server";
-import { getJobQueueRepository } from "@/adapters/RepositoryFactory";
+import { getPlatformInteractionFacade } from "@/adapters/RepositoryFactory";
 import { errorJson, runRouteTemplate, successJson } from "@/lib/chat/http-facade";
-import { mapJobEventHistory } from "@/lib/jobs/job-event-history";
 import {
   DEFAULT_BATCH_LIMIT,
   ensureUserOwnsConversationJob,
@@ -26,8 +25,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
       const { jobId } = await params;
       const limit = parsePositiveInteger(request.nextUrl.searchParams.get("limit"), DEFAULT_BATCH_LIMIT);
-      const repository = getJobQueueRepository();
-      const job = await repository.findJobById(jobId);
+      const result = await getPlatformInteractionFacade().getUserJobHistoryInteraction(user.id, jobId, { limit });
+      const job = result?.job;
 
       if (!job) {
         return errorJson(context, "Job not found", 404);
@@ -38,12 +37,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         return unauthorized;
       }
 
-      const events = await repository.listEventsForUserJob(user.id, job.id, { limit });
-
       return successJson(context, {
         ok: true,
         jobId: job.id,
-        events: mapJobEventHistory(job, events),
+        events: result.history,
+        timeline: result.timeline,
+        revision: result.revision,
+        interaction: result,
       });
     },
   });

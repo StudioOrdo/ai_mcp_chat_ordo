@@ -1,32 +1,35 @@
+/* eslint-disable react/jsx-handler-names */
+"use client";
+
+import { useState } from "react";
 import type { CapabilityResultEnvelope } from "@/core/entities/capability-result";
 import type { ToolPluginProps } from "../../registry/types";
-import { CapabilityActionRail } from "../../primitives/CapabilityActionRail";
+import type { InlineNode } from "@/core/entities/rich-content";
 import { CapabilityArtifactRail } from "../../primitives/CapabilityArtifactRail";
-import { CapabilityCardHeader } from "../../primitives/CapabilityCardHeader";
 import { CapabilityCardShell } from "../../primitives/CapabilityCardShell";
-import { CapabilityContextPanel } from "../../primitives/CapabilityContextPanel";
 import { CapabilityTimeline } from "../../primitives/CapabilityTimeline";
 import type { CapabilityTone } from "../../primitives/capability-card-tone";
 import { resolveCapabilityDisplayLabel } from "../../registry/capability-presentation-registry";
 import { CapabilityDetailDrawer } from "./CapabilityDetailDrawer";
 import {
-  formatSystemStatus,
   hasInlineToolCallError,
   humanizeSystemToolName,
   summarizeSystemResult,
 } from "./resolve-system-card";
-
-const SYSTEM_JOB_TONE_MAP: Record<"queued" | "running" | "succeeded", CapabilityTone> = {
-  queued: "neutral",
-  running: "accent",
-  succeeded: "success",
-};
+import {
+  resolveCompactMeta,
+  resolveJobDisplayStatus,
+  resolveReplayRouteLabel,
+  resolveReplayRepairs,
+  resolveReplayRepairSummary,
+  resolveRunDurationLabel,
+} from "./job-transparency";
 
 function resolveSystemJobTone(state: string): CapabilityTone {
-  if (state === "running" || state === "queued" || state === "succeeded") {
-    return SYSTEM_JOB_TONE_MAP[state];
-  }
-
+  if (state === "running") return "accent";
+  if (state === "succeeded") return "success";
+  if (state === "failed" || state === "dead_letter") return "danger";
+  if (state === "canceled") return "warning";
   return "neutral";
 }
 
@@ -51,11 +54,9 @@ function resolveInlineToolCallState(toolCall: ToolPluginProps["toolCall"]): "run
   if (!toolCall || toolCall.result === undefined) {
     return "running";
   }
-
   if (hasInlineToolCallError(toolCall.result)) {
     return "failed";
   }
-
   return "succeeded";
 }
 
@@ -66,7 +67,12 @@ export function SystemJobCard({
   descriptor,
   resultEnvelope,
   onActionClick,
+  viewerRole,
 }: ToolPluginProps) {
+  const [expanded, setExpanded] = useState(false);
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
+
+  const nowMs = Date.now();
   const effectiveEnvelope = resultEnvelope ?? part?.resultEnvelope ?? null;
   const toolName = part?.toolName ?? toolCall?.name ?? "unknown_tool";
   const label = resolveCapabilityDisplayLabel({
@@ -75,22 +81,23 @@ export function SystemJobCard({
     descriptorLabel: descriptor?.label,
     fallbackLabel: humanizeSystemToolName(toolName),
   });
+
   const state = part?.status ?? resolveInlineToolCallState(toolCall);
-  const displayStatus = !part && state === "succeeded" ? "Completed" : formatSystemStatus(state);
-  const summary =
-    part?.error
-    ?? part?.summary
-    ?? effectiveEnvelope?.summary.message
-    ?? summarizeSystemResult(effectiveEnvelope?.payload ?? toolCall?.result)
-    ?? (!part && toolCall?.result === undefined ? "Waiting for tool result." : null);
-  const titleCandidate = part?.title ?? effectiveEnvelope?.summary.title ?? null;
-  const title = titleCandidate && titleCandidate !== label ? titleCandidate : null;
-  const subtitle = part?.subtitle ?? effectiveEnvelope?.summary.subtitle ?? null;
-  const terminalState = state === "failed" || state === "canceled";
-  const progressPercent = terminalState ? null : part?.progressPercent ?? effectiveEnvelope?.progress?.percent ?? null;
-  const progressLabel = terminalState ? null : part?.progressLabel ?? effectiveEnvelope?.progress?.label ?? null;
-  const progressPhases = terminalState ? [] : effectiveEnvelope?.progress?.phases ?? [];
+  const statusLabel = resolveJobDisplayStatus(part, state as Parameters<typeof resolveJobDisplayStatus>[1], nowMs);
+  const compactMeta = resolveCompactMeta(part, effectiveEnvelope);
+
+  const progressPercent = part?.progressPercent ?? effectiveEnvelope?.progress?.percent ?? null;
+  const progressPhases = effectiveEnvelope?.progress?.phases ?? [];
   const artifactItems = buildArtifactItems(effectiveEnvelope);
+
+  const replayRouteLabel = resolveReplayRouteLabel(effectiveEnvelope);
+  const replayRepairs = resolveReplayRepairs(effectiveEnvelope);
+  const replayRepairSummary = resolveReplayRepairSummary(replayRepairs);
+  const retryCountdownLabel = part?.nextRetryAt ? resolveJobDisplayStatus({ ...part, status: "queued" }, "queued", nowMs) : null;
+
+  const hasAdminIdentity = viewerRole === "ADMIN" && Boolean(part?.claimedBy);
+  const hasPhases = progressPhases.length > 0;
+
   const drawerSections = [
     hasObjectEntries(effectiveEnvelope?.inputSnapshot)
       ? {
@@ -100,11 +107,17 @@ export function SystemJobCard({
           ),
         }
       : null,
-    hasObjectEntries(effectiveEnvelope?.replaySnapshot ?? undefined)
+    replayRepairs.length > 0
       ? {
-          title: "Replay snapshot",
+          title: "Asset repairs",
           content: (
-            <pre className="ui-capability-json-block">{stringifySnapshot(effectiveEnvelope?.replaySnapshot)}</pre>
+            <ul>
+              {replayRepairs.map((repair) => (
+                <li key={repair.reference}>
+                  {repair.reference} → {repair.resolvedAssetId} ({repair.strategy})
+                </li>
+              ))}
+            </ul>
           ),
         }
       : null,
@@ -115,11 +128,31 @@ export function SystemJobCard({
         }
       : null,
   ].filter((section): section is NonNullable<typeof section> => section !== null);
-  const contextItems = [
-    part?.updatedAt ? { label: "Updated", value: part.updatedAt } : null,
-    part?.replayedFromJobId ? { label: "Replayed from", value: part.replayedFromJobId } : null,
-    part?.supersededByJobId ? { label: "Superseded by", value: part.supersededByJobId } : null,
-  ].filter((item): item is NonNullable<typeof item> => item !== null);
+
+  const hasBody =
+    hasPhases ||
+    hasAdminIdentity ||
+    Boolean(part?.supersededByJobId) ||
+    Boolean(retryCountdownLabel) ||
+    replayRouteLabel !== null ||
+    drawerSections.length > 0;
+
+  const completedDuration = resolveRunDurationLabel(part?.startedAt, part?.completedAt, nowMs);
+
+  const handleToggle = () => {
+    if (!hasBody) return;
+    setExpanded((prev) => !prev);
+  };
+
+  const cancelActionNode = computedActions?.find(
+    (node): node is InlineNode & { type: "action-link"; actionType: string } =>
+      node.type === "action-link" && (node as Record<string, unknown>).params
+        ? ((node as Record<string, unknown>).params as Record<string, unknown>)?.operation === "cancel"
+        : false,
+  );
+
+  const otherActions = computedActions?.filter((node) => node !== cancelActionNode) ?? [];
+
   return (
     <CapabilityCardShell
       descriptor={descriptor}
@@ -127,45 +160,165 @@ export function SystemJobCard({
       state={state}
       ariaLabel={`${label} status`}
     >
-      <CapabilityCardHeader
-        eyebrow={label}
-        title={title}
-        subtitle={subtitle}
-        statusLabel={displayStatus}
-        statusMeta={progressPercent != null ? `${Math.round(progressPercent)}%` : null}
-      />
+      {/* Compact summary row */}
+      <button
+        type="button"
+        className="ui-system-job-compact-row"
+        onClick={handleToggle}
+        aria-expanded={hasBody ? (expanded ? "true" : "false") : undefined}
+        aria-disabled={!hasBody ? "true" : undefined}
+      >
+        <span className="ui-system-job-label">{label}</span>
+        {compactMeta ? <span className="ui-system-job-meta">{compactMeta}</span> : null}
+        <span className="ui-system-job-status">{statusLabel}</span>
+      </button>
 
-      {progressPercent != null ? (
-        <div className="ui-capability-progress-track" data-capability-progress-track="true">
-          <div
-            className="ui-capability-progress-fill"
-            style={{ width: `${Math.max(0, Math.min(100, progressPercent))}%` }}
+      {/* Expanded body */}
+      {expanded && (
+        <div className="ui-system-job-body">
+          {progressPercent != null ? (
+            <div
+              role="progressbar"
+              aria-label={`${label} progress`}
+              aria-valuenow={Math.round(progressPercent)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              className="ui-capability-progress-track"
+            >
+              <div
+                className="ui-capability-progress-fill"
+                style={{ width: `${Math.max(0, Math.min(100, progressPercent))}%` }}
+              />
+            </div>
+          ) : null}
+
+          <CapabilityTimeline
+            title="Progress"
+            items={progressPhases.map((phase) => ({
+              key: phase.key,
+              label: phase.label,
+              status: phase.status,
+              meta: phase.percent != null ? `${Math.round(phase.percent)}%` : null,
+            }))}
           />
+
+          {/* Admin-gated worker identity */}
+          {hasAdminIdentity ? (
+            <dl className="ui-system-job-details">
+              <div>
+                <dt>Worker</dt>
+                <dd>{part?.claimedBy}</dd>
+              </div>
+              {completedDuration ? (
+                <div>
+                  <dt>Duration</dt>
+                  <dd>{completedDuration}</dd>
+                </div>
+              ) : null}
+            </dl>
+          ) : null}
+
+          {part?.supersededByJobId || retryCountdownLabel ? (
+            <dl className="ui-system-job-details">
+              {part?.supersededByJobId ? (
+                <div>
+                  <dt>Superseded by</dt>
+                  <dd>{part.supersededByJobId}</dd>
+                </div>
+              ) : null}
+              {retryCountdownLabel ? (
+                <div>
+                  <dt>Recovery</dt>
+                  <dd>{retryCountdownLabel}</dd>
+                </div>
+              ) : null}
+            </dl>
+          ) : null}
+
+          {/* Replay route + repairs */}
+          {replayRouteLabel ? (
+            <dl className="ui-system-job-details">
+              <div>
+                <dt>Route</dt>
+                <dd>{replayRouteLabel}</dd>
+              </div>
+              {replayRepairSummary ? (
+                <div>
+                  <dt>Repairs</dt>
+                  <dd>{replayRepairSummary}</dd>
+                </div>
+              ) : null}
+            </dl>
+          ) : null}
+
+          <CapabilityDetailDrawer
+            title={label}
+            sections={drawerSections}
+          />
+        </div>
+      )}
+
+      {/* Inline cancel confirmation */}
+      {cancelActionNode && !confirmingCancel ? (
+        <button
+          type="button"
+          className="ui-system-job-action"
+          onClick={() => setConfirmingCancel(true)}
+        >
+          {(cancelActionNode as Record<string, unknown>).label as string} ({(cancelActionNode as Record<string, unknown>).actionType as string})
+        </button>
+      ) : null}
+
+      {cancelActionNode && confirmingCancel ? (
+        <div className="ui-system-job-cancel-confirm">
+          <span>Cancel this job?</span>
+          <button
+            type="button"
+            onClick={() => {
+              setConfirmingCancel(false);
+              const node = cancelActionNode as Record<string, unknown>;
+              onActionClick?.(
+                node.actionType as Parameters<NonNullable<ToolPluginProps["onActionClick"]>>[0],
+                node.value as string,
+                node.params as Record<string, string> | undefined,
+              );
+            }}
+          >
+            Yes
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirmingCancel(false)}
+          >
+            No
+          </button>
         </div>
       ) : null}
 
-      {progressLabel ? <p className="ui-capability-card-summary">{progressLabel}</p> : null}
-      {summary ? <p className="ui-capability-card-summary">{summary}</p> : null}
-
-      <CapabilityTimeline
-        title="Progress"
-        items={progressPhases.map((phase) => ({
-          key: phase.key,
-          label: phase.label,
-          status: phase.status,
-          meta: phase.percent != null ? `${Math.round(phase.percent)}%` : null,
-        }))}
-      />
-
-      <CapabilityContextPanel items={contextItems} />
-      <CapabilityArtifactRail items={artifactItems} />
-      <CapabilityDetailDrawer
-        title={title ?? label}
-        subtitle={subtitle}
-        summary={summary}
-        sections={drawerSections}
-      />
-      <CapabilityActionRail actions={computedActions} onActionClick={onActionClick} />
+      {/* Non-cancel actions */}
+      {otherActions.length > 0 ? (
+        <div className="ui-system-job-actions">
+          {otherActions.map((node) => {
+            const n = node as Record<string, unknown>;
+            return (
+              <button
+                key={String(n.value)}
+                type="button"
+                className="ui-system-job-action"
+                onClick={() =>
+                  onActionClick?.(
+                    n.actionType as Parameters<NonNullable<ToolPluginProps["onActionClick"]>>[0],
+                    n.value as string,
+                    n.params as Record<string, string> | undefined,
+                  )
+                }
+              >
+                {String(n.label)} ({String(n.actionType)})
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
     </CapabilityCardShell>
   );
 }

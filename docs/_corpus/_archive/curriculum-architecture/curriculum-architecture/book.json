@@ -1,0 +1,9 @@
+{
+  "slug": "curriculum-architecture",
+  "title": "Curriculum Architecture",
+  "number": "X",
+  "sortOrder": 10,
+  "description": "The structural blueprint for the BSEAID degree — the eight-course spine, artifact ladder, the updated Trivium and Quadrivium model, competency mapping against real job postings, and the program metrics that prove formation is working.",
+  "domain": ["reference", "teaching"],
+  "tags": ["curriculum", "degree", "BSEAID", "course-spine", "competency", "assessment", "formation"]
+}

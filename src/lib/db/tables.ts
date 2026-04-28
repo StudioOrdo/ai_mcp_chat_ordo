@@ -270,6 +270,7 @@ export function createTables(db: Database.Database): void {
       conversation_id TEXT,
       content_hash TEXT NOT NULL,
       file_type TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'ready',
       file_name TEXT NOT NULL,
       mime_type TEXT NOT NULL,
       file_size INTEGER NOT NULL DEFAULT 0,
@@ -500,6 +501,153 @@ export function createTables(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_job_events_job_created ON job_events(job_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_job_events_job_sequence ON job_events(job_id, sequence);
     CREATE INDEX IF NOT EXISTS idx_job_events_conversation_sequence ON job_events(conversation_id, sequence);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS factory_work_orders (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      conversation_id TEXT DEFAULT NULL,
+      status TEXT NOT NULL,
+      current_dag_id TEXT DEFAULT NULL,
+      current_stage_key TEXT DEFAULT NULL,
+      active_checkpoint_id TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL,
+      started_at TEXT DEFAULT NULL,
+      completed_at TEXT DEFAULT NULL,
+      paused_at TEXT DEFAULT NULL,
+      snapshot_json TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE SET NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_factory_work_orders_user_status
+      ON factory_work_orders(user_id, status);
+    CREATE INDEX IF NOT EXISTS idx_factory_work_orders_conversation_created
+      ON factory_work_orders(conversation_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_factory_work_orders_status_created
+      ON factory_work_orders(status, created_at);
+
+    CREATE TABLE IF NOT EXISTS factory_work_order_parents (
+      work_order_id TEXT NOT NULL,
+      parent_work_order_id TEXT NOT NULL,
+      ordinal INTEGER NOT NULL,
+      relationship_kind TEXT NOT NULL DEFAULT 'revision_parent',
+      PRIMARY KEY (work_order_id, parent_work_order_id),
+      FOREIGN KEY (work_order_id) REFERENCES factory_work_orders(id) ON DELETE CASCADE,
+      FOREIGN KEY (parent_work_order_id) REFERENCES factory_work_orders(id) ON DELETE CASCADE
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_factory_work_order_parents_ordinal
+      ON factory_work_order_parents(work_order_id, ordinal);
+    CREATE INDEX IF NOT EXISTS idx_factory_work_order_parents_parent
+      ON factory_work_order_parents(parent_work_order_id);
+
+    CREATE TABLE IF NOT EXISTS factory_production_dags (
+      id TEXT PRIMARY KEY,
+      work_order_id TEXT NOT NULL,
+      dag_version INTEGER NOT NULL,
+      generated_at TEXT NOT NULL,
+      snapshot_json TEXT NOT NULL,
+      FOREIGN KEY (work_order_id) REFERENCES factory_work_orders(id) ON DELETE CASCADE
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_factory_production_dags_work_order_version
+      ON factory_production_dags(work_order_id, dag_version);
+    CREATE INDEX IF NOT EXISTS idx_factory_production_dags_work_order_generated
+      ON factory_production_dags(work_order_id, generated_at DESC);
+
+    CREATE TABLE IF NOT EXISTS factory_stage_runs (
+      id TEXT PRIMARY KEY,
+      work_order_id TEXT NOT NULL,
+      stage_key TEXT NOT NULL,
+      stage_kind TEXT NOT NULL,
+      status TEXT NOT NULL,
+      attempt_count INTEGER NOT NULL,
+      result_entity_kind TEXT DEFAULT NULL,
+      result_entity_id TEXT DEFAULT NULL,
+      error_json TEXT DEFAULT NULL,
+      started_at TEXT DEFAULT NULL,
+      completed_at TEXT DEFAULT NULL,
+      snapshot_json TEXT NOT NULL,
+      FOREIGN KEY (work_order_id) REFERENCES factory_work_orders(id) ON DELETE CASCADE
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_factory_stage_runs_work_order_stage
+      ON factory_stage_runs(work_order_id, stage_key);
+    CREATE INDEX IF NOT EXISTS idx_factory_stage_runs_work_order_status
+      ON factory_stage_runs(work_order_id, status);
+
+    CREATE TABLE IF NOT EXISTS factory_outputs (
+      id TEXT PRIMARY KEY,
+      work_order_id TEXT NOT NULL,
+      stage_run_id TEXT DEFAULT NULL,
+      entity_kind TEXT NOT NULL,
+      supersedes_entity_id TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL,
+      payload_json TEXT NOT NULL,
+      FOREIGN KEY (work_order_id) REFERENCES factory_work_orders(id) ON DELETE CASCADE,
+      FOREIGN KEY (stage_run_id) REFERENCES factory_stage_runs(id) ON DELETE SET NULL,
+      FOREIGN KEY (supersedes_entity_id) REFERENCES factory_outputs(id) ON DELETE SET NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_factory_outputs_work_order_kind_created
+      ON factory_outputs(work_order_id, entity_kind, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_factory_outputs_stage_run
+      ON factory_outputs(stage_run_id);
+    CREATE INDEX IF NOT EXISTS idx_factory_outputs_supersedes
+      ON factory_outputs(supersedes_entity_id);
+
+    CREATE TABLE IF NOT EXISTS factory_composition_assets (
+      composition_id TEXT NOT NULL,
+      asset_id TEXT NOT NULL,
+      ordinal INTEGER NOT NULL,
+      PRIMARY KEY (composition_id, asset_id),
+      FOREIGN KEY (composition_id) REFERENCES factory_outputs(id) ON DELETE CASCADE,
+      FOREIGN KEY (asset_id) REFERENCES factory_outputs(id) ON DELETE CASCADE
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_factory_composition_assets_ordinal
+      ON factory_composition_assets(composition_id, ordinal);
+    CREATE INDEX IF NOT EXISTS idx_factory_composition_assets_asset
+      ON factory_composition_assets(asset_id);
+
+    CREATE TABLE IF NOT EXISTS factory_checkpoints (
+      id TEXT PRIMARY KEY,
+      work_order_id TEXT NOT NULL,
+      stage_run_id TEXT DEFAULT NULL,
+      resume_from_stage_key TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      consumed_at TEXT DEFAULT NULL,
+      snapshot_json TEXT NOT NULL,
+      FOREIGN KEY (work_order_id) REFERENCES factory_work_orders(id) ON DELETE CASCADE,
+      FOREIGN KEY (stage_run_id) REFERENCES factory_stage_runs(id) ON DELETE SET NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_factory_checkpoints_work_order_created
+      ON factory_checkpoints(work_order_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_factory_checkpoints_work_order_consumed
+      ON factory_checkpoints(work_order_id, consumed_at);
+
+    CREATE TABLE IF NOT EXISTS factory_events (
+      id TEXT PRIMARY KEY,
+      work_order_id TEXT NOT NULL,
+      stage_run_id TEXT DEFAULT NULL,
+      sequence INTEGER NOT NULL,
+      event_type TEXT NOT NULL,
+      payload_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (work_order_id) REFERENCES factory_work_orders(id) ON DELETE CASCADE,
+      FOREIGN KEY (stage_run_id) REFERENCES factory_stage_runs(id) ON DELETE SET NULL
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_factory_events_work_order_sequence
+      ON factory_events(work_order_id, sequence);
+    CREATE INDEX IF NOT EXISTS idx_factory_events_work_order_created
+      ON factory_events(work_order_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_factory_events_stage_run_created
+      ON factory_events(stage_run_id, created_at);
   `);
 
   db.exec(`

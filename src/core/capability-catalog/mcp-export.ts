@@ -9,7 +9,11 @@
  */
 
 import type { CapabilityDefinition } from "./capability-definition";
-import { CAPABILITY_CATALOG, getCatalogDefinition, projectMcpExportIntent } from "./catalog";
+import {
+  projectAllCapabilityRuntimeStatics,
+  projectCapabilityRuntimeDefinition,
+  projectCapabilityRuntimeStaticByName,
+} from "@/core/platform/capability-runtime/CapabilityRuntime";
 
 // ---------------------------------------------------------------------------
 // MCP registration schema
@@ -39,15 +43,15 @@ export interface McpToolRegistration {
 export function projectMcpToolRegistration(
   def: CapabilityDefinition,
 ): McpToolRegistration | null {
-  const mcpExport = projectMcpExportIntent(def);
-  if (!mcpExport) return null;
+  const runtime = projectCapabilityRuntimeDefinition(def);
+  if (!runtime.mcpExport) return null;
 
   return {
-    name: def.core.name,
-    description: mcpExport.mcpDescription ?? def.core.description,
-    sharedModule: mcpExport.sharedModule,
-    category: def.core.category,
-    allowedRoles: def.core.roles,
+    name: runtime.capabilityName,
+    description: runtime.mcpExport.mcpDescription ?? runtime.descriptor.description,
+    sharedModule: runtime.mcpExport.sharedModule,
+    category: runtime.descriptor.category,
+    allowedRoles: runtime.descriptor.roles,
   };
 }
 
@@ -58,20 +62,33 @@ export function projectMcpToolRegistration(
 export function projectMcpToolRegistrationByName(
   toolName: string,
 ): McpToolRegistration | null {
-  const def = getCatalogDefinition(toolName);
-  if (!def) return null;
-  return projectMcpToolRegistration(def);
+  const runtime = projectCapabilityRuntimeStaticByName(toolName);
+  if (!runtime || !runtime.mcpExport) return null;
+
+  return {
+    name: runtime.capabilityName,
+    description: runtime.mcpExport.mcpDescription ?? runtime.descriptor.description,
+    sharedModule: runtime.mcpExport.sharedModule,
+    category: runtime.descriptor.category,
+    allowedRoles: runtime.descriptor.roles,
+  };
 }
 
 /**
  * Get all catalog capabilities that are MCP-exportable.
  *
- * Sprint 11: Dynamically iterates the full CAPABILITY_CATALOG and filters
- * for entries with an mcpExport facet marked as exportable. This replaces
- * the previous hardcoded pilot-tool list.
+ * Iterates the static CapabilityRuntime projection and filters for entries
+ * with an exportable MCP facet.
  */
 export function getAllMcpExportableTools(): McpToolRegistration[] {
-  return Object.values(CAPABILITY_CATALOG)
-    .map((def) => projectMcpToolRegistration(def))
-    .filter((reg): reg is McpToolRegistration => reg !== null);
+  return projectAllCapabilityRuntimeStatics()
+    .flatMap((runtime) => runtime.mcpExport
+      ? [{
+          name: runtime.capabilityName,
+          description: runtime.mcpExport.mcpDescription ?? runtime.descriptor.description,
+          sharedModule: runtime.mcpExport.sharedModule,
+          category: runtime.descriptor.category,
+          allowedRoles: runtime.descriptor.roles,
+        }]
+      : []);
 }

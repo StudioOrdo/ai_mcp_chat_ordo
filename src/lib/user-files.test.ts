@@ -431,4 +431,47 @@ describe("UserFileSystem", () => {
     const loaded = await ufs.getById(stored.id);
     expect(loaded?.file.metadata).toEqual(stored.metadata);
   });
+
+  it("allocatePending() creates a pending DB record that store() later upserts to ready", async () => {
+    seedConversation(db);
+
+    const pendingId = await ufs.allocatePending({
+      userId: "usr_test",
+      conversationId: "conv_1",
+      fileType: "audio",
+      metadata: {
+        assetKind: "audio",
+        source: "generated",
+        retentionClass: "conversation",
+      },
+    });
+
+    expect(pendingId).toMatch(/^uf_/);
+    
+    // DB record should be pending
+    const dbRecord = db.prepare(`SELECT status FROM user_files WHERE id = ?`).get(pendingId) as { status: string };
+    expect(dbRecord.status).toBe("pending");
+
+    // Overwrite with store()
+    const stored = await ufs.store({
+      id: pendingId,
+      userId: "usr_test",
+      conversationId: "conv_1",
+      input: "test audio",
+      fileType: "audio",
+      mimeType: "audio/mpeg",
+      extension: "mp3",
+      data: Buffer.from("audio bytes"),
+    });
+
+    expect(stored.id).toBe(pendingId);
+
+    // DB record should now be ready
+    const updatedRecord = db.prepare(`SELECT status FROM user_files WHERE id = ?`).get(pendingId) as { status: string };
+    expect(updatedRecord.status).toBe("ready");
+
+    const loaded = await ufs.getById(pendingId);
+    expect(loaded?.file.status).toBe("ready");
+    expect(loaded?.file.contentHash).toBe(contentHash("test audio"));
+  });
 });

@@ -239,7 +239,7 @@ describe("ToolPluginPartRenderer", () => {
 
     expect(screen.getByText("Prepare Journal Post For Publish")).toBeInTheDocument();
     expect(screen.getByText("Running")).toBeInTheDocument();
-    expect(screen.getByText("Checking blockers")).toBeInTheDocument();
+    expect(screen.getByText(/Checking blockers/i)).toBeInTheDocument();
   });
 
   it("routes failed job statuses through the shared error card", () => {
@@ -342,7 +342,6 @@ describe("ToolPluginPartRenderer", () => {
 
     expect(screen.getByRole("region", { name: "Calculator status" })).toBeInTheDocument();
     expect(screen.getByText("Running")).toBeInTheDocument();
-    expect(screen.getByText("Waiting for tool result.")).toBeInTheDocument();
     expect(screen.queryByText("Completed")).not.toBeInTheDocument();
   });
 

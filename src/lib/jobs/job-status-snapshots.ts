@@ -113,6 +113,7 @@ export function jobStatusPartToStreamEvent(
         resultPayload: sequencedPart.resultPayload,
       };
     case "failed":
+    case "dead_letter":
       return {
         type: "job_failed",
         ...base,

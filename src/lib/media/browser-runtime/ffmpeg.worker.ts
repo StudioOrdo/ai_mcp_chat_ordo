@@ -1,10 +1,17 @@
 /// <reference lib="webworker" />
 
 import { FFmpeg } from "@ffmpeg/ffmpeg";
-import { fetchFile } from "@ffmpeg/util";
 import type { MediaCompositionPlan } from "@/core/entities/media-composition";
 import { getComposeMediaProgressLabel } from "@/lib/media/compose-media-progress";
 import { getMediaCompositionProfileSettings, resolveMediaCompositionProfile } from "@/lib/media/ffmpeg/media-composition-profile";
+import { MAX_FFMPEG_ASSET_BYTES } from "./ffmpeg-worker-limits";
+
+export class FfmpegAssetTooLargeError extends Error {
+  constructor(url: string, bytes: number) {
+    super(`Asset too large: ${url} (${bytes} bytes)`);
+    this.name = "FfmpegAssetTooLargeError";
+  }
+}
 
 export interface FfmpegWorkerMessage {
   type: "START_COMPOSITION";
@@ -19,33 +26,66 @@ export interface FfmpegWorkerResponse {
   label?: string;
   blob?: Blob;
   error?: string;
+  failureCode?: string;
+  logs?: {
+    head: string[];
+    tail: string[];
+    totalLines: number;
+    truncated: boolean;
+  };
 }
 
 let ffmpeg: FFmpeg | null = null;
 const MAX_LOG_LINES = 40;
+const ffmpegLogHead: string[] = [];
 const ffmpegLogTail: string[] = [];
+let ffmpegLogTotalLines = 0;
 
 function appendLogLine(message: string) {
   if (!message) {
     return;
   }
 
-  ffmpegLogTail.push(message);
-  if (ffmpegLogTail.length > MAX_LOG_LINES) {
-    ffmpegLogTail.shift();
+  ffmpegLogTotalLines += 1;
+  if (ffmpegLogHead.length < MAX_LOG_LINES) {
+    ffmpegLogHead.push(message);
+  } else {
+    ffmpegLogTail.push(message);
+    if (ffmpegLogTail.length > MAX_LOG_LINES) {
+      ffmpegLogTail.shift();
+    }
   }
 }
 
-function resetLogTail() {
+function resetLogs() {
+  ffmpegLogHead.length = 0;
   ffmpegLogTail.length = 0;
+  ffmpegLogTotalLines = 0;
 }
 
-function formatLogTail() {
-  if (ffmpegLogTail.length === 0) {
-    return "";
-  }
+function buildLogSnapshot() {
+  return {
+    head: [...ffmpegLogHead],
+    tail: [...ffmpegLogTail],
+    totalLines: ffmpegLogTotalLines,
+    truncated: ffmpegLogTotalLines > MAX_LOG_LINES,
+  };
+}
 
-  return `\nFFmpeg log tail:\n${ffmpegLogTail.join("\n")}`;
+async function fetchAssetBytes(url: string): Promise<Uint8Array> {
+  const response = await fetch(url);
+  const contentLength = response.headers.get("content-length");
+  if (contentLength !== null) {
+    const declaredBytes = parseInt(contentLength, 10);
+    if (declaredBytes > MAX_FFMPEG_ASSET_BYTES) {
+      throw new FfmpegAssetTooLargeError(url, declaredBytes);
+    }
+  }
+  const buffer = await response.arrayBuffer();
+  if (buffer.byteLength > MAX_FFMPEG_ASSET_BYTES) {
+    throw new FfmpegAssetTooLargeError(url, buffer.byteLength);
+  }
+  return new Uint8Array(buffer);
 }
 
 async function safeDeleteFile(ff: FFmpeg, fileName: string): Promise<void> {
@@ -238,8 +278,11 @@ self.onmessage = async (event: MessageEvent<FfmpegWorkerMessage>) => {
   
   if (type !== "START_COMPOSITION") return;
 
+  resetLogs();
+  const stagedFiles: string[] = [];
+  let ff: FFmpeg | null = null;
+
   try {
-    resetLogTail();
     (self as DedicatedWorkerGlobalScope & { __ordoComposePlan?: MediaCompositionPlan }).__ordoComposePlan = plan;
 
     postMessage({
@@ -247,7 +290,7 @@ self.onmessage = async (event: MessageEvent<FfmpegWorkerMessage>) => {
       progress: 0,
       label: getComposeMediaProgressLabel("staging_assets", { plan, progressPercent: 0 }),
     } as FfmpegWorkerResponse);
-    const ff = await getFfmpeg();
+    ff = await getFfmpeg();
 
     postMessage({
       type: "PROGRESS",
@@ -255,12 +298,10 @@ self.onmessage = async (event: MessageEvent<FfmpegWorkerMessage>) => {
       label: getComposeMediaProgressLabel("staging_assets", { plan, progressPercent: 10 }),
     } as FfmpegWorkerResponse);
 
-    const stagedFiles: string[] = [];
-
     // Write visual layers
     for (let i = 0; i < plan.visualClips.length; i++) {
       const clip = plan.visualClips[i];
-      const data = await fetchFile(visualAssetUrls[clip.assetId]);
+      const data = await fetchAssetBytes(visualAssetUrls[clip.assetId]);
       const inputFileName = getVisualInputFileName(clip.kind, i);
       await ff.writeFile(inputFileName, data);
       stagedFiles.push(inputFileName);
@@ -269,7 +310,7 @@ self.onmessage = async (event: MessageEvent<FfmpegWorkerMessage>) => {
     // Write audio layers
     for (let i = 0; i < plan.audioClips.length; i++) {
       const clip = plan.audioClips[i];
-      const data = await fetchFile(audioAssetUrls[clip.assetId]);
+      const data = await fetchAssetBytes(audioAssetUrls[clip.assetId]);
       const inputFileName = getAudioInputFileName(i);
       await ff.writeFile(inputFileName, data);
       stagedFiles.push(inputFileName);
@@ -301,7 +342,7 @@ self.onmessage = async (event: MessageEvent<FfmpegWorkerMessage>) => {
 
     const exitCode = await ff.exec(args);
     if (exitCode !== 0) {
-      throw new Error(`FFmpeg exited with code ${exitCode}.${formatLogTail()}`);
+      throw new Error(`FFmpeg exited with code ${exitCode}.`);
     }
 
     postMessage({
@@ -312,7 +353,7 @@ self.onmessage = async (event: MessageEvent<FfmpegWorkerMessage>) => {
     
     const fileData = await ff.readFile(outputName);
     if (!(fileData instanceof Uint8Array) || fileData.byteLength === 0) {
-      throw new Error(`FFmpeg produced an empty output artifact.${formatLogTail()}`);
+      throw new Error(`FFmpeg produced an empty output artifact.`);
     }
 
     const blob = new Blob([fileData as BlobPart], { type: plan.outputFormat === "mp4" ? "video/mp4" : "video/webm" });
@@ -323,15 +364,34 @@ self.onmessage = async (event: MessageEvent<FfmpegWorkerMessage>) => {
     }
     await safeDeleteFile(ff, outputName);
 
-    postMessage({ type: "SUCCESS", blob } as FfmpegWorkerResponse);
+    postMessage({ type: "SUCCESS", blob, logs: buildLogSnapshot() } as FfmpegWorkerResponse);
   } catch (error) {
+    // Cleanup any staged files on error
+    if (ff) {
+      for (const stagedFile of stagedFiles) {
+        await safeDeleteFile(ff, stagedFile);
+      }
+    }
+    // Reset FFmpeg instance so the next run gets a fresh one
+    ffmpeg = null;
+
     const errorMessage = error instanceof Error
       ? error.message
       : typeof error === "string"
         ? error
         : JSON.stringify(error);
-    postMessage({ type: "ERROR", error: errorMessage } as FfmpegWorkerResponse);
+    const failureCode = error instanceof FfmpegAssetTooLargeError ? "asset_too_large" : undefined;
+    postMessage({
+      type: "ERROR",
+      error: errorMessage,
+      logs: buildLogSnapshot(),
+      ...(failureCode !== undefined ? { failureCode } : {}),
+    } as FfmpegWorkerResponse);
   } finally {
     delete (self as DedicatedWorkerGlobalScope & { __ordoComposePlan?: MediaCompositionPlan }).__ordoComposePlan;
   }
+};
+
+export const __ffmpegWorkerTestables = {
+  fetchAssetBytes,
 };

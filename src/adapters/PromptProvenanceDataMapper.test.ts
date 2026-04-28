@@ -67,6 +67,17 @@ describe("PromptProvenanceDataMapper", () => {
           includedInText: true,
           slotKey: "ALL/base",
         },
+        {
+          key: "media_continuity_handoff",
+          sourceKind: "request",
+          priority: 88,
+          includedInText: true,
+          payload: {
+            assets: [
+              { assetId: "uf_chart_1", kind: "chart", derivativeOfAssetId: "chart_test_001" },
+            ],
+          },
+        },
       ],
       warnings: [],
       replayContext: {
@@ -82,6 +93,17 @@ describe("PromptProvenanceDataMapper", () => {
     expect(created.id).toMatch(/^pprov_/);
     expect(listed).toHaveLength(1);
     expect(listed[0]).toEqual(created);
+    expect(listed[0].sections[1]).toEqual({
+      key: "media_continuity_handoff",
+      sourceKind: "request",
+      priority: 88,
+      includedInText: true,
+      payload: {
+        assets: [
+          { assetId: "uf_chart_1", kind: "chart", derivativeOfAssetId: "chart_test_001" },
+        ],
+      },
+    });
   });
 
   it("links assistant messages and resolves turns by either user or assistant message id", async () => {

@@ -7,6 +7,7 @@ const {
   listForAdminMock,
   findJobByIdMock,
   listEventsForJobMock,
+  getJobInteractionMock,
   notFoundMock,
 } = vi.hoisted(() => ({
   countForAdminMock: vi.fn(),
@@ -15,6 +16,7 @@ const {
   listForAdminMock: vi.fn(),
   findJobByIdMock: vi.fn(),
   listEventsForJobMock: vi.fn(),
+  getJobInteractionMock: vi.fn(),
   notFoundMock: vi.fn(() => {
     throw new Error("notFound");
   }),
@@ -29,6 +31,9 @@ vi.mock("@/adapters/RepositoryFactory", () => ({
     findJobById: findJobByIdMock,
     listEventsForJob: listEventsForJobMock,
   }),
+  getPlatformInteractionFacade: () => ({
+    getJobInteraction: getJobInteractionMock,
+  }),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -41,9 +46,37 @@ import {
   parseAdminJobFilters,
 } from "@/lib/admin/jobs/admin-jobs";
 
+function makeInteraction(jobId: string, state = "running") {
+  return {
+    timeline: {
+      executionId: jobId,
+      executionKind: "job",
+      supportLevel: "full",
+      state,
+      title: "Job interaction",
+      summary: `Timeline summary for ${jobId}`,
+      events: [{ id: `${jobId}_evt_1` }, { id: `${jobId}_evt_2` }],
+      artifacts: [],
+      checkpoints: [],
+      nextActions: [{ key: "retry", label: "Retry", kind: "job", value: jobId, available: true }],
+    },
+    revision: {
+      executionId: jobId,
+      executionKind: "job",
+      supportLevel: "reduced",
+      state: state === "failed" ? "recoverable" : "active",
+      title: "Job revision",
+      summary: `Revision summary for ${jobId}`,
+      actions: [{ key: "retry", label: "Retry", operation: "retry", transportKind: "job", value: jobId, available: true }],
+      checkpoints: [],
+    },
+  };
+}
+
 describe("admin jobs loader", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getJobInteractionMock.mockImplementation(async (jobId: string) => makeInteraction(jobId));
   });
 
   it("parses status and tool filters from raw search params", () => {
@@ -131,11 +164,11 @@ describe("admin jobs loader", () => {
     });
     expect(result.statusCounts).toEqual({ queued: 1, running: 1 });
     expect(result.toolNameCounts).toEqual({ produce_blog_article: 2 });
-    expect(result.familyCounts).toEqual({ editorial: 2, media: 0 });
-    expect(result.familyOptions).toEqual([
+    expect(result.familyCounts).toEqual(expect.objectContaining({ editorial: 2, media: 0 }));
+    expect(result.familyOptions).toEqual(expect.arrayContaining([
       { value: "editorial", label: "Editorial", count: 2 },
       { value: "media", label: "Media", count: 0 },
-    ]);
+    ]));
     expect(result.toolOptions).toEqual(expect.arrayContaining([
       expect.objectContaining({
         value: "produce_blog_article",
@@ -154,6 +187,9 @@ describe("admin jobs loader", () => {
       canCancel: true,
       canRequeue: true,
       canRetry: false,
+      interactionExecutionState: "running",
+      interactionTimelineSupportLevel: "full",
+      interactionRevisionSupportLevel: "reduced",
       detailHref: "/admin/jobs/job_1",
     });
     expect(result.jobs[1]).toMatchObject({
@@ -225,6 +261,7 @@ describe("admin jobs loader", () => {
         createdAt: "2026-03-31T07:02:30.000Z",
       },
     ]);
+    getJobInteractionMock.mockResolvedValue(makeInteraction("job_9", "failed"));
 
     const result = await loadAdminJobDetail("job_9");
 
@@ -261,6 +298,16 @@ describe("admin jobs loader", () => {
       resultRetention: "retain",
       artifactPolicy: "open_artifact",
     });
+    expect(result.interaction.timeline).toEqual(expect.objectContaining({
+      executionId: "job_9",
+      state: "failed",
+      supportLevel: "full",
+    }));
+    expect(result.interaction.revision).toEqual(expect.objectContaining({
+      executionId: "job_9",
+      state: "recoverable",
+      supportLevel: "reduced",
+    }));
     expect(result.events).toEqual([
       {
         id: "evt_1",

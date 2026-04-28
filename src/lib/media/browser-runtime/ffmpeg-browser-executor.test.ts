@@ -150,7 +150,7 @@ describe("FfmpegBrowserExecutor", () => {
 
     const result = await executor.execute(
       basePlan,
-      { conversationId: "conv-1", userId: "usr-1" },
+      { conversationId: "conv-1", userId: "usr-1", toolInvocationId: "toolu_compose_1" },
       (progress, label) => {
         progressCalls.push([progress, label]);
       },
@@ -160,6 +160,8 @@ describe("FfmpegBrowserExecutor", () => {
       "/api/chat/uploads",
       expect.objectContaining({ method: "POST", body: expect.any(FormData) }),
     );
+    const body = (fetchMock.mock.calls[0]?.[1] as { body?: FormData }).body;
+    expect(body?.get("toolInvocationId")).toBe("toolu_compose_1");
     expect(result).toMatchObject({
       status: "succeeded",
       envelope: {
@@ -170,7 +172,9 @@ describe("FfmpegBrowserExecutor", () => {
           primaryAssetId: "asset-uploaded-1",
           profile: "still_image_narration_fast",
           outputFormat: "mp4",
+          toolInvocationId: "toolu_compose_1",
         },
+        artifacts: [expect.objectContaining({ toolInvocationId: "toolu_compose_1" })],
       },
     });
     expect(progressCalls).toContainEqual([42, getComposeMediaProgressLabel("rendering_media", { plan: basePlan, progressPercent: 42 })]);

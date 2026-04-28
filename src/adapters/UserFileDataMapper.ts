@@ -27,6 +27,7 @@ interface UserFileRow {
   content_hash: string;
   file_type: string;
   file_name: string;
+  status: "pending" | "ready" | "failed";
   mime_type: string;
   file_size: number;
   metadata_json: string;
@@ -212,6 +213,7 @@ function mapRow(row: UserFileRow): UserFile {
     userId: row.user_id,
     conversationId: row.conversation_id,
     contentHash: row.content_hash,
+    status: row.status,
     fileType: row.file_type as UserFile["fileType"],
     fileName: row.file_name,
     mimeType: row.mime_type,
@@ -227,8 +229,15 @@ export class UserFileDataMapper implements UserFileRepository {
   async create(file: Omit<UserFile, "createdAt">): Promise<UserFile> {
     this.db
       .prepare(
-        `INSERT INTO user_files (id, user_id, conversation_id, content_hash, file_type, file_name, mime_type, file_size, metadata_json)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO user_files (id, user_id, conversation_id, content_hash, file_type, status, file_name, mime_type, file_size, metadata_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           content_hash = excluded.content_hash,
+           status = excluded.status,
+           file_name = excluded.file_name,
+           mime_type = excluded.mime_type,
+           file_size = excluded.file_size,
+           metadata_json = excluded.metadata_json`,
       )
       .run(
         file.id,
@@ -236,6 +245,7 @@ export class UserFileDataMapper implements UserFileRepository {
         file.conversationId,
         file.contentHash,
         file.fileType,
+        file.status,
         file.fileName,
         file.mimeType,
         file.fileSize,
@@ -260,8 +270,8 @@ export class UserFileDataMapper implements UserFileRepository {
       `SELECT * FROM user_files WHERE user_id = ? AND content_hash = ? AND file_type = ?`,
     );
     const insert = this.db.prepare(
-      `INSERT INTO user_files (id, user_id, conversation_id, content_hash, file_type, file_name, mime_type, file_size, metadata_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO user_files (id, user_id, conversation_id, content_hash, file_type, status, file_name, mime_type, file_size, metadata_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
     const loadCreated = this.db.prepare(`SELECT * FROM user_files WHERE id = ?`);
 
@@ -317,6 +327,7 @@ export class UserFileDataMapper implements UserFileRepository {
           file.conversationId,
           file.contentHash,
           file.fileType,
+          file.status,
           file.fileName,
           file.mimeType,
           file.fileSize,

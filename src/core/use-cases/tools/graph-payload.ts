@@ -831,7 +831,7 @@ function buildGraphFromSpec(spec: Record<string, unknown>, fallbackRows: GraphRo
 }
 
 export function resolveGenerateGraphPayload(
-  input: Record<string, unknown>,
+  input: GenerateGraphInput | Record<string, unknown>,
   options?: ResolveGenerateGraphPayloadOptions,
 ): ResolvedGraphPayload {
   const title = asString(input.title);

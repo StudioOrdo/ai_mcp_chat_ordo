@@ -1,5 +1,6 @@
 import type { ChatMessage, FailedSendMetadata } from "@/core/entities/chat-message";
 import type { GenerationStatusMessagePart } from "@/core/entities/message-parts";
+import type { MediaContinuityHandoff } from "@/lib/chat/media-continuity-handoff";
 import { getAttachmentParts, type AttachmentPart } from "@/lib/chat/message-attachments";
 import type { TaskOriginHandoff } from "@/lib/chat/task-origin-handoff";
 
@@ -9,6 +10,7 @@ export interface FailedSendPayload {
   messageText: string;
   attachments: AttachmentPart[];
   taskOriginHandoff?: TaskOriginHandoff;
+  mediaContinuityHandoff?: MediaContinuityHandoff;
 }
 
 function getGenerationStatusPart(parts?: ChatMessage["parts"]): GenerationStatusMessagePart | null {

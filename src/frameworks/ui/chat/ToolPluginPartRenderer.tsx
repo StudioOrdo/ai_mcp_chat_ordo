@@ -98,6 +98,7 @@ export function ToolPluginPartRenderer(props: ToolPluginProps) {
       name: part.toolName,
       args: {},
       result: resultEnvelope?.payload ?? part.resultPayload,
+      toolInvocationId: part.toolInvocationId,
     };
   }, [part, resultEnvelope, toolCall]);
   const Plugin = useMemo(
@@ -110,7 +111,7 @@ export function ToolPluginPartRenderer(props: ToolPluginProps) {
   );
 
   if (systemCardKind === "error") {
-    return createElement(CapabilityErrorCard, {
+    const element = createElement(CapabilityErrorCard, {
       part,
       toolCall: effectiveToolCall,
       computedActions,
@@ -119,9 +120,13 @@ export function ToolPluginPartRenderer(props: ToolPluginProps) {
       isStreaming,
       onActionClick,
     });
+    const toolInvocationId = part?.toolInvocationId ?? effectiveToolCall?.toolInvocationId;
+    return toolInvocationId
+      ? createElement("div", { "data-tool-invocation-id": toolInvocationId }, element)
+      : element;
   }
 
-  return createElement(Plugin, {
+  const element = createElement(Plugin, {
     part,
     toolCall: effectiveToolCall,
     computedActions,
@@ -130,4 +135,8 @@ export function ToolPluginPartRenderer(props: ToolPluginProps) {
     isStreaming,
     onActionClick,
   });
+  const toolInvocationId = part?.toolInvocationId ?? effectiveToolCall?.toolInvocationId;
+  return toolInvocationId
+    ? createElement("div", { "data-tool-invocation-id": toolInvocationId }, element)
+    : element;
 }

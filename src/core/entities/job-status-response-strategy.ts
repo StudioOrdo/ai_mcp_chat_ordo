@@ -83,17 +83,23 @@ export function buildJobStatusToolDescription(options: {
     ? "the current conversation"
     : "the signed-in user's account";
 
+  // Appended to every description: clarify job_ IDs are not asset IDs.
+  const assetIdNote =
+    " IMPORTANT: The job ID (job_*) is a queue tracking key only — it is NOT an asset ID. "
+    + "When a job succeeds, the resolved governed assetId is in the job's resultArtifacts array. "
+    + "Use list_conversation_media_assets to obtain the canonical assetId before calling compose_media.";
+
   if (options.kind === "single") {
     if (options.audience === "admin" && options.scope === "conversation") {
-      return "Look up the current status of a deferred job by job ID. Summarize the result in plain language after reading it. Admin only.";
+      return "Look up the current status of a deferred job by job ID. Summarize the result in plain language after reading it. Admin only." + assetIdNote;
     }
 
-    return "Get the current status of one of the signed-in user's jobs by job ID. Use when the user asks what a specific job is doing.";
+    return "Get the current status of one of the signed-in user's jobs by job ID. Use when the user asks what a specific job is doing." + assetIdNote;
   }
 
   if (options.audience === "admin" && options.scope === "conversation") {
-    return "List deferred jobs for the current conversation. Return active jobs by default; include terminal jobs only when the admin explicitly asks for a list or all jobs. Admin only.";
+    return "List deferred jobs for the current conversation. Return active jobs by default; include terminal jobs only when the admin explicitly asks for a list or all jobs. Admin only." + assetIdNote;
   }
 
-  return `List jobs for ${owner}. Use active_only=true or omit it for current work; use active_only=false only when the user explicitly asks for all jobs or a list.`;
+  return `List jobs for ${owner}. Use active_only=true or omit it for current work; use active_only=false only when the user explicitly asks for all jobs or a list.` + assetIdNote;
 }

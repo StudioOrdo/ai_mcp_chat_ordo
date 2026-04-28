@@ -29,9 +29,16 @@ function createUserFile(overrides: Partial<UserFile> = {}): UserFile {
 
 describe("media-asset-projection", () => {
   it("normalizes partial metadata into a stable user-file metadata object", () => {
-    expect(buildUserFileMetadata({ assetKind: "audio", durationSeconds: 12.5 })).toEqual({
+    expect(buildUserFileMetadata({
       assetKind: "audio",
       durationSeconds: 12.5,
+      toolInvocationId: "toolu_audio_1",
+      derivativeOfToolInvocationId: "toolu_compose_1",
+    })).toEqual({
+      assetKind: "audio",
+      durationSeconds: 12.5,
+      toolInvocationId: "toolu_audio_1",
+      derivativeOfToolInvocationId: "toolu_compose_1",
     });
   });
 
@@ -42,6 +49,7 @@ describe("media-asset-projection", () => {
         source: "generated",
         durationSeconds: 18,
         toolName: "generate_audio",
+        toolInvocationId: "toolu_audio_1",
       },
     });
 
@@ -54,6 +62,7 @@ describe("media-asset-projection", () => {
       durationSeconds: 18,
       conversationId: "conv_1",
       toolName: "generate_audio",
+      toolInvocationId: "toolu_audio_1",
       retentionClass: "conversation",
     });
   });
@@ -68,6 +77,8 @@ describe("media-asset-projection", () => {
         assetKind: "chart",
         source: "generated",
         toolName: "generate_chart",
+        toolInvocationId: "toolu_chart_1",
+        derivativeOfAssetId: "chart_test_001",
         width: 1280,
         height: 720,
       },
@@ -85,6 +96,8 @@ describe("media-asset-projection", () => {
       createdAt: "2026-04-14T12:00:00.000Z",
       conversationId: "conv_1",
       toolName: "generate_chart",
+      toolInvocationId: "toolu_chart_1",
+      derivativeOfAssetId: "chart_test_001",
       width: 1280,
       height: 720,
     });
@@ -113,6 +126,7 @@ describe("media-asset-projection", () => {
         source: "uploaded",
         width: 1200,
         height: 630,
+        toolInvocationId: "toolu_upload_1",
       },
     });
 
@@ -125,6 +139,7 @@ describe("media-asset-projection", () => {
       width: 1200,
       height: 630,
       source: "uploaded",
+      toolInvocationId: "toolu_upload_1",
     });
   });
 
@@ -143,6 +158,8 @@ describe("media-asset-projection", () => {
       source: "derived",
       assetId: "uf_subtitle_1",
       retentionClass: "durable",
+      toolInvocationId: "toolu_compose_1",
+      derivativeOfToolInvocationId: "toolu_audio_1",
     }, { label: "Subtitle track" })).toEqual({
       kind: "subtitle",
       label: "Subtitle track",
@@ -150,6 +167,8 @@ describe("media-asset-projection", () => {
       assetId: "uf_subtitle_1",
       retentionClass: "durable",
       source: "derived",
+      toolInvocationId: "toolu_compose_1",
+      derivativeOfToolInvocationId: "toolu_audio_1",
     });
   });
 });

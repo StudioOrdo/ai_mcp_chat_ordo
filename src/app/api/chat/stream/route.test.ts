@@ -11,7 +11,7 @@ import { createRouteRequest } from "../../../../../tests/helpers/workflow-route-
 const {
   getAnthropicApiKeyMock,
   createSystemPromptBuilderMock,
-  getToolCompositionMock,
+  getAgentPlatformFacadeMock,
   getSessionUserMock,
   resolveUserIdMock,
   createConversationRuntimeServicesMock,
@@ -20,12 +20,13 @@ const {
   getReferralLedgerServiceMock,
   getJobQueueRepositoryMock,
   getJobStatusQueryMock,
+  getUserPreferencesDataMapperMock,
   runtimeInteractorMock,
   summarizationInteractorMock,
 } = vi.hoisted(() => ({
   getAnthropicApiKeyMock: vi.fn(),
   createSystemPromptBuilderMock: vi.fn(),
-  getToolCompositionMock: vi.fn(),
+  getAgentPlatformFacadeMock: vi.fn(),
   getSessionUserMock: vi.fn(),
   resolveUserIdMock: vi.fn(),
   createConversationRuntimeServicesMock: vi.fn(),
@@ -34,6 +35,7 @@ const {
   getReferralLedgerServiceMock: vi.fn(),
   getJobQueueRepositoryMock: vi.fn(),
   getJobStatusQueryMock: vi.fn(),
+  getUserPreferencesDataMapperMock: vi.fn(),
   runtimeInteractorMock: {
     archiveActive: vi.fn(),
     ensureActive: vi.fn(),
@@ -51,6 +53,7 @@ const {
   },
 }));
 
+// Phase 7 Mock Density Exception: This file tests a complex composition root or integration pipeline and legitimately requires extensive boundary mocking for external services (auth, db, observability, etc.).
 vi.mock("@/lib/config/env", () => ({
   getAnthropicApiKey: getAnthropicApiKeyMock,
 }));
@@ -59,8 +62,8 @@ vi.mock("@/lib/chat/policy", () => ({
   createSystemPromptBuilder: createSystemPromptBuilderMock,
 }));
 
-vi.mock("@/lib/chat/tool-composition-root", () => ({
-  getToolComposition: getToolCompositionMock,
+vi.mock("@/lib/platform/agent-platform-facade-root", () => ({
+  getAgentPlatformFacade: getAgentPlatformFacadeMock,
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -90,6 +93,7 @@ vi.mock("@/lib/referrals/referral-ledger", () => ({
 vi.mock("@/adapters/RepositoryFactory", () => ({
   getJobQueueRepository: getJobQueueRepositoryMock,
   getJobStatusQuery: getJobStatusQueryMock,
+  getUserPreferencesDataMapper: getUserPreferencesDataMapperMock,
 }));
 
 import { POST } from "@/app/api/chat/stream/route";
@@ -98,6 +102,7 @@ function createBuilder() {
   const builder = {
     withToolManifest: vi.fn(() => builder),
     withTrustedReferralContext: vi.fn(() => builder),
+    withUserPreferences: vi.fn(() => builder),
     withConversationSummary: vi.fn(() => builder),
     withRoutingContext: vi.fn(() => builder),
     withSection: vi.fn(() => builder),
@@ -209,12 +214,14 @@ describe("POST /api/chat/stream", () => {
 
     getAnthropicApiKeyMock.mockReturnValue("test-key");
     createSystemPromptBuilderMock.mockResolvedValue(builder);
-    getToolCompositionMock.mockReturnValue({
-      registry: {
-        getSchemasForRole: vi.fn(() => []),
-        getDescriptor: vi.fn(() => null),
-      },
-      executor: vi.fn(),
+    getAgentPlatformFacadeMock.mockReturnValue({
+      getExecutionSurface: () => ({
+        registry: {
+          getSchemasForRole: vi.fn(() => []),
+          getDescriptor: vi.fn(() => null),
+        },
+        executor: vi.fn(),
+      }),
     });
     getSessionUserMock.mockResolvedValue({
       id: "usr_anon",
@@ -244,6 +251,9 @@ describe("POST /api/chat/stream", () => {
       getUserJobSnapshot: vi.fn().mockResolvedValue(null),
       listConversationJobSnapshots: vi.fn().mockResolvedValue([]),
       listUserJobSnapshots: vi.fn().mockResolvedValue([]),
+    });
+    getUserPreferencesDataMapperMock.mockReturnValue({
+      getAll: vi.fn().mockResolvedValue({}),
     });
     executeDirectChatTurnMock.mockResolvedValue("4.");
     runClaudeAgentLoopStreamMock.mockImplementation(async ({ signal }: { signal?: AbortSignal }) => {
@@ -470,6 +480,94 @@ describe("POST /api/chat/stream", () => {
     expect(runClaudeAgentLoopStreamMock).toHaveBeenCalledWith(
       expect.objectContaining({
         messages: [{ role: "user", content: "Need the queue summary" }],
+      }),
+    );
+  });
+
+  it("injects media continuity context and narrows the tool manifest to reuse tools for later-turn combine requests", async () => {
+    const builder = createBuilder();
+    const getAllPreferencesMock = vi.fn().mockResolvedValue({});
+
+    createSystemPromptBuilderMock.mockResolvedValueOnce(builder);
+    getSessionUserMock.mockResolvedValueOnce({
+      id: "usr_member_1",
+      email: "member@example.com",
+      name: "Member",
+      roles: ["AUTHENTICATED"],
+    });
+    resolveUserIdMock.mockResolvedValueOnce({ userId: "usr_member_1", isAnonymous: false });
+    getUserPreferencesDataMapperMock.mockReturnValueOnce({
+      getAll: getAllPreferencesMock,
+    });
+    getAgentPlatformFacadeMock.mockReturnValueOnce({
+      getExecutionSurface: () => ({
+        registry: {
+          getSchemasForRole: vi.fn(() => [
+            {
+              name: "generate_audio",
+              description: "",
+              input_schema: { type: "object", properties: {} },
+            },
+            {
+              name: "generate_chart",
+              description: "",
+              input_schema: { type: "object", properties: {} },
+            },
+            {
+              name: "list_conversation_media_assets",
+              description: "",
+              input_schema: { type: "object", properties: {} },
+            },
+            {
+              name: "compose_media",
+              description: "",
+              input_schema: { type: "object", properties: {} },
+            },
+          ]),
+          getDescriptor: vi.fn(() => null),
+        },
+        executor: vi.fn(),
+      }),
+    });
+    runClaudeAgentLoopStreamMock.mockResolvedValueOnce({
+      model: "test-model",
+      assistantText: "I can combine those existing assets.",
+      stopReason: "end_turn",
+      toolRoundCount: 0,
+      toolCalls: [],
+      toolResults: [],
+    });
+
+    const response = await POST(
+      createRouteRequest("http://localhost:3000/api/chat/stream", "POST", {
+        messages: [{ role: "user", content: "combine them into a short video" }],
+        mediaContinuityHandoff: {
+          assets: [
+            { assetId: "uf_chart_1", kind: "chart", aliases: ["growth chart"] },
+            { assetId: "uf_audio_1", kind: "audio", aliases: ["growth narration"] },
+          ],
+        },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(getAllPreferencesMock).toHaveBeenCalledWith("usr_member_1");
+    expect(builder.withSection).toHaveBeenCalledWith(
+      expect.objectContaining({
+        key: "media_continuity_handoff",
+        content: expect.stringContaining("uf_chart_1"),
+      }),
+    );
+    expect(builder.withToolManifest).toHaveBeenCalledWith([
+      { name: "list_conversation_media_assets", description: "" },
+      { name: "compose_media", description: "" },
+    ]);
+    expect(runClaudeAgentLoopStreamMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tools: [
+          expect.objectContaining({ name: "list_conversation_media_assets" }),
+          expect.objectContaining({ name: "compose_media" }),
+        ],
       }),
     );
   });
