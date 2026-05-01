@@ -61,7 +61,6 @@ export async function GET(
     
     let diskPath: string | null = null;
     let mimeType = "application/octet-stream";
-    let fileSize = 0;
     const baseHeaders: Record<string, string> = {
       "Accept-Ranges": "bytes",
       "Cache-Control": "private, max-age=86400, immutable",
@@ -91,8 +90,6 @@ export async function GET(
       if (!stat) {
          return NextResponse.json({ error: "File not found on disk", errorCode: "NOT_FOUND" }, { status: 404 });
       }
-      fileSize = stat.size;
-
       baseHeaders["Content-Type"] = mimeType;
       if (mimeType.startsWith("image/")) {
         baseHeaders["X-Asset-Kind"] = "image";
@@ -113,7 +110,6 @@ export async function GET(
 
       diskPath = result.diskPath;
       mimeType = result.file.mimeType;
-      fileSize = result.file.fileSize;
 
       const asset = projectUserFileToMediaAssetDescriptor(result.file);
       baseHeaders["Content-Type"] = mimeType;

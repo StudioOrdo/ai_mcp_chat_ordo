@@ -59,7 +59,6 @@ function entry(overrides: Partial<JobStatusMessagePart> = {}): JobStateEntry {
 
 function Harness({
   conversationId,
-  messages = [],
   incomingEntries = [],
 }: {
   conversationId: string | null;

@@ -1,4 +1,3 @@
-import type { BlogAsset } from "@/core/entities/blog-asset";
 import type { AssetCatalogEntry } from "@/core/entities/asset-catalog";
 import type { MaterializationRecord } from "@/core/entities/materialization";
 import type { BlogAssetRepository } from "@/core/use-cases/BlogAssetRepository";
@@ -13,7 +12,6 @@ import type { MaterializationRepository } from "@/core/use-cases/Materialization
 import type { UserFileRepository } from "@/core/use-cases/UserFileRepository";
 import {
   dedupeAssetCatalogEntries,
-  projectAssetCatalogEntryToWorkspaceAssetRef,
   projectBlogAssetToAssetCatalogEntry,
   projectUserFileToAssetCatalogEntry,
   sortAssetCatalogEntries,

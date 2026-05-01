@@ -9,11 +9,6 @@ import {
   registerCatalogBoundToolBundle,
 } from "./bundle-registration";
 
-interface MediaToolRegistrationDeps {
-  readonly assetCatalogReader: ReturnType<typeof getAssetCatalogReader>;
-  readonly jobQueueRepository: ReturnType<typeof getJobQueueRepository>;
-}
-
 export const MEDIA_BUNDLE: ToolBundleDescriptor = createCatalogBoundToolBundle(
   "media",
   "Media Tools",

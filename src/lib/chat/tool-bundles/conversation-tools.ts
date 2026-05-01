@@ -5,11 +5,6 @@ import {
   registerCatalogBoundToolBundle,
 } from "./bundle-registration";
 
-interface ConversationToolRegistrationDeps {
-  readonly vectorStore: ReturnType<typeof getVectorStore>;
-  readonly relationshipMemoryReader: ReturnType<typeof getRelationshipMemoryRepository>;
-}
-
 export const CONVERSATION_BUNDLE = createCatalogBoundToolBundle(
   "conversation",
   "Conversation Tools",

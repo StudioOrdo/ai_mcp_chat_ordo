@@ -7,10 +7,6 @@ import {
   registerCatalogBoundToolBundle,
 } from "./bundle-registration";
 
-interface ThemeToolRegistrationDeps {
-  readonly prefsRepo: ReturnType<typeof getUserPreferencesDataMapper>;
-}
-
 export const THEME_BUNDLE: ToolBundleDescriptor = createCatalogBoundToolBundle(
   "theme",
   "Theme Tools",

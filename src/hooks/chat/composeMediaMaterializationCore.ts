@@ -82,7 +82,6 @@ import { sortTruncationDiagnostics } from "@/lib/media/browser-runtime/runtime-d
 import {
   canRerouteBrowserShortExplainerPlan,
   getBrowserShortExplainerBeatCaptions,
-  hasBrowserShortExplainerCaptionText,
   isBrowserShortExplainerPlan,
 } from "@/lib/media/ffmpeg/browser-short-explainer";
 
@@ -119,10 +118,6 @@ export class ComposeMediaDeferredEnqueueError extends Error {
     super(message);
     this.name = "ComposeMediaDeferredEnqueueError";
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
 }
 
 function toFileStem(value: string | undefined, fallback: string): string {

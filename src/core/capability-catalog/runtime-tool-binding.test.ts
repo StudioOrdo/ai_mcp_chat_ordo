@@ -88,7 +88,7 @@ import { projectAnthropicSchema } from "./schema-projection";
 
 const ROOT = path.resolve(__dirname, "../../..");
 const ADMIN_WEB_SEARCH_MCP_SERVICE = "admin-web-search-mcp";
-const DOCKER_COMPOSE_AVAILABLE = canUseDockerCompose();
+const DOCKER_COMPOSE_AVAILABLE = process.env.ORDO_ENABLE_DOCKER_TESTS === "1" && canUseDockerCompose();
 const DOCKER_TEST_TIMEOUT_MS = 120_000;
 const MCP_PLANNER_TEST_TIMEOUT_MS = 15_000;
 
@@ -576,7 +576,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
       throw new Error("deps should not be constructed for invalid input");
     });
     const descriptor = projectCatalogBoundToolDescriptor("admin_web_search", {
-      userFileRepository: {} as any, adminWebSearchDepsFactory: depsFactory,
+      userFileRepository: {} as UserFileRepository, adminWebSearchDepsFactory: depsFactory,
     });
 
     const result = await descriptor.command.execute(
@@ -637,7 +637,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
     }));
     const depsFactory = vi.fn(createWebSearchDeps(create));
     const descriptor = projectCatalogBoundToolDescriptor("admin_web_search", {
-      userFileRepository: {} as any, adminWebSearchDepsFactory: depsFactory,
+      userFileRepository: {} as UserFileRepository, adminWebSearchDepsFactory: depsFactory,
     });
     const previousFixture = process.env.ORDO_MCP_ADMIN_WEB_SEARCH_RESULT_FIXTURE;
     process.env.ORDO_MCP_ADMIN_WEB_SEARCH_RESULT_FIXTURE = JSON.stringify(fixtureResult);
@@ -697,7 +697,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
     }));
     const depsFactory = vi.fn(createWebSearchDeps(create));
     const descriptor = projectCatalogBoundToolDescriptor("admin_web_search", {
-      userFileRepository: {} as any, adminWebSearchDepsFactory: depsFactory,
+      userFileRepository: {} as UserFileRepository, adminWebSearchDepsFactory: depsFactory,
     });
     const previousOpenAiKey = process.env.OPENAI_API_KEY;
     process.env.OPENAI_API_KEY = "test-key";
@@ -772,7 +772,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
     }));
     const depsFactory = vi.fn(createWebSearchDeps(create));
     const descriptor = projectCatalogBoundToolDescriptor("admin_web_search", {
-      userFileRepository: {} as any, adminWebSearchDepsFactory: depsFactory,
+      userFileRepository: {} as UserFileRepository, adminWebSearchDepsFactory: depsFactory,
     });
     const previousOpenAiKey = process.env.OPENAI_API_KEY;
     const previousFixture = process.env.ORDO_MCP_ADMIN_WEB_SEARCH_RESULT_FIXTURE;
@@ -807,8 +807,8 @@ describe("Sprint 23 — Catalog runtime binding", () => {
         },
       );
 
-      const { assetId: _hostAssetId, ...hostParityResult } = hostResult as any;
-      const { assetId: _mcpAssetId, ...mcpParityResult } = mcpResult as any;
+      const { assetId: _hostAssetId, ...hostParityResult } = hostResult as Record<string, unknown>;
+      const { assetId: _mcpAssetId, ...mcpParityResult } = mcpResult as Record<string, unknown>;
       expect(hostParityResult).toEqual(mcpParityResult);
       expect(hostResult).toMatchObject({
         action: "admin_web_search",
@@ -836,7 +836,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
 
   it("routes admin_web_search through a native_process target override", async () => {
     const descriptor = projectCatalogBoundToolDescriptor("admin_web_search", {
-      userFileRepository: {} as any, adminWebSearchDepsFactory: vi.fn(() => {
+      userFileRepository: {} as UserFileRepository, adminWebSearchDepsFactory: vi.fn(() => {
         throw new Error("host executor should not run for native_process override");
       }),
     });
@@ -893,7 +893,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
 
   it("routes admin_web_search through a remote_service target override", async () => {
     const descriptor = projectCatalogBoundToolDescriptor("admin_web_search", {
-      userFileRepository: {} as any, adminWebSearchDepsFactory: vi.fn(() => {
+      userFileRepository: {} as UserFileRepository, adminWebSearchDepsFactory: vi.fn(() => {
         throw new Error("host executor should not run for remote_service override");
       }),
     });
@@ -966,7 +966,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
 
   it("can opt a remote_service target override into execution-context bridging", async () => {
     const descriptor = projectCatalogBoundToolDescriptor("admin_web_search", {
-      userFileRepository: {} as any, adminWebSearchDepsFactory: vi.fn(() => {
+      userFileRepository: {} as UserFileRepository, adminWebSearchDepsFactory: vi.fn(() => {
         throw new Error("host executor should not run for remote_service override");
       }),
     });
@@ -1061,7 +1061,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
       }));
       const depsFactory = vi.fn(createWebSearchDeps(create));
       const descriptor = projectCatalogBoundToolDescriptor("admin_web_search", {
-        userFileRepository: {} as any, adminWebSearchDepsFactory: depsFactory,
+        userFileRepository: {} as UserFileRepository, adminWebSearchDepsFactory: depsFactory,
       });
       const previousOpenAiKey = process.env.OPENAI_API_KEY;
       const previousFixture = process.env.ORDO_MCP_ADMIN_WEB_SEARCH_RESULT_FIXTURE;
@@ -1098,8 +1098,8 @@ describe("Sprint 23 — Catalog runtime binding", () => {
           },
         );
 
-        const { assetId: _hostAssetId, ...hostParityResult } = hostResult as any;
-        const { assetId: _mcpAssetId, ...mcpParityResult } = mcpContainerResult as any;
+        const { assetId: _hostAssetId, ...hostParityResult } = hostResult as Record<string, unknown>;
+        const { assetId: _mcpAssetId, ...mcpParityResult } = mcpContainerResult as Record<string, unknown>;
         expect(hostParityResult).toEqual(mcpParityResult);
         expect(hostResult).toMatchObject({
           action: "admin_web_search",
@@ -1135,7 +1135,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
     async () => {
       const depsFactory = vi.fn(createWebSearchDeps(vi.fn()));
       const descriptor = projectCatalogBoundToolDescriptor("admin_web_search", {
-        userFileRepository: {} as any, adminWebSearchDepsFactory: depsFactory,
+        userFileRepository: {} as UserFileRepository, adminWebSearchDepsFactory: depsFactory,
       });
 
       try {

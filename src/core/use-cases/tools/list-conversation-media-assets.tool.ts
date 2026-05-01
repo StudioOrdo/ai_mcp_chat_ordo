@@ -2,7 +2,6 @@ import type { MediaAssetKind } from "@/core/entities/media-asset";
 import type { ToolDescriptor } from "@/core/tool-registry/ToolDescriptor";
 import type { ToolCommand } from "@/core/tool-registry/ToolCommand";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
-import type { AssetCatalogEntry } from "@/core/entities/asset-catalog";
 import type { AssetCatalogReader } from "@/core/use-cases/AssetCatalogReader";
 import type { ConversationMediaAssetCandidate } from "@/lib/media/media-asset-projection";
 import { projectAssetCatalogEntryToConversationMediaAssetCandidate } from "@/core/platform/asset-catalog/AssetCatalogProjector";

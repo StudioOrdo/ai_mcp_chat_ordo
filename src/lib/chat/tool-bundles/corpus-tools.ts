@@ -6,11 +6,6 @@ import {
   registerCatalogBoundToolBundle,
 } from "./bundle-registration";
 
-interface CorpusToolRegistrationDeps {
-  readonly corpusRepo: CorpusRepository;
-  readonly searchHandler?: SearchHandler;
-}
-
 export const CORPUS_BUNDLE = createCatalogBoundToolBundle(
   "corpus",
   "Corpus Tools",

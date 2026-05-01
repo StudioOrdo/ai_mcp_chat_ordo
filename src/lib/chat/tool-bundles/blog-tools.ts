@@ -16,16 +16,6 @@ import {
   registerCatalogBoundToolBundle,
 } from "./bundle-registration";
 
-interface BlogToolRegistrationDeps {
-  readonly blogRepo: ReturnType<typeof getBlogPostRepository>;
-  readonly blogAssetRepo: ReturnType<typeof getBlogAssetRepository>;
-  readonly blogRevisionRepo: ReturnType<typeof getBlogPostRevisionRepository>;
-  readonly blogArticleService: ReturnType<typeof getBlogArticleProductionService>;
-  readonly blogImageService: ReturnType<typeof getBlogImageGenerationService>;
-  readonly jobStatusQuery: ReturnType<typeof getJobStatusQuery>;
-  readonly journalEditorialInteractor: JournalEditorialInteractor;
-}
-
 export const BLOG_BUNDLE = createCatalogBoundToolBundle(
   "blog",
   "Blog Tools",

@@ -1,6 +1,5 @@
 import { getStageByKey } from "@/core/entities/production-dag";
 import type { Draft } from "@/core/entities/draft";
-import type { FactoryAsset } from "@/core/entities/factory-asset";
 import type { FactoryOutputRecord } from "@/core/use-cases/FactoryRepository";
 import { getUserFileDataMapper } from "@/adapters/RepositoryFactory";
 

@@ -6,10 +6,6 @@ import {
 
 import { getUserFileDataMapper } from "@/adapters/RepositoryFactory";
 
-interface AdminToolRegistrationDeps {
-  readonly userFileRepository?: ReturnType<typeof getUserFileDataMapper>;
-}
-
 export const ADMIN_BUNDLE = createCatalogBoundToolBundle(
   "admin",
   "Admin Tools",

@@ -5,7 +5,6 @@ import type {
   IdentityMigrationObjectCount,
   IdentityMigrationObjectKind,
   IdentityMigrationRepairRef,
-  IdentityMigrationStage,
 } from "../entities/identity-migration";
 import type { IdentityMigrationRepository } from "./IdentityMigrationRepository";
 import type { JobQueueRepository } from "./JobQueueRepository";

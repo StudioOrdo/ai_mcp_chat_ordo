@@ -8,12 +8,6 @@ import {
   registerCatalogBoundToolBundle,
 } from "./bundle-registration";
 
-interface AffiliateToolRegistrationDeps {
-  readonly profileService: ReturnType<typeof createProfileService>;
-  readonly analyticsService: ReturnType<typeof createReferralAnalyticsService>;
-  readonly adminAnalyticsService: ReturnType<typeof createAdminReferralAnalyticsService>;
-}
-
 export const AFFILIATE_BUNDLE: ToolBundleDescriptor = createCatalogBoundToolBundle(
   "affiliate",
   "Affiliate Tools",

@@ -4,10 +4,6 @@ import {
   registerCatalogBoundToolBundle,
 } from "./bundle-registration";
 
-interface NavigationToolRegistrationDeps {
-  readonly registry: ToolRegistry;
-}
-
 export const NAVIGATION_BUNDLE = createCatalogBoundToolBundle(
   "navigation",
   "Navigation Tools",

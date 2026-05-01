@@ -82,15 +82,20 @@ function buildOperationsMediaHref(filters: OperationsMediaFilters, page: number)
 }
 
 function TextArtifactViewer({ url, fileType }: { url: string; fileType: string }) {
-  const [content, setContent] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [state, setState] = useState<{
+    url: string;
+    content: string | null;
+    loading: boolean;
+    error: string | null;
+  }>({
+    url,
+    content: null,
+    loading: true,
+    error: null,
+  });
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setContent(null);
-    setError(null);
 
     fetch(url)
       .then((res) => {
@@ -99,19 +104,26 @@ function TextArtifactViewer({ url, fileType }: { url: string; fileType: string }
       })
       .then((text) => {
         if (!cancelled) {
-          setContent(text);
-          setLoading(false);
+          setState({ url, content: text, loading: false, error: null });
         }
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load asset content.");
-          setLoading(false);
+          setState({
+            url,
+            content: null,
+            loading: false,
+            error: err instanceof Error ? err.message : "Failed to load asset content.",
+          });
         }
       });
 
     return () => { cancelled = true; };
   }, [url]);
+
+  const loading = state.url !== url || state.loading;
+  const content = state.url === url ? state.content : null;
+  const error = state.url === url ? state.error : null;
 
   if (loading) {
     return (

@@ -1,5 +1,5 @@
 import type { MessagePart } from "@/core/entities/message-parts";
-import { getMediaWorkflowRepository } from "@/adapters/RepositoryFactory";
+import { getMediaWorkflowOrchestrator, getMediaWorkflowRepository } from "@/adapters/RepositoryFactory";
 import type { ChatRuntimeHook, TurnCompletionSuccessHookState } from "@/lib/chat/runtime-hooks";
 
 import { createChartAudioVideoWorkflowDraft } from "./factory";
@@ -104,7 +104,7 @@ function looksLikeVideoCompositionPromise(text: string): boolean {
 export class MediaWorkflowTurnHook implements ChatRuntimeHook {
   readonly failureMode = "best_effort";
 
-  afterTurnCompletion(state: TurnCompletionSuccessHookState): void {
+  async afterTurnCompletion(state: TurnCompletionSuccessHookState): Promise<void> {
     if (state.status !== "completed" || !state.persistedMessageId || hasComposeCall(state.assistantParts)) {
       return;
     }
@@ -125,6 +125,11 @@ export class MediaWorkflowTurnHook implements ChatRuntimeHook {
       .listWorkflowsByConversation(state.conversationId)
       .find((snapshot) => snapshot.workflow.originMessageId === state.persistedMessageId);
     if (existing) {
+      await getMediaWorkflowOrchestrator().reconcileRunnableWorkflows({
+        conversationId: state.conversationId,
+        userId: state.userId,
+        limit: 5,
+      });
       return;
     }
 
@@ -147,5 +152,11 @@ export class MediaWorkflowTurnHook implements ChatRuntimeHook {
         streamId: state.streamId,
       },
     }));
+
+    await getMediaWorkflowOrchestrator().reconcileRunnableWorkflows({
+      conversationId: state.conversationId,
+      userId: state.userId,
+      limit: 5,
+    });
   }
 }

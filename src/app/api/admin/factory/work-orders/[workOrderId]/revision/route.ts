@@ -38,10 +38,6 @@ function parseOptionalString(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-function parseOptionalRecord(value: unknown): Record<string, unknown> | undefined {
-  return isRecord(value) ? value : undefined;
-}
-
 function parseOptionalBrief(value: unknown): ProductBrief | undefined {
   if (!isRecord(value)) {
     return undefined;

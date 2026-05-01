@@ -5,6 +5,7 @@ import sharp from "sharp";
 
 import type { MediaCompositionPlan } from "@/core/entities/media-composition";
 import type { UserFile } from "@/core/entities/user-file";
+import { normalizeMermaidCodeForRender } from "@/core/use-cases/tools/chart-payload";
 import { GRAPH_SVG_HEIGHT, GRAPH_SVG_WIDTH, getGraphSvgMarkup } from "@/lib/graphs/graph-svg-markup";
 import {
   parseStoredChartSource,
@@ -95,7 +96,7 @@ async function materializeChartAsset(params: {
 
   let svgMarkup: string;
   try {
-    svgMarkup = await renderMermaidChartSvg(chart.code);
+    svgMarkup = await renderMermaidChartSvg(normalizeMermaidCodeForRender(chart.code));
   } catch {
     throw new ComposeMediaSourceRehydrationError(
       `Governed chart source asset ${params.stored.file.id} could not be rendered for server composition.`,

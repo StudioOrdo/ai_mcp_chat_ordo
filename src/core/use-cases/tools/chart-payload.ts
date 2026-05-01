@@ -143,6 +143,50 @@ function escapeLabel(value: string): string {
   return value.replace(/"/g, '\\"').replace(/\n/g, "<br/>").trim();
 }
 
+function escapeQuadrantPointLabel(value: string): string {
+  return value
+    .replace(/["[\]\n]/g, " ")
+    .replace(/:/g, " -")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeQuadrantCoordinate(value: number): number {
+  if (value >= 0 && value <= 1) {
+    return value;
+  }
+
+  if (value >= 0 && value <= 100) {
+    return value / 100;
+  }
+
+  throw new Error("Quadrant point coordinates must be between 0 and 1, or between 0 and 100 for percentage-style input.");
+}
+
+function formatQuadrantCoordinate(value: number): string {
+  return Number(value.toFixed(4)).toString();
+}
+
+export function normalizeMermaidCodeForRender(code: string): string {
+  const normalized = stripMermaidPreamble(code);
+  if (!normalized.startsWith("quadrantChart")) {
+    return code;
+  }
+
+  return code.split("\n").map((line) => {
+    const match = line.match(/^(\s*)"?([^":\[\]\n]+?)"?\s*:\s*\[\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\]\s*$/);
+    if (!match) {
+      return line;
+    }
+
+    const [, indent, rawLabel, rawX, rawY] = match;
+    const label = escapeQuadrantPointLabel(rawLabel ?? "");
+    const x = normalizeQuadrantCoordinate(Number(rawX));
+    const y = normalizeQuadrantCoordinate(Number(rawY));
+    return `${indent}${label}: [${formatQuadrantCoordinate(x)}, ${formatQuadrantCoordinate(y)}]`;
+  }).join("\n");
+}
+
 function normalizeId(rawId: string, fallback: string): string {
   const normalized = rawId.replace(/[^A-Za-z0-9_]/g, "_");
   if (!normalized) return fallback;
@@ -321,7 +365,9 @@ function buildQuadrantCode(spec: Record<string, unknown>): string {
     if (!label || x === undefined || y === undefined) {
       throw new Error("Each quadrant point requires label, x, and y.");
     }
-    lines.push(`    "${escapeLabel(label)}": [${x}, ${y}]`);
+    lines.push(
+      `    ${escapeQuadrantPointLabel(label)}: [${formatQuadrantCoordinate(normalizeQuadrantCoordinate(x))}, ${formatQuadrantCoordinate(normalizeQuadrantCoordinate(y))}]`,
+    );
   }
 
   return lines.join("\n");
@@ -409,7 +455,7 @@ export function resolveGenerateChartPayload(
   const caption = asString(input.caption);
   const downloadFileName = asString(input.downloadFileName);
   const spec = isObject(input.spec) ? input.spec : undefined;
-  const resolvedCode = code ?? (spec ? buildCodeFromSpec(spec) : undefined);
+  const resolvedCode = code ? normalizeMermaidCodeForRender(code) : (spec ? buildCodeFromSpec(spec) : undefined);
 
   if (!resolvedCode) {
     throw new Error("generate_chart requires either a valid Mermaid code string or a structured spec describing the chart.");

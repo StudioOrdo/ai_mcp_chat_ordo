@@ -6,7 +6,6 @@ import { corpusConfig } from "@/lib/corpus-vocabulary";
 import {
   KnowledgeAccessService,
   type GetSectionPayload,
-  type SearchCorpusPayload,
 } from "@/core/platform/knowledge-access/KnowledgeAccessService";
 import { ChecklistInteractor } from "../ChecklistInteractor";
 import { PractitionerInteractor } from "../PractitionerInteractor";

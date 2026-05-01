@@ -1,5 +1,3 @@
-import { randomUUID } from "node:crypto";
-
 import type { QAReport } from "@/core/entities/qa-report";
 
 import { QAEvaluator } from "../qa-evaluator";

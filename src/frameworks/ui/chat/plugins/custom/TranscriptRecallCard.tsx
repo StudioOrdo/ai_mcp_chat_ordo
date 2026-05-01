@@ -11,10 +11,6 @@ import { CapabilityDisclosure } from "../../primitives/CapabilityDisclosure";
 import { CapabilityMetricStrip } from "../../primitives/CapabilityMetricStrip";
 import { JobStatusFallbackCard } from "../system/JobStatusFallbackCard";
 
-function detailValue(value: string | null | undefined): string | null {
-  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
-}
-
 function createContextItems(items: Array<{ label: string; value: React.ReactNode }>) {
   return items.filter((item) => item.value != null && item.value !== false && item.value !== "");
 }

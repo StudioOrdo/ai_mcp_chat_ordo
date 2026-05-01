@@ -1,5 +1,4 @@
 import type { CapabilityDefinition } from "../capability-definition";
-import { CATALOG_INPUT_SCHEMAS } from "../catalog-input-schemas";
 
 export const SHARED_CALCULATOR_CAPABILITIES = {
   calculator: {

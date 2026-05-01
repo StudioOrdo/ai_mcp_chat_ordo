@@ -14,11 +14,6 @@ import * as fs from "fs";
 import * as path from "path";
 
 import {
-  projectPresentationDescriptor,
-  projectJobCapability,
-  projectBrowserCapability,
-} from "./catalog";
-import {
   projectAllCapabilityRuntimeStatics,
   projectCapabilityRuntimeStaticByName,
 } from "@/core/platform/capability-runtime/CapabilityRuntime";

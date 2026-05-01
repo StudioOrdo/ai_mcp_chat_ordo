@@ -58,6 +58,37 @@ describe("resolveGenerateChartPayload", () => {
 
     expect(payload.code).toContain("quadrantChart");
     expect(payload.code).toContain("quadrant-1 Act now");
-    expect(payload.code).toContain('"23 drop-off": [0.84, 0.88]');
+    expect(payload.code).toContain("23 drop-off: [0.84, 0.88]");
+  });
+
+  it("normalizes quadrant point labels and percentage coordinates for Mermaid rendering", () => {
+    const payload = resolveGenerateChartPayload({
+      spec: {
+        chartType: "quadrant",
+        title: "The LLM Paradox",
+        xAxis: { minLabel: "Low", maxLabel: "High" },
+        yAxis: { minLabel: "Low", maxLabel: "High" },
+        points: [
+          { label: "LLM Today", x: 15, y: 85 },
+          { label: "Human Expert", x: 90, y: 90 },
+        ],
+      },
+    });
+
+    expect(payload.code).toContain("LLM Today: [0.15, 0.85]");
+    expect(payload.code).toContain("Human Expert: [0.9, 0.9]");
+  });
+
+  it("normalizes existing quoted quadrant code before server rendering", () => {
+    const payload = resolveGenerateChartPayload({
+      code: [
+        "quadrantChart",
+        "    x-axis Low --> High",
+        "    y-axis Low --> High",
+        "    \"LLM Today\": [15, 85]",
+      ].join("\n"),
+    });
+
+    expect(payload.code).toContain("    LLM Today: [0.15, 0.85]");
   });
 });

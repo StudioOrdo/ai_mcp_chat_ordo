@@ -18,6 +18,7 @@ const GraphRenderer = dynamic(
 import type { UserMediaFilters, UserMediaItem } from "@/lib/media/user-media";
 import type { UserFileStorageSummary } from "@/core/entities/user-file-storage";
 import type { MediaQuotaSnapshot } from "@/lib/storage/media-quota-policy";
+import type { GraphSpec } from "@/core/entities/rich-content";
 
 interface UserMediaWorkspaceProps {
   userName: string;
@@ -97,13 +98,20 @@ function SummaryCard({
 }
 
 function DataAssetPreview({ item }: { item: UserMediaItem }) {
-  const [data, setData] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [state, setState] = useState<{
+    previewUrl: string;
+    data: string | null;
+    error: string | null;
+    loading: boolean;
+  }>({
+    previewUrl: item.previewUrl,
+    data: null,
+    error: null,
+    loading: true,
+  });
 
   useEffect(() => {
     let active = true;
-    setLoading(true);
     fetch(item.previewUrl)
       .then((res) => {
         if (!res.ok) throw new Error("Failed to load asset data");
@@ -111,20 +119,27 @@ function DataAssetPreview({ item }: { item: UserMediaItem }) {
       })
       .then((text) => {
         if (active) {
-          setData(text);
-          setLoading(false);
+          setState({ previewUrl: item.previewUrl, data: text, error: null, loading: false });
         }
       })
       .catch((err) => {
         if (active) {
-          setError(err.message);
-          setLoading(false);
+          setState({
+            previewUrl: item.previewUrl,
+            data: null,
+            error: err instanceof Error ? err.message : "Failed to load asset data",
+            loading: false,
+          });
         }
       });
     return () => {
       active = false;
     };
   }, [item.previewUrl]);
+
+  const loading = state.previewUrl !== item.previewUrl || state.loading;
+  const data = state.previewUrl === item.previewUrl ? state.data : null;
+  const error = state.previewUrl === item.previewUrl ? state.error : null;
 
   if (loading) {
     return <div className="animate-pulse rounded-lg bg-surface-muted p-8 text-center text-sm text-foreground/50">Loading asset data...</div>;
@@ -143,18 +158,19 @@ function DataAssetPreview({ item }: { item: UserMediaItem }) {
   }
 
   if (item.fileType === "graph" || item.mimeType === "application/json") {
+    let actualGraph: GraphSpec;
     try {
       const graphData = JSON.parse(data);
-      // Determine if it is a resolved graph payload or just the raw graph
-      const actualGraph = graphData.graph ? graphData.graph : graphData;
-      return (
-        <div className="rounded-lg border border-border/60 bg-white dark:bg-black p-4">
-          <GraphRenderer graph={actualGraph} />
-        </div>
-      );
+      actualGraph = (graphData.graph ? graphData.graph : graphData) as GraphSpec;
     } catch {
       return <div className="rounded-lg border border-red-500/20 p-4 text-sm text-red-700">Invalid graph JSON</div>;
     }
+
+    return (
+      <div className="rounded-lg border border-border/60 bg-white dark:bg-black p-4">
+        <GraphRenderer graph={actualGraph} />
+      </div>
+    );
   }
 
   // Fallback for document or text

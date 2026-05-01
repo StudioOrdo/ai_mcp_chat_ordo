@@ -239,6 +239,7 @@ interface CatalogRuntimeBinding<T = unknown> {
   createExecutor: (deps: CatalogToolBindingDeps) => CatalogExecutor<T>;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Registry storage must preserve heterogeneous parser/executor pairs.
 type AnyCatalogRuntimeBinding = CatalogRuntimeBinding<any>;
 
 function requireBlogRepo(deps: CatalogToolBindingDeps): BlogPostRepository {

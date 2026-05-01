@@ -1,4 +1,3 @@
-/* eslint-disable react/jsx-handler-names */
 "use client";
 
 import { useState } from "react";
@@ -14,11 +13,11 @@ import { CapabilityDetailDrawer } from "./CapabilityDetailDrawer";
 import {
   hasInlineToolCallError,
   humanizeSystemToolName,
-  summarizeSystemResult,
 } from "./resolve-system-card";
 import {
   resolveCompactMeta,
   resolveJobDisplayStatus,
+  resolveJobPresentationNowMs,
   resolveReplayRouteLabel,
   resolveReplayRepairs,
   resolveReplayRepairSummary,
@@ -72,7 +71,7 @@ export function SystemJobCard({
   const [expanded, setExpanded] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
 
-  const nowMs = Date.now();
+  const nowMs = resolveJobPresentationNowMs(part);
   const effectiveEnvelope = resultEnvelope ?? part?.resultEnvelope ?? null;
   const toolName = part?.toolName ?? toolCall?.name ?? "unknown_tool";
   const label = resolveCapabilityDisplayLabel({

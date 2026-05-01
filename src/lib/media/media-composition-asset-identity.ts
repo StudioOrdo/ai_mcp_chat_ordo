@@ -1,7 +1,6 @@
 import type { ChatMessage } from "@/core/entities/chat-message";
 import type { AssetCatalogEntry } from "@/core/entities/asset-catalog";
 import type { MessagePart } from "@/core/entities/message-parts";
-import type { UserFile } from "@/core/entities/user-file";
 import { resolveGenerateChartPayload } from "@/core/use-cases/tools/chart-payload";
 import { resolveGenerateGraphPayload } from "@/core/use-cases/tools/graph-payload";
 import type {
@@ -159,59 +158,6 @@ export function buildMediaCompositionCanonicalizationOptionsFromAssetCatalogEntr
       .map(projectAssetCatalogEntryToConversationMediaAssetCandidate)
       .filter((asset): asset is ConversationMediaAssetCandidate => Boolean(asset)),
   );
-}
-
-type SupportedAliasToolName = "generate_chart" | "generate_graph" | "generate_blog_image";
-
-type ToolCallAliasSeed = {
-  toolName: SupportedAliasToolName;
-  aliases: string[];
-};
-
-function buildToolCallAliasSeed(part: Extract<MessagePart, { type: "tool_call" }>): ToolCallAliasSeed | null {
-  if (part.name === "generate_chart") {
-    return {
-      toolName: part.name,
-      aliases: collectAliasVariants([
-        readString(part.args.title),
-        readString(part.args.downloadFileName),
-      ]),
-    };
-  }
-
-  if (part.name === "generate_graph") {
-    return {
-      toolName: part.name,
-      aliases: collectAliasVariants([
-        readString(part.args.title),
-        readString(part.args.caption),
-        readString(part.args.downloadFileName),
-      ]),
-    };
-  }
-
-  if (part.name === "generate_blog_image") {
-    return {
-      toolName: part.name,
-      aliases: collectAliasVariants([
-        readString(part.args.prompt),
-        readString(part.args.alt_text),
-      ]),
-    };
-  }
-
-  return null;
-}
-
-function resolveFallbackFileType(toolName: SupportedAliasToolName): UserFile["fileType"] | "image" {
-  switch (toolName) {
-    case "generate_chart":
-      return "chart";
-    case "generate_graph":
-      return "graph";
-    case "generate_blog_image":
-      return "image";
-  }
 }
 
 function buildChartCandidate(payload: unknown, args: Record<string, unknown>): MediaCompositionAssetIdentityCandidate | null {

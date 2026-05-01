@@ -1,4 +1,3 @@
-import type { JobStatus } from "@/core/entities/job";
 import type { StageRunRecord } from "@/core/entities/stage-run-record";
 import type { WorkOrder } from "@/core/entities/work-order";
 import type {

@@ -170,9 +170,9 @@ describe("useComposeMediaMaterialization", () => {
   });
 
   it("burns captions for browser_short_explainer image beats and preserves source lineage", async () => {
-    const imageBlob = new Blob(["image"], { type: "image/png" });
+    const imageBytes = new Uint8Array([105, 109, 97, 103, 101]);
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(new Response(imageBlob, { status: 200, headers: { "Content-Type": "image/png" } }))
+      .mockResolvedValueOnce(new Response(imageBytes, { status: 200, headers: { "Content-Type": "image/png" } }))
       .mockResolvedValueOnce(new Response(JSON.stringify({
         attachments: [{ assetId: "uf_image_burned_1", mimeType: "image/png", assetKind: "image", source: "derived", retentionClass: "conversation" }],
       }), { status: 200, headers: { "Content-Type": "application/json" } }));

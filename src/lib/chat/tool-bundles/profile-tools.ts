@@ -1,17 +1,11 @@
 import type { ToolBundleDescriptor } from "@/core/tool-registry/ToolBundleDescriptor";
 import type { ToolRegistry } from "@/core/tool-registry/ToolRegistry";
-import type { JobStatusQuery } from "@/core/use-cases/JobStatusQuery";
 import { getJobStatusQuery } from "@/adapters/RepositoryFactory";
 import { createProfileService } from "@/lib/profile/profile-service";
 import {
   createCatalogBoundToolBundle,
   registerCatalogBoundToolBundle,
 } from "./bundle-registration";
-
-interface ProfileToolRegistrationDeps {
-  readonly profileService: ReturnType<typeof createProfileService>;
-  readonly jobStatusQuery: JobStatusQuery;
-}
 
 export const PROFILE_BUNDLE: ToolBundleDescriptor = createCatalogBoundToolBundle(
   "profile",

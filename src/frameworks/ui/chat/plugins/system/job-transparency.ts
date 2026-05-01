@@ -226,6 +226,20 @@ export function resolveCompactMeta(
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 
+export function resolveJobPresentationNowMs(part: JobStatusMessagePart | undefined): number {
+  if (!part) {
+    return Date.now();
+  }
+
+  if (part.status === "queued" || part.status === "running" || part.nextRetryAt) {
+    return Date.now();
+  }
+
+  const presentationAnchor = part.completedAt ?? part.updatedAt ?? part.startedAt;
+  const parsedAnchor = parseTimestamp(presentationAnchor);
+  return parsedAnchor ?? Date.now();
+}
+
 export function resolveJobDisplayStatus(
   part: JobStatusMessagePart | undefined,
   fallbackStatus: JobStatus,

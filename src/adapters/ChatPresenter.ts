@@ -26,7 +26,6 @@ import {
   compareJobRenderCandidateFreshness,
   getGenerationStatusPart,
   resolveTruthBoundMediaText,
-  upsertRenderedJobCandidate,
   type JobRenderCandidate,
 } from "@/lib/chat/JobRenderCandidateMerger";
 import {
