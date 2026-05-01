@@ -85,6 +85,26 @@ function ensureDirectoryForPath(filePath: string): void {
 export class UserFileSystem {
   constructor(private repo: UserFileRepository) {}
 
+  private async reuseStoredFile(params: {
+    existing: UserFile;
+    userId: string;
+    conversationId: string | null;
+    diskPath: string;
+    data: Buffer;
+  }): Promise<UserFile> {
+    if (!fs.existsSync(params.diskPath)) {
+      ensureDirectoryForPath(params.diskPath);
+      fs.writeFileSync(params.diskPath, params.data);
+    }
+
+    if (params.conversationId && params.existing.conversationId === null) {
+      await this.repo.assignConversation([params.existing.id], params.userId, params.conversationId);
+      return await this.repo.findById(params.existing.id) ?? params.existing;
+    }
+
+    return params.existing;
+  }
+
   private async prepareBinaryFile(params: {
     userId: string;
     conversationId: string | null;
@@ -187,6 +207,24 @@ export class UserFileSystem {
     const hash = contentHash(params.input);
     const fileName = `${hash}.${params.extension}`;
     const diskPath = getUserFilePath(params.userId, fileName);
+
+    const existing = await this.repo.findByHash(params.userId, hash, params.fileType);
+    const canReuseExisting = existing
+      && (
+        existing.conversationId === params.conversationId
+        || existing.conversationId === null
+        || params.conversationId === null
+      );
+
+    if (existing && canReuseExisting) {
+      return this.reuseStoredFile({
+        existing,
+        userId: params.userId,
+        conversationId: params.conversationId,
+        diskPath,
+        data: params.data,
+      });
+    }
 
     // Ensure user directory exists
     const dir = path.dirname(diskPath);

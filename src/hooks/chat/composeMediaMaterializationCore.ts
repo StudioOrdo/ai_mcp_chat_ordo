@@ -1,6 +1,10 @@
 import type { Dispatch } from "react";
 
 import type { JobStatusMessagePart } from "@/core/entities/message-parts";
+import {
+  canonicalJobSnapshotToStatusPart,
+  isCanonicalJobSnapshot,
+} from "@/lib/jobs/job-read-model";
 import type {
   MediaAssetKind,
   MediaAssetRetentionClass,
@@ -77,7 +81,6 @@ import type { BrowserRuntimeTruncationDiagnostic } from "@/lib/media/browser-run
 import { sortTruncationDiagnostics } from "@/lib/media/browser-runtime/runtime-diagnostics";
 import {
   canRerouteBrowserShortExplainerPlan,
-  deriveBrowserShortExplainerNarrationOverrides,
   getBrowserShortExplainerBeatCaptions,
   hasBrowserShortExplainerCaptionText,
   isBrowserShortExplainerPlan,
@@ -165,46 +168,6 @@ function resolveComposeMediaRuntimeFailure(error: unknown): {
     failureCode: "runtime_exception",
     failureStage: "local_execution",
   };
-}
-
-function isJobStatusMessagePart(value: unknown): value is JobStatusMessagePart {
-  return isRecord(value)
-    && value.type === "job_status"
-    && typeof value.jobId === "string"
-    && typeof value.toolName === "string"
-    && typeof value.label === "string"
-    && typeof value.status === "string";
-}
-
-function hydrateBrowserShortExplainerNarration(
-  plan: MediaCompositionPlan,
-  assetResolutionIndex: AssetResolutionIndex,
-): MediaCompositionPlan {
-  if (!isBrowserShortExplainerPlan(plan) || plan.subtitlePolicy !== "burned" || hasBrowserShortExplainerCaptionText(plan)) {
-    return plan;
-  }
-
-  const audioClip = plan.audioClips[0];
-  if (!audioClip) {
-    return plan;
-  }
-
-  const audioPayload = [audioClip.assetId, audioClip.sourceAssetId]
-    .filter((assetId): assetId is string => typeof assetId === "string" && assetId.trim().length > 0)
-    .map((assetId) => assetResolutionIndex.getAudioPayloadByAssetId(assetId))
-    .find((payload) => payload !== null);
-
-  if (!audioPayload) {
-    return plan;
-  }
-
-  const overrides = deriveBrowserShortExplainerNarrationOverrides({
-    existingOverrides: plan.overrides,
-    narrationTitle: audioPayload.title,
-    narrationText: audioPayload.text,
-  });
-
-  return overrides ? { ...plan, overrides } : plan;
 }
 
 async function uploadBrowserRuntimeAsset(options: {
@@ -608,20 +571,16 @@ export function createComposeMediaMaterialization(
   const resolveStoredChartPayloadForComposition = async (clip: MediaCompositionPlan["visualClips"][number], signal: AbortSignal) => {
     const stored = await fetchStoredChartPayloadByAssetId({ assetId: clip.assetId, signal });
     if (stored.payload) return stored.payload;
-    const transcriptPayload = assetResolutionIndex.getChartPayloadByAssetId(clip.assetId);
-    if (transcriptPayload) return transcriptPayload;
     throw stored.error ?? new ComposeMediaSourceRehydrationError(
-      `Governed chart source asset ${clip.assetId} could not be rehydrated for video composition and no compatible transcript fallback is available.`,
+      `Governed chart source asset ${clip.assetId} could not be rehydrated for video composition.`,
     );
   };
 
   const resolveStoredGraphPayloadForComposition = async (clip: MediaCompositionPlan["visualClips"][number], signal: AbortSignal) => {
     const stored = await fetchStoredGraphPayloadByAssetId({ assetId: clip.assetId, signal });
     if (stored.payload) return stored.payload;
-    const transcriptPayload = assetResolutionIndex.getGraphPayloadByAssetId(clip.assetId);
-    if (transcriptPayload) return transcriptPayload;
     throw stored.error ?? new ComposeMediaSourceRehydrationError(
-      `Governed graph source asset ${clip.assetId} could not be rehydrated for video composition and no compatible transcript fallback is available.`,
+      `Governed graph source asset ${clip.assetId} could not be rehydrated for video composition.`,
     );
   };
 
@@ -790,7 +749,8 @@ export function createComposeMediaMaterialization(
     candidate: Pick<BrowserRuntimeCandidate, "payload" | "args">,
     failureStage: ComposeMediaPlanResolutionStage,
   ): ComposeMediaPlanResolution => {
-    const plan = normalizeMediaCompositionPlan(candidate.args.plan) ?? normalizeMediaCompositionPlan(candidate.payload);
+    const plan = normalizeMediaCompositionPlan(candidate.args.plan, conversationId ?? undefined)
+      ?? normalizeMediaCompositionPlan(candidate.payload, conversationId ?? undefined);
     if (!plan) {
       return {
         plan: null,
@@ -807,7 +767,7 @@ export function createComposeMediaMaterialization(
       });
 
       return {
-        plan: hydrateBrowserShortExplainerNarration(canonicalization.plan, assetResolutionIndex),
+        plan: canonicalization.plan,
         error: null,
         failureCode: null,
         failureStage: null,
@@ -843,7 +803,7 @@ export function createComposeMediaMaterialization(
     const payload = await response.json().catch(() => null) as {
       error?: string;
       errorCode?: string;
-      job?: { part?: unknown };
+      job?: unknown;
     } | null;
 
     if (!response.ok) {
@@ -855,13 +815,13 @@ export function createComposeMediaMaterialization(
       );
     }
 
-    if (!isJobStatusMessagePart(payload?.job?.part)) {
+    if (!isCanonicalJobSnapshot(payload?.job)) {
       throw new ComposeMediaDeferredEnqueueError(
         "Deferred media recovery completed without returning a canonical job snapshot.",
       );
     }
 
-    return payload.job.part;
+    return canonicalJobSnapshotToStatusPart(payload.job);
   };
 
   const enqueueRecovery = async ({

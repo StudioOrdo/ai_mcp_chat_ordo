@@ -352,6 +352,266 @@
     opacity: 0.45;
   }
 
+  .ui-jobs-rail-root {
+    position: relative;
+    min-width: 0;
+  }
+
+  .ui-jobs-rail-trigger {
+    --jobs-rail-state-color: color-mix(in oklab, var(--foreground) 44%, transparent);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.45rem;
+    height: 2.45rem;
+    border: 1px solid color-mix(in oklab, var(--jobs-rail-state-color) 38%, transparent);
+    border-radius: 0.5rem;
+    background: color-mix(in oklab, var(--surface) 90%, var(--jobs-rail-state-color) 8%);
+    color: var(--jobs-rail-state-color);
+    padding: 0;
+  }
+
+  .ui-jobs-rail-trigger-icon {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: inherit;
+  }
+
+  .ui-jobs-rail-factory-icon {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .ui-jobs-rail-trigger-badge {
+    position: absolute;
+    right: -0.46rem;
+    top: -0.46rem;
+    display: inline-flex;
+    min-width: 1.1rem;
+    height: 1.1rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid color-mix(in oklab, var(--background) 92%, transparent);
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--foreground) 88%, var(--accent-interactive));
+    color: var(--background);
+    font-size: 0.64rem;
+    font-weight: 800;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ui-jobs-rail-trigger-light {
+    position: absolute;
+    right: -0.12rem;
+    bottom: -0.12rem;
+    width: 0.48rem;
+    height: 0.48rem;
+    border: 1px solid color-mix(in oklab, var(--background) 86%, transparent);
+    border-radius: 999px;
+    background: var(--jobs-rail-state-color);
+    box-shadow: 0 0 0.55rem color-mix(in oklab, var(--jobs-rail-state-color) 48%, transparent);
+  }
+
+  .ui-jobs-rail-root[data-jobs-rail-state="needs_input"] .ui-jobs-rail-trigger {
+    --jobs-rail-state-color: color-mix(in oklab, var(--warning, #b7791f) 82%, var(--foreground));
+  }
+
+  .ui-jobs-rail-root[data-jobs-rail-state="needs_input"] .ui-jobs-rail-trigger-badge {
+    background: color-mix(in oklab, var(--warning, #b7791f) 86%, var(--foreground));
+  }
+
+  .ui-jobs-rail-root[data-jobs-rail-state="running"] .ui-jobs-rail-trigger {
+    --jobs-rail-state-color: color-mix(in oklab, var(--accent-interactive) 76%, var(--foreground));
+  }
+
+  .ui-jobs-rail-root[data-jobs-rail-state="completed"] .ui-jobs-rail-trigger {
+    --jobs-rail-state-color: color-mix(in oklab, var(--status-success, #2f9e44) 78%, var(--foreground));
+  }
+
+  .ui-jobs-rail-root[data-jobs-rail-state="reconnecting"] .ui-jobs-rail-trigger {
+    --jobs-rail-state-color: color-mix(in oklab, var(--status-error, #c2410c) 70%, var(--foreground));
+  }
+
+  .ui-jobs-rail-root[data-jobs-rail-state="running"] .ui-jobs-rail-factory-motion {
+    animation: jobs-rail-work-shift 1.4s ease-in-out infinite;
+  }
+
+  @keyframes jobs-rail-work-shift {
+    0%, 100% {
+      opacity: 0.38;
+      transform: translateX(0);
+    }
+    45% {
+      opacity: 1;
+      transform: translateX(1.6px);
+    }
+  }
+
+  .ui-jobs-rail-drawer {
+    position: absolute;
+    right: 0;
+    top: calc(100% + var(--space-2));
+    z-index: 30;
+    display: grid;
+    width: min(28rem, calc(100vw - var(--space-4)));
+    max-height: min(32rem, calc(100vh - 8rem));
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    border: 1px solid color-mix(in oklab, var(--foreground) 8%, transparent);
+    border-radius: 0.5rem;
+    background: color-mix(in oklab, var(--surface) 97%, var(--background));
+    box-shadow: 0 18px 36px -30px color-mix(in srgb, var(--shadow-base) 24%, transparent);
+    overflow: hidden;
+  }
+
+  .ui-jobs-rail-drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    border-bottom: 1px solid color-mix(in oklab, var(--foreground) 8%, transparent);
+    padding: var(--space-3);
+  }
+
+  .ui-jobs-rail-drawer-title {
+    font-size: 0.86rem;
+    font-weight: 750;
+    color: color-mix(in oklab, var(--foreground) 88%, transparent);
+  }
+
+  .ui-jobs-rail-drawer-subtitle,
+  .ui-jobs-rail-row-meta,
+  .ui-jobs-rail-section-label {
+    font-size: 0.73rem;
+    color: color-mix(in oklab, var(--foreground) 54%, transparent);
+  }
+
+  .ui-jobs-rail-icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.8rem;
+    height: 1.8rem;
+    border: 1px solid color-mix(in oklab, var(--foreground) 8%, transparent);
+    border-radius: 0.5rem;
+    background: transparent;
+    color: color-mix(in oklab, var(--foreground) 64%, transparent);
+  }
+
+  .ui-jobs-rail-section-list {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    gap: var(--space-3);
+    overflow: auto;
+    padding: var(--space-3);
+  }
+
+  .ui-jobs-rail-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .ui-jobs-rail-section-label {
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .ui-jobs-rail-row-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .ui-jobs-rail-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-3);
+    border: 1px solid color-mix(in oklab, var(--foreground) 7%, transparent);
+    border-radius: 0.5rem;
+    padding: var(--space-3);
+  }
+
+  .ui-jobs-rail-row-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: color-mix(in oklab, var(--foreground) 86%, transparent);
+  }
+
+  .ui-jobs-rail-row-meta {
+    display: flex;
+    min-width: 0;
+    gap: var(--space-2);
+    overflow: hidden;
+  }
+
+  .ui-jobs-rail-row-meta span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ui-jobs-rail-row-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .ui-jobs-rail-action,
+  .ui-jobs-rail-utility {
+    border: 1px solid color-mix(in oklab, var(--foreground) 8%, transparent);
+    border-radius: 0.5rem;
+    background: transparent;
+    color: color-mix(in oklab, var(--foreground) 74%, transparent);
+    font-size: 0.76rem;
+    font-weight: 700;
+    padding: var(--space-2) var(--space-3);
+    white-space: nowrap;
+  }
+
+  .ui-jobs-rail-action-primary {
+    background: color-mix(in oklab, var(--accent-interactive) 12%, transparent);
+    border-color: color-mix(in oklab, var(--accent-interactive) 24%, transparent);
+    color: color-mix(in oklab, var(--accent-interactive) 80%, var(--foreground));
+  }
+
+  .ui-jobs-rail-utilities {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    border-top: 1px solid color-mix(in oklab, var(--foreground) 8%, transparent);
+    padding: var(--space-3);
+  }
+
+  .ui-jobs-rail-utility:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+
+  .ui-jobs-rail-empty {
+    border: 1px dashed color-mix(in oklab, var(--foreground) 12%, transparent);
+    border-radius: 0.5rem;
+    color: color-mix(in oklab, var(--foreground) 58%, transparent);
+    padding: var(--space-4);
+    text-align: center;
+    font-size: 0.84rem;
+    font-weight: 650;
+  }
+
   .ui-chat-composer-seam {
     background: linear-gradient(to right, transparent, color-mix(in oklab, var(--foreground) 8%, transparent), transparent);
   }

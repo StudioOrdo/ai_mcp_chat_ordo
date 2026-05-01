@@ -243,7 +243,7 @@ describe("slash command execution", () => {
     it("formats active jobs when present", async () => {
       const context = createMockContext();
       (context.jobStatusQuery.listConversationJobSnapshots as ReturnType<typeof vi.fn>).mockResolvedValue([
-        { part: { label: "Audio generation", status: "running", progressLabel: "50%" } },
+        { label: "Audio generation", status: "running", progressLabel: "50%" },
       ]);
 
       const resolved = resolveChatSlashCommand("/status")!;

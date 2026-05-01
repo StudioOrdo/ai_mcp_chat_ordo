@@ -38,12 +38,19 @@ vi.mock("@/adapters/RepositoryFactory", () => ({
     listForUser: vi.fn(() => []),
     create: vi.fn(),
   })),
+  getAssetCatalogReader: vi.fn(() => ({
+    listConversationMediaAssets: vi.fn(() => []),
+  })),
   getUserPreferencesDataMapper: vi.fn(() => ({
     get: vi.fn(),
     set: vi.fn(),
   })),
+  getFactoryRepository: vi.fn(() => ({})),
   getBlogPostRevisionRepository: vi.fn(() => ({})),
   getJournalEditorialMutationRepository: vi.fn(() => ({})),
+  getRelationshipMemoryRepository: vi.fn(() => ({
+    search: vi.fn(() => []),
+  })),
   getVectorStore: vi.fn(() => ({ search: vi.fn(() => []) })),
 }));
 

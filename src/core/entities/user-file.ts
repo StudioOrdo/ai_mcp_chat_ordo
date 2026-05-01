@@ -38,6 +38,9 @@ export interface UserFileMetadata {
   durationSeconds?: number;
   toolName?: string;
   toolInvocationId?: string;
+  jobId?: string;
+  producedByJobId?: string;
+  materializationKey?: string;
   derivativeOfToolInvocationId?: string | null;
   retentionClass?: MediaAssetRetentionClass;
   derivativeOfAssetId?: string | null;

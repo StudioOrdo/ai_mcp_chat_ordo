@@ -5,6 +5,7 @@ import type { PresentedMessage } from "../../adapters/ChatPresenter";
 import type { MessageAction } from "../../adapters/ChatPresenter";
 import { RichContentRenderer } from "./RichContentRenderer";
 import { ToolPluginPartRenderer } from "./chat/ToolPluginPartRenderer";
+import { MediaWorkflowCard } from "./chat/plugins/custom/MediaWorkflowCard";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import type { ActionLinkType, BlockNode, InlineNode, RichContent } from "@/core/entities/rich-content";
 import { useInstanceIdentity, useInstancePrompts } from "@/lib/config/InstanceConfigContext";
@@ -24,24 +25,9 @@ interface MessageListProps {
   isEmbedded?: boolean;
 }
 
-const HERO_PROOF_POINTS = [
-  {
-    title: "One compact system",
-    body: "Chat, search, jobs, and publishing stay inside one app footprint.",
-  },
-  {
-    title: "Background AI workflows",
-    body: "Deferred jobs keep long-running work visible, retryable, and under control.",
-  },
-  {
-    title: "Governed by default",
-    body: "Role-aware tools, prompts, and workflow actions stay aligned with the operator model.",
-  },
-] as const;
-
 const BrandHeader = ({ isEmbedded = false, serviceChips, heroHeading, heroSubheading }: { isEmbedded?: boolean; serviceChips: readonly string[]; heroHeading: string; heroSubheading: string }) => (
   <div
-    className={`mx-auto flex w-full max-w-4xl flex-col items-center justify-center px-(--space-3) text-center animate-in fade-in slide-in-from-top-4 duration-700 ease-out fill-mode-both sm:px-(--space-4) ${isEmbedded ? "pb-(--hero-intro-stack-gap) space-y-(--hero-intro-stack-gap)" : "pt-(--phi-1) pb-(--hero-intro-stack-gap) space-y-(--hero-intro-stack-gap)"}`}
+    className={`mx-auto flex w-full max-w-3xl flex-col items-center justify-center px-(--space-3) text-center animate-in fade-in slide-in-from-top-4 duration-700 ease-out fill-mode-both sm:px-(--space-4) ${isEmbedded ? "pb-(--space-3) space-y-(--space-3)" : "pt-(--phi-1) pb-(--space-3) space-y-(--space-3)"}`}
     data-homepage-chat-intro="true"
   >
     <div className="ui-chat-brand-chip-cluster flex flex-wrap items-center justify-center gap-x-(--hero-badge-gap) gap-y-(--phi-2) rounded-full px-(--hero-badge-padding-inline) py-(--hero-badge-padding-block) text-[0.66rem] font-medium uppercase tracking-[0.18em] text-foreground/56">
@@ -79,26 +65,6 @@ const BrandHeader = ({ isEmbedded = false, serviceChips, heroHeading, heroSubhea
     >
       {heroSubheading}
     </p>
-
-    <div
-      className="grid w-full max-w-5xl gap-3 pt-(--phi-2) text-left sm:grid-cols-3"
-      data-homepage-proof-strip="true"
-    >
-      {HERO_PROOF_POINTS.map((item) => (
-        <div
-          key={item.title}
-          className="rounded-3xl border border-foreground/10 bg-background/75 px-4 py-4 shadow-[0_18px_50px_-32px_rgba(15,23,42,0.28)] backdrop-blur-sm"
-          data-homepage-proof-card="true"
-        >
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/46">
-            {item.title}
-          </p>
-          <p className="mt-2 text-sm leading-6 text-foreground/74">
-            {item.body}
-          </p>
-        </div>
-      ))}
-    </div>
   </div>
 );
 
@@ -499,6 +465,8 @@ const AssistantBubbleContent: React.FC<AssistantBubbleSharedProps & {
               isStreaming={isStreaming}
               onActionClick={onActionClick}
             />
+          ) : entry.kind === "workflow-status" ? (
+            <MediaWorkflowCard key={`workflow-${entry.workflow.workflowId}-${idx}`} workflow={entry.workflow} />
           ) : (
             <ToolPluginPartRenderer
               key={`tool-${entry.name}-${idx}`}

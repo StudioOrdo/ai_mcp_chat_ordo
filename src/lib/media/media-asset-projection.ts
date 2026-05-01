@@ -17,6 +17,8 @@ export interface ConversationMediaAssetCandidate {
   retentionClass: MediaAssetRetentionClass;
   createdAt: string;
   conversationId: string | null;
+  producedByJobId?: string | null;
+  materializationKey?: string | null;
   toolName?: string;
   toolInvocationId?: string;
   derivativeOfToolInvocationId?: string | null;

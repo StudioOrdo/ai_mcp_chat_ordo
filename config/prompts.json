@@ -1,15 +1,15 @@
 {
-  "heroHeading": "Run the work from one AI workspace.",
-  "heroSubheading": "Studio Ordo gives solopreneurs chat, workflow automation, local search, publishing, and operator control in one easy-to-host system with no separate database, queue, or search server to manage.",
+  "heroHeading": "May I help you?",
+  "heroSubheading": "Tell me what you want to make, decide, publish, or organize. I can use Ordo's research, workflow, and publishing tools to move the work forward.",
   "firstMessage": {
-    "default": "Bring me the messy workflow, half-finished idea, or customer task. I can help you plan the work, search your library, turn it into assets, and keep it moving from one governed workspace.",
+    "default": "Bring me the next decision, messy idea, or customer problem. I can help you turn it into a clear move and a system that keeps growing with you.",
     "withReferral": "Welcome — {{referrer.name}} sent you here for a reason. I can show you how {{brand.name}} helps a solo operator run research, workflows, and publishing from one place."
   },
   "defaultSuggestions": [
-    "Plan this workflow",
-    "Search my library",
-    "Turn this into an asset",
-    "What makes this different?"
+    "Search my materials",
+    "Draft a publishable page",
+    "Plan a customer workflow",
+    "Turn notes into an offer"
   ],
   "referralSuggestions": [
     "Why is this different?",

@@ -39,7 +39,7 @@ describe("generate_blog_image tool", () => {
 
     expect(service.generate).toHaveBeenCalledWith({
       postId: "post_1",
-      prompt: "Prompt",
+      prompt: "Prompt. Non-graphic, non-sexual, non-violent, no gore, no exposed anatomy.",
       altText: "Hero alt text",
       preset: undefined,
       size: "1024x1024",

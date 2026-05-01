@@ -4,6 +4,7 @@ import Database from "better-sqlite3";
 import { SystemPromptDataMapper } from "@/adapters/SystemPromptDataMapper";
 import { ConfigIdentitySource } from "@/adapters/ConfigIdentitySource";
 import { ROLE_DIRECTIVES } from "@/core/entities/role-directives";
+import type { PromptVersionChangedEvent } from "@/core/use-cases/PromptControlPlaneService";
 import { buildPromptControlPlaneService } from "@/lib/prompts/prompt-control-plane-service";
 import { ensureSchema } from "@/lib/db/schema";
 import { promptRollback, promptSet } from "@/lib/capabilities/shared/prompt-tool";
@@ -17,14 +18,7 @@ function freshDb(): Database.Database {
 function createService(
   db: Database.Database,
   hooks?: {
-    recordPromptVersionChanged?: (event: {
-      type: "prompt_version_changed";
-      semantics: "slot_version";
-      role: string;
-      promptType: "base" | "role_directive";
-      oldVersion: number;
-      newVersion: number;
-    }) => Promise<void>;
+    recordPromptVersionChanged?: (event: PromptVersionChangedEvent) => Promise<void>;
     revalidatePaths?: (paths: string[]) => Promise<void> | void;
   },
 ) {

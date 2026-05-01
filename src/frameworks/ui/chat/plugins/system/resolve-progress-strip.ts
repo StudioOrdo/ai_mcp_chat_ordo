@@ -47,7 +47,7 @@ const JOB_STATUS_PRIORITY: Record<JobStatus, number> = {
 type DescriptorLookup = (toolName: string) => CapabilityPresentationDescriptor | undefined;
 
 type ProgressCandidate = {
-  item: ResolvedProgressStripItem;
+  item: ResolvedProgressStripItem | null;
   sequence: number;
   updatedAtMs: number;
   messageIndex: number;
@@ -88,7 +88,7 @@ function resolveProgressPhase(
   return phases.find((phase) => phase.status === "active") ?? null;
 }
 
-function resolvePhaseLabel(candidate: ProgressCandidate["item"]): string {
+function resolvePhaseLabel(candidate: ResolvedProgressStripItem): string {
   if (candidate.status === "failed" || candidate.status === "dead_letter") {
     return "Needs attention";
   }
@@ -201,7 +201,28 @@ export function resolveProgressStrip(
         return;
       }
 
-      if (!isEligibleStatus(entry.part.status) || entry.part.supersededByJobId) {
+      if (entry.part.supersededByJobId) {
+        return;
+      }
+
+      const baseCandidate = {
+        sequence: entry.part.sequence ?? Number.NEGATIVE_INFINITY,
+        updatedAtMs: parseUpdatedAt(entry.part.updatedAt),
+        messageIndex,
+        entryIndex,
+      };
+
+      if (!isEligibleStatus(entry.part.status)) {
+        if (entry.part.status === "succeeded") {
+          const candidate: ProgressCandidate = {
+            item: null,
+            ...baseCandidate,
+          };
+          const existing = latestByJobId.get(entry.part.jobId);
+          if (!existing || compareCandidateFreshness(existing, candidate) < 0) {
+            latestByJobId.set(entry.part.jobId, candidate);
+          }
+        }
         return;
       }
 
@@ -239,10 +260,7 @@ export function resolveProgressStrip(
 
       const candidate: ProgressCandidate = {
         item,
-        sequence: entry.part.sequence ?? Number.NEGATIVE_INFINITY,
-        updatedAtMs: parseUpdatedAt(entry.part.updatedAt),
-        messageIndex,
-        entryIndex,
+        ...baseCandidate,
       };
 
       const existing = latestByJobId.get(entry.part.jobId);
@@ -253,7 +271,7 @@ export function resolveProgressStrip(
   });
 
   return [...latestByJobId.values()]
-    .map((candidate) => candidate.item)
+    .flatMap((candidate) => candidate.item ? [candidate.item] : [])
     .sort(compareItems);
 }
 

@@ -1,8 +1,8 @@
 import type { ToolBundleDescriptor } from "@/core/tool-registry/ToolBundleDescriptor";
 import type { ToolRegistry } from "@/core/tool-registry/ToolRegistry";
 import {
+  getAssetCatalogReader,
   getJobQueueRepository,
-  getUserFileDataMapper,
 } from "@/adapters/RepositoryFactory";
 import {
   createCatalogBoundToolBundle,
@@ -10,8 +10,8 @@ import {
 } from "./bundle-registration";
 
 interface MediaToolRegistrationDeps {
+  readonly assetCatalogReader: ReturnType<typeof getAssetCatalogReader>;
   readonly jobQueueRepository: ReturnType<typeof getJobQueueRepository>;
-  readonly userFileRepository: ReturnType<typeof getUserFileDataMapper>;
 }
 
 export const MEDIA_BUNDLE: ToolBundleDescriptor = createCatalogBoundToolBundle(
@@ -21,15 +21,15 @@ export const MEDIA_BUNDLE: ToolBundleDescriptor = createCatalogBoundToolBundle(
 
 export function registerMediaTools(registry: ToolRegistry): void {
   registerCatalogBoundToolBundle(registry, "media", {
+    assetCatalogReader: getAssetCatalogReader(),
     jobQueueRepository: getJobQueueRepository(),
-    userFileRepository: getUserFileDataMapper(),
   }, (toolName, deps) => {
     if (toolName === "compose_media") {
       return { jobQueueRepository: deps.jobQueueRepository };
     }
 
     if (toolName === "list_conversation_media_assets") {
-      return { userFileRepository: deps.userFileRepository };
+      return { assetCatalogReader: deps.assetCatalogReader };
     }
 
     return {};

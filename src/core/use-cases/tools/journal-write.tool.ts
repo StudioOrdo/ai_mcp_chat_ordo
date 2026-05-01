@@ -11,7 +11,7 @@ import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionCon
 import type { BlogArticleProductionService } from "@/lib/blog/blog-article-production-service";
 import type { BlogImageGenerationService } from "@/lib/blog/blog-image-generation-service";
 import { getActiveJobStatuses } from "@/lib/jobs/job-read-model";
-import type { JobStatusSnapshot } from "@/lib/jobs/job-read-model";
+import type { CanonicalJobSnapshot } from "@/lib/jobs/job-read-model";
 import {
   getAdminJournalDetailPath,
   getAdminJournalPreviewPath,
@@ -483,11 +483,11 @@ export class PrepareJournalPostForPublishInteractor {
       post: toPostRecord(post),
       blockers,
       active_jobs: relevantActiveJobs.map((snapshot) => ({
-        job_id: snapshot.part.jobId,
-        tool_name: snapshot.part.toolName,
-        status: snapshot.part.status,
-        summary: snapshot.part.summary,
-        updated_at: snapshot.part.updatedAt,
+        job_id: snapshot.jobId,
+        tool_name: snapshot.toolName,
+        status: snapshot.status,
+        summary: snapshot.summary,
+        updated_at: snapshot.updatedAt,
       })),
       revision_count: revisions.length,
       qa_report: qaReport
@@ -505,16 +505,16 @@ export class PrepareJournalPostForPublishInteractor {
   }
 }
 
-function isJournalReadinessJobForPost(snapshot: JobStatusSnapshot, postId: string): boolean {
+function isJournalReadinessJobForPost(snapshot: CanonicalJobSnapshot, postId: string): boolean {
   const normalizedPostId = postId.trim().toLowerCase();
-  const title = snapshot.part.title?.trim().toLowerCase() ?? "";
+  const title = snapshot.title?.trim().toLowerCase() ?? "";
 
   if (!normalizedPostId || !title.includes(normalizedPostId)) {
     return false;
   }
 
-  return snapshot.part.toolName === "prepare_journal_post_for_publish"
-    || snapshot.part.toolName === "publish_content";
+  return snapshot.toolName === "prepare_journal_post_for_publish"
+    || snapshot.toolName === "publish_content";
 }
 
 class UpdateJournalMetadataCommand implements ToolCommand<UpdateJournalMetadataInput, Awaited<ReturnType<UpdateJournalMetadataInteractor["execute"]>>> {

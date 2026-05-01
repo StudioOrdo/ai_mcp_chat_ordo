@@ -23,12 +23,18 @@ import { LeadRecordDataMapper } from "./LeadRecordDataMapper";
 import { ConsultationRequestDataMapper } from "./ConsultationRequestDataMapper";
 import { DealRecordDataMapper } from "./DealRecordDataMapper";
 import { TrainingPathRecordDataMapper } from "./TrainingPathRecordDataMapper";
+import { ReferralDataMapper } from "./ReferralDataMapper";
+import { ReferralEventDataMapper } from "./ReferralEventDataMapper";
 import { SystemPromptDataMapper } from "./SystemPromptDataMapper";
 import { SystemSettingsDataMapper } from "./SystemSettingsDataMapper";
 import { ConversationDataMapper } from "./ConversationDataMapper";
 import { MessageDataMapper } from "./MessageDataMapper";
 import { ConversationEventDataMapper } from "./ConversationEventDataMapper";
 import { PromptProvenanceDataMapper } from "./PromptProvenanceDataMapper";
+import { PromptBindingDataMapper } from "./PromptBindingDataMapper";
+import { RelationshipMemoryDataMapper } from "./RelationshipMemoryDataMapper";
+import { MaterializationDataMapper } from "./MaterializationDataMapper";
+import { IdentityMigrationDataMapper } from "./IdentityMigrationDataMapper";
 import { UserPreferencesDataMapper } from "./UserPreferencesDataMapper";
 import { UserFileDataMapper } from "./UserFileDataMapper";
 import { SQLiteVectorStore } from "./SQLiteVectorStore";
@@ -42,6 +48,46 @@ import {
   type RevisionReader,
 } from "@/core/platform/revision/RevisionReader";
 import { PlatformInteractionFacade } from "@/core/platform/facade/PlatformInteractionFacade";
+import {
+  createBusinessWorkflowContextReader,
+  type WorkflowReadinessProbe,
+} from "@/core/platform/business-workflow/BusinessWorkflowContextReader";
+import {
+  createAssetCatalogReader,
+} from "@/core/platform/asset-catalog/AssetCatalogReader";
+import type { AssetCatalogReader } from "@/core/use-cases/AssetCatalogReader";
+import type { BusinessWorkflowContextReader } from "@/core/use-cases/BusinessWorkflowContextRepository";
+import {
+  createWorkspaceSnapshotReader,
+} from "@/core/platform/conversation-workspace/WorkspaceSnapshotReader";
+import type { WorkspaceSnapshotReader } from "@/core/use-cases/WorkspaceSnapshotRepository";
+import {
+  createWorkspaceRestoreReader,
+  type WorkspaceRestoreReader,
+} from "@/core/platform/conversation-restore/WorkspaceRestoreReader";
+import { createRelationshipMemoryProjectionService } from "@/core/platform/relationship-memory/RelationshipMemoryProjectionService";
+import {
+  createOperatorTransitionReader,
+  type OperatorTransitionProfileReader,
+} from "@/core/platform/operator-transition/OperatorTransitionReader";
+import type { OperatorTransitionReader } from "@/core/use-cases/OperatorTransitionRepository";
+import {
+  createTrustDistributionReader,
+  type TrustDistributionProfileReader,
+} from "@/core/platform/operator-transition/TrustDistributionReader";
+import type { TrustDistributionReader } from "@/core/use-cases/TrustDistributionRepository";
+import { getReadinessProbe } from "@/lib/health/probes";
+import { createProfileService } from "@/lib/profile/profile-service";
+import { createAdminReferralAnalyticsService } from "@/lib/referrals/admin-referral-analytics";
+import { createReferralAnalyticsService } from "@/lib/referrals/referral-analytics";
+import type { MaterializationRepository } from "@/core/use-cases/MaterializationRepository";
+import type { PromptBindingRepository } from "@/core/use-cases/PromptBindingRepository";
+import type { IdentityMigrationRepository } from "@/core/use-cases/IdentityMigrationRepository";
+import type { RelationshipMemoryProjectionService } from "@/core/use-cases/RelationshipMemoryProjectionService";
+import type { RelationshipMemoryRepository } from "@/core/use-cases/RelationshipMemoryRepository";
+import { MediaWorkflowReadModel } from "@/lib/media/workflows/media-workflow-read-model";
+import { MediaWorkflowOrchestrator } from "@/lib/media/workflows/orchestrator";
+import { SqliteMediaWorkflowRepository } from "@/lib/media/workflows/sqlite-media-workflow-repository";
 
 /**
  * Repository Factory — Service Locator
@@ -99,12 +145,30 @@ let leadRecordDataMapper: LeadRecordDataMapper | null = null;
 let consultationRequestDataMapper: ConsultationRequestDataMapper | null = null;
 let dealRecordDataMapper: DealRecordDataMapper | null = null;
 let trainingPathRecordDataMapper: TrainingPathRecordDataMapper | null = null;
+let referralDataMapper: ReferralDataMapper | null = null;
+let referralEventDataMapper: ReferralEventDataMapper | null = null;
+let assetCatalogReader: AssetCatalogReader | null = null;
+let workspaceSnapshotReader: WorkspaceSnapshotReader | null = null;
+let workspaceRestoreReader: WorkspaceRestoreReader | null = null;
+let businessWorkflowContextReader: BusinessWorkflowContextReader | null = null;
+let trustDistributionReader: TrustDistributionReader | null = null;
+let operatorTransitionReader: OperatorTransitionReader | null = null;
 let systemPromptDataMapper: SystemPromptDataMapper | null = null;
 let systemSettingsDataMapper: SystemSettingsDataMapper | null = null;
 let conversationDataMapper: ConversationDataMapper | null = null;
 let messageDataMapper: MessageDataMapper | null = null;
 let conversationEventDataMapper: ConversationEventDataMapper | null = null;
 let promptProvenanceDataMapper: PromptProvenanceDataMapper | null = null;
+let promptBindingRepository: PromptBindingRepository | null = null;
+let relationshipMemoryRepository: RelationshipMemoryRepository | null = null;
+let relationshipMemoryProjectionService: RelationshipMemoryProjectionService | null = null;
+let materializationRepository: MaterializationRepository | null = null;
+let materializationRepositoryDb: ReturnType<typeof getDb> | null = null;
+let mediaWorkflowRepository: SqliteMediaWorkflowRepository | null = null;
+let mediaWorkflowRepositoryDb: ReturnType<typeof getDb> | null = null;
+let mediaWorkflowReadModel: MediaWorkflowReadModel | null = null;
+let mediaWorkflowOrchestrator: MediaWorkflowOrchestrator | null = null;
+let identityMigrationRepository: IdentityMigrationRepository | null = null;
 let userPreferencesDataMapper: UserPreferencesDataMapper | null = null;
 let userFileDataMapper: UserFileDataMapper | null = null;
 let vectorStore: SQLiteVectorStore | null = null;
@@ -184,6 +248,49 @@ export function getJobQueueDataMapper(): JobQueueDataMapper {
   return getJobQueueRepository() as JobQueueDataMapper;
 }
 
+/** @lifetime process-cached singleton (invalidated on DB handle change) */
+export function getMaterializationRepository(): MaterializationRepository {
+  const db = getDb();
+
+  if (!materializationRepository || materializationRepositoryDb !== db) {
+    materializationRepository = new MaterializationDataMapper(db);
+    materializationRepositoryDb = db;
+  }
+
+  return materializationRepository;
+}
+
+/** @lifetime process-cached singleton */
+export function getIdentityMigrationRepository(): IdentityMigrationRepository {
+  if (!identityMigrationRepository) {
+    identityMigrationRepository = new IdentityMigrationDataMapper(getDb());
+  }
+
+  return identityMigrationRepository;
+}
+
+/** @lifetime process-cached singleton */
+export function getRelationshipMemoryRepository(): RelationshipMemoryRepository {
+  if (!relationshipMemoryRepository) {
+    relationshipMemoryRepository = new RelationshipMemoryDataMapper(getDb());
+  }
+
+  return relationshipMemoryRepository;
+}
+
+/** @lifetime process-cached singleton */
+export function getRelationshipMemoryProjectionService(): RelationshipMemoryProjectionService {
+  if (!relationshipMemoryProjectionService) {
+    relationshipMemoryProjectionService = createRelationshipMemoryProjectionService({
+      messageRepository: getMessageDataMapper(),
+      relationshipMemoryRepository: getRelationshipMemoryRepository(),
+      promptBindingRepository: getPromptBindingRepository(),
+    });
+  }
+
+  return relationshipMemoryProjectionService;
+}
+
 /** @lifetime process-cached singleton */
 export function getExecutionTimelineReader(): ExecutionTimelineReader {
   if (!executionTimelineReader) {
@@ -194,6 +301,7 @@ export function getExecutionTimelineReader(): ExecutionTimelineReader {
         promptTurnReader: getPromptProvenanceDataMapper(),
         messageRepository: getMessageDataMapper(),
       },
+      getMaterializationRepository(),
     );
   }
 
@@ -231,6 +339,41 @@ export function getJobStatusQuery(): JobStatusQuery {
   }
 
   return jobStatusQuery;
+}
+
+/** @lifetime process-cached singleton (invalidated on DB handle change) */
+export function getMediaWorkflowRepository(): SqliteMediaWorkflowRepository {
+  const db = getDb();
+  if (!mediaWorkflowRepository || mediaWorkflowRepositoryDb !== db) {
+    mediaWorkflowRepository = new SqliteMediaWorkflowRepository(db);
+    mediaWorkflowRepositoryDb = db;
+    mediaWorkflowReadModel = null;
+    mediaWorkflowOrchestrator = null;
+  }
+  return mediaWorkflowRepository;
+}
+
+/** @lifetime process-cached singleton */
+export function getMediaWorkflowReadModel(): MediaWorkflowReadModel {
+  if (!mediaWorkflowReadModel) {
+    mediaWorkflowReadModel = new MediaWorkflowReadModel({
+      workflowRepository: getMediaWorkflowRepository(),
+      jobStatusQuery: getJobStatusQuery(),
+    });
+  }
+  return mediaWorkflowReadModel;
+}
+
+/** @lifetime process-cached singleton */
+export function getMediaWorkflowOrchestrator(): MediaWorkflowOrchestrator {
+  if (!mediaWorkflowOrchestrator) {
+    mediaWorkflowOrchestrator = new MediaWorkflowOrchestrator({
+      workflowRepository: getMediaWorkflowRepository(),
+      jobRepository: getJobQueueRepository(),
+      materializationRepository: getMaterializationRepository(),
+    });
+  }
+  return mediaWorkflowOrchestrator;
 }
 
 /** @lifetime process-cached singleton */
@@ -282,6 +425,146 @@ export function getTrainingPathRecordDataMapper(): TrainingPathRecordDataMapper 
 }
 
 /** @lifetime process-cached singleton */
+export function getReferralDataMapper(): ReferralDataMapper {
+  if (!referralDataMapper) {
+    referralDataMapper = new ReferralDataMapper(getDb());
+  }
+  return referralDataMapper;
+}
+
+/** @lifetime process-cached singleton */
+export function getReferralEventDataMapper(): ReferralEventDataMapper {
+  if (!referralEventDataMapper) {
+    referralEventDataMapper = new ReferralEventDataMapper(getDb());
+  }
+  return referralEventDataMapper;
+}
+
+/** @lifetime process-cached singleton */
+export function getAssetCatalogReader(): AssetCatalogReader {
+  if (!assetCatalogReader) {
+    assetCatalogReader = createAssetCatalogReader({
+      userFileRepository: getUserFileDataMapper(),
+      materializationRepository: getMaterializationRepository(),
+      blogAssetRepository: getBlogAssetRepository(),
+    });
+  }
+
+  return assetCatalogReader;
+}
+
+/** @lifetime process-cached singleton */
+export function getWorkspaceSnapshotReader(): WorkspaceSnapshotReader {
+  if (!workspaceSnapshotReader) {
+    workspaceSnapshotReader = createWorkspaceSnapshotReader({
+      conversationRepository: getConversationDataMapper(),
+      jobQueueRepository: getJobQueueRepository(),
+      assetCatalogReader: getAssetCatalogReader(),
+      workflowContextReader: getBusinessWorkflowContextReader(),
+      operatorTransitionReader: getOperatorTransitionReader(),
+      trustDistributionReader: getTrustDistributionReader(),
+      relationshipMemoryReader: getRelationshipMemoryRepository(),
+      promptBindingReader: getPromptBindingRepository(),
+    });
+  }
+
+  return workspaceSnapshotReader;
+}
+
+/** @lifetime process-cached singleton */
+export function getWorkspaceRestoreReader(): WorkspaceRestoreReader {
+  if (!workspaceRestoreReader) {
+    workspaceRestoreReader = createWorkspaceRestoreReader({
+      workspaceSnapshotReader: getWorkspaceSnapshotReader(),
+      jobStatusQuery: getExecutionTimelineReader(),
+      messageRepository: getMessageDataMapper(),
+      assetCatalogReader: getAssetCatalogReader(),
+      workflowReader: getBusinessWorkflowContextReader(),
+      operatorTransitionReader: getOperatorTransitionReader(),
+      trustDistributionReader: getTrustDistributionReader(),
+      relationshipMemoryReader: getRelationshipMemoryRepository(),
+      identityMigrationReader: getIdentityMigrationRepository(),
+    });
+  }
+
+  return workspaceRestoreReader;
+}
+
+/** @lifetime process-cached singleton */
+export function getBusinessWorkflowContextReader(): BusinessWorkflowContextReader {
+  if (!businessWorkflowContextReader) {
+    const readinessProbe: WorkflowReadinessProbe = {
+      getReadiness: () => getReadinessProbe(),
+    };
+
+    businessWorkflowContextReader = createBusinessWorkflowContextReader({
+      conversationRepository: getConversationDataMapper(),
+      leadRecordRepository: getLeadRecordDataMapper(),
+      consultationRequestRepository: getConsultationRequestDataMapper(),
+      dealRecordRepository: getDealRecordDataMapper(),
+      trainingPathRecordRepository: getTrainingPathRecordDataMapper(),
+      referralReader: getReferralDataMapper(),
+      referralEventReader: getReferralEventDataMapper(),
+      jobQueueRepository: getJobQueueRepository(),
+      readinessProbe,
+    });
+  }
+  return businessWorkflowContextReader;
+}
+
+/** @lifetime process-cached singleton */
+export function getTrustDistributionReader(): TrustDistributionReader {
+  if (!trustDistributionReader) {
+    const profileService = createProfileService();
+    const referralAnalytics = createReferralAnalyticsService();
+    const profileReader: TrustDistributionProfileReader = {
+      getProfile: async (userId) => profileService.getProfile(userId).catch(() => null),
+    };
+
+    trustDistributionReader = createTrustDistributionReader({
+      conversationRepository: getConversationDataMapper(),
+      profileReader,
+      activityReader: {
+        getRecentActivity: (userId, limit) => referralAnalytics.getRecentActivity(userId, limit),
+      },
+      adminPressureReader: {
+        getExceptions: () => createAdminReferralAnalyticsService().getExceptions(),
+      },
+      readinessProbe: {
+        getReadiness: () => getReadinessProbe(),
+      },
+    });
+  }
+
+  return trustDistributionReader;
+}
+
+/** @lifetime process-cached singleton */
+export function getOperatorTransitionReader(): OperatorTransitionReader {
+  if (!operatorTransitionReader) {
+    const profileService = createProfileService();
+    const profileReader: OperatorTransitionProfileReader = {
+      getProfile: async (userId) => profileService.getProfile(userId).catch(() => null),
+    };
+
+    operatorTransitionReader = createOperatorTransitionReader({
+      conversationRepository: getConversationDataMapper(),
+      profileReader,
+      trustDistributionReader: getTrustDistributionReader(),
+      businessWorkflowContextReader: getBusinessWorkflowContextReader(),
+      adminPressureReader: {
+        getExceptions: () => createAdminReferralAnalyticsService().getExceptions(),
+      },
+      readinessProbe: {
+        getReadiness: () => getReadinessProbe(),
+      },
+    });
+  }
+
+  return operatorTransitionReader;
+}
+
+/** @lifetime process-cached singleton */
 export function getSystemPromptDataMapper(): SystemPromptDataMapper {
   if (!systemPromptDataMapper) {
     systemPromptDataMapper = new SystemPromptDataMapper(getDb());
@@ -327,6 +610,15 @@ export function getPromptProvenanceDataMapper(): PromptProvenanceDataMapper {
     promptProvenanceDataMapper = new PromptProvenanceDataMapper(getDb());
   }
   return promptProvenanceDataMapper;
+}
+
+/** @lifetime process-cached singleton */
+export function getPromptBindingRepository(): PromptBindingRepository {
+  if (!promptBindingRepository) {
+    promptBindingRepository = new PromptBindingDataMapper(getDb());
+  }
+
+  return promptBindingRepository;
 }
 
 /** @lifetime process-cached singleton (Sprint 9) */
@@ -398,12 +690,29 @@ export function _resetRepositorySingletons(): void {
   consultationRequestDataMapper = null;
   dealRecordDataMapper = null;
   trainingPathRecordDataMapper = null;
+  referralDataMapper = null;
+  referralEventDataMapper = null;
+  workspaceSnapshotReader = null;
+  workspaceRestoreReader = null;
+  businessWorkflowContextReader = null;
+  trustDistributionReader = null;
+  operatorTransitionReader = null;
   systemPromptDataMapper = null;
   systemSettingsDataMapper = null;
   conversationDataMapper = null;
   messageDataMapper = null;
   conversationEventDataMapper = null;
   promptProvenanceDataMapper = null;
+  materializationRepository = null;
+  materializationRepositoryDb = null;
+  mediaWorkflowRepository = null;
+  mediaWorkflowRepositoryDb = null;
+  mediaWorkflowReadModel = null;
+  mediaWorkflowOrchestrator = null;
+  identityMigrationRepository = null;
+  promptBindingRepository = null;
+  relationshipMemoryRepository = null;
+  relationshipMemoryProjectionService = null;
   userPreferencesDataMapper = null;
   userFileDataMapper = null;
   vectorStore = null;

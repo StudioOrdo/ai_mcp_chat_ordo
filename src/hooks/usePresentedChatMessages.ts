@@ -4,6 +4,8 @@ import { ChatPresenter, type PresentedMessage } from "@/adapters/ChatPresenter";
 import { CommandParserService } from "@/adapters/CommandParserService";
 import { MarkdownParserService } from "@/adapters/MarkdownParserService";
 import type { ChatMessage } from "@/core/entities/chat-message";
+import type { CanonicalJobSnapshot } from "@/lib/jobs/job-read-model";
+import type { CanonicalMediaWorkflowSnapshot } from "@/lib/media/workflows/media-workflow-read-model";
 
 interface PresentedChatMessagesResult {
   presentedMessages: PresentedMessage[];
@@ -14,6 +16,8 @@ interface PresentedChatMessagesResult {
 export function usePresentedChatMessages(
   messages: ChatMessage[],
   isSending = false,
+  jobSnapshots: readonly CanonicalJobSnapshot[] = [],
+  workflowSnapshots: readonly CanonicalMediaWorkflowSnapshot[] = [],
 ): PresentedChatMessagesResult {
   const markdownParser = useMemo(() => new MarkdownParserService(), []);
   const commandParser = useMemo(() => new CommandParserService(), []);
@@ -23,7 +27,7 @@ export function usePresentedChatMessages(
   );
 
   const presentedMessages = useMemo(() => {
-    const presented = presenter.presentMany(messages);
+    const presented = presenter.presentMany(messages, jobSnapshots, workflowSnapshots);
 
     // Mark the last user message as pending while sending
     if (isSending) {
@@ -48,7 +52,7 @@ export function usePresentedChatMessages(
     }
 
     return presented;
-  }, [messages, presenter, isSending]);
+  }, [messages, jobSnapshots, workflowSnapshots, presenter, isSending]);
 
   const dynamicSuggestions = useMemo(() => {
     const lastMsg = presentedMessages[presentedMessages.length - 1];

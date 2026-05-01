@@ -238,6 +238,10 @@ describe("useUICommands", () => {
       </ThemeProvider>,
     );
 
+    await act(async () => {
+      await Promise.resolve();
+    });
+
     expect(document.documentElement.classList.contains("theme-swiss")).toBe(false);
     expect(pushMock).not.toHaveBeenCalled();
   });

@@ -84,12 +84,12 @@ describe("ChatSurface", () => {
     expect(screen.getByTestId("floating-chat-launcher")).toHaveAttribute("data-route-tone", "quiet");
   });
 
-  it("renders embedded top chrome for the conversation data menu seam", () => {
+  it("renders embedded chat content without a second top rail", () => {
     usePathnameMock.mockReturnValue("/library");
 
     render(<ChatSurface mode="embedded" />);
 
-    expect(screen.getByTestId("chat-surface-header-embedded")).toBeInTheDocument();
+    expect(screen.queryByTestId("chat-surface-header-embedded")).toBeNull();
     expect(screen.getByTestId("chat-content-surface")).toBeInTheDocument();
   });
 

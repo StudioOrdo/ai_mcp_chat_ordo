@@ -175,4 +175,40 @@ describe("createJobEventStreamResponse", () => {
     expect(listEvents).toHaveBeenCalledWith(10, 100);
     expect(findJobById).not.toHaveBeenCalled();
   });
+
+  it("skips missing jobs while advancing the stream cursor by event sequence", async () => {
+    const controller = new AbortController();
+    const listEvents = vi.fn(async () => {
+      if (listEvents.mock.calls.length === 1) {
+        return [
+          buildEvent({ id: "evt_11", sequence: 11, jobId: "missing_job" }),
+          buildEvent({ id: "evt_12", sequence: 12, eventType: "result" }),
+        ];
+      }
+
+      controller.abort();
+      return [];
+    });
+    const findJobById = vi.fn(async (jobId: string) => (jobId === "job_1" ? buildJob() : null));
+
+    const response = createJobEventStreamResponse({
+      request: new Request("http://localhost/api/jobs/events", { signal: controller.signal }),
+      requestId: "req_1",
+      initialAfterSequence: 10,
+      pollIntervalMs: 1,
+      streamWindowMs: 50,
+      batchLimit: 100,
+      listEvents,
+      findJobById,
+    });
+
+    const body = await response.text();
+
+    expect(findJobById).toHaveBeenCalledWith("missing_job");
+    expect(findJobById).toHaveBeenCalledWith("job_1");
+    expect(listEvents).toHaveBeenNthCalledWith(1, 10, 100);
+    expect(listEvents).toHaveBeenNthCalledWith(2, 12, 100);
+    expect(body).not.toContain("id: 11");
+    expect(body).toContain("id: 12");
+  });
 });

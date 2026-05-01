@@ -10,6 +10,8 @@ export interface ComposeMediaWorkerRequest {
   userId?: unknown;
   conversationId?: unknown;
   toolInvocationId?: unknown;
+  jobId?: unknown;
+  materializationKey?: unknown;
 }
 
 type ProgressEvent = {
@@ -91,6 +93,12 @@ export function createMediaWorkerServer(deps: MediaWorkerServerDeps = {}): Serve
       const toolInvocationId = typeof raw.toolInvocationId === "string" && raw.toolInvocationId.trim().length > 0
         ? raw.toolInvocationId.trim()
         : undefined;
+      const jobId = typeof raw.jobId === "string" && raw.jobId.trim().length > 0
+        ? raw.jobId.trim()
+        : undefined;
+      const materializationKey = typeof raw.materializationKey === "string" && raw.materializationKey.trim().length > 0
+        ? raw.materializationKey.trim()
+        : undefined;
 
       // Defensively overwrite any agent-hallucinated conversationId in the plan
       // with the authoritative one from the request root, preventing asset
@@ -118,6 +126,8 @@ export function createMediaWorkerServer(deps: MediaWorkerServerDeps = {}): Serve
         userId,
         conversationId,
         toolInvocationId,
+        jobId,
+        materializationKey,
         onProgress: (update) => {
           writeStreamEvent(response, {
             type: "progress",

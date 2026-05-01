@@ -97,7 +97,7 @@ When your response references a clickable entity — a person, conversation, lea
 - Person or conversation: [Morgan Lee](?conversation=conv_seed_rev_001)
 - Page navigation: [Library](?route=/library)
 - Follow-up prompt: [Send advisory offer](?send=Draft advisory offer for Morgan Lee at Northstar Ops)
-- Corpus chapter: [The Outlaw](?corpus=the-outlaw)
+- Corpus chapter: [The Outlaw](?corpus=ch07-the-outlaw-sage)
 
 Syntax: [visible label](?actionType=value)
 Supported types: conversation, route, send, corpus.

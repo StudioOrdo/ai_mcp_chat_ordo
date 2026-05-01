@@ -3,6 +3,14 @@ import { describe, expect, it, vi } from "vitest";
 import type { JobEvent, JobRequest } from "@/core/entities/job";
 import type { JobQueueRepository } from "@/core/use-cases/JobQueueRepository";
 
+const { recordPromptBindingFromSourceMock } = vi.hoisted(() => ({
+  recordPromptBindingFromSourceMock: vi.fn(async () => null),
+}));
+
+vi.mock("@/lib/prompts/prompt-binding-service", () => ({
+  recordPromptBindingFromSource: recordPromptBindingFromSourceMock,
+}));
+
 import { enqueueDeferredToolJob } from "./enqueue-deferred-tool-job";
 
 function createJobRequest(overrides: Partial<JobRequest> = {}): JobRequest {
@@ -118,6 +126,7 @@ describe("enqueue-deferred-tool-job", () => {
         status: "queued",
       },
     });
+    expect(recordPromptBindingFromSourceMock).not.toHaveBeenCalled();
   });
 
   it("reuses an existing active job and synthesizes a renderable event when needed", async () => {
@@ -166,5 +175,29 @@ describe("enqueue-deferred-tool-job", () => {
         deduped: true,
       },
     });
+  });
+
+  it("records a job_execution prompt binding when a fresh deferred job is created", async () => {
+    const repository = createRepositoryMock();
+
+    await enqueueDeferredToolJob({
+      repository,
+      conversationId: "conv_blog_1",
+      userId: "user_1",
+      toolName: "draft_content",
+      requestPayload: {
+        title: "Launch Plan",
+      },
+      promptBindingId: "pb_root_1",
+    });
+
+    expect(recordPromptBindingFromSourceMock).toHaveBeenCalledWith(expect.objectContaining({
+      sourcePromptBindingId: "pb_root_1",
+      surface: "job_execution",
+      target: {
+        targetKind: "job",
+        targetId: "job_deferred_1",
+      },
+    }));
   });
 });

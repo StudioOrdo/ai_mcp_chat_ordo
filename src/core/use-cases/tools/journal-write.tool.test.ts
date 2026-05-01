@@ -9,7 +9,7 @@ import {
   UpdateJournalMetadataInteractor,
 } from "@/core/use-cases/tools/journal-write.tool";
 import type { BlogPost } from "@/core/entities/blog";
-import type { JobStatusSnapshot } from "@/lib/jobs/job-read-model";
+import type { CanonicalJobSnapshot } from "@/lib/jobs/job-read-model";
 
 function makePost(overrides: Partial<BlogPost> = {}): BlogPost {
   return {
@@ -31,21 +31,37 @@ function makePost(overrides: Partial<BlogPost> = {}): BlogPost {
   };
 }
 
-function makeJobSnapshot(overrides: Partial<JobStatusSnapshot["part"]>): JobStatusSnapshot {
+function makeJobSnapshot(overrides: Partial<CanonicalJobSnapshot>): CanonicalJobSnapshot {
   return {
-    messageId: `msg_${overrides.jobId ?? "job_1"}`,
+    jobId: overrides.jobId ?? "job_1",
     conversationId: "conv_jobs",
-    part: {
-      type: "job_status",
-      jobId: overrides.jobId ?? "job_1",
-      toolName: overrides.toolName ?? "publish_content",
-      label: "Publish Content",
-      status: overrides.status ?? "running",
-      title: overrides.title,
-      summary: overrides.summary,
-      updatedAt: overrides.updatedAt ?? "2026-03-26T12:30:00.000Z",
-      subtitle: overrides.subtitle,
+    userId: null,
+    toolName: overrides.toolName ?? "publish_content",
+    label: "Publish Content",
+    status: overrides.status ?? "running",
+    sequence: overrides.sequence ?? 0,
+    title: overrides.title,
+    summary: overrides.summary,
+    subtitle: overrides.subtitle,
+    createdAt: overrides.createdAt ?? "2026-03-26T12:29:00.000Z",
+    startedAt: null,
+    completedAt: null,
+    updatedAt: overrides.updatedAt ?? "2026-03-26T12:30:00.000Z",
+    origin: { fallback: "job_created_at" },
+    inputSnapshot: {},
+    resultEnvelope: null,
+    artifactRefs: [],
+    materializationRefs: [],
+    ownership: { userId: null, visibility: "anonymous_session", initiatorType: "user" },
+    failure: {
+      failureClass: null,
+      recoveryMode: null,
+      nextRetryAt: null,
+      lastCheckpointId: null,
+      replayedFromJobId: null,
+      supersededByJobId: null,
     },
+    ...overrides,
   };
 }
 

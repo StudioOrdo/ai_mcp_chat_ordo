@@ -62,7 +62,7 @@ describe("StreamStrategy Processor", () => {
     });
   });
 
-  it("should prefer normalized job parts when reducing job stream events", () => {
+  it("should leave product job stream events out of transcript mutation", () => {
     const dispatch = vi.fn();
     const processor = new StreamProcessor([new JobProgressStrategy()]);
     processor.process({
@@ -105,13 +105,6 @@ describe("StreamStrategy Processor", () => {
       },
     }, { dispatch, assistantIndex: 1 });
 
-    expect(dispatch).toHaveBeenCalledWith({
-      type: "UPSERT_JOB_STATUS",
-      messageId: "jobmsg_job_1",
-      part: expect.objectContaining({
-        type: "job_status",
-        resultEnvelope: expect.objectContaining({ toolName: "produce_blog_article" }),
-      }),
-    });
+    expect(dispatch).not.toHaveBeenCalled();
   });
 });

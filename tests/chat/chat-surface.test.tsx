@@ -257,16 +257,7 @@ describe("ChatSurface", () => {
 
   it("P13: hero state works in embedded mode", () => {
     useGlobalChatMock.mockReturnValue({
-      messages: [
-        {
-          id: "bootstrap-1",
-          role: "assistant",
-          content:
-            'Welcome.\n\n__suggestions__:["Audit this workflow","Stress-test this AI plan"]',
-          timestamp: new Date("2026-03-21T10:00:00Z"),
-          parts: [],
-        },
-      ] as ChatMessage[],
+      messages: [] as ChatMessage[],
       isSending: false,
       sendMessage: vi.fn(),
       conversationId: null,
@@ -275,9 +266,10 @@ describe("ChatSurface", () => {
       refreshConversation: vi.fn(),
     });
     const { container } = render(<ChatSurface mode="embedded" />);
-    // Hero state triggers justify-center on the message stack
+    // Embedded mode keeps the transcript anchored while the product-experience
+    // facade owns the hero/empty state.
     const stack = container.querySelector("[data-chat-message-stack]");
-    expect(stack?.className).toContain("justify-center");
+    expect(stack?.className).toContain("justify-end");
   });
 
   it("E1: view-transition-name shared safely across modes", () => {
@@ -319,12 +311,6 @@ describe("ChatSurfaceHeader", () => {
       <ChatSurfaceHeader
         mode="embedded"
         isFullScreen={false}
-        canCopyTranscript={false}
-        canExportConversation={false}
-        canImportConversation={false}
-        onCopyTranscript={() => undefined}
-        onExportConversation={() => undefined}
-        onImportConversationFile={() => undefined}
       />,
     );
     expect(
@@ -337,12 +323,6 @@ describe("ChatSurfaceHeader", () => {
       <ChatSurfaceHeader
         mode="floating"
         isFullScreen={false}
-        canCopyTranscript={false}
-        canExportConversation={false}
-        canImportConversation={false}
-        onCopyTranscript={() => undefined}
-        onExportConversation={() => undefined}
-        onImportConversationFile={() => undefined}
         onMinimize={() => undefined}
         onFullScreenToggle={() => undefined}
       />,
@@ -356,12 +336,6 @@ describe("ChatSurfaceHeader", () => {
       <ChatSurfaceHeader
         mode="floating"
         isFullScreen={false}
-        canCopyTranscript={false}
-        canExportConversation={false}
-        canImportConversation={false}
-        onCopyTranscript={() => undefined}
-        onExportConversation={() => undefined}
-        onImportConversationFile={() => undefined}
         onMinimize={() => undefined}
         onFullScreenToggle={() => undefined}
       />,
@@ -372,12 +346,6 @@ describe("ChatSurfaceHeader", () => {
       <ChatSurfaceHeader
         mode="floating"
         isFullScreen={true}
-        canCopyTranscript={false}
-        canExportConversation={false}
-        canImportConversation={false}
-        onCopyTranscript={() => undefined}
-        onExportConversation={() => undefined}
-        onImportConversationFile={() => undefined}
         onMinimize={() => undefined}
         onFullScreenToggle={() => undefined}
       />,
@@ -390,12 +358,6 @@ describe("ChatSurfaceHeader", () => {
       <ChatSurfaceHeader
         mode="floating"
         isFullScreen={false}
-        canCopyTranscript={false}
-        canExportConversation={false}
-        canImportConversation={false}
-        onCopyTranscript={() => undefined}
-        onExportConversation={() => undefined}
-        onImportConversationFile={() => undefined}
         onMinimize={() => undefined}
         onFullScreenToggle={() => undefined}
       />,

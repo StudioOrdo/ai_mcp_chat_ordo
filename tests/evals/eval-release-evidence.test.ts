@@ -5,10 +5,16 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  createConversationRefactorPhase00Evidence,
+} from "@/lib/evals/conversation-refactor-evidence";
+import {
   createReleaseEvidence,
   validateReleaseEvidence,
   writeReleaseEvidenceArtifacts,
 } from "@/lib/evals/release-evidence";
+import {
+  createPhase11ToolInvocationEvidence,
+} from "@/lib/evals/phase-11-tool-invocation-evidence";
 import {
   createRuntimeIntegrityQaEvidence,
   createRuntimeInventory,
@@ -141,6 +147,36 @@ const RUNTIME_INTEGRITY_OK = createRuntimeIntegrityQaEvidence({
   ],
 });
 
+const PHASE_11_TOOL_INVOCATION_OK = createPhase11ToolInvocationEvidence({
+  now: new Date("2026-03-20T12:46:00.000Z"),
+  liveMediaEnabled: false,
+  commands: [
+    {
+      name: "phase-11-deterministic-unit-integration",
+      command: "npm test -- deterministic",
+      args: ["test", "--", "deterministic"],
+      enabled: true,
+      status: "passed",
+      exitCode: 0,
+    },
+    {
+      name: "media-live-workflows",
+      command: "npm run test:media-live",
+      args: ["run", "test:media-live"],
+      enabled: false,
+      status: "skipped",
+      exitCode: null,
+    },
+  ],
+});
+
+const CONVERSATION_REFACTOR_BASELINE = createConversationRefactorPhase00Evidence({
+  now: new Date("2026-03-20T12:47:00.000Z"),
+  steps: [
+    { label: "conversation refactor focused suites", command: "npm exec vitest run", status: "passed" },
+  ],
+});
+
 describe("release evidence", () => {
   it("approves a release when manifest, health, and canaries are all green", () => {
     const evidence = createReleaseEvidence({
@@ -148,6 +184,8 @@ describe("release evidence", () => {
       health: HEALTH_OK,
       referralDiagnostics: REFERRAL_DIAGNOSTICS_OK,
       runtimeIntegrityEvidence: RUNTIME_INTEGRITY_OK,
+      toolInvocationEvidence: PHASE_11_TOOL_INVOCATION_OK,
+      conversationRefactorEvidence: CONVERSATION_REFACTOR_BASELINE,
       canarySummary: createCanarySummary(),
       now: new Date("2026-03-20T13:00:00.000Z"),
     });
@@ -155,6 +193,8 @@ describe("release evidence", () => {
     expect(evidence.status).toBe("approved");
     expect(validateReleaseEvidence(evidence)).toEqual([]);
     expect(evidence.eliteOps.status).toBe("passed");
+    expect(evidence.toolInvocation.present).toBe(true);
+    expect(evidence.conversationRefactor.classification).toBe("historical_baseline");
     expect(evidence.runtimeIntegrity.evidence?.inventory.mcp.processes).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -172,6 +212,7 @@ describe("release evidence", () => {
       health: HEALTH_OK,
       referralDiagnostics: REFERRAL_DIAGNOSTICS_OK,
       runtimeIntegrityEvidence: RUNTIME_INTEGRITY_OK,
+      toolInvocationEvidence: PHASE_11_TOOL_INVOCATION_OK,
       canarySummary: null,
     });
 
@@ -190,6 +231,7 @@ describe("release evidence", () => {
       },
       referralDiagnostics: REFERRAL_DIAGNOSTICS_OK,
       runtimeIntegrityEvidence: RUNTIME_INTEGRITY_OK,
+      toolInvocationEvidence: PHASE_11_TOOL_INVOCATION_OK,
       canarySummary: createCanarySummary(),
     });
 
@@ -203,6 +245,7 @@ describe("release evidence", () => {
       health: HEALTH_OK,
       referralDiagnostics: REFERRAL_DIAGNOSTICS_OK,
       runtimeIntegrityEvidence: RUNTIME_INTEGRITY_OK,
+      toolInvocationEvidence: PHASE_11_TOOL_INVOCATION_OK,
       canarySummary: createCanarySummary(),
       warnings: ["Known non-blocking copy issue."],
       manualChecks: ["Founder sign-off pending."],
@@ -217,19 +260,32 @@ describe("release evidence", () => {
     const releaseDir = fs.mkdtempSync(path.join(os.tmpdir(), "release-evidence-"));
     const canarySummary = createCanarySummary();
 
-    const { runtimeIntegrityPath, canarySummaryPath, qaEvidencePath, evidence } = writeReleaseEvidenceArtifacts({
+    const {
+      runtimeIntegrityPath,
+      toolInvocationPath,
+      conversationRefactorPath,
+      canarySummaryPath,
+      qaEvidencePath,
+      evidence,
+    } = writeReleaseEvidenceArtifacts({
       releaseDir,
       manifest: MANIFEST,
       health: HEALTH_OK,
       referralDiagnostics: REFERRAL_DIAGNOSTICS_OK,
       runtimeIntegrityEvidence: RUNTIME_INTEGRITY_OK,
+      toolInvocationEvidence: PHASE_11_TOOL_INVOCATION_OK,
+      conversationRefactorEvidence: CONVERSATION_REFACTOR_BASELINE,
       canarySummary,
     });
 
     expect(fs.existsSync(runtimeIntegrityPath)).toBe(true);
+    expect(fs.existsSync(toolInvocationPath)).toBe(true);
+    expect(fs.existsSync(conversationRefactorPath)).toBe(true);
     expect(fs.existsSync(canarySummaryPath)).toBe(true);
     expect(fs.existsSync(qaEvidencePath)).toBe(true);
     expect(JSON.parse(fs.readFileSync(runtimeIntegrityPath, "utf8"))).toEqual(RUNTIME_INTEGRITY_OK);
+    expect(JSON.parse(fs.readFileSync(toolInvocationPath, "utf8"))).toEqual(PHASE_11_TOOL_INVOCATION_OK);
+    expect(JSON.parse(fs.readFileSync(conversationRefactorPath, "utf8"))).toEqual(CONVERSATION_REFACTOR_BASELINE);
     expect(JSON.parse(fs.readFileSync(canarySummaryPath, "utf8"))).toEqual(canarySummary);
     expect(JSON.parse(fs.readFileSync(qaEvidencePath, "utf8"))).toEqual(evidence);
   });
@@ -245,6 +301,7 @@ describe("release evidence", () => {
         warnings: ["Known-referrer prompt verification failed."],
       },
       runtimeIntegrityEvidence: RUNTIME_INTEGRITY_OK,
+      toolInvocationEvidence: PHASE_11_TOOL_INVOCATION_OK,
       canarySummary: createCanarySummary(),
     });
 
@@ -258,6 +315,7 @@ describe("release evidence", () => {
       manifest: MANIFEST,
       health: HEALTH_OK,
       referralDiagnostics: REFERRAL_DIAGNOSTICS_OK,
+      toolInvocationEvidence: PHASE_11_TOOL_INVOCATION_OK,
       canarySummary: createCanarySummary(),
     });
 
@@ -275,6 +333,7 @@ describe("release evidence", () => {
           { label: "integrity eval suites", command: "npm exec vitest run", status: "failed" },
         ],
       }),
+      toolInvocationEvidence: PHASE_11_TOOL_INVOCATION_OK,
       canarySummary: createCanarySummary(),
     });
 
@@ -297,11 +356,50 @@ describe("release evidence", () => {
           blockingReasons: ["Latency budgets: Representative MCP stdio round trip exceeded its 8000ms budget."],
         },
       },
+      toolInvocationEvidence: PHASE_11_TOOL_INVOCATION_OK,
       canarySummary: createCanarySummary(),
     });
 
     expect(failedEliteOpsEvidence.status).toBe("blocked");
     expect(failedEliteOpsEvidence.review.blockingReasons).toContain("Elite ops release gates reported blockers.");
     expect(validateReleaseEvidence(failedEliteOpsEvidence)).toContain("Elite ops release gates reported blockers.");
+  });
+
+  it("blocks a release when Phase 11 tool invocation evidence is missing or failed", () => {
+    const missingEvidence = createReleaseEvidence({
+      manifest: MANIFEST,
+      health: HEALTH_OK,
+      referralDiagnostics: REFERRAL_DIAGNOSTICS_OK,
+      runtimeIntegrityEvidence: RUNTIME_INTEGRITY_OK,
+      canarySummary: createCanarySummary(),
+    });
+
+    expect(missingEvidence.status).toBe("blocked");
+    expect(missingEvidence.review.blockingReasons).toContain("Phase 11 tool invocation QA evidence is missing.");
+    expect(validateReleaseEvidence(missingEvidence)).toContain("Phase 11 tool invocation QA evidence is missing.");
+
+    const failedEvidence = createReleaseEvidence({
+      manifest: MANIFEST,
+      health: HEALTH_OK,
+      referralDiagnostics: REFERRAL_DIAGNOSTICS_OK,
+      runtimeIntegrityEvidence: RUNTIME_INTEGRITY_OK,
+      toolInvocationEvidence: createPhase11ToolInvocationEvidence({
+        commands: [
+          {
+            name: "phase-11-deterministic-unit-integration",
+            command: "npm test -- deterministic",
+            args: ["test", "--", "deterministic"],
+            enabled: true,
+            status: "failed",
+            exitCode: 1,
+          },
+        ],
+      }),
+      canarySummary: createCanarySummary(),
+    });
+
+    expect(failedEvidence.status).toBe("blocked");
+    expect(failedEvidence.review.blockingReasons).toContain("Phase 11 tool invocation QA evidence contains blockers.");
+    expect(validateReleaseEvidence(failedEvidence)).toContain("Phase 11 tool invocation QA deterministic gate failed.");
   });
 });

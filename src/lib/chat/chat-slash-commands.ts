@@ -78,8 +78,8 @@ function formatActiveJobSummary(
 
   const jobSummary = jobs
     .map((job) => {
-      const progress = job.part.progressLabel ? ` (${job.part.progressLabel})` : "";
-      return `${job.part.label}: ${job.part.status}${progress}`;
+      const progress = job.progressLabel ? ` (${job.progressLabel})` : "";
+      return `${job.label}: ${job.status}${progress}`;
     })
     .join("; ");
 

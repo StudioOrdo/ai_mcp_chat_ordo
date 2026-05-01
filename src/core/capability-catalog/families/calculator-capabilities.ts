@@ -119,42 +119,4 @@ export const CALCULATOR_CAPABILITIES = {
       maxConcurrentExecutions: 4,
     },
   },
-
-  generate_audio: {
-    core: {
-      name: "generate_audio",
-      label: "Generate Audio",
-      description: "Generate in-chat audio player.",
-      category: "content",
-      roles: "ALL",
-    },
-    schema: {
-      inputSchema: CATALOG_INPUT_SCHEMAS.generate_audio,
-    },
-    runtime: {},
-    executorBinding: {
-      bundleId: "media",
-      executorId: "generate_audio",
-      executionSurface: "shared",
-    },
-    validationBinding: {
-      validatorId: "generate_audio",
-      mode: "parse",
-    },
-    presentation: {
-      family: "artifact",
-      cardKind: "artifact_viewer",
-      executionMode: "browser",
-      progressMode: "single",
-      artifactKinds: ["audio"],
-    },
-    browser: {
-      runtimeKind: "worker_only",
-      moduleId: "audio-player-runtime",
-      supportedAssetKinds: ["audio"],
-      fallbackPolicy: "server",
-      recoveryPolicy: "fallback_to_server",
-      maxConcurrentExecutions: 2,
-    },
-  },
 } as const satisfies Record<string, CapabilityDefinition>;

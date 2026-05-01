@@ -3,6 +3,11 @@ import type { Dispatch } from "react";
 
 import type { ChatMessage } from "@/core/entities/chat-message";
 import type { JobStatusMessagePart } from "@/core/entities/message-parts";
+import type { ConversationMediaAssetCandidate } from "@/lib/media/media-asset-projection";
+import {
+  canonicalJobSnapshotToStatusPart,
+  isCanonicalJobSnapshot,
+} from "@/lib/jobs/job-read-model";
 import type {
   MediaAssetKind,
   MediaAssetRetentionClass,
@@ -26,7 +31,6 @@ import {
   VideoPlaybackVerificationError,
   waitForPlayableVideoAsset,
 } from "@/lib/media/browser-runtime/video-asset-readiness";
-import { extractJobStatusSnapshots } from "@/lib/jobs/job-status-snapshots";
 import {
   COMPOSE_MEDIA_COMPLETE_LABEL,
   COMPOSE_MEDIA_FAILURE_LABEL,
@@ -40,13 +44,21 @@ import {
 } from "@/lib/media/compose-media-preflight";
 import type { MediaCompositionPlan } from "@/core/entities/media-composition";
 import {
+  canonicalizeMediaCompositionPlanWithRepairs,
+  type CanonicalizeMediaCompositionPlanOptions,
   normalizeMediaCompositionPlan,
   validateExecutablePlanConstraints,
 } from "@/lib/media/ffmpeg/media-composition-plan";
+import {
+  buildMediaCompositionCanonicalizationOptionsFromChatMessages,
+  buildMediaCompositionCanonicalizationOptionsFromConversationAssets,
+  mergeMediaCompositionCanonicalizationOptions,
+} from "@/lib/media/media-composition-asset-identity";
 import { COMPOSE_MEDIA_INVALID_PLAN_FAILURE_CODE } from "@/lib/media/compose-media-errors";
 import {
   planBrowserCapabilityRuntimeCycle,
 } from "@/lib/media/browser-runtime/browser-capability-runtime";
+import { isBrowserCapabilityToolName } from "@/lib/media/browser-runtime/browser-capability-registry";
 import {
   readPersistedBrowserRuntimeEntries,
   removePersistedBrowserRuntimeEntry,
@@ -80,7 +92,11 @@ interface UseBrowserCapabilityRuntimeOptions {
   conversationId: string | null;
   messages: ChatMessage[];
   dispatch: Dispatch<ChatAction>;
+  nonExecutableMessageIds?: ReadonlySet<string>;
+  reusableMediaAssets?: readonly ConversationMediaAssetCandidate[];
 }
+
+const EMPTY_REUSABLE_MEDIA_ASSETS: readonly ConversationMediaAssetCandidate[] = [];
 
 class ComposeMediaDeferredEnqueueError extends Error {
   constructor(message: string) {
@@ -214,12 +230,8 @@ function findGraphPayloadByAssetId(messages: ChatMessage[], assetId: string): Re
         continue;
       }
 
-      const snapshots = extractJobStatusSnapshots(part.result);
-      const snapshot = snapshots.at(-1)?.part;
-      const payload = snapshot?.resultEnvelope?.payload ?? snapshot?.resultPayload ?? part.result;
-
       try {
-        const graph = resolveGraphRuntimePayload(payload, {});
+        const graph = resolveGraphRuntimePayload(part.result, {});
         if (graph.assetId === assetId) {
           return graph;
         }
@@ -242,12 +254,8 @@ function findChartPayloadByAssetId(
         continue;
       }
 
-      const snapshots = extractJobStatusSnapshots(part.result);
-      const snapshot = snapshots.at(-1)?.part;
-      const payload = snapshot?.resultEnvelope?.payload ?? snapshot?.resultPayload ?? part.result;
-
       try {
-        const chart = resolveChartRuntimePayload(payload, {});
+        const chart = resolveChartRuntimePayload(part.result, {});
         if (chart.assetId === assetId) {
           return chart;
         }
@@ -518,15 +526,6 @@ async function resolveBrowserComposeMediaPreflightFailure(options: {
 
 
 
-function isJobStatusMessagePart(value: unknown): value is JobStatusMessagePart {
-  return isRecord(value)
-    && value.type === "job_status"
-    && typeof value.jobId === "string"
-    && typeof value.toolName === "string"
-    && typeof value.label === "string"
-    && typeof value.status === "string";
-}
-
 async function enqueueDeferredComposeMediaJob(options: {
   conversationId: string | null;
   plan: MediaCompositionPlan;
@@ -551,7 +550,7 @@ async function enqueueDeferredComposeMediaJob(options: {
 
   const payload = await response.json().catch(() => null) as {
     error?: string;
-    job?: { part?: unknown };
+    job?: unknown;
   } | null;
 
   if (!response.ok) {
@@ -560,28 +559,39 @@ async function enqueueDeferredComposeMediaJob(options: {
     );
   }
 
-  const part = payload?.job?.part;
-  if (!isJobStatusMessagePart(part)) {
+  if (!isCanonicalJobSnapshot(payload?.job)) {
     throw new ComposeMediaDeferredEnqueueError(
       "Deferred media recovery completed without returning a canonical job snapshot.",
     );
   }
 
-  return part;
+  return canonicalJobSnapshotToStatusPart(payload.job);
 }
 
 function resolveComposeMediaPlanFromCandidate(candidate: {
   payload: unknown;
   args: Record<string, unknown>;
-}): MediaCompositionPlan | null {
+}, conversationId: string | null, canonicalizationOptions: CanonicalizeMediaCompositionPlanOptions): MediaCompositionPlan | null {
   const argsPlan = candidate.args.plan;
-  return normalizeMediaCompositionPlan(argsPlan) ?? normalizeMediaCompositionPlan(candidate.payload);
+  const plan = normalizeMediaCompositionPlan(argsPlan, conversationId ?? undefined)
+    ?? normalizeMediaCompositionPlan(candidate.payload, conversationId ?? undefined);
+  if (!plan) {
+    return null;
+  }
+
+  try {
+    return canonicalizeMediaCompositionPlanWithRepairs(plan, canonicalizationOptions).plan;
+  } catch {
+    return null;
+  }
 }
 
 export function useBrowserCapabilityRuntime({
   conversationId,
   messages,
   dispatch,
+  nonExecutableMessageIds,
+  reusableMediaAssets = EMPTY_REUSABLE_MEDIA_ASSETS,
 }: UseBrowserCapabilityRuntimeOptions): void {
   const activeRuntimeControllers = useRef(new Map<string, AbortController>());
   const completedRuntimeJobs = useRef(new Set<string>());
@@ -604,8 +614,22 @@ export function useBrowserCapabilityRuntime({
 
   useEffect(() => {
     const controllers = activeRuntimeControllers.current;
+    const persistedEntries = readPersistedBrowserRuntimeEntries();
+    for (const entry of persistedEntries) {
+      if (!isBrowserCapabilityToolName(entry.toolName)) {
+        removePersistedBrowserRuntimeEntry(entry.jobId);
+      }
+    }
+    const activePersistedEntries = persistedEntries.filter((entry) => (
+      isBrowserCapabilityToolName(entry.toolName)
+    ));
+    const canonicalizationOptions = mergeMediaCompositionCanonicalizationOptions(
+      buildMediaCompositionCanonicalizationOptionsFromConversationAssets(reusableMediaAssets),
+      buildMediaCompositionCanonicalizationOptionsFromChatMessages(messages),
+    );
+
     const candidates = getBrowserRuntimeCandidates(messages).filter((candidate) => {
-      if (candidate.toolName === "compose_media" && !isRecord(candidate.payload)) {
+      if (nonExecutableMessageIds?.has(candidate.messageId)) {
         return false;
       }
 
@@ -622,12 +646,12 @@ export function useBrowserCapabilityRuntime({
     });
     const resolvedCandidates = candidates.filter(isResolvedBrowserRuntimeCandidate);
     const pendingCandidates = candidates.filter((candidate) => !isResolvedBrowserRuntimeCandidate(candidate));
-    const persistedEntries = readPersistedBrowserRuntimeEntries();
     const runtimePlan = planBrowserCapabilityRuntimeCycle({
       candidates: pendingCandidates,
       activeJobIds: new Set(controllers.keys()),
-      persistedEntries,
+      persistedEntries: activePersistedEntries,
     });
+    const executableRuntimePlan = runtimePlan;
 
     const dispatchSnapshot = (
       messageId: string,
@@ -724,14 +748,14 @@ export function useBrowserCapabilityRuntime({
       completedRuntimeJobs.current.add(candidate.jobId);
     }
 
-    for (const jobId of runtimePlan.cleanupJobIds) {
+    for (const jobId of executableRuntimePlan.cleanupJobIds) {
       removePersistedBrowserRuntimeEntry(jobId);
     }
 
-    for (const decision of runtimePlan.reconcile) {
+    for (const decision of executableRuntimePlan.reconcile) {
       const recoveredPlan = decision.candidate.toolName === "compose_media"
         && decision.runtimeStatus === "fallback_required"
-        ? resolveComposeMediaPlanFromCandidate(decision.candidate)
+        ? resolveComposeMediaPlanFromCandidate(decision.candidate, conversationId, canonicalizationOptions)
         : null;
 
       if (recoveredPlan) {
@@ -770,7 +794,7 @@ export function useBrowserCapabilityRuntime({
       );
     }
 
-    for (const candidate of runtimePlan.queue) {
+    for (const candidate of executableRuntimePlan.queue) {
       upsertPersistedBrowserRuntimeEntry({
         jobId: candidate.jobId,
         toolName: candidate.toolName,
@@ -798,11 +822,11 @@ export function useBrowserCapabilityRuntime({
       );
     }
 
-    for (const decision of runtimePlan.overflow) {
+    for (const decision of executableRuntimePlan.overflow) {
       removePersistedBrowserRuntimeEntry(decision.candidate.jobId);
       const overflowPlan = decision.candidate.toolName === "compose_media"
         && decision.runtimeStatus === "fallback_required"
-        ? resolveComposeMediaPlanFromCandidate(decision.candidate)
+        ? resolveComposeMediaPlanFromCandidate(decision.candidate, conversationId, canonicalizationOptions)
         : null;
 
       if (overflowPlan) {
@@ -841,7 +865,7 @@ export function useBrowserCapabilityRuntime({
       );
     }
 
-    for (const candidate of runtimePlan.start) {
+    for (const candidate of executableRuntimePlan.start) {
       upsertPersistedBrowserRuntimeEntry({
         jobId: candidate.jobId,
         toolName: candidate.toolName,
@@ -855,7 +879,7 @@ export function useBrowserCapabilityRuntime({
           continue;
         }
 
-        const initialPlan = resolveComposeMediaPlanFromCandidate(candidate);
+        const initialPlan = resolveComposeMediaPlanFromCandidate(candidate, conversationId, canonicalizationOptions);
         if (!initialPlan) {
           completedRuntimeJobs.current.add(candidate.jobId);
           dispatchSnapshot(
@@ -1226,5 +1250,5 @@ export function useBrowserCapabilityRuntime({
         continue;
       }
     }
-  }, [conversationId, dispatch, messages, runtimeTick]);
+  }, [conversationId, dispatch, messages, nonExecutableMessageIds, reusableMediaAssets, runtimeTick]);
 }

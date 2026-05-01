@@ -27,6 +27,7 @@ const CORPUS_DISCOVERY_TOOLS = [
 ] as const;
 
 const MEMBER_STATE_TOOLS = [
+  "search_relationship_memory",
   "search_my_conversations",
   "get_my_profile",
   "update_my_profile",

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   createDeferredJobResultPayload,
-  deferredJobResultToMessagePart,
   deferredJobResultToStreamEvent,
 } from "./deferred-job-result";
 
@@ -69,53 +68,6 @@ describe("deferred-job-result", () => {
       cardKind: "journal_workflow",
     });
     expect(payload.deferred_job.toolInvocationId).toBe("toolu_job_1");
-  });
-
-  it("hydrates message parts from deferred payload envelopes when legacy summary fields are absent", () => {
-    const part = deferredJobResultToMessagePart({
-      deferred_job: {
-        jobId: "job_2",
-        conversationId: "conv_2",
-        toolName: "draft_content",
-        label: "Draft Content",
-        status: "running",
-        sequence: 2,
-        toolInvocationId: "toolu_draft_1",
-        resultPayload: null,
-        resultEnvelope: {
-          schemaVersion: 1,
-          toolName: "draft_content",
-          family: "editorial",
-          cardKind: "editorial_workflow",
-          executionMode: "deferred",
-          inputSnapshot: { title: "Launch Plan" },
-          summary: {
-            title: "Envelope Title",
-            subtitle: "Envelope Subtitle",
-            message: "Envelope summary",
-          },
-          replaySnapshot: { title: "Envelope Title" },
-          progress: {
-            percent: 55,
-            label: "Drafting",
-          },
-          payload: {
-            id: "post_1",
-            slug: "launch-plan",
-            status: "draft",
-            title: "Launch Plan",
-          },
-        },
-      },
-    });
-
-    expect(part.title).toBe("Envelope Title");
-    expect(part.subtitle).toBe("Envelope Subtitle");
-    expect(part.summary).toBe("Envelope summary");
-    expect(part.progressPercent).toBe(55);
-    expect(part.progressLabel).toBe("Drafting");
-    expect(part.resultEnvelope?.toolName).toBe("draft_content");
-    expect(part.toolInvocationId).toBe("toolu_draft_1");
   });
 
   it("emits normalized job parts on deferred job stream events", () => {

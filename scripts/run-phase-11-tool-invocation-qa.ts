@@ -1,14 +1,28 @@
-import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
+import {
+  PHASE_11_TOOL_INVOCATION_DETERMINISTIC_SCENARIOS,
+  PHASE_11_TOOL_INVOCATION_PASSING_RULES,
+  writePhase11ToolInvocationEvidenceArtifact,
+} from "../src/lib/evals/phase-11-tool-invocation-evidence";
+import {
+  formatQaCommand,
+  hasHelpFlag,
+  printUsage,
+  runQaCommandSteps,
+  tailCommandOutput,
+  type QaCommandExecution,
+  type QaCommandStep,
+} from "./lib/qa-runner";
+
 const ROOT = path.resolve(__dirname, "..");
-const RELEASE_DIR = path.join(ROOT, "release");
-const EVIDENCE_PATH = path.join(RELEASE_DIR, "phase-11-tool-invocation-evidence.json");
 
 const deterministicTestFiles = [
   "src/lib/chat/anthropic-stream.test.ts",
   "src/lib/media/media-asset-projection.test.ts",
+  "src/lib/capabilities/external-target-adapters.test.ts",
+  "src/lib/capabilities/mcp-process-runtime.test.ts",
   "src/core/capability-catalog/runtime-tool-binding.test.ts",
   "src/app/api/chat/uploads/route.test.ts",
   "src/app/api/runtime/generate-audio/route.test.ts",
@@ -50,79 +64,71 @@ type CommandEvidence = {
   stderrTail?: string;
 };
 
-function tail(value: string | null | undefined): string | undefined {
-  if (!value) return undefined;
-  return value.split("\n").slice(-80).join("\n").trim() || undefined;
-}
-
-function runCommand(name: string, command: string, args: string[], enabled = true): CommandEvidence {
-  if (!enabled) {
-    return { name, command, args, enabled, status: "skipped", exitCode: null };
-  }
-
-  const result = spawnSync(command, args, {
-    cwd: ROOT,
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-    env: process.env,
-  });
-
+function toCommandEvidence(result: QaCommandExecution): CommandEvidence {
   return {
-    name,
-    command,
-    args,
-    enabled,
-    status: result.status === 0 ? "passed" : "failed",
-    exitCode: result.status,
-    stdoutTail: tail(result.stdout),
-    stderrTail: tail(result.stderr),
+    name: result.label,
+    command: formatQaCommand(result.command, result.args),
+    args: result.args,
+    enabled: result.enabled,
+    status: result.status,
+    exitCode: result.exitCode,
+    stdoutTail: tailCommandOutput(result.stdout),
+    stderrTail: tailCommandOutput(result.stderr),
   };
 }
 
-const commands: CommandEvidence[] = [
-  runCommand("phase-11-deterministic-unit-integration", "npm", ["test", "--", ...deterministicTestFiles]),
-  ...liveMediaCommands.map((entry) => runCommand(entry.name, entry.command, entry.args, entry.enabled)),
-];
+async function main(): Promise<void> {
+  if (hasHelpFlag()) {
+    printUsage([
+      "Usage: tsx scripts/run-phase-11-tool-invocation-qa.ts",
+      "Runs deterministic Phase 11 tool-invocation/media-generation gates, optionally includes live media checks, and writes release/phase-11-tool-invocation-evidence.json.",
+    ]);
+    return;
+  }
 
-const deterministicScenarios = [
-  "tool-invocation-id-preserved-through-stream",
-  "duplicate-tool-result-same-invocation-suppressed",
-  "same-payload-different-invocation-preserved",
-  "media-chart-requires-rasterized-image-before-compose",
-  "media-graph-requires-rasterized-image-before-compose",
-  "media-compose-does-not-narrate-running-before-preflight",
-  "media-compose-reuses-governed-assets-only",
-];
+  const steps: QaCommandStep[] = [
+    {
+      label: "phase-11-deterministic-unit-integration",
+      command: "npm",
+      args: ["test", "--", ...deterministicTestFiles],
+      cwd: ROOT,
+      output: "capture",
+    },
+    ...liveMediaCommands.map((entry) => ({
+      label: entry.name,
+      command: entry.command,
+      args: entry.args,
+      enabled: entry.enabled,
+      cwd: ROOT,
+      output: "capture" as const,
+    })),
+  ];
 
-const passingRules = [
-  "no duplicate visible tool result for the same toolInvocationId",
-  "no duplicate transcript tool result for the same toolInvocationId",
-  "no duplicate browser-runtime candidate for the same toolInvocationId",
-  "every media output used in composition is a governed asset of the correct kind",
-  "every video eval proves playable video when live media gates are enabled",
-  "every audio-required video eval proves audio presence when live media gates are enabled",
-  "assistant copy never claims completed or running video before the runtime state supports it",
-];
+  const commands = runQaCommandSteps(steps, { stopOnFailure: false }).map(toCommandEvidence);
+  const { artifactPath } = writePhase11ToolInvocationEvidenceArtifact({
+    releaseDir: path.join(ROOT, "release"),
+    commands,
+    deterministicScenarios: [...PHASE_11_TOOL_INVOCATION_DETERMINISTIC_SCENARIOS],
+    passingRules: [...PHASE_11_TOOL_INVOCATION_PASSING_RULES],
+    liveMediaEnabled: process.env.ORDO_PHASE_11_LIVE_MEDIA === "1",
+  });
 
-const evidence = {
-  schemaVersion: 1,
-  generatedAt: new Date().toISOString(),
-  phase: "phase-11-tool-invocation-identity-and-media-generation-gates",
-  deterministicScenarios,
-  passingRules,
-  liveMediaEnabled: process.env.ORDO_PHASE_11_LIVE_MEDIA === "1",
-  commands,
-};
+  const failed = commands.filter((command) => command.status === "failed");
+  console.log(`Wrote ${path.relative(ROOT, artifactPath)}`);
+  for (const command of commands) {
+    console.log(`${command.status.toUpperCase()} ${command.name}`);
+  }
 
-fs.mkdirSync(RELEASE_DIR, { recursive: true });
-fs.writeFileSync(EVIDENCE_PATH, JSON.stringify(evidence, null, 2));
-
-const failed = commands.filter((command) => command.status === "failed");
-console.log(`Wrote ${path.relative(ROOT, EVIDENCE_PATH)}`);
-for (const command of commands) {
-  console.log(`${command.status.toUpperCase()} ${command.name}`);
+  if (failed.length > 0) {
+    process.exitCode = 1;
+  }
 }
 
-if (failed.length > 0) {
+main().catch((error) => {
+  printUsage([
+    "Usage: tsx scripts/run-phase-11-tool-invocation-qa.ts",
+    "Runs deterministic Phase 11 tool-invocation/media-generation gates, optionally includes live media checks, and writes release/phase-11-tool-invocation-evidence.json.",
+  ]);
+  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
   process.exitCode = 1;
-}
+});

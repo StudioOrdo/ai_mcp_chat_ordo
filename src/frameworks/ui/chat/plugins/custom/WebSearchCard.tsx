@@ -89,7 +89,7 @@ function searchStatusLabel(result: SearchCorpusPayload): string {
 }
 
 function isGenericSearchTextTool(toolName: string): boolean {
-  return ["search_my_conversations", "get_corpus_summary", "list_practitioners"].includes(toolName);
+  return ["get_corpus_summary", "list_practitioners"].includes(toolName);
 }
 
 function summarizeSearchCorpus(result: SearchCorpusPayload): string {

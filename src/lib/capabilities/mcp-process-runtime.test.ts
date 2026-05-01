@@ -1,9 +1,18 @@
 import { describe, expect, it, vi } from "vitest";
 
+const { appendRuntimeAuditLogMock } = vi.hoisted(() => ({
+  appendRuntimeAuditLogMock: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/lib/observability/runtime-audit-log", () => ({
+  appendRuntimeAuditLog: appendRuntimeAuditLogMock,
+}));
+
 import {
   createComposeBackedMcpContainerExecutionTargetAdapter,
 } from "./mcp-stdio-adapter";
 import {
+  extractMcpToolCallAuditContext,
   McpProcessSessionPool,
   type McpProcessLaunchOptions,
   type McpProcessSession,
@@ -15,6 +24,26 @@ function wait(ms: number): Promise<void> {
 }
 
 describe("mcp-process-runtime", () => {
+  it("extracts bridged tool invocation audit context from MCP call arguments", () => {
+    expect(extractMcpToolCallAuditContext({
+      name: "admin_web_search",
+      arguments: {
+        query: "latest referral guidance",
+        __executionContext: {
+          userId: "admin-1",
+          role: "ADMIN",
+          conversationId: "conv-1",
+          toolInvocationId: "toolu_mcp_1",
+        },
+      },
+    })).toEqual({
+      userId: "admin-1",
+      role: "ADMIN",
+      conversationId: "conv-1",
+      toolInvocationId: "toolu_mcp_1",
+    });
+  });
+
   it("reuses an existing sidecar session for identical launch configs", async () => {
     const callTool = vi.fn(async () => ({ ok: true }));
     const close = vi.fn(async () => undefined);
@@ -160,6 +189,12 @@ describe("mcp-process-runtime", () => {
     const result = await adapter.invoke({
       capability: {} as never,
       input: { query: "latest referral guidance" },
+      context: {
+        userId: "admin-1",
+        role: "ADMIN",
+        conversationId: "conv-1",
+        toolInvocationId: "toolu_mcp_1",
+      },
       plan: {} as never,
       target: {
         kind: "mcp_container",
@@ -182,7 +217,15 @@ describe("mcp-process-runtime", () => {
       }),
       {
         name: "admin_web_search",
-        arguments: { query: "latest referral guidance" },
+        arguments: {
+          query: "latest referral guidance",
+          __executionContext: {
+            userId: "admin-1",
+            role: "ADMIN",
+            conversationId: "conv-1",
+            toolInvocationId: "toolu_mcp_1",
+          },
+        },
       },
     );
     expect(result).toEqual({ ok: true, target: "container" });

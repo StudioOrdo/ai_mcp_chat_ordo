@@ -57,6 +57,18 @@ vi.mock("@/hooks/useMockAuth", () => ({
   }),
 }));
 
+vi.mock("@/frameworks/ui/jobs-rail/JobsRail", () => ({
+  JobsRail: () => <div data-testid="jobs-rail" />,
+}));
+
+vi.mock("@/frameworks/ui/jobs-rail/useJobsRailController", () => ({
+  useJobsRailController: () => ({
+    model: { items: [] },
+    utilityActions: [],
+    onAction: vi.fn(),
+  }),
+}));
+
 beforeEach(() => {
   pathname = "/";
   pushMock.mockReset();
@@ -135,8 +147,7 @@ describe("shell acceptance", () => {
     expect(nav.querySelector('[data-shell-nav-region="brand"]')).not.toBeNull();
     expect(nav.querySelector('[data-shell-nav-region="account-access"]')).not.toBeNull();
     expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).toBeNull();
-    expect(nav.querySelector('[data-shell-nav-region="search"]')).not.toBeNull();
-    expect(nav.querySelector('[data-global-search="true"]')).not.toBeNull();
+    expect(within(nav).getByTestId("jobs-rail")).toBeInTheDocument();
     expect(within(nav).getByRole("link", { name: /studio ordo home/i })).toHaveAttribute("href", "/");
     fireEvent.click(within(nav).getByRole("button", { name: "Open workspace menu" }));
 
@@ -158,7 +169,14 @@ describe("shell acceptance", () => {
     const footer = screen.getByRole("contentinfo");
     const footerLinks = getLinkNames(footer);
 
-    expect(footerLinks).toEqual(["Studio Ordo home", "Library", "Journal", "Profile"]);
+    expect(footerLinks).toEqual([
+      "Studio Ordo home",
+      "Library",
+      "Journal",
+      "Current Work",
+      "Referrals",
+      "Profile",
+    ]);
     expect(within(footer).getByRole("link", { name: /studio ordo home/i })).toHaveAttribute("href", "/");
     expect(within(footer).getByText("Information")).toBeInTheDocument();
     expect(within(footer).getByText("Workspace")).toBeInTheDocument();

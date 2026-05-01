@@ -20,6 +20,10 @@ import {
   shouldRefreshConversationAfterStream,
   validateChatSend,
 } from "./chatSendPolicy";
+import {
+  formatProviderCreditCircuitBreakerMessage,
+  getProviderCreditCircuitBreakerState,
+} from "./providerCreditCircuitBreaker";
 import { useChatStreamRuntime } from "./useChatStreamRuntime";
 
 interface UseChatSendOptions {
@@ -141,6 +145,14 @@ export function useChatSend({
         return { ok: false, error };
       }
 
+      const providerCircuit = getProviderCreditCircuitBreakerState(messages);
+      if (providerCircuit.active) {
+        return {
+          ok: false,
+          error: formatProviderCreditCircuitBreakerMessage(providerCircuit),
+        };
+      }
+
       inFlightRef.current = true;
       setIsSending(true);
       let uploadedAttachmentIds: string[] = [];
@@ -182,7 +194,7 @@ export function useChatSend({
               messageText: trimmedMessage,
               attachments: attachmentParts,
               taskOriginHandoff,
-              mediaContinuityHandoff: preparedSend.mediaContinuityHandoff,
+              mediaContinuityHandoff: preparedSend.mediaContinuityHandoff ?? undefined,
             });
           }
 
@@ -211,7 +223,7 @@ export function useChatSend({
               messageText: trimmedMessage,
               attachments: attachmentParts,
               taskOriginHandoff,
-              mediaContinuityHandoff: preparedSend.mediaContinuityHandoff,
+              mediaContinuityHandoff: preparedSend.mediaContinuityHandoff ?? undefined,
             });
 
             const failedMessages = [...preparedSend.optimisticMessages];
@@ -264,6 +276,14 @@ export function useChatSend({
 
       if (error) {
         return { ok: false, error };
+      }
+
+      const providerCircuit = getProviderCreditCircuitBreakerState(messages);
+      if (providerCircuit.active) {
+        return {
+          ok: false,
+          error: formatProviderCreditCircuitBreakerMessage(providerCircuit),
+        };
       }
 
       inFlightRef.current = true;

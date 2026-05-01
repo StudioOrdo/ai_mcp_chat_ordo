@@ -20,4 +20,12 @@ describe("ShellBrand", () => {
     expect(screen.getByRole("link", { name: /studio ordo home/i })).toBeInTheDocument();
     expect(container.querySelector("[data-shell-brand-wordmark='true']")).toBeNull();
   });
+
+  it("can hide the visible mark while preserving the wordmark and home link", () => {
+    const { container } = render(<ShellBrand showMark={false} />);
+
+    expect(screen.getByRole("link", { name: /studio ordo home/i })).toBeInTheDocument();
+    expect(screen.getByText("Studio Ordo")).toBeInTheDocument();
+    expect(container.querySelector("[data-shell-brand-mark='true']")).toBeNull();
+  });
 });

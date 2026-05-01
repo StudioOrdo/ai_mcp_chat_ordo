@@ -1,6 +1,7 @@
 import type { JobEvent, JobInitiatorType, JobRequest } from "@/core/entities/job";
 import type { DeferredExecutionConfig } from "@/core/tool-registry/ToolDescriptor";
 import type { JobQueueRepository } from "@/core/use-cases/JobQueueRepository";
+import { recordPromptBindingFromSource } from "@/lib/prompts/prompt-binding-service";
 
 import {
   createDeferredJobResultPayload,
@@ -19,6 +20,7 @@ export interface EnqueueDeferredToolJobOptions {
   priority?: number;
   deferred?: DeferredExecutionConfig;
   dedupeKey?: string | null;
+  promptBindingId?: string | null;
   toolInvocationId?: string;
 }
 
@@ -76,6 +78,7 @@ export async function enqueueDeferredToolJob(
     initiatorType: options.initiatorType ?? "user",
     requestPayload: options.requestPayload,
     priority: options.priority,
+    toolInvocationId: options.toolInvocationId ?? null,
   });
 
   const event = await options.repository.appendEvent({
@@ -87,6 +90,40 @@ export async function enqueueDeferredToolJob(
       ...(options.toolInvocationId ? { toolInvocationId: options.toolInvocationId } : {}),
     },
   });
+
+  if (options.promptBindingId) {
+    await recordPromptBindingFromSource({
+      userId: options.userId,
+      conversationId: options.conversationId,
+      sourcePromptBindingId: options.promptBindingId,
+      surface: "job_execution",
+      target: {
+        targetKind: "job",
+        targetId: job.id,
+      },
+      decisionSourceRefs: [
+        {
+          sourceKind: "job",
+          sourceId: job.id,
+          userId: options.userId,
+          conversationId: options.conversationId,
+        },
+      ],
+      evidenceRefs: [
+        {
+          source: {
+            sourceKind: "job_event",
+            sourceId: event.id,
+            userId: options.userId,
+            conversationId: options.conversationId,
+          },
+          observedAt: event.createdAt,
+          summary: `Deferred job ${options.toolName} queued for execution.`,
+        },
+      ],
+      createdAt: event.createdAt,
+    });
+  }
 
   return {
     job,

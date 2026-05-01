@@ -11,8 +11,8 @@ import { SYNONYMS } from "@/core/search/data/synonyms";
 import { LowercaseStep } from "@/core/search/query-steps/LowercaseStep";
 import { StopwordStep } from "@/core/search/query-steps/StopwordStep";
 import { SynonymStep } from "@/core/search/query-steps/SynonymStep";
+import { getAllMcpExportableTools } from "@/core/capability-catalog/mcp-export";
 import { getAnalyticsToolSchemas } from "@/lib/capabilities/shared/analytics-tool";
-import { getAdminIntelligenceToolSchemas } from "@/lib/capabilities/shared/admin-intelligence-tool";
 import { getEmbeddingToolSchemas } from "@/lib/capabilities/shared/embedding-tool";
 import { getCorpusToolSchemas } from "@/lib/capabilities/shared/librarian-tool";
 import { getPromptToolSchemas } from "@/lib/capabilities/shared/prompt-tool";
@@ -328,11 +328,13 @@ function getRecordedOperationsToolInventory(): string[] {
 
 function getExpectedOperationsToolInventory(): string[] {
   return [
-    ...getAdminIntelligenceToolSchemas(),
     ...getEmbeddingToolSchemas(corpusConfig.sourceType),
     ...getCorpusToolSchemas(),
     ...getPromptToolSchemas(),
     ...getAnalyticsToolSchemas(),
+    ...getAllMcpExportableTools().map((tool) => ({
+      name: tool.name,
+    })),
   ]
     .map((tool) => tool.name)
     .sort((left, right) => left.localeCompare(right));

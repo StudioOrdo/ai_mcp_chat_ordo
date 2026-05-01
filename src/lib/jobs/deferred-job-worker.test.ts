@@ -11,7 +11,10 @@ import type {
   JobStatus,
   JobStatusUpdate,
 } from "@/core/entities/job";
+import type { MaterializationRepository } from "@/core/use-cases/MaterializationRepository";
 import type { JobQueueRepository } from "@/core/use-cases/JobQueueRepository";
+import { AudioGenerationError } from "@/lib/audio/audio-generation-errors";
+import { REASON_CODES } from "@/lib/observability/reason-codes";
 
 const { appendRuntimeAuditLogMock } = vi.hoisted(() => ({
   appendRuntimeAuditLogMock: vi.fn(),
@@ -204,7 +207,7 @@ describe("deferred-job-worker", () => {
   });
 
   it("marks retry exhaustion as dead_letter and emits retry_exhausted metadata", async () => {
-    const repository = new InMemoryJobQueueRepository(createJob({ attemptCount: 2 }));
+    const repository = new InMemoryJobQueueRepository(createJob({ attemptCount: 10 }));
     const worker = new DeferredJobWorker(repository, {
       compose_media: async () => {
         throw new Error("Temporary network timeout while composing media.");
@@ -222,8 +225,8 @@ describe("deferred-job-worker", () => {
     expect(exhaustedEvent?.payload).toMatchObject({
       errorMessage: "Temporary network timeout while composing media.",
       failureClass: "transient",
-      attemptCount: 2,
-      maxAttempts: 2,
+      attemptCount: 10,
+      maxAttempts: 10,
     });
   });
 
@@ -250,5 +253,152 @@ describe("deferred-job-worker", () => {
 
     expect(result.outcome).toBe("canceled");
     expect(repository.currentJob?.status).toBe("canceled");
+  });
+
+  it("registers a reusable materialization after compose_media succeeds", async () => {
+    const repository = new InMemoryJobQueueRepository(createJob({
+      requestPayload: {
+        plan: {
+          id: "plan_media_1",
+          conversationId: "conv_media_1",
+          visualClips: [{ assetId: "asset_visual_1", kind: "video" }],
+          audioClips: [],
+          subtitlePolicy: "none",
+          waveformPolicy: "none",
+          outputFormat: "mp4",
+        },
+        materializationKey: "compose_media:key_1",
+      },
+    }));
+    const materializationRepository: MaterializationRepository = {
+      findById: vi.fn(async () => null),
+      findByMaterializationKey: vi.fn(async () => null),
+      findReusableSuccess: vi.fn(async () => null),
+      upsert: vi.fn(async (record) => record),
+      markSuperseded: vi.fn(async () => null),
+      listByConversation: vi.fn(async () => []),
+      findLatestByOutputRef: vi.fn(async () => null),
+    };
+    const worker = new DeferredJobWorker(repository, {
+      compose_media: async () => ({
+        schemaVersion: 1,
+        toolName: "compose_media",
+        family: "media",
+        cardKind: "media_output",
+        executionMode: "deferred",
+        inputSnapshot: {},
+        summary: { title: "Media Composition" },
+        payload: { primaryAssetId: "asset_output_1" },
+      }),
+    }, undefined, materializationRepository);
+
+    const result = await worker.runNext({
+      workerId: "worker_dev_3000",
+      now: new Date("2026-04-20T03:00:00.000Z"),
+    });
+
+    expect(result.outcome).toBe("succeeded");
+    expect(materializationRepository.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      id: "mat_job_job_media_1",
+      status: "ready",
+      producedByJobId: "job_media_1",
+      outputRefs: [
+        expect.objectContaining({ id: "asset_output_1", kind: "asset" }),
+      ],
+    }));
+  });
+
+  it("registers a reusable materialization after generate_audio succeeds", async () => {
+    const repository = new InMemoryJobQueueRepository(createJob({
+      id: "job_audio_1",
+      toolName: "generate_audio",
+      dedupeKey: "generate_audio:key_1",
+      requestPayload: {
+        title: "Founder memo",
+        text: "This is the founder memo for the weekly review.",
+        materializationKey: "generate_audio:key_1",
+      },
+    }));
+    const materializationRepository: MaterializationRepository = {
+      findById: vi.fn(async () => null),
+      findByMaterializationKey: vi.fn(async () => null),
+      findReusableSuccess: vi.fn(async () => null),
+      upsert: vi.fn(async (record) => record),
+      markSuperseded: vi.fn(async () => null),
+      listByConversation: vi.fn(async () => []),
+      findLatestByOutputRef: vi.fn(async () => null),
+    };
+    const worker = new DeferredJobWorker(repository, {
+      generate_audio: async () => ({
+        schemaVersion: 1,
+        toolName: "generate_audio",
+        family: "artifact",
+        cardKind: "artifact_viewer",
+        executionMode: "deferred",
+        inputSnapshot: {},
+        summary: { title: "Founder memo" },
+        payload: { assetId: "uf_audio_1" },
+      }),
+    }, undefined, materializationRepository);
+
+    const result = await worker.runNext({
+      workerId: "worker_dev_3000",
+      now: new Date("2026-04-20T03:00:00.000Z"),
+    });
+
+    expect(result.outcome).toBe("succeeded");
+    expect(materializationRepository.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      id: "mat_job_job_audio_1",
+      status: "ready",
+      producedByJobId: "job_audio_1",
+      outputRefs: [
+        expect.objectContaining({ id: "uf_audio_1", kind: "asset" }),
+      ],
+    }));
+  });
+
+  it("classifies transient audio provider failures without registering materialization", async () => {
+    const repository = new InMemoryJobQueueRepository(createJob({
+      id: "job_audio_failed_1",
+      toolName: "generate_audio",
+      dedupeKey: "generate_audio:key_failed_1",
+      requestPayload: {
+        title: "Founder memo",
+        text: "This is the founder memo for the weekly review.",
+        materializationKey: "generate_audio:key_failed_1",
+      },
+    }));
+    const materializationRepository: MaterializationRepository = {
+      findById: vi.fn(async () => null),
+      findByMaterializationKey: vi.fn(async () => null),
+      findReusableSuccess: vi.fn(async () => null),
+      upsert: vi.fn(async (record) => record),
+      markSuperseded: vi.fn(async () => null),
+      listByConversation: vi.fn(async () => []),
+      findLatestByOutputRef: vi.fn(async () => null),
+    };
+    const worker = new DeferredJobWorker(repository, {
+      generate_audio: async () => {
+        throw new AudioGenerationError(
+          "OpenAI TTS failed to generate audio with status 503.",
+          "transient",
+          REASON_CODES.TTS_PROVIDER_FAILED,
+          503,
+        );
+      },
+    }, undefined, materializationRepository);
+
+    const result = await worker.runNext({
+      workerId: "worker_dev_3000",
+      now: new Date("2026-04-20T03:00:00.000Z"),
+    });
+
+    expect(result.outcome).toBe("failed");
+    expect(repository.currentJob?.failureClass).toBe("transient");
+    expect(materializationRepository.upsert).not.toHaveBeenCalled();
+    expect(repository.events.find((event) => event.eventType === "failed")?.payload).toMatchObject({
+      failureClass: "transient",
+      errorMessage: "OpenAI TTS failed to generate audio with status 503.",
+    });
   });
 });

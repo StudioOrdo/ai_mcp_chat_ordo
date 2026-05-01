@@ -73,12 +73,20 @@ describe("buildAssetResolutionIndex", () => {
     expect(index.getChartPayloadByAssetId("uf_chart_1")).toEqual(expect.objectContaining({ title: "Revenue Chart" }));
   });
 
-  it("keeps chart, graph, and audio lookups isolated by kind", () => {
+  it("keeps chart and graph lookups isolated by kind", () => {
     const index = buildAssetResolutionIndex(buildMessages());
 
     expect(index.getGraphPayloadByAssetId("uf_graph_1")).toEqual(expect.objectContaining({ title: "Lead Mix" }));
-    expect(index.getAudioPayloadByAssetId("uf_audio_1")).toEqual(expect.objectContaining({ title: "Greeting" }));
     expect(index.getChartPayloadByAssetId("uf_graph_1")).toBeNull();
+  });
+
+  it("does not promote direct generate_audio transcript payloads into product asset state", () => {
+    const index = buildAssetResolutionIndex(buildMessages());
+
+    expect(index.listCandidates()).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ assetId: "uf_audio_1" }),
+    ]));
+    expect(Object.keys(index)).not.toContain("getAudioPayloadByAssetId");
   });
 
   it("returns canonicalization candidates with alias metadata", () => {
@@ -96,7 +104,6 @@ describe("buildAssetResolutionIndex", () => {
 
     expect(index.getChartPayloadByAssetId("missing")).toBeNull();
     expect(index.getGraphPayloadByAssetId("missing")).toBeNull();
-    expect(index.getAudioPayloadByAssetId("missing")).toBeNull();
     expect(index.listCandidates()).toEqual([]);
   });
 

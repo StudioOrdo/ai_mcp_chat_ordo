@@ -31,6 +31,25 @@ vi.mock("@/lib/admin/jobs/admin-jobs-actions", () => ({
 
 import AdminJobDetailPage from "@/app/admin/jobs/[id]/page";
 
+function makeInteraction() {
+  return {
+    timeline: {
+      state: "active",
+      supportLevel: "full",
+      summary: null,
+      events: [],
+      artifacts: [],
+      nextActions: [],
+    },
+    revision: {
+      state: "unavailable",
+      supportLevel: "none",
+      summary: null,
+      actions: [],
+    },
+  };
+}
+
 describe("/admin/jobs/[id] page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -105,6 +124,7 @@ describe("/admin/jobs/[id] page", () => {
           createdAt: "2026-03-31T10:01:00.000Z",
         },
       ],
+      interaction: makeInteraction(),
     });
 
     render(await AdminJobDetailPage({ params: Promise.resolve({ id: "job_running" }) }));
@@ -178,6 +198,7 @@ describe("/admin/jobs/[id] page", () => {
         artifactPolicy: "open_artifact",
       },
       events: [],
+      interaction: makeInteraction(),
     });
 
     render(await AdminJobDetailPage({ params: Promise.resolve({ id: "job_failed" }) }));

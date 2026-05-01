@@ -42,8 +42,8 @@ vi.mock("@/components/NotificationFeed", () => ({
   NotificationFeed: () => <div data-testid="notification-feed" />,
 }));
 
-vi.mock("@/components/GlobalSearchBar", () => ({
-  GlobalSearchBar: () => <div data-testid="global-search" />,
+vi.mock("@/frameworks/ui/jobs-rail/JobsRail", () => ({
+  JobsRail: () => <div data-testid="jobs-rail" />,
 }));
 
 vi.mock("@/components/ThemeProvider", () => ({
@@ -167,7 +167,7 @@ describe("homepage shell ownership", () => {
     expect(viewportStage).not.toContainElement(footer);
   });
 
-  it("renders the canonical homepage nav contract with shared search intact", () => {
+  it("renders the canonical homepage nav contract with the shared utility rail", () => {
     render(
       <AppShell user={baseUser}>
         <div>Homepage Stage</div>
@@ -177,12 +177,12 @@ describe("homepage shell ownership", () => {
     const nav = screen.getByRole("navigation", { name: "Primary" });
     expect(within(nav).getByRole("link", { name: /studio ordo home/i })).toBeInTheDocument();
     expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).toBeNull();
-    expect(nav.querySelector('[data-shell-nav-region="search"]')).not.toBeNull();
+    expect(nav.querySelector('[data-shell-nav-region="account-access"]')).not.toBeNull();
     expect(within(nav).queryByRole("link", { name: "Library" })).toBeNull();
     expect(within(nav).queryByRole("link", { name: "Home" })).toBeNull();
     expect(within(nav).queryByRole("link", { name: "Dashboard" })).toBeNull();
     expect(within(nav).queryByTestId("account-menu")).toBeNull();
-    expect(within(nav).getByTestId("global-search")).toBeInTheDocument();
+    expect(within(nav).getByTestId("jobs-rail")).toBeInTheDocument();
     expect(within(nav).getByTestId("notification-feed")).toBeInTheDocument();
     expect(within(nav).getByTestId("workspace-menu")).toBeInTheDocument();
   });

@@ -87,6 +87,62 @@ export function createTables(db: Database.Database): void {
   `);
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS prompt_bindings (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      conversation_id TEXT DEFAULT NULL,
+      surface TEXT NOT NULL,
+      target_kind TEXT NOT NULL,
+      target_id TEXT NOT NULL,
+      source_prompt_binding_id TEXT DEFAULT NULL,
+      effective_hash TEXT NOT NULL,
+      slot_refs_json TEXT NOT NULL DEFAULT '[]',
+      overlay_refs_json TEXT NOT NULL DEFAULT '[]',
+      decision_source_refs_json TEXT NOT NULL DEFAULT '[]',
+      evidence_refs_json TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+      FOREIGN KEY (source_prompt_binding_id) REFERENCES prompt_bindings(id) ON DELETE SET NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_prompt_bindings_conversation_created
+      ON prompt_bindings(conversation_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_prompt_bindings_user_created
+      ON prompt_bindings(user_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_prompt_bindings_target
+      ON prompt_bindings(target_kind, target_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_prompt_bindings_source_binding
+      ON prompt_bindings(source_prompt_binding_id, created_at);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS relationship_memory_records (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      conversation_id TEXT NOT NULL,
+      memory_type TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      evidence_refs_json TEXT NOT NULL DEFAULT '[]',
+      status TEXT NOT NULL,
+      confidence REAL NOT NULL,
+      superseded_by_id TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+      FOREIGN KEY (superseded_by_id) REFERENCES relationship_memory_records(id) ON DELETE SET NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_relationship_memory_conversation_status
+      ON relationship_memory_records(conversation_id, status, updated_at DESC, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_relationship_memory_user_status
+      ON relationship_memory_records(user_id, status, updated_at DESC, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_relationship_memory_type_status
+      ON relationship_memory_records(memory_type, status, updated_at DESC, created_at DESC);
+  `);
+
+  db.exec(`
     CREATE TABLE IF NOT EXISTS conversation_events (
       id TEXT PRIMARY KEY,
       conversation_id TEXT NOT NULL,
@@ -112,6 +168,34 @@ export function createTables(db: Database.Database): void {
     );
     CREATE INDEX IF NOT EXISTS idx_conv_purge_audits_purged_at ON conversation_purge_audits(purged_at);
     CREATE INDEX IF NOT EXISTS idx_conv_purge_audits_reason ON conversation_purge_audits(purge_reason);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS identity_migration_events (
+      id TEXT PRIMARY KEY,
+      source_user_id TEXT NOT NULL,
+      target_user_id TEXT NOT NULL,
+      migrated_conversation_ids_json TEXT NOT NULL DEFAULT '[]',
+      migrated_job_ids_json TEXT NOT NULL DEFAULT '[]',
+      migrated_asset_ids_json TEXT NOT NULL DEFAULT '[]',
+      repaired_memory_refs_json TEXT NOT NULL DEFAULT '[]',
+      repaired_search_source_ids_json TEXT NOT NULL DEFAULT '[]',
+      object_counts_json TEXT NOT NULL DEFAULT '[]',
+      repair_refs_json TEXT NOT NULL DEFAULT '[]',
+      status TEXT NOT NULL,
+      current_stage TEXT DEFAULT NULL,
+      failure_message TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      completed_at TEXT DEFAULT NULL,
+      FOREIGN KEY (source_user_id) REFERENCES users(id),
+      FOREIGN KEY (target_user_id) REFERENCES users(id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_identity_migration_source_created
+      ON identity_migration_events(source_user_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_identity_migration_target_created
+      ON identity_migration_events(target_user_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_identity_migration_status_stage
+      ON identity_migration_events(status, current_stage, created_at DESC);
   `);
 
   db.exec(`
@@ -260,6 +344,18 @@ export function createTables(db: Database.Database): void {
       source_type TEXT PRIMARY KEY,
       stats_json TEXT NOT NULL,
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  db.exec(`
+    CREATE VIRTUAL TABLE IF NOT EXISTS embedding_fts USING fts5(
+      id UNINDEXED,
+      source_type UNINDEXED,
+      source_id UNINDEXED,
+      chunk_level UNINDEXED,
+      content,
+      heading,
+      metadata_text
     );
   `);
 
@@ -468,6 +564,9 @@ export function createTables(db: Database.Database): void {
       last_checkpoint_id TEXT DEFAULT NULL,
       replayed_from_job_id TEXT DEFAULT NULL,
       superseded_by_job_id TEXT DEFAULT NULL,
+      origin_message_id TEXT DEFAULT NULL,
+      origin_turn_id TEXT DEFAULT NULL,
+      tool_invocation_id TEXT DEFAULT NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       started_at TEXT DEFAULT NULL,
       completed_at TEXT DEFAULT NULL,
@@ -501,6 +600,34 @@ export function createTables(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_job_events_job_created ON job_events(job_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_job_events_job_sequence ON job_events(job_id, sequence);
     CREATE INDEX IF NOT EXISTS idx_job_events_conversation_sequence ON job_events(conversation_id, sequence);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS materialization_records (
+      id TEXT PRIMARY KEY,
+      user_id TEXT DEFAULT NULL,
+      conversation_id TEXT DEFAULT NULL,
+      materialization_key TEXT NOT NULL,
+      tool_name TEXT NOT NULL,
+      pipeline_version TEXT DEFAULT NULL,
+      status TEXT NOT NULL,
+      reuse_policy TEXT NOT NULL,
+      input_source_refs_json TEXT NOT NULL DEFAULT '[]',
+      output_refs_json TEXT NOT NULL DEFAULT '[]',
+      evidence_refs_json TEXT NOT NULL DEFAULT '[]',
+      produced_by_job_id TEXT DEFAULT NULL,
+      superseded_by_record_id TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+      FOREIGN KEY (produced_by_job_id) REFERENCES job_requests(id) ON DELETE SET NULL,
+      FOREIGN KEY (superseded_by_record_id) REFERENCES materialization_records(id) ON DELETE SET NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_materialization_key ON materialization_records(materialization_key);
+    CREATE INDEX IF NOT EXISTS idx_materialization_tool_status ON materialization_records(tool_name, status);
+    CREATE INDEX IF NOT EXISTS idx_materialization_job ON materialization_records(produced_by_job_id);
   `);
 
   db.exec(`

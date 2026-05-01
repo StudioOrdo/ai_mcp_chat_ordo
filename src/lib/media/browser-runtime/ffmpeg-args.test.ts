@@ -17,6 +17,7 @@ describe("ffmpeg-args", () => {
     visualClips: [],
     audioClips: [],
     subtitlePolicy: "none",
+    waveformPolicy: "none",
     outputFormat: "mp4",
   };
 

@@ -9,12 +9,12 @@ import { useUICommands } from "@/hooks/useUICommands";
 import { useChatComposerController } from "@/hooks/chat/useChatComposerController";
 import type { ActionLinkType } from "@/core/entities/rich-content";
 import { buildTranscriptCopy } from "@/lib/chat/conversation-portability";
+import { resolveProductExperienceFacade } from "@/frameworks/ui/product-experience-facade";
 import {
   exportConversationById,
   importConversationFromPayload,
 } from "@/hooks/chat/chatConversationApi";
-import { getCapabilityPresentationDescriptor } from "@/frameworks/ui/chat/registry/capability-presentation-registry";
-import { resolveProgressStrip } from "@/frameworks/ui/chat/plugins/system/resolve-progress-strip";
+import { resolveJobsRail, type JobsRailAction } from "@/frameworks/ui/jobs-rail/resolve-jobs-rail";
 
 export type ActionDispatchDeps = {
   router: ReturnType<typeof useRouter>;
@@ -112,21 +112,27 @@ export const ACTION_HANDLERS: Record<ActionLinkType, (deps: ActionDispatchDeps, 
 
 export function useChatSurfaceState({
   isEmbedded,
+  surfaceVariant = "chat",
 }: {
   isEmbedded: boolean;
+  surfaceVariant?: "chat" | "workspace";
 }) {
   const router = useRouter();
   const {
+    viewerRole,
     activeStreamId,
     messages,
     isSending,
     retryFailedMessage,
     sendMessage,
     stopStream,
+    jobStateEntries,
+    workflowStateEntries,
     conversationId,
     currentConversation,
+    workspaceRestore,
     isLoadingMessages,
-    applyConversationPayload,
+    applyImportedConversationPayload,
     setConversationId,
     refreshConversation,
   } =
@@ -169,10 +175,18 @@ export function useChatSurfaceState({
     presentedMessages,
     dynamicSuggestions,
     scrollDependency,
-  } = usePresentedChatMessages(messages, isSending);
-  const progressStripItems = useMemo(
-    () => resolveProgressStrip(presentedMessages, getCapabilityPresentationDescriptor),
-    [presentedMessages],
+  } = usePresentedChatMessages(messages, isSending, jobStateEntries, workflowStateEntries);
+  const productExperience = useMemo(
+    () => resolveProductExperienceFacade({
+      isEmbedded,
+      viewerRole,
+      sessionSearchQuery,
+      presentedMessages,
+      workspaceRestore,
+      jobStateEntries,
+      currentConversationTitle: currentConversation?.title ?? null,
+    }),
+    [currentConversation?.title, isEmbedded, jobStateEntries, presentedMessages, sessionSearchQuery, viewerRole, workspaceRestore],
   );
 
   useUICommands(presentedMessages, isLoadingMessages);
@@ -250,20 +264,71 @@ export function useChatSurfaceState({
     try {
       const result = await importConversationFromPayload(await file.text());
       if (result.status === "imported" && result.payload) {
-        applyConversationPayload(result.payload);
+        applyImportedConversationPayload(result.payload);
       }
     } finally {
       setIsConversationActionPending(false);
     }
-  }, [applyConversationPayload]);
+  }, [applyImportedConversationPayload]);
 
-  const isHeroState =
-    isEmbedded &&
-    !sessionSearchQuery &&
-    presentedMessages.length === 1 &&
-    presentedMessages[0]?.role === "assistant" &&
-    presentedMessages[0]?.responseState === "open" &&
-    presentedMessages[0]?.suggestions.length > 0;
+  const handleDiagnosticBundleDownload = useCallback(async (targetConversationId: string) => {
+    setIsConversationActionPending(true);
+    try {
+      const response = await fetch(`/api/diagnostics/conversations/${encodeURIComponent(targetConversationId)}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          includeRuntimeLogs: true,
+          includeConversationExport: true,
+          includeJobTimelines: true,
+        }),
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      const blob = await response.blob();
+      const disposition = response.headers.get("Content-Disposition") ?? "";
+      const fileNameMatch = /filename="([^"]+)"/.exec(disposition);
+      const fileName = fileNameMatch?.[1] ?? `ordo-diagnostic-bundle-${targetConversationId}.json`;
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = fileName;
+      anchor.click();
+      window.URL.revokeObjectURL(url);
+    } finally {
+      setIsConversationActionPending(false);
+    }
+  }, []);
+
+  const isHeroState = productExperience.isHeroState;
+  const visibleProductExperienceSummary = surfaceVariant === "workspace"
+    ? productExperience.summary
+    : null;
+  const jobsRail = useMemo(
+    () => resolveJobsRail({
+      entries: jobStateEntries ?? [],
+      syncState: conversationId ? "live" : "unknown",
+      conversationId,
+      canExportDiagnostics: Boolean(conversationId),
+    }),
+    [conversationId, jobStateEntries],
+  );
+  const handleJobsRailAction = useCallback((action: JobsRailAction) => {
+    if (action.kind === "download_bundle") {
+      const targetConversationId = action.params?.conversationId ?? conversationId;
+      if (targetConversationId) {
+        void handleDiagnosticBundleDownload(targetConversationId);
+      }
+      return;
+    }
+
+    handleActionClick(action.actionType, action.value, action.params);
+  }, [conversationId, handleActionClick, handleDiagnosticBundleDownload]);
 
   const headerProps = {
     canCopyTranscript: messages.length > 0,
@@ -273,6 +338,17 @@ export function useChatSurfaceState({
     onCopyTranscript: handleCopyTranscript,
     onExportConversation: handleExportConversation,
     onImportConversationFile: handleImportConversationFile,
+    jobsRail,
+    conversationUtilityActions: {
+      canCopyTranscript: messages.length > 0,
+      canExportConversation: Boolean(conversationId),
+      canImportConversation: true,
+      isBusy: isConversationActionPending,
+      onCopyTranscript: handleCopyTranscript,
+      onExportConversation: handleExportConversation,
+      onImportConversationFile: handleImportConversationFile,
+    },
+    onJobsRailAction: handleJobsRailAction,
   };
 
   const contentProps = {
@@ -301,7 +377,8 @@ export function useChatSurfaceState({
     onSuggestionSelect: handleSuggestionSelect,
     onStopStream: stopStream,
     pendingFiles,
-    progressStripItems,
+    productExperienceState: productExperience.kind,
+    productExperienceSummary: visibleProductExperienceSummary,
     sendError,
     scrollDependency,
     searchQuery: sessionSearchQuery,

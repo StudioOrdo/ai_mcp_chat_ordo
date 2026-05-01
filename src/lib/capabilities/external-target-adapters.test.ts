@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
+const { appendRuntimeAuditLogMock } = vi.hoisted(() => ({
+  appendRuntimeAuditLogMock: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("@/lib/observability/runtime-audit-log", () => ({
-  appendRuntimeAuditLog: vi.fn().mockResolvedValue(undefined),
+  appendRuntimeAuditLog: appendRuntimeAuditLogMock,
 }));
 
 import {
@@ -11,6 +15,7 @@ import {
 
 describe("external-target-adapters", () => {
   it("invokes native_process targets through the configured runner", async () => {
+    appendRuntimeAuditLogMock.mockClear();
     const runProcess = vi.fn(async () => JSON.stringify({ ok: true, route: "native_process" }));
     const adapter = createNativeProcessExecutionTargetAdapter({ runProcess });
 
@@ -21,6 +26,7 @@ describe("external-target-adapters", () => {
         userId: "admin-1",
         role: "ADMIN",
         conversationId: "conv-1",
+        toolInvocationId: "toolu_native_1",
       },
       plan: {} as never,
       target: {
@@ -43,11 +49,30 @@ describe("external-target-adapters", () => {
           userId: "admin-1",
           role: "ADMIN",
           conversationId: "conv-1",
+          toolInvocationId: "toolu_native_1",
         },
       },
       30_000,
     );
     expect(result).toEqual({ ok: true, route: "native_process" });
+    expect(appendRuntimeAuditLogMock).toHaveBeenCalledWith(
+      "native_process",
+      "invoke_started",
+      expect.objectContaining({
+        conversationId: "conv-1",
+        userId: "admin-1",
+        toolInvocationId: "toolu_native_1",
+      }),
+    );
+    expect(appendRuntimeAuditLogMock).toHaveBeenCalledWith(
+      "native_process",
+      "invoke_succeeded",
+      expect.objectContaining({
+        conversationId: "conv-1",
+        userId: "admin-1",
+        toolInvocationId: "toolu_native_1",
+      }),
+    );
   });
 
   it("posts remote_service targets as JSON without execution metadata by default", async () => {
@@ -98,6 +123,7 @@ describe("external-target-adapters", () => {
   });
 
   it("can opt remote_service targets into execution metadata bridging", async () => {
+    appendRuntimeAuditLogMock.mockClear();
     const fetchImpl = vi.fn(async () => new Response(
       JSON.stringify({ ok: true, route: "remote_service" }),
       {
@@ -114,6 +140,7 @@ describe("external-target-adapters", () => {
         userId: "admin-1",
         role: "ADMIN",
         conversationId: "conv-1",
+        toolInvocationId: "toolu_remote_1",
       },
       plan: {} as never,
       target: {
@@ -138,8 +165,27 @@ describe("external-target-adapters", () => {
             userId: "admin-1",
             role: "ADMIN",
             conversationId: "conv-1",
+            toolInvocationId: "toolu_remote_1",
           },
         }),
+      }),
+    );
+    expect(appendRuntimeAuditLogMock).toHaveBeenCalledWith(
+      "remote_service",
+      "invoke_started",
+      expect.objectContaining({
+        conversationId: "conv-1",
+        userId: "admin-1",
+        toolInvocationId: "toolu_remote_1",
+      }),
+    );
+    expect(appendRuntimeAuditLogMock).toHaveBeenCalledWith(
+      "remote_service",
+      "invoke_succeeded",
+      expect.objectContaining({
+        conversationId: "conv-1",
+        userId: "admin-1",
+        toolInvocationId: "toolu_remote_1",
       }),
     );
   });

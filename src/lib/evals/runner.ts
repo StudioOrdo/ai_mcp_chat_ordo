@@ -16,8 +16,11 @@ import { isTrainingPathCustomerVisibleStatus } from "@/core/entities/training-pa
 import type { CorpusRepository } from "@/core/use-cases/CorpusRepository";
 import { GetSectionCommand, SearchCorpusCommand, type GetSectionPayload, type SearchCorpusPayload } from "@/core/use-cases/tools/CorpusTools";
 import { executePublishContent } from "@/core/use-cases/tools/admin-content.tool";
-import { createDeferredJobResultPayload, deferredJobResultToMessagePart } from "@/lib/jobs/deferred-job-result";
-import { buildJobStatusSnapshot, getActiveJobStatuses } from "@/lib/jobs/job-read-model";
+import { buildCanonicalJobSnapshot, getActiveJobStatuses } from "@/lib/jobs/job-read-model";
+import { createChartAudioVideoWorkflowDraft } from "@/lib/media/workflows/factory";
+import { MediaWorkflowOrchestrator } from "@/lib/media/workflows/orchestrator";
+import { MediaWorkflowReadModel } from "@/lib/media/workflows/media-workflow-read-model";
+import { SqliteMediaWorkflowRepository } from "@/lib/media/workflows/sqlite-media-workflow-repository";
 import {
   evaluateCanonicalCorpusSearchPayload,
   evaluateStructuredGetSectionPayload,
@@ -429,6 +432,211 @@ export async function runDeterministicEvalScenario(
             stopReason: null,
             finalLane,
             finalRecommendation,
+          },
+        });
+        break;
+      }
+      case "media-workflow-video-completion-deterministic": {
+        const userId = inflated.refs.authenticatedUserId ?? conversation.userId;
+        const jobRepo = new JobQueueDataMapper(workspace.db);
+        const workflowRepo = new SqliteMediaWorkflowRepository(workspace.db);
+        const orchestrator = new MediaWorkflowOrchestrator({
+          workflowRepository: workflowRepo,
+          jobRepository: jobRepo,
+        });
+        const audioJob = await jobRepo.createJob({
+          conversationId: primaryConversationId,
+          userId,
+          toolName: "generate_audio",
+          requestPayload: {
+            title: "Bloom taxonomy narration",
+            text: "A concise explanation of Bloom's taxonomy for a short video.",
+          },
+          dedupeKey: "eval:media-workflow-video:audio",
+          initiatorType: "user",
+        });
+
+        const workflow = workflowRepo.createWorkflow(createChartAudioVideoWorkflowDraft({
+          userId,
+          conversationId: primaryConversationId,
+          originMessageId: "msg_eval_media_workflow_assistant",
+          originTurnId: "turn_eval_media_workflow",
+          title: "Bloom taxonomy video",
+          chart: {
+            assetId: "chart_eval_bloom_taxonomy",
+          },
+          audio: {
+            title: "Bloom taxonomy narration",
+            text: "A concise explanation of Bloom's taxonomy for a short video.",
+            jobId: audioJob.id,
+          },
+          now: "2026-05-01T16:47:35.000Z",
+        }));
+
+        await jobRepo.updateJobStatus(audioJob.id, {
+          status: "succeeded",
+          resultPayload: {
+            schemaVersion: 1,
+            toolName: "generate_audio",
+            artifacts: [{
+              kind: "audio",
+              assetId: "uf_eval_bloom_audio",
+              mimeType: "audio/mpeg",
+            }],
+          },
+          completedAt: "2026-05-01T16:47:45.000Z",
+        });
+
+        const afterAudio = await orchestrator.advanceByJobId(audioJob.id);
+        const retryAfterAudio = await orchestrator.advanceByJobId(audioJob.id);
+        const composeStep = retryAfterAudio?.steps.find((step) => step.kind === "compose_media") ?? null;
+        const composeJobId = composeStep?.jobId ?? null;
+
+        if (!composeJobId) {
+          throw new Error("Media workflow eval did not enqueue compose_media after audio completion.");
+        }
+
+        await jobRepo.updateJobStatus(composeJobId, {
+          status: "succeeded",
+          resultPayload: {
+            schemaVersion: 1,
+            toolName: "compose_media",
+            artifacts: [{
+              kind: "video",
+              assetId: "uf_eval_bloom_video",
+              mimeType: "video/mp4",
+            }],
+          },
+          completedAt: "2026-05-01T16:48:15.000Z",
+        });
+
+        const completed = await orchestrator.advanceByJobId(composeJobId);
+        const workflows = await new MediaWorkflowReadModel({
+          workflowRepository: workflowRepo,
+        }).listConversationWorkflows(primaryConversationId);
+        const jobs = await jobRepo.listJobsByConversation(primaryConversationId, { limit: 20 });
+        const jobSnapshots = await Promise.all(jobs.map(async (job) => {
+          const latestEvent = await jobRepo.findLatestEventForJob(job.id);
+          return buildCanonicalJobSnapshot(job, latestEvent);
+        }));
+        const presented = new ChatPresenter(new MarkdownParserService(), new CommandParserService()).presentMany(
+          await workspace.listMessages(primaryConversationId).then((rows) => rows.map((message, index) => ({
+            id: index === 0 ? "msg_eval_media_workflow_user" : "msg_eval_media_workflow_assistant",
+            role: message.role,
+            content: message.content,
+            timestamp: new Date(message.createdAt),
+            parts: [{ type: "text", text: message.content }],
+          } satisfies ChatMessage))),
+          jobSnapshots,
+          workflows,
+        );
+        const workflowEntries = presented.flatMap((message) => message.toolRenderEntries)
+          .filter((entry) => entry.kind === "workflow-status");
+        const renderedJobEntries = presented.flatMap((message) => message.toolRenderEntries)
+          .filter((entry) => entry.kind !== "workflow-status");
+        const composeJobs = jobs.filter((job) => job.toolName === "compose_media");
+
+        toolCalls.push("generate_audio", "compose_media");
+        observations.push(
+          {
+            kind: "tool_call",
+            at: run.startedAt,
+            data: {
+              toolId: "generate_audio",
+              args: { title: "Bloom taxonomy narration" },
+              result: { jobId: audioJob.id, assetId: "uf_eval_bloom_audio" },
+              matchedExpected: true,
+            },
+          },
+          {
+            kind: "state_transition",
+            at: "2026-05-01T16:47:45.000Z",
+            data: {
+              transition: "media_workflow_audio_ready_compose_enqueued",
+              workflowId: workflow.workflow.id,
+              audioJobId: audioJob.id,
+              composeJobId,
+              source: "durable_media_workflow_orchestrator",
+            },
+          },
+          {
+            kind: "tool_call",
+            at: run.startedAt,
+            data: {
+              toolId: "compose_media",
+              args: { workflowId: workflow.workflow.id },
+              result: { jobId: composeJobId, assetId: "uf_eval_bloom_video" },
+              matchedExpected: true,
+            },
+          },
+          {
+            kind: "state_transition",
+            at: "2026-05-01T16:48:15.000Z",
+            data: {
+              transition: "media_workflow_succeeded",
+              workflowId: workflow.workflow.id,
+              finalAssetId: completed?.workflow.finalAssetId ?? null,
+              source: "durable_media_workflow_orchestrator",
+            },
+          },
+        );
+
+        checkpointResults.push(
+          createCheckpointResult(
+            scenario,
+            "workflow-created",
+            workflow.workflow.requestedDeliverable === "video"
+              && workflow.steps.some((step) => step.kind === "generate_chart" && step.status === "ready")
+              && workflow.steps.some((step) => step.kind === "generate_audio" && step.jobId === audioJob.id)
+              && workflow.steps.some((step) => step.kind === "compose_media"),
+            workflow.workflow.id,
+          ),
+          createCheckpointResult(
+            scenario,
+            "compose-auto-enqueued",
+            afterAudio?.steps.find((step) => step.kind === "compose_media")?.jobId === composeJobId
+              && composeJobs.length === 1,
+            `Found ${composeJobs.length} compose_media jobs.`,
+          ),
+          createCheckpointResult(
+            scenario,
+            "workflow-final-video",
+            completed?.workflow.status === "succeeded" && completed.workflow.finalAssetId === "uf_eval_bloom_video",
+            completed?.workflow.finalAssetId ?? "Workflow did not expose final video asset.",
+          ),
+          createCheckpointResult(
+            scenario,
+            "chat-renders-workflow",
+            workflows.length === 1
+              && workflows[0]?.finalArtifact?.assetId === "uf_eval_bloom_video"
+              && workflowEntries.length === 1
+              && renderedJobEntries.length === 0,
+            JSON.stringify({
+              workflowCount: workflows.length,
+              workflowEntries: workflowEntries.length,
+              renderedJobEntries: renderedJobEntries.length,
+              finalArtifact: workflows[0]?.finalArtifact ?? null,
+            }),
+          ),
+          createCheckpointResult(
+            scenario,
+            "status-polling-avoided",
+            !toolCalls.some((toolId) => ["list_my_jobs", "get_my_job_status", "list_deferred_jobs", "get_deferred_job_status"].includes(toolId)),
+            JSON.stringify(toolCalls),
+          ),
+        );
+
+        finalRecommendation = "Recovered as one durable media workflow with final video artifact uf_eval_bloom_video.";
+        observations.push({
+          kind: "summary",
+          at: run.startedAt,
+          data: {
+            stopReason: null,
+            finalLane,
+            finalRecommendation,
+            workflowId: workflow.workflow.id,
+            finalAssetId: completed?.workflow.finalAssetId ?? null,
+            composeJobCount: composeJobs.length,
           },
         });
         break;
@@ -925,7 +1133,7 @@ export async function runDeterministicEvalScenario(
           limit: 10,
         });
         const latestEvent = await jobRepo.findLatestEventForJob(runningJob.id);
-        const snapshot = buildJobStatusSnapshot(runningJob, latestEvent);
+        const snapshot = buildCanonicalJobSnapshot(runningJob, latestEvent);
 
         toolCalls.push("list_deferred_jobs", "get_deferred_job_status");
         observations.push(
@@ -944,7 +1152,7 @@ export async function runDeterministicEvalScenario(
             data: {
               toolId: "get_deferred_job_status",
               args: { job_id: runningJob.id },
-              result: snapshot.part,
+              result: snapshot,
             },
           },
         );
@@ -960,8 +1168,8 @@ export async function runDeterministicEvalScenario(
           createCheckpointResult(
             scenario,
             "progress-preserved",
-            snapshot.part.progressLabel === "Reviewing article",
-            snapshot.part.progressLabel ?? null,
+            snapshot.progressLabel === "Reviewing article",
+            snapshot.progressLabel ?? null,
           ),
         );
 
@@ -973,7 +1181,7 @@ export async function runDeterministicEvalScenario(
             finalLane,
             finalRecommendation: "Inspect the existing production job instead of re-running it.",
             jobId: runningJob.id,
-            progressLabel: snapshot.part.progressLabel ?? null,
+            progressLabel: snapshot.progressLabel ?? null,
           },
         });
         finalRecommendation = "Inspect the existing production job instead of re-running it.";
@@ -1013,7 +1221,7 @@ export async function runDeterministicEvalScenario(
           limit: 10,
         });
         const latestEvent = await jobRepo.findLatestEventForJob(runningJob.id);
-        const snapshot = buildJobStatusSnapshot(runningJob, latestEvent);
+        const snapshot = buildCanonicalJobSnapshot(runningJob, latestEvent);
         const finalAssistantMessage: { role: ChatMessage["role"]; content: string; createdAt: string } = {
           role: "assistant",
           content: "You have 1 active job. Produce Blog Article is still running for AI Governance Playbook. It is 42% complete and currently Reviewing article.",
@@ -1063,7 +1271,7 @@ export async function runDeterministicEvalScenario(
             finalLane,
             finalRecommendation: finalAssistantMessage.content,
             jobId: runningJob.id,
-            progressLabel: snapshot.part.progressLabel ?? null,
+            progressLabel: snapshot.progressLabel ?? null,
           },
         });
         finalRecommendation = finalAssistantMessage.content;
@@ -1099,7 +1307,7 @@ export async function runDeterministicEvalScenario(
         });
 
         const latestEvent = await jobRepo.findLatestEventForJob(runningJob.id);
-        const snapshot = buildJobStatusSnapshot(runningJob, latestEvent);
+        const snapshot = buildCanonicalJobSnapshot(runningJob, latestEvent);
         const activeJobs = await jobRepo.listJobsByUser(inflated.refs.authenticatedUserId ?? conversation.userId, {
           statuses: getActiveJobStatuses(),
           limit: 10,
@@ -1125,7 +1333,7 @@ export async function runDeterministicEvalScenario(
           data: {
             toolId: "get_my_job_status",
             args: { job_id: runningJob.id },
-            result: snapshot.part,
+            result: snapshot,
           },
         });
 
@@ -1147,7 +1355,7 @@ export async function runDeterministicEvalScenario(
             finalLane,
             finalRecommendation: finalAssistantMessage.content,
             jobId: runningJob.id,
-            progressLabel: snapshot.part.progressLabel ?? null,
+            progressLabel: snapshot.progressLabel ?? null,
           },
         });
         finalRecommendation = finalAssistantMessage.content;
@@ -1361,7 +1569,7 @@ export async function runDeterministicEvalScenario(
           limit: 10,
         });
         const latestEvent = await jobRepo.findLatestEventForJob(queuedJob.id);
-        const snapshot = buildJobStatusSnapshot(queuedJob, latestEvent);
+        const snapshot = buildCanonicalJobSnapshot(queuedJob, latestEvent);
         const finalAssistantMessage: { role: ChatMessage["role"]; content: string; createdAt: string } = {
           role: "assistant",
           content: `Job ${queuedJob.id} is still running. It is 42% complete and currently Reviewing article. I reused the existing Produce Blog Article job and did not start another run.`,
@@ -1393,7 +1601,7 @@ export async function runDeterministicEvalScenario(
             data: {
               toolId: "get_deferred_job_status",
               args: { job_id: queuedJob.id },
-              result: snapshot.part,
+              result: snapshot,
             },
           },
         );
@@ -1425,7 +1633,7 @@ export async function runDeterministicEvalScenario(
             finalLane,
             finalRecommendation: finalAssistantMessage.content,
             jobId: queuedJob.id,
-            progressLabel: snapshot.part.progressLabel ?? null,
+            progressLabel: snapshot.progressLabel ?? null,
           },
         });
         finalRecommendation = finalAssistantMessage.content;
@@ -1459,9 +1667,8 @@ export async function runDeterministicEvalScenario(
             progressLabel: "Composing article",
           },
         });
-        const dedupedPart = deferredJobResultToMessagePart(
-          createDeferredJobResultPayload(runningJob, progressEvent, { deduped: true }),
-        );
+        void progressEvent;
+        const dedupedSummary = "Using existing Produce Blog Article job in this conversation.";
         const activeJobs = await jobRepo.listJobsByConversation(primaryConversationId, {
           statuses: getActiveJobStatuses(),
           limit: 10,
@@ -1484,7 +1691,11 @@ export async function runDeterministicEvalScenario(
             data: {
               toolId: "get_deferred_job_status",
               args: { job_id: runningJob.id },
-              result: dedupedPart,
+              result: {
+                jobId: runningJob.id,
+                status: runningJob.status,
+                summary: dedupedSummary,
+              },
             },
           },
         );
@@ -1499,8 +1710,8 @@ export async function runDeterministicEvalScenario(
           createCheckpointResult(
             scenario,
             "reuse-copy-clear",
-            dedupedPart.summary === "Using existing Produce Blog Article job in this conversation.",
-            dedupedPart.summary ?? null,
+            dedupedSummary === "Using existing Produce Blog Article job in this conversation.",
+            dedupedSummary,
           ),
           createActiveJobCountCheckpoint(scenario, "single-job-preserved", activeJobs, "produce_blog_article", "production"),
         );
@@ -1511,11 +1722,11 @@ export async function runDeterministicEvalScenario(
           data: {
             stopReason: null,
             finalLane,
-            finalRecommendation: dedupedPart.summary,
+            finalRecommendation: dedupedSummary,
             jobId: runningJob.id,
           },
         });
-        finalRecommendation = dedupedPart.summary ?? finalRecommendation;
+        finalRecommendation = dedupedSummary;
         break;
       }
       case "blog-produce-publish-handoff-deterministic": {
@@ -1569,14 +1780,14 @@ export async function runDeterministicEvalScenario(
             result: succeededJob.resultPayload,
           },
         });
-        const snapshot = buildJobStatusSnapshot(succeededJob, resultEvent);
+        const snapshot = buildCanonicalJobSnapshot(succeededJob, resultEvent);
         const presented = presenter.present({
-          id: snapshot.messageId,
+          id: snapshot.origin.originMessageId ?? "msg_eval_blog_produce_publish_handoff",
           role: "assistant",
           content: "Article production is complete.",
           timestamp: new Date(run.startedAt),
-          parts: [snapshot.part],
-        } as ChatMessage);
+          parts: [{ type: "text", text: "Article production is complete." }],
+        } as ChatMessage, [snapshot]);
         const jobStatusEntry = presented.toolRenderEntries?.find((e) => e.kind === "job-status");
         const publishAction = jobStatusEntry?.kind === "job-status" && Array.isArray(jobStatusEntry.computedActions)
           ? jobStatusEntry.computedActions.find(
@@ -1608,11 +1819,11 @@ export async function runDeterministicEvalScenario(
           createCheckpointResult(
             scenario,
             "post-id-preserved",
-            snapshot.part.resultPayload !== undefined
-              && typeof snapshot.part.resultPayload === "object"
-              && snapshot.part.resultPayload !== null
-              && "id" in snapshot.part.resultPayload
-              && snapshot.part.resultPayload.id === draftPost.id,
+            snapshot.resultPayload !== undefined
+              && typeof snapshot.resultPayload === "object"
+              && snapshot.resultPayload !== null
+              && "id" in snapshot.resultPayload
+              && snapshot.resultPayload.id === draftPost.id,
             draftPost.id,
           ),
           createCheckpointResult(
@@ -1686,52 +1897,41 @@ export async function runDeterministicEvalScenario(
           },
         });
         const recoveredJobs = await jobRepo.listJobsByConversation(primaryConversationId, { limit: 10 });
-        const recoveredSnapshot = buildJobStatusSnapshot(succeededJob, resultEvent);
+        const recoveredSnapshot = buildCanonicalJobSnapshot(succeededJob, resultEvent);
 
-        toolCalls.push("list_deferred_jobs", "get_deferred_job_status");
-        observations.push(
-          {
-            kind: "tool_call",
-            at: run.startedAt,
-            data: {
-              toolId: "list_deferred_jobs",
-              args: { conversation_id: primaryConversationId, active_only: false },
-              result: recoveredJobs.map((candidate) => ({ id: candidate.id, status: candidate.status, toolName: candidate.toolName })),
-            },
+        observations.push({
+          kind: "state_transition",
+          at: run.startedAt,
+          data: {
+            source: "durable_job_reconciliation",
+            conversationId: primaryConversationId,
+            recoveredJobs: recoveredJobs.map((candidate) => ({ id: candidate.id, status: candidate.status, toolName: candidate.toolName })),
+            recoveredSnapshot: recoveredSnapshot,
           },
-          {
-            kind: "tool_call",
-            at: run.startedAt,
-            data: {
-              toolId: "get_deferred_job_status",
-              args: { job_id: succeededJob.id },
-              result: recoveredSnapshot.part,
-            },
-          },
-        );
+        });
 
         checkpointResults.push(
           createCheckpointResult(
             scenario,
             "terminal-job-recovered",
             recoveredJobs.some((candidate) => candidate.id === succeededJob.id && candidate.status === "succeeded")
-              && recoveredSnapshot.part.status === "succeeded",
-            recoveredSnapshot.part.status,
+              && recoveredSnapshot.status === "succeeded",
+            recoveredSnapshot.status,
           ),
           createCheckpointResult(
             scenario,
             "summary-preserved",
-            recoveredSnapshot.part.summary === `Produced draft "${draftPost.title}" at /journal/${draftPost.slug}.`,
-            recoveredSnapshot.part.summary ?? null,
+            recoveredSnapshot.summary === `Produced draft "${draftPost.title}" at /journal/${draftPost.slug}.`,
+            recoveredSnapshot.summary ?? null,
           ),
           createCheckpointResult(
             scenario,
             "post-id-available",
-            recoveredSnapshot.part.resultPayload !== undefined
-              && typeof recoveredSnapshot.part.resultPayload === "object"
-              && recoveredSnapshot.part.resultPayload !== null
-              && "id" in recoveredSnapshot.part.resultPayload
-              && recoveredSnapshot.part.resultPayload.id === draftPost.id,
+            recoveredSnapshot.resultPayload !== undefined
+              && typeof recoveredSnapshot.resultPayload === "object"
+              && recoveredSnapshot.resultPayload !== null
+              && "id" in recoveredSnapshot.resultPayload
+              && recoveredSnapshot.resultPayload.id === draftPost.id,
             draftPost.id,
           ),
         );

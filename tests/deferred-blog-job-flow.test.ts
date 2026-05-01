@@ -1,12 +1,10 @@
 import Database from "better-sqlite3";
 import { beforeEach, describe, expect, it } from "vitest";
 import { BlogPostDataMapper } from "@/adapters/BlogPostDataMapper";
-import { ConversationDataMapper } from "@/adapters/ConversationDataMapper";
 import { JobQueueDataMapper } from "@/adapters/JobQueueDataMapper";
 import { MessageDataMapper } from "@/adapters/MessageDataMapper";
 import { executeDraftContent, parseDraftContentInput } from "@/core/use-cases/tools/admin-content.tool";
 import { ensureSchema } from "@/lib/db/schema";
-import { DeferredJobConversationProjector } from "@/lib/jobs/deferred-job-conversation-projector";
 import { DeferredJobWorker } from "@/lib/jobs/deferred-job-worker";
 
 function createDb() {
@@ -50,18 +48,12 @@ describe("deferred blog job flow", () => {
       },
     });
 
-    const queuedEvent = await jobRepo.appendEvent({
+    await jobRepo.appendEvent({
       jobId: job.id,
       conversationId: "conv_blog",
       eventType: "queued",
       payload: { toolName: "draft_content" },
     });
-
-    const projector = new DeferredJobConversationProjector(
-      new ConversationDataMapper(db),
-      messageRepo,
-    );
-    await projector.project(job, queuedEvent);
 
     const worker = new DeferredJobWorker(jobRepo, {
       draft_content: async (claimedJob) => executeDraftContent(
@@ -73,7 +65,7 @@ describe("deferred blog job flow", () => {
           conversationId: claimedJob.conversationId,
         },
       ),
-    }, projector);
+    });
 
     const result = await worker.runNext({
       workerId: "worker_blog",
@@ -89,15 +81,9 @@ describe("deferred blog job flow", () => {
     });
 
     const messages = await messageRepo.listByConversation("conv_blog");
-    expect(messages).toHaveLength(1);
-    expect(messages[0]?.parts).toEqual([
-      expect.objectContaining({
-        type: "job_status",
-        jobId: job.id,
-        title: "Deferred Queue Post",
-        status: "succeeded",
-        summary: expect.stringContaining("Deferred Queue Post"),
-      }),
-    ]);
+    expect(messages).toHaveLength(0);
+
+    const events = await jobRepo.listConversationEvents("conv_blog");
+    expect(events.map((event) => event.eventType)).toEqual(["queued", "started", "result"]);
   });
 });

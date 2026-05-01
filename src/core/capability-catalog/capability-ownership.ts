@@ -47,7 +47,7 @@ export type CapabilityOwnership =
 
 const CORE_TOOL_NAMES = Object.freeze([
   ...Object.keys(CALCULATOR_CAPABILITIES).filter(
-    (toolName) => !["generate_audio", "generate_chart", "generate_graph"].includes(toolName),
+    (toolName) => !["generate_chart", "generate_graph"].includes(toolName),
   ),
   ...Object.keys(THEME_CAPABILITIES),
   ...Object.keys(NAVIGATION_CAPABILITIES).filter((toolName) => toolName !== "admin_search"),
@@ -67,7 +67,6 @@ export const EXTENSION_PACK_TOOL_NAMES = Object.freeze({
   ]),
   media: Object.freeze([
     ...Object.keys(MEDIA_CAPABILITIES),
-    "generate_audio",
     "generate_chart",
     "generate_graph",
   ]),
@@ -167,6 +166,22 @@ export function getDefaultExecutionPlanningForCapability(
   const ownership = getCapabilityOwnership(toolName);
   if (!ownership || ownership.kind !== "pack") {
     return null;
+  }
+
+  if (toolName === "compose_media") {
+    return {
+      enabledTargetKinds: ["deferred_job", "host_ts"],
+      preferredTargetKinds: ["deferred_job", "host_ts"],
+      browserRuntimeAvailable: false,
+    };
+  }
+
+  if (toolName === "generate_audio") {
+    return {
+      enabledTargetKinds: ["deferred_job"],
+      preferredTargetKinds: ["deferred_job"],
+      browserRuntimeAvailable: false,
+    };
   }
 
   if (ownership.packId === "media") {

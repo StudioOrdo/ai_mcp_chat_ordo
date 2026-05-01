@@ -12,7 +12,6 @@ import { getInstanceIdentity, getInstancePrompts } from "@/lib/config/instance";
 import { InstanceConfigProvider } from "@/lib/config/InstanceConfigContext";
 import { getDb } from "@/lib/db";
 import { REFERRAL_VISIT_COOKIE_NAME } from "@/lib/referrals/referral-visit";
-import { searchAction } from "@/lib/search/global-search-actions";
 import {
   DEFAULT_THEME_STATE,
   THEME_COOKIE_KEYS,
@@ -122,7 +121,7 @@ export default async function RootLayout({
         >
           <InstanceConfigProvider identity={identity} prompts={prompts}>
             <ChatProvider initialRole={user.roles[0]} canResolveReferralVisit={canResolveReferralVisit}>
-              <AppShell user={user} searchAction={searchAction}>{children}</AppShell>
+              <AppShell user={user}>{children}</AppShell>
               <Suspense fallback={null}>
                 <ChatSurface mode="floating" />
               </Suspense>

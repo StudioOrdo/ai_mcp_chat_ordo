@@ -354,14 +354,16 @@ describe("D9.6: AdminBrowseFilters — toggle onChange auto-submit", () => {
       "@/components/admin/AdminBrowseFilters"
     );
     const { container } = render(
-      <form onSubmit={submitSpy}>
-        <AdminBrowseFilters
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          fields={[{ name: "activeOnly", label: "Active only", type: "toggle" } as any]}
-          values={{}}
-        />
-      </form>,
+      <AdminBrowseFilters
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        fields={[{ name: "activeOnly", label: "Active only", type: "toggle" } as any]}
+        values={{}}
+      />,
     );
+    container.querySelector("form")?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      submitSpy(event as unknown as React.FormEvent);
+    });
     const checkbox = container.querySelector('input[type="checkbox"]')!;
     fireEvent.click(checkbox);
     // requestSubmit would trigger the form's submit event

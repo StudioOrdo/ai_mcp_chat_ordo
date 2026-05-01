@@ -25,6 +25,16 @@ function buildAliases(values: Array<string | undefined>): string[] {
   );
 }
 
+function manualChapterAliases(entry: CorpusIndexEntry): string[] {
+  const routeKey = `${entry.bookSlug}/${entry.chapterSlug}`;
+
+  if (routeKey === "field-guide/ch07-the-outlaw-sage") {
+    return ["the-outlaw"];
+  }
+
+  return [];
+}
+
 function chapterAliases(entry: CorpusIndexEntry): string[] {
   const titleLead = entry.chapterTitle.split(":")[0] ?? entry.chapterTitle;
 
@@ -33,6 +43,7 @@ function chapterAliases(entry: CorpusIndexEntry): string[] {
     stripChapterPrefix(entry.chapterSlug),
     titleLead,
     entry.chapterTitle,
+    ...manualChapterAliases(entry),
   ]);
 }
 

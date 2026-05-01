@@ -1,8 +1,9 @@
-import { useCallback, useRef, type RefObject } from "react";
+import { useCallback, useEffect, useRef, type RefObject } from "react";
 
 import type { MentionItem } from "@/core/entities/mentions";
 import { useMentions } from "@/hooks/useMentions";
 import { useCommandRegistry } from "@/hooks/useCommandRegistry";
+import { SET_CHAT_COMPOSER_TEXT_EVENT } from "@/lib/chat/chat-events";
 
 import { useChatComposerState } from "./useChatComposerState";
 
@@ -30,9 +31,20 @@ export function useChatComposerController({
   const setComposerText = useCallback(
     (text: string) => {
       composer.updateInput(text);
+      textareaRef.current?.focus();
     },
-    [composer],
+    [composer, textareaRef],
   );
+
+  useEffect(() => {
+    const handleComposerText = (event: Event) => {
+      const customEvent = event as CustomEvent<{ text?: string }>;
+      setComposerText(customEvent.detail?.text ?? "");
+    };
+
+    window.addEventListener(SET_CHAT_COMPOSER_TEXT_EVENT, handleComposerText);
+    return () => window.removeEventListener(SET_CHAT_COMPOSER_TEXT_EVENT, handleComposerText);
+  }, [setComposerText]);
 
   const handleInputChange = useCallback(
     (value: string, selectionStart: number) => {

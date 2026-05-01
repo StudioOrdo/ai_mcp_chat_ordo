@@ -18,10 +18,30 @@ export interface EmbeddingRecord {
 export interface VectorQuery {
   sourceType?: string;
   chunkLevel?: "document" | "section" | "passage";
+  sourceIdPrefix?: string;
   allowedAudiences?: string[];
   classes?: string[];
   rolePersonas?: string[];
   limit?: number;
+}
+
+export interface RankedSearchCandidate {
+  id: string;
+  rank: number;
+  score: number;
+}
+
+export interface VectorSearchRequest {
+  embedding: Float32Array;
+  filters?: VectorQuery;
+  limit: number;
+}
+
+export interface KeywordSearchRequest {
+  rawQuery: string;
+  terms: readonly string[];
+  filters?: VectorQuery;
+  limit: number;
 }
 
 export interface VectorStore {
@@ -29,6 +49,10 @@ export interface VectorStore {
   delete(sourceId: string): void;
   getAll(query?: VectorQuery): EmbeddingRecord[];
   getBySourceId(sourceId: string): EmbeddingRecord[];
+  searchSimilar(query: VectorSearchRequest): RankedSearchCandidate[];
+  searchKeyword(query: KeywordSearchRequest): RankedSearchCandidate[];
+  hydrateByIds(ids: readonly string[]): EmbeddingRecord[];
+  listSourceIds(sourceType: string): string[];
   getContentHash(sourceId: string): string | null;
   getModelVersion(sourceId: string): string | null;
   count(sourceType?: string): number;

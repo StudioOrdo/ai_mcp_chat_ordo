@@ -137,6 +137,7 @@ export function createManagedMcpProcessExecutionTargetAdapter<
               userId: request.context.userId,
               role: request.context.role,
               conversationId: request.context.conversationId,
+              toolInvocationId: request.context.toolInvocationId,
             }
           : undefined,
       };

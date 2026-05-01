@@ -71,7 +71,10 @@ export type { BookChunkMetadata } from "./ports/Chunker";
 export type { Embedder } from "./ports/Embedder";
 export type {
   EmbeddingRecord,
+  KeywordSearchRequest,
+  RankedSearchCandidate,
   VectorQuery,
+  VectorSearchRequest,
   VectorStore,
 } from "./ports/VectorStore";
 export type {

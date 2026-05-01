@@ -48,6 +48,24 @@ describe("eval deterministic seed packs", () => {
     ]);
   });
 
+  it("includes a deterministic media workflow fixture for video completion coverage", () => {
+    const pack = resolveDeterministicSeedPack("media-workflow-video-completion-deterministic");
+
+    expect(pack.seedSetId).toBe("seed-media-workflow-video-v1");
+    expect(pack.refs).toEqual(
+      expect.objectContaining({
+        primaryConversationId: "conv_eval_media_workflow_video",
+        authenticatedUserId: "usr_eval_media_workflow",
+      }),
+    );
+    expect(pack.conversations[0]?.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ content: expect.stringContaining("short video") }),
+        expect.objectContaining({ content: expect.stringContaining("composing the final video") }),
+      ]),
+    );
+  });
+
   it("defines a live fixture for anonymous signup continuity", () => {
     const fixture = resolveLiveEvalScenarioFixture("live-anonymous-signup-continuity");
 

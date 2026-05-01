@@ -27,14 +27,11 @@ function createPart(overrides: Partial<NonNullable<ToolPluginProps["part"]>> = {
 }
 
 describe("AudioPlayerCard", () => {
-  it("renders structured audio payloads inside the shared artifact shell", async () => {
+  it("renders canonical structured audio payloads inside the shared artifact shell", async () => {
     render(
       <AudioPlayerCard
-        part={createPart()}
-        toolCall={{
-          name: "generate_audio",
-          args: { title: "Founder memo", text: "Weekly review audio" },
-          result: {
+        part={createPart({
+          resultPayload: {
             action: "generate_audio",
             title: "Founder memo",
             text: "Weekly review audio",
@@ -44,7 +41,7 @@ describe("AudioPlayerCard", () => {
             estimatedDurationSeconds: 12,
             estimatedGenerationSeconds: 3,
           },
-        }}
+        })}
         isStreaming={false}
       />,
     );
@@ -57,6 +54,28 @@ describe("AudioPlayerCard", () => {
     expect(await screen.findByTestId("mock-audio-player")).toHaveTextContent(
       "Founder memo:user-file-cache:uf_audio_1",
     );
+  });
+
+  it("does not render product audio controls from direct transcript payloads", () => {
+    render(
+      <AudioPlayerCard
+        toolCall={{
+          name: "generate_audio",
+          args: { title: "Founder memo", text: "Weekly review audio" },
+          result: {
+            action: "generate_audio",
+            title: "Founder memo",
+            text: "Weekly review audio",
+            assetId: "uf_audio_direct_1",
+            provider: "user-file-cache",
+            generationStatus: "cached_asset",
+          },
+        }}
+        isStreaming={false}
+      />,
+    );
+
+    expect(screen.queryByTestId("mock-audio-player")).not.toBeInTheDocument();
   });
 
   it("renders canonical failure metadata for terminal audio jobs", () => {
@@ -89,21 +108,17 @@ describe("AudioPlayerCard", () => {
           failureStage: "recovery",
           failureCode: "fallback_required",
           error: "Local browser execution was interrupted and must reroute to the server.",
-        })}
-        toolCall={{
-          name: "generate_audio",
-          args: { title: "Ode to Cheese", text: "Cheese forever" },
-          result: {
+          resultPayload: {
             action: "generate_audio",
-            title: "Ode to Cheese",
-            text: "Cheese forever",
+            title: "Founder memo",
+            text: "Weekly review audio",
             assetId: "uf_6e9cee49-5d47-4497-89d2-0171e4b73b36",
             provider: "user-file-cache",
             generationStatus: "cached_asset",
             estimatedDurationSeconds: 18,
             estimatedGenerationSeconds: 4,
           },
-        }}
+        })}
         isStreaming={false}
       />,
     );
@@ -111,7 +126,7 @@ describe("AudioPlayerCard", () => {
     expect(screen.getByText("Ready")).toBeInTheDocument();
     expect(screen.queryByRole("alert", { name: "Generate Audio result" })).not.toBeInTheDocument();
     expect(await screen.findByTestId("mock-audio-player")).toHaveTextContent(
-      "Ode to Cheese:user-file-cache:uf_6e9cee49-5d47-4497-89d2-0171e4b73b36",
+      "Founder memo:user-file-cache:uf_6e9cee49-5d47-4497-89d2-0171e4b73b36",
     );
   });
 });

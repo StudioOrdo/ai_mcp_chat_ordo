@@ -79,11 +79,23 @@ describe("job status summary tools", () => {
       limit: 10,
     });
     expect(result.summary).toContain("active jobs");
-    expect(result.jobs[0].part).toMatchObject({
+    expect(result.jobs[0]).toMatchObject({
       jobId: "job_1",
       status: "running",
       progressLabel: "Reviewing article",
     });
+  });
+
+  it("describes signed-in status tools as explicit inspection instead of wait-loop polling", () => {
+    const query = createJobStatusQuery(repository);
+    const getTool = createGetMyJobStatusTool(query);
+    const listTool = createListMyJobsTool(query);
+
+    for (const tool of [getTool, listTool]) {
+      expect(tool.schema.description).toContain("explicit inspection or diagnostics");
+      expect(tool.schema.description).toContain("active chat waits through job events and reconciliation");
+      expect(tool.schema.description).toContain("Do not repeatedly call status tools for unchanged jobId/status/sequence");
+    }
   });
 
   it("includes recent terminal jobs only when explicitly requested", async () => {
@@ -132,7 +144,7 @@ describe("job status summary tools", () => {
     const result = await tool.command.execute({ job_id: "job_9" }, { role: "APPRENTICE", userId: "usr_member" });
 
     expect(listJobsByUserMock).toHaveBeenCalledWith("usr_member", { limit: 100 });
-    expect(result.job.part).toMatchObject({
+    expect(result.job).toMatchObject({
       jobId: "job_9",
       status: "queued",
       toolName: "draft_content",
@@ -182,7 +194,7 @@ describe("job status summary tools", () => {
   expect(tool.roles).toEqual(getSignedInJobAudienceRoles());
     const result = await tool.command.execute({ job_id: "job_ready_1" }, { role: "ADMIN", userId: "usr_member" });
 
-    expect(result.job.part).toMatchObject({
+    expect(result.job).toMatchObject({
       toolName: "prepare_journal_post_for_publish",
       title: "Journal publish readiness for post_42",
       subtitle: "Check whether a journal post is ready to publish and summarize blockers, active work, and QA findings.",

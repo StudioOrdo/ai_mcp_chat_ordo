@@ -62,6 +62,12 @@ vi.mock("@/lib/chat/tool-composition-root", () => ({
   getToolComposition: getToolCompositionMock,
 }));
 
+vi.mock("@/lib/platform/agent-platform-facade-root", () => ({
+  getAgentPlatformFacade: () => ({
+    getExecutionSurface: getToolCompositionMock,
+  }),
+}));
+
 vi.mock("@/lib/chat/anthropic-stream", () => ({
   runClaudeAgentLoopStream: runClaudeAgentLoopStreamMock,
 }));
@@ -112,6 +118,13 @@ vi.mock("@/adapters/RepositoryFactory", () => ({
     findLatestByConversation: vi.fn(async () => null),
     findByConversationAndTurnId: vi.fn(async () => null),
     listByConversation: vi.fn(async () => []),
+  }),
+  getPromptBindingRepository: () => ({
+    record: vi.fn(async (binding) => binding),
+    findById: vi.fn(async () => null),
+    findByTarget: vi.fn(async () => null),
+    listByConversation: vi.fn(async () => []),
+    listBySourcePromptBinding: vi.fn(async () => []),
   }),
 }));
 
@@ -227,6 +240,11 @@ describe("chat stream route prompt-runtime seam", () => {
       },
       summarizationInteractor: {
         summarizeIfNeeded: vi.fn(async () => undefined),
+      },
+      relationshipMemoryReader: {
+        listActiveByConversation: vi.fn(async () => []),
+        listActiveByUser: vi.fn(async () => []),
+        findById: vi.fn(async () => null),
       },
     });
 

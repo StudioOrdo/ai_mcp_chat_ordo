@@ -77,8 +77,8 @@ describe("Sprint 4 theme governance audit", () => {
       {
         componentPath: "src/components/SiteNav.tsx",
         cssPath: "src/app/styles/shell.css",
-        hooks: ["ui-shell-rail", "shell-nav-frame", "shell-nav-band", "shell-nav-search-frame", "shell-nav-actions"],
-        selectors: [".ui-shell-rail", ".shell-nav-frame", ".shell-nav-band", ".shell-nav-search-frame", ".shell-nav-actions"],
+        hooks: ["ui-shell-rail", "shell-nav-frame", "shell-nav-band", "shell-nav-actions"],
+        selectors: [".ui-shell-rail", ".shell-nav-frame", ".shell-nav-band", ".shell-nav-actions"],
       },
       {
         componentPath: "src/components/shell/ShellBrand.tsx",

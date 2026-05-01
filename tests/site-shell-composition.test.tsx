@@ -36,8 +36,16 @@ vi.mock("@/components/NotificationFeed", () => ({
   NotificationFeed: () => <div data-testid="notification-feed" />,
 }));
 
-vi.mock("@/components/GlobalSearchBar", () => ({
-  GlobalSearchBar: () => <div data-testid="global-search" />,
+vi.mock("@/frameworks/ui/jobs-rail/JobsRail", () => ({
+  JobsRail: () => <div data-testid="jobs-rail" />,
+}));
+
+vi.mock("@/frameworks/ui/jobs-rail/useJobsRailController", () => ({
+  useJobsRailController: () => ({
+    model: { items: [] },
+    utilityActions: [],
+    onAction: vi.fn(),
+  }),
 }));
 
 describe("site shell composition", () => {
@@ -146,7 +154,7 @@ describe("site shell composition", () => {
     expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).toBeNull();
     expect(within(nav).getByTestId("workspace-menu")).toBeInTheDocument();
     expect(within(nav).queryByTestId("account-menu")).toBeNull();
-    expect(within(nav).getByTestId("global-search")).toBeInTheDocument();
+    expect(within(nav).getByTestId("jobs-rail")).toBeInTheDocument();
     expect(within(nav).queryByRole("link", { name: "Home" })).toBeNull();
     expect(within(nav).queryByRole("link", { name: "Dashboard" })).toBeNull();
   });
@@ -174,7 +182,7 @@ describe("site shell composition", () => {
     expect(within(nav).getByRole("link", { name: "Register" })).toHaveAttribute("href", "/register");
   });
 
-  it("keeps the home header on the unified utility cluster while preserving search", () => {
+  it("keeps the home header on the unified utility cluster", () => {
     pathname = "/";
 
     renderShell();
@@ -182,8 +190,8 @@ describe("site shell composition", () => {
     const nav = screen.getByRole("navigation", { name: "Primary" });
 
     expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).toBeNull();
-    expect(nav.querySelector('[data-shell-nav-region="search"]')).not.toBeNull();
-    expect(within(nav).getByTestId("global-search")).toBeInTheDocument();
+    expect(nav.querySelector('[data-shell-nav-region="account-access"]')).not.toBeNull();
+    expect(within(nav).getByTestId("jobs-rail")).toBeInTheDocument();
     expect(within(nav).getByTestId("notification-feed")).toBeInTheDocument();
     expect(within(nav).getByTestId("workspace-menu")).toBeInTheDocument();
     expect(within(nav).queryByTestId("account-menu")).toBeNull();

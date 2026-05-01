@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import type { JobHistoryEntry } from "@/lib/jobs/job-event-history";
-import type { JobStatusSnapshot } from "@/lib/jobs/job-read-model";
+import type { CanonicalJobSnapshot } from "@/lib/jobs/job-read-model";
 
 import { JobHistoryTimeline } from "@/components/jobs/JobHistoryTimeline";
 import {
@@ -16,14 +16,14 @@ import {
 } from "@/components/jobs/job-workspace-helpers";
 
 interface JobDetailPanelProps {
-  job: JobStatusSnapshot | null;
+  job: CanonicalJobSnapshot | null;
   history: JobHistoryEntry[];
   isHistoryLoading: boolean;
   isPending: boolean;
   onJobAction: (jobId: string, action: JobAction) => void;
-  onCopySummary: (job: JobStatusSnapshot) => void;
-  onCopyFailure: (job: JobStatusSnapshot) => void;
-  onExportLog: (job: JobStatusSnapshot, history: JobHistoryEntry[]) => void;
+  onCopySummary: (job: CanonicalJobSnapshot) => void;
+  onCopyFailure: (job: CanonicalJobSnapshot) => void;
+  onExportLog: (job: CanonicalJobSnapshot, history: JobHistoryEntry[]) => void;
 }
 
 export function JobDetailPanel({
@@ -47,29 +47,29 @@ export function JobDetailPanel({
     );
   }
 
-  const action = getJobAction(job.part.status);
-  const title = job.part.title ?? job.part.label;
+  const action = getJobAction(job.status);
+  const title = job.title ?? job.label;
   const artifactLink = getJobArtifactLink(job);
-  const failureClass = formatJobFailureClass(job.part.failureClass);
+  const failureClass = formatJobFailureClass(job.failure.failureClass);
 
   return (
     <aside className="jobs-panel-surface px-(--space-inset-default) py-(--space-inset-default) sm:px-(--space-inset-panel) sm:py-(--space-inset-panel)" data-testid="job-detail-panel" data-jobs-detail-panel="true">
       <div className="flex flex-wrap items-start justify-between gap-(--space-3)">
         <div className="flex flex-wrap items-center gap-(--space-2)">
-          <span className={`inline-flex rounded-full border px-2 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.12em] ${getStatusTone(job.part.status)}`}>
-            {STATUS_LABELS[job.part.status]}
+          <span className={`inline-flex rounded-full border px-2 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.12em] ${getStatusTone(job.status)}`}>
+            {STATUS_LABELS[job.status]}
           </span>
           <span className="jobs-metric-pill inline-flex rounded-full px-2 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-foreground/55">
-            {job.part.toolName}
+            {job.toolName}
           </span>
         </div>
-        <span className="text-xs text-foreground/45">Updated {formatJobTimestamp(job.part.updatedAt)}</span>
+        <span className="text-xs text-foreground/45">Updated {formatJobTimestamp(job.updatedAt)}</span>
       </div>
 
       <div className="mt-(--space-4) space-y-(--space-2)">
         <h2 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h2>
-        {job.part.subtitle ? (
-          <p className="text-sm text-foreground/55">{job.part.subtitle}</p>
+        {job.subtitle ? (
+          <p className="text-sm text-foreground/55">{job.subtitle}</p>
         ) : null}
       </div>
 
@@ -78,7 +78,7 @@ export function JobDetailPanel({
       <dl className="mt-(--space-4) grid gap-x-(--space-4) gap-y-(--space-2) text-sm text-foreground/60 sm:grid-cols-2">
         <div>
           <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-foreground/45">Job ID</dt>
-          <dd className="mt-1 break-all text-foreground/72">{job.part.jobId}</dd>
+          <dd className="mt-1 break-all text-foreground/72">{job.jobId}</dd>
         </div>
         {job.conversationId ? (
           <div>
@@ -92,22 +92,22 @@ export function JobDetailPanel({
             <dd className="mt-1 text-foreground/72">{failureClass}</dd>
           </div>
         ) : null}
-        {job.part.recoveryMode ? (
+        {job.failure.recoveryMode ? (
           <div>
             <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-foreground/45">Recovery mode</dt>
-            <dd className="mt-1 text-foreground/72">{job.part.recoveryMode === "rerun" ? "Replay from start" : job.part.recoveryMode}</dd>
+            <dd className="mt-1 text-foreground/72">{job.failure.recoveryMode === "rerun" ? "Replay from start" : job.failure.recoveryMode}</dd>
           </div>
         ) : null}
-        {job.part.replayedFromJobId ? (
+        {job.failure.replayedFromJobId ? (
           <div>
             <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-foreground/45">Replayed from</dt>
-            <dd className="mt-1 break-all text-foreground/72">Job {job.part.replayedFromJobId}</dd>
+            <dd className="mt-1 break-all text-foreground/72">Job {job.failure.replayedFromJobId}</dd>
           </div>
         ) : null}
-        {job.part.supersededByJobId ? (
+        {job.failure.supersededByJobId ? (
           <div>
             <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-foreground/45">Superseded by</dt>
-            <dd className="mt-1 break-all text-foreground/72">Job {job.part.supersededByJobId}</dd>
+            <dd className="mt-1 break-all text-foreground/72">Job {job.failure.supersededByJobId}</dd>
           </div>
         ) : null}
       </dl>
@@ -131,16 +131,16 @@ export function JobDetailPanel({
         )}
       </div>
 
-      {job.part.progressPercent != null && (
+      {job.progressPercent != null && (
         <div className="mt-(--space-4) space-y-2">
           <div className="flex items-center justify-between text-xs uppercase tracking-[0.18em] text-foreground/45">
             <span>Progress</span>
-            <span>{Math.round(job.part.progressPercent)}%</span>
+            <span>{Math.round(job.progressPercent)}%</span>
           </div>
           <div className="jobs-progress-track h-2 overflow-hidden rounded-full">
             <div
               className="jobs-progress-fill h-full rounded-full"
-              style={{ width: `${Math.max(0, Math.min(100, job.part.progressPercent))}%` }}
+              style={{ width: `${Math.max(0, Math.min(100, job.progressPercent))}%` }}
             />
           </div>
         </div>
@@ -151,7 +151,7 @@ export function JobDetailPanel({
           <button
             type="button"
             className="jobs-action-primary rounded-full px-4 py-2 text-sm font-semibold"
-            onClick={() => onJobAction(job.part.jobId, action.action)}
+            onClick={() => onJobAction(job.jobId, action.action)}
             disabled={isPending}
             aria-label={`${action.label} ${title}`}
           >
@@ -166,7 +166,7 @@ export function JobDetailPanel({
         >
           Copy summary
         </button>
-        {job.part.error && (
+        {job.error && (
           <button
             type="button"
             className="rounded-full border border-foreground/15 px-3 py-2 text-sm font-medium text-foreground/72 transition hover:border-foreground/30 hover:text-foreground"

@@ -1,8 +1,12 @@
 import type {
   EmbeddingRecord,
+  KeywordSearchRequest,
+  RankedSearchCandidate,
   VectorQuery,
+  VectorSearchRequest,
   VectorStore,
 } from "@/core/search/ports/VectorStore";
+import { dotSimilarity } from "@/core/search/dotSimilarity";
 
 function readMetadataString(record: EmbeddingRecord, key: "audience" | "contentClass" | "rolePersona"): string | null {
   const metadata = record.metadata;
@@ -33,11 +37,23 @@ export class InMemoryVectorStore implements VectorStore {
 
   getAll(query?: VectorQuery): EmbeddingRecord[] {
     let results = [...this.records.values()];
+    results = this.applyFilters(results, query);
+    if (query?.limit) {
+      results = results.slice(0, query.limit);
+    }
+    return results;
+  }
+
+  private applyFilters(records: EmbeddingRecord[], query?: VectorQuery): EmbeddingRecord[] {
+    let results = records;
     if (query?.sourceType) {
       results = results.filter((r) => r.sourceType === query.sourceType);
     }
     if (query?.chunkLevel) {
       results = results.filter((r) => r.chunkLevel === query.chunkLevel);
+    }
+    if (query?.sourceIdPrefix) {
+      results = results.filter((r) => r.sourceId.startsWith(query.sourceIdPrefix!));
     }
     if (query?.allowedAudiences && query.allowedAudiences.length > 0) {
       const allowed = new Set(query.allowedAudiences);
@@ -60,14 +76,66 @@ export class InMemoryVectorStore implements VectorStore {
         return rolePersona !== null && allowed.has(rolePersona);
       });
     }
-    if (query?.limit) {
-      results = results.slice(0, query.limit);
-    }
     return results;
   }
 
   getBySourceId(sourceId: string): EmbeddingRecord[] {
     return [...this.records.values()].filter((r) => r.sourceId === sourceId);
+  }
+
+  searchSimilar(query: VectorSearchRequest): RankedSearchCandidate[] {
+    return this.applyFilters([...this.records.values()], query.filters)
+      .map((record) => ({
+        id: record.id,
+        score: dotSimilarity(query.embedding, record.embedding),
+      }))
+      .sort((left, right) => right.score - left.score)
+      .slice(0, query.limit)
+      .map((candidate, index) => ({
+        ...candidate,
+        rank: index + 1,
+      }));
+  }
+
+  searchKeyword(query: KeywordSearchRequest): RankedSearchCandidate[] {
+    const terms = query.terms
+      .map((term) => term.trim().toLowerCase())
+      .filter(Boolean);
+    if (terms.length === 0 && !query.rawQuery.trim()) {
+      return [];
+    }
+
+    return this.applyFilters([...this.records.values()], query.filters)
+      .map((record) => {
+        const content = `${record.heading ?? ""} ${record.content}`.toLowerCase();
+        const score = terms.reduce((total, term) => {
+          const matches = content.match(new RegExp(`\\b${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "g"));
+          return total + (matches?.length ?? 0);
+        }, 0);
+        return { id: record.id, score };
+      })
+      .filter((candidate) => candidate.score > 0)
+      .sort((left, right) => right.score - left.score)
+      .slice(0, query.limit)
+      .map((candidate, index) => ({
+        ...candidate,
+        rank: index + 1,
+      }));
+  }
+
+  hydrateByIds(ids: readonly string[]): EmbeddingRecord[] {
+    return ids.flatMap((id) => {
+      const record = this.records.get(id);
+      return record ? [record] : [];
+    });
+  }
+
+  listSourceIds(sourceType: string): string[] {
+    return [...new Set(
+      [...this.records.values()]
+        .filter((record) => record.sourceType === sourceType)
+        .map((record) => record.sourceId),
+    )];
   }
 
   getContentHash(sourceId: string): string | null {

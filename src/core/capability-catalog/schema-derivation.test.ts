@@ -211,6 +211,9 @@ describe("schema-derivation", () => {
       for (const [name, anthropic] of anthropicSchemas) {
         const mcp = mcpSchemas.get(name);
         expect(mcp, `Missing MCP schema for ${name}`).toBeDefined();
+        if (!mcp) {
+          throw new Error(`Missing MCP schema for ${name}`);
+        }
 
         expect(anthropic.name).toBe(mcp.name);
         expect(anthropic.description).toBe(mcp.description);

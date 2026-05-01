@@ -8,7 +8,7 @@ import {
   parseListJournalPostsInput,
 } from "@/core/use-cases/tools/journal-query.tool";
 import type { BlogPost } from "@/core/entities/blog";
-import type { JobStatusSnapshot } from "@/lib/jobs/job-read-model";
+import type { CanonicalJobSnapshot } from "@/lib/jobs/job-read-model";
 
 function makePost(overrides: Partial<BlogPost> = {}): BlogPost {
   return {
@@ -30,20 +30,35 @@ function makePost(overrides: Partial<BlogPost> = {}): BlogPost {
   };
 }
 
-function makeActiveJob(overrides: Partial<JobStatusSnapshot> = {}): JobStatusSnapshot {
+function makeActiveJob(overrides: Partial<CanonicalJobSnapshot> = {}): CanonicalJobSnapshot {
   return {
-    messageId: "jobmsg_1",
-    part: {
-      type: "job_status",
-      jobId: "job_1",
-      toolName: "produce_blog_article",
-      label: "Produce Blog Article",
-      status: "running",
-      sequence: 0,
-      progressPercent: 40,
-      progressLabel: "Reviewing article",
-      summary: "Producing a publish-ready journal draft.",
-      updatedAt: "2026-03-26T12:30:00.000Z",
+    jobId: "job_1",
+    conversationId: "conv_jobs",
+    userId: null,
+    toolName: "produce_blog_article",
+    label: "Produce Blog Article",
+    status: "running",
+    sequence: 0,
+    progressPercent: 40,
+    progressLabel: "Reviewing article",
+    summary: "Producing a publish-ready journal draft.",
+    createdAt: "2026-03-26T12:29:00.000Z",
+    startedAt: null,
+    completedAt: null,
+    updatedAt: "2026-03-26T12:30:00.000Z",
+    origin: { fallback: "job_created_at" },
+    inputSnapshot: {},
+    resultEnvelope: null,
+    artifactRefs: [],
+    materializationRefs: [],
+    ownership: { userId: null, visibility: "anonymous_session", initiatorType: "user" },
+    failure: {
+      failureClass: null,
+      recoveryMode: null,
+      nextRetryAt: null,
+      lastCheckpointId: null,
+      replayedFromJobId: null,
+      supersededByJobId: null,
     },
     ...overrides,
   };

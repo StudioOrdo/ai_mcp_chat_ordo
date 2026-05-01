@@ -7,6 +7,7 @@ import { UserFileSystem } from "@/lib/user-files";
 import { estimateAudioDurationSeconds, estimateAudioGenerationSeconds } from "@/lib/audio/audio-estimates";
 import { REASON_CODES } from "@/lib/observability/reason-codes";
 import { emitProviderEvent } from "@/lib/chat/provider-policy";
+import { AudioGenerationError } from "@/lib/audio/audio-generation-errors";
 
 export const TTS_MAX_RESPONSE_BYTES = 10 * 1024 * 1024;
 export const TTS_MIME_TYPE = "audio/mpeg" as const;
@@ -18,6 +19,8 @@ export interface GenerateStoredAudioInput {
   assetId?: string | null;
   conversationId?: string | null;
   toolInvocationId?: string;
+  voice?: string | null;
+  format?: "mp3" | null;
 }
 
 export interface StoredAudioArtifact {
@@ -33,6 +36,8 @@ export interface GenerateAudioRuntimePayloadInput {
   text: string;
   assetId?: string | null;
   toolInvocationId?: string;
+  voice?: string | null;
+  format?: "mp3" | null;
 }
 
 export interface GenerateAudioRuntimePayload {
@@ -54,6 +59,10 @@ export function resolveCanonicalGeneratedAudioAssetId(value: string | null | und
   return resolveCanonicalMediaAssetId(value);
 }
 
+function isTransientProviderStatus(status: number): boolean {
+  return status === 408 || status === 409 || status === 425 || status === 429 || status >= 500;
+}
+
 export async function generateStoredAudioArtifact(
   input: GenerateStoredAudioInput,
 ): Promise<StoredAudioArtifact> {
@@ -63,13 +72,25 @@ export async function generateStoredAudioArtifact(
 
   const cached = await ufs.lookup(input.userId, input.text, "audio");
   if (cached) {
-    return {
-      assetId: cached.file.id,
-      audioBuffer: await readFile(cached.diskPath),
-      provider: "user-file-cache",
-      cacheHit: true,
-      estimatedDurationSeconds,
-    };
+    try {
+      return {
+        assetId: cached.file.id,
+        audioBuffer: await readFile(cached.diskPath),
+        provider: "user-file-cache",
+        cacheHit: true,
+        estimatedDurationSeconds,
+      };
+    } catch {
+      emitProviderEvent({
+        kind: "attempt_failure",
+        surface: "tts",
+        model: "user-file-cache",
+        attempt: 1,
+        durationMs: 0,
+        error: "Cached generated audio file was missing on disk; regenerating.",
+        errorClassification: "transient",
+      });
+    }
   }
 
   const openaiApiKey = getOpenaiApiKey();
@@ -96,16 +117,26 @@ export async function generateStoredAudioArtifact(
       body: JSON.stringify({
         model: ttsModel,
         input: input.text,
-        voice: "alloy",
-        response_format: "mp3",
+        voice: input.voice?.trim() || "alloy",
+        response_format: input.format ?? "mp3",
       }),
       signal: controller.signal,
     });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new AudioGenerationError(
+        "OpenAI TTS timed out while generating audio.",
+        "transient",
+        REASON_CODES.TTS_TIMEOUT,
+      );
+    }
+    throw error;
   } finally {
     clearTimeout(timeout);
   }
 
   if (!response.ok) {
+    const failureClass = isTransientProviderStatus(response.status) ? "transient" : "terminal";
     emitProviderEvent({
       kind: "attempt_failure",
       surface: "tts",
@@ -113,11 +144,14 @@ export async function generateStoredAudioArtifact(
       attempt: 1,
       durationMs: Date.now() - providerStartedAt,
       error: `OpenAI TTS returned ${response.status}`,
-      errorClassification: "transient",
+      errorClassification: failureClass === "transient" ? "transient" : "fatal",
     });
-    const error = new Error("OpenAI TTS failed to generate audio.");
-    (error as Error & { reasonCode?: string }).reasonCode = REASON_CODES.TTS_PROVIDER_FAILED;
-    throw error;
+    throw new AudioGenerationError(
+      `OpenAI TTS failed to generate audio with status ${response.status}.`,
+      failureClass,
+      REASON_CODES.TTS_PROVIDER_FAILED,
+      response.status,
+    );
   }
 
   emitProviderEvent({
@@ -130,9 +164,11 @@ export async function generateStoredAudioArtifact(
 
   const arrayBuffer = await response.arrayBuffer();
   if (arrayBuffer.byteLength > TTS_MAX_RESPONSE_BYTES) {
-    const error = new Error("TTS response too large.");
-    (error as Error & { reasonCode?: string }).reasonCode = REASON_CODES.TTS_PROVIDER_FAILED;
-    throw error;
+    throw new AudioGenerationError(
+      "TTS response too large.",
+      "terminal",
+      REASON_CODES.TTS_PROVIDER_FAILED,
+    );
   }
 
   const audioBuffer = Buffer.from(arrayBuffer);

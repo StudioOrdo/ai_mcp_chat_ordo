@@ -1,5 +1,5 @@
 import type { ToolRegistry } from "@/core/tool-registry/ToolRegistry";
-import { getVectorStore } from "@/adapters/RepositoryFactory";
+import { getRelationshipMemoryRepository, getVectorStore } from "@/adapters/RepositoryFactory";
 import {
   createCatalogBoundToolBundle,
   registerCatalogBoundToolBundle,
@@ -7,6 +7,7 @@ import {
 
 interface ConversationToolRegistrationDeps {
   readonly vectorStore: ReturnType<typeof getVectorStore>;
+  readonly relationshipMemoryReader: ReturnType<typeof getRelationshipMemoryRepository>;
 }
 
 export const CONVERSATION_BUNDLE = createCatalogBoundToolBundle(
@@ -17,5 +18,9 @@ export const CONVERSATION_BUNDLE = createCatalogBoundToolBundle(
 export function registerConversationTools(registry: ToolRegistry): void {
   registerCatalogBoundToolBundle(registry, "conversation", {
     vectorStore: getVectorStore(),
-  }, (_toolName, deps) => ({ vectorStore: deps.vectorStore }));
+    relationshipMemoryReader: getRelationshipMemoryRepository(),
+  }, (_toolName, deps) => ({
+    vectorStore: deps.vectorStore,
+    relationshipMemoryReader: deps.relationshipMemoryReader,
+  }));
 }

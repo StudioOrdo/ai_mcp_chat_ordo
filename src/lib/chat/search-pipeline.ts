@@ -1,7 +1,5 @@
 import { localEmbedder } from "@/adapters/LocalEmbedder";
 import { getVectorStore } from "@/adapters/RepositoryFactory";
-import { SQLiteBM25IndexStore } from "@/adapters/SQLiteBM25IndexStore";
-import { BM25Scorer } from "@/core/search/BM25Scorer";
 import { QueryProcessor } from "@/core/search/QueryProcessor";
 import { LowercaseStep } from "@/core/search/query-steps/LowercaseStep";
 import { StopwordStep } from "@/core/search/query-steps/StopwordStep";
@@ -10,21 +8,15 @@ import { HybridSearchEngine } from "@/core/search/HybridSearchEngine";
 import {
   HybridSearchHandler,
   BM25SearchHandler,
-  LegacyKeywordHandler,
   EmptyResultHandler,
 } from "@/core/search/SearchHandlerChain";
 import type { SearchHandler } from "@/core/search/ports/SearchHandler";
 import { STOPWORDS } from "@/core/search/data/stopwords";
 import { SYNONYMS } from "@/core/search/data/synonyms";
-import { getDb } from "@/lib/db";
-import { getCorpusRepository } from "@/adapters/RepositoryFactory";
 import { corpusConfig } from "@/lib/corpus-vocabulary";
 
 export function getSearchHandler(): SearchHandler {
   const vectorStore = getVectorStore();
-  // getDb() approved: search pipeline raw SQL — see data-access-canary.test.ts (Sprint 9)
-  const bm25IndexStore = new SQLiteBM25IndexStore(getDb());
-  const bm25Scorer = new BM25Scorer();
 
   const vectorProcessor = new QueryProcessor([
     new LowercaseStep(),
@@ -37,19 +29,17 @@ export function getSearchHandler(): SearchHandler {
   ]);
 
   const engine = new HybridSearchEngine(
-    localEmbedder, vectorStore, bm25Scorer, bm25IndexStore,
+    localEmbedder, vectorStore,
     vectorProcessor, bm25Processor,
     { vectorTopN: 50, bm25TopN: 50, rrfK: 60, maxResults: 10 },
   );
 
-  const hybrid = new HybridSearchHandler(engine, localEmbedder, bm25IndexStore, corpusConfig.sourceType);
-  const bm25 = new BM25SearchHandler(bm25Scorer, bm25IndexStore, vectorStore, bm25Processor, corpusConfig.sourceType);
-  const legacy = new LegacyKeywordHandler(getCorpusRepository());
+  const hybrid = new HybridSearchHandler(engine, localEmbedder, corpusConfig.sourceType);
+  const bm25 = new BM25SearchHandler(vectorStore, bm25Processor, corpusConfig.sourceType);
   const empty = new EmptyResultHandler();
 
   hybrid.setNext(bm25);
-  bm25.setNext(legacy);
-  legacy.setNext(empty);
+  bm25.setNext(empty);
 
   return hybrid;
 }

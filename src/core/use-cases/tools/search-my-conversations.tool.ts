@@ -5,7 +5,6 @@ import type { VectorStore } from "@/core/search/ports/VectorStore";
 import type { Embedder } from "@/core/search/ports/Embedder";
 import type { ConversationSearchResult } from "@/core/search/types";
 import type { ConversationMetadata } from "@/core/search/ports/Chunker";
-import { dotSimilarity } from "@/core/search/dotSimilarity";
 import { l2Normalize } from "@/core/search/l2Normalize";
 
 interface SearchInput {
@@ -25,41 +24,39 @@ class SearchMyConversationsCommand implements ToolCommand<SearchInput, string> {
 
     const maxResults = Math.min(Math.max(input.max_results ?? 5, 1), 10);
 
-    // Get all conversation embeddings
-    const records = this.vectorStore.getAll({
-      sourceType: "conversation",
-      chunkLevel: "passage",
+    // Vector similarity search
+    const queryEmbedding = l2Normalize(await this.embedder.embed(input.query));
+    const candidates = this.vectorStore.searchSimilar({
+      embedding: queryEmbedding,
+      filters: {
+        sourceType: "conversation",
+        chunkLevel: "passage",
+        sourceIdPrefix: `${userId}/`,
+      },
+      limit: maxResults,
     });
 
-    // Filter to this user's conversations only
-    const userRecords = records.filter((r) =>
-      r.sourceId.startsWith(`${userId}/`),
-    );
-
-    if (userRecords.length === 0) {
+    if (candidates.length === 0) {
       return "No conversation history found to search.";
     }
 
-    // Vector similarity search
-    const queryEmbedding = l2Normalize(await this.embedder.embed(input.query));
-    const scored = userRecords.map((r) => ({
-      record: r,
-      similarity: dotSimilarity(queryEmbedding, r.embedding),
-    }));
-    scored.sort((a, b) => b.similarity - a.similarity);
+    const records = this.vectorStore.hydrateByIds(candidates.map((candidate) => candidate.id));
+    const recordsById = new Map(records.map((record) => [record.id, record]));
 
-    const topResults = scored.slice(0, maxResults);
-
-    const results: ConversationSearchResult[] = topResults.map((item, rank) => {
-      const meta = item.record.metadata as ConversationMetadata;
+    const results: ConversationSearchResult[] = candidates.flatMap((item, rank) => {
+      const record = recordsById.get(item.id);
+      if (!record) {
+        return [];
+      }
+      const meta = record.metadata as ConversationMetadata;
       return {
         conversationId: meta.conversationId,
         conversationTitle: "",
         conversationDate: "",
-        matchPassage: item.record.content,
-        matchHighlight: item.record.content,
+        matchPassage: record.content,
+        matchHighlight: record.content,
         turnIndex: meta.turnIndex,
-        rrfScore: item.similarity,
+        rrfScore: item.score,
         relevance: rank < 2 ? "high" : rank < 5 ? "medium" : "low",
       };
     });

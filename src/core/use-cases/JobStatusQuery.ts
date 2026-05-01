@@ -1,5 +1,5 @@
 import type { JobStatus } from "@/core/entities/job";
-import type { JobStatusSnapshot } from "@/lib/jobs/job-read-model";
+import type { CanonicalJobSnapshot } from "@/lib/jobs/job-read-model";
 
 export interface JobStatusQueryOptions {
   statuses?: JobStatus[];
@@ -7,14 +7,14 @@ export interface JobStatusQueryOptions {
 }
 
 export interface JobStatusQuery {
-  getJobSnapshot(jobId: string): Promise<JobStatusSnapshot | null>;
-  getUserJobSnapshot(userId: string, jobId: string): Promise<JobStatusSnapshot | null>;
+  getJobSnapshot(jobId: string): Promise<CanonicalJobSnapshot | null>;
+  getUserJobSnapshot(userId: string, jobId: string): Promise<CanonicalJobSnapshot | null>;
   listConversationJobSnapshots(
     conversationId: string,
     options?: JobStatusQueryOptions,
-  ): Promise<JobStatusSnapshot[]>;
+  ): Promise<CanonicalJobSnapshot[]>;
   listUserJobSnapshots(
     userId: string,
     options?: JobStatusQueryOptions,
-  ): Promise<JobStatusSnapshot[]>;
+  ): Promise<CanonicalJobSnapshot[]>;
 }

@@ -76,7 +76,6 @@ function makeMessage(toolRenderEntries: ToolRenderEntry[]): PresentedMessage {
     attachments: [],
     status: "confirmed",
     timestamp: "12:00",
-    dayKey: "2026-04-26",
     toolRenderEntries,
   };
 }

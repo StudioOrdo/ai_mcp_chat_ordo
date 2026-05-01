@@ -1,14 +1,12 @@
 import type { JobRequest } from "@/core/entities/job";
 import type { JobQueueRepository } from "@/core/use-cases/JobQueueRepository";
 import { canManualReplayJob, isJobCancelable, performManualJobReplay } from "@/lib/jobs/manual-replay";
-import type { DeferredJobConversationProjector } from "@/lib/jobs/deferred-job-conversation-projector";
 import { jobEventBus } from "@/lib/jobs/job-event-bus";
 
 export type JobAction = "cancel" | "retry";
 
 interface ExecuteJobActionOptions {
   repository: JobQueueRepository;
-  projector: DeferredJobConversationProjector;
   job: JobRequest;
   action: JobAction;
   actorId: string;
@@ -104,7 +102,6 @@ export async function executeJobAction(
       payload: buildCanceledEventPayload(latestRenderableEvent?.payload, options.actorId),
     });
 
-    await options.projector.project(canceledJob, canceledEvent);
     jobEventBus.emitJobCanceled(options.job.id, options.actorId);
 
     return {
@@ -125,7 +122,6 @@ export async function executeJobAction(
 
   const replay = await performManualJobReplay(options.repository, options.job, {
     ownerUserId: options.ownerUserId ?? options.actorId,
-    projector: options.projector,
     requestedByUserId: options.actorId,
   });
 

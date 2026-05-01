@@ -11,7 +11,7 @@ describe("NotificationFeed", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Open notifications" }));
 
-    expect(screen.getByText("Global search updated")).toBeInTheDocument();
+    expect(screen.getByText("Workspace search updated")).toBeInTheDocument();
     expect(screen.queryByText("Admin bulk actions available")).not.toBeInTheDocument();
     expect(screen.queryByText("Deferred job notifications routed")).not.toBeInTheDocument();
   });

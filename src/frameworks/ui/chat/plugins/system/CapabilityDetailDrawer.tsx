@@ -66,7 +66,9 @@ export function CapabilityDetailDrawer({
               </Dialog.Close>
             </div>
             {subtitle ? <p className="ui-capability-detail-drawer-subtitle">{subtitle}</p> : null}
-            {summary ? <Dialog.Description className="ui-capability-detail-drawer-summary">{summary}</Dialog.Description> : null}
+            <Dialog.Description className={summary ? "ui-capability-detail-drawer-summary" : "sr-only"}>
+              {summary ?? `${title} details`}
+            </Dialog.Description>
 
             <div className="ui-capability-detail-drawer-body" data-capability-detail-drawer="true">
               {visibleSections.map((section) => (

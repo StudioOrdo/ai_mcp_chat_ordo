@@ -1,8 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import React, { useRef } from "react";
+import React, { act, useRef } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { useChatComposerController } from "@/hooks/chat/useChatComposerController";
+import { SET_CHAT_COMPOSER_TEXT_EVENT } from "@/lib/chat/chat-events";
 
 const { handleInputMock, insertMentionMock } = vi.hoisted(() => ({
   handleInputMock: vi.fn(),
@@ -139,6 +140,24 @@ describe("useChatComposerController", () => {
     await waitFor(() => {
       expect(screen.getByTestId("input")).toHaveTextContent("");
       expect(screen.getByTestId("file-count")).toHaveTextContent("0");
+    });
+  });
+
+  it("accepts composer text from the shell rail event bridge", async () => {
+    const onSendMessage = vi.fn().mockResolvedValue({ ok: true });
+
+    render(<Harness onSendMessage={onSendMessage} />);
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent(SET_CHAT_COMPOSER_TEXT_EVENT, {
+          detail: { text: "Revise the failed job" },
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("input")).toHaveTextContent("Revise the failed job");
     });
   });
 });

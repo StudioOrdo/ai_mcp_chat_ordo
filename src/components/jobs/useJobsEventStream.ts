@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from "react";
 
 import type { StreamEvent } from "@/core/entities/chat-stream";
 import type { JobHistoryEntry } from "@/lib/jobs/job-event-history";
-import type { JobStatusSnapshot } from "@/lib/jobs/job-read-model";
-import { extractJobStatusSnapshots } from "@/lib/jobs/job-status-snapshots";
+import { isCanonicalJobSnapshot, type CanonicalJobSnapshot } from "@/lib/jobs/job-read-model";
+import { isCanonicalMediaWorkflowSnapshot, type CanonicalMediaWorkflowSnapshot } from "@/lib/media/workflows/media-workflow-read-model";
 
 import type { JobsWorkspaceStreamEvent } from "@/components/jobs/job-snapshot-reducer";
 
@@ -16,9 +16,10 @@ const FALLBACK_RECONCILE_INTERVAL_MS = 15_000;
 export type JobsSyncState = "live" | "reconnecting" | "fallback";
 
 interface JobsReconcilePayload {
-  jobs: JobStatusSnapshot[];
+  workflows: CanonicalMediaWorkflowSnapshot[];
+  jobs: CanonicalJobSnapshot[];
   selectedJobId: string | null;
-  selectedJob: JobStatusSnapshot | null;
+  selectedJob: CanonicalJobSnapshot | null;
   selectedJobHistory: JobHistoryEntry[];
 }
 
@@ -67,10 +68,15 @@ async function reconcileJobsWorkspace(selectedJobId: string | null): Promise<Job
     throw new Error(`Unable to refresh jobs (${jobsResponse.status})`);
   }
 
-  const jobsPayload = await jobsResponse.json() as { jobs?: unknown };
-  let jobs = extractJobStatusSnapshots(jobsPayload);
+  const jobsPayload = await jobsResponse.json() as { jobs?: unknown; workflows?: unknown };
+  let jobs = Array.isArray(jobsPayload.jobs)
+    ? jobsPayload.jobs.filter(isCanonicalJobSnapshot)
+    : [];
+  const workflows = Array.isArray(jobsPayload.workflows)
+    ? jobsPayload.workflows.filter(isCanonicalMediaWorkflowSnapshot)
+    : [];
   let selectedJob = selectedJobId
-    ? jobs.find((job) => job.part.jobId === selectedJobId) ?? null
+    ? jobs.find((job) => job.jobId === selectedJobId) ?? null
     : null;
   let selectedJobHistory: JobHistoryEntry[] = [];
 
@@ -86,10 +92,10 @@ async function reconcileJobsWorkspace(selectedJobId: string | null): Promise<Job
 
     if (selectedJobResponse.ok) {
       const selectedJobPayload = await selectedJobResponse.json() as { job?: unknown };
-      const [selectedSnapshot] = extractJobStatusSnapshots(selectedJobPayload);
-      if (selectedSnapshot) {
+      const selectedSnapshot = selectedJobPayload.job;
+      if (isCanonicalJobSnapshot(selectedSnapshot)) {
         selectedJob = selectedSnapshot;
-        if (!jobs.some((job) => job.part.jobId === selectedSnapshot.part.jobId)) {
+        if (!jobs.some((job) => job.jobId === selectedSnapshot.jobId)) {
           jobs = [selectedSnapshot, ...jobs];
         }
       }
@@ -104,6 +110,7 @@ async function reconcileJobsWorkspace(selectedJobId: string | null): Promise<Job
   }
 
   return {
+    workflows,
     jobs,
     selectedJobId,
     selectedJob,
@@ -144,7 +151,7 @@ export function useJobsEventStream({
 
         lastSequenceRef.current = Math.max(
           lastSequenceRef.current,
-          ...payload.jobs.map((job) => job.part.sequence ?? 0),
+          ...payload.jobs.map((job) => job.sequence ?? 0),
           ...payload.selectedJobHistory.map((entry) => entry.sequence),
         );
         onReconciledRef.current(payload);

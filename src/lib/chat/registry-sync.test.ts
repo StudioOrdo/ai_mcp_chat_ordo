@@ -158,8 +158,9 @@ describe("Cross-registry synchronization", () => {
     expect(presentationDescriptor, "compose_media missing from CapabilityPresentationRegistry").toBeDefined();
     expect(browserDescriptor, "compose_media missing from BrowserCapabilityRegistry").toBeDefined();
 
-    // compose_media is browser-first hybrid: inline in ToolDescriptor (no executionMode),
-    // "hybrid" in presentation, "wasm_worker" in browser capability
+    // compose_media is owned by planned execution: the ToolDescriptor stays inline,
+    // presentation remains hybrid, and browser capability metadata is retained for
+    // a future canonical job-claim executor.
     expect(toolDescriptor!.executionMode).toBeUndefined();
     expect(presentationDescriptor!.executionMode).toBe("hybrid");
     expect(browserDescriptor!.runtimeKind).toBe("wasm_worker");
@@ -191,4 +192,3 @@ describe("Cross-registry synchronization", () => {
     expect(searchPres.supportsRetry).toBe("whole_job");
   });
 });
-

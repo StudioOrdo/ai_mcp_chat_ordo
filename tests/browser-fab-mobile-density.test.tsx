@@ -145,7 +145,7 @@ describe("browser FAB mobile density", () => {
     // In single-conversation mode, leading region no longer renders (no conversation actions)
     expect(leadingRegion).toBeNull();
     expect(chrome).not.toBeNull();
-    expect(chrome?.querySelectorAll("button")).toHaveLength(3);
+    expect(chrome?.querySelectorAll("button")).toHaveLength(2);
   });
 
   it("action chips render at mobile viewport width without overflow", async () => {

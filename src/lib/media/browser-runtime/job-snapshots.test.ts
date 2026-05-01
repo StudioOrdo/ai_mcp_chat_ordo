@@ -7,7 +7,6 @@ import {
   createBrowserRuntimeJobId,
   getBrowserRuntimeCandidates,
   replaceToolResultWithJobSnapshot,
-  withResolvedAudioAsset,
 } from "./job-snapshots";
 
 describe("browser runtime job snapshots", () => {
@@ -36,47 +35,110 @@ describe("browser runtime job snapshots", () => {
     ]);
   });
 
-  it("builds browser job parts with browser execution envelopes", () => {
-    const part = buildBrowserRuntimeJobStatusPart({
-      candidate: {
-        jobId: createBrowserRuntimeJobId("msg_1", "generate_audio", 1),
-        messageId: "msg_1",
-        toolInvocationId: "toolu_audio_1",
-        toolName: "generate_audio",
-        args: { text: "Hello", title: "Greeting" },
+  it("creates browser compose candidates only for executable compose_media payloads", () => {
+    const messages: ChatMessage[] = [
+      {
+        id: "msg_compose",
+        role: "assistant",
+        content: "",
+        timestamp: new Date("2026-04-30T03:13:00.000Z"),
+        parts: [
+          {
+            type: "tool_call",
+            name: "compose_media",
+            args: {
+              plan: {
+                id: "compose-training-flesh-001",
+                conversationId: "conv_1",
+                visualClips: [{ assetId: "blogasset_image_1", kind: "image" }],
+                audioClips: [{ assetId: "uf_audio_1", kind: "audio" }],
+                subtitlePolicy: "none",
+                waveformPolicy: "none",
+                outputFormat: "mp4",
+              },
+            },
+            toolInvocationId: "toolu_compose_1",
+          },
+          {
+            type: "tool_result",
+            name: "compose_media",
+            result: {
+              ok: false,
+              action: "media_asset_discovery_required",
+              error: "Call list_conversation_media_assets before compose_media, then pass the returned assetId values exactly into the composition plan.",
+            },
+            toolInvocationId: "toolu_compose_1",
+          },
+          {
+            type: "tool_call",
+            name: "compose_media",
+            args: {
+              plan: {
+                id: "compose-training-flesh-001",
+                conversationId: "conv_1",
+                visualClips: [{ assetId: "blogasset_image_1", kind: "image" }],
+                audioClips: [{ assetId: "uf_audio_1", kind: "audio" }],
+                subtitlePolicy: "none",
+                waveformPolicy: "none",
+                outputFormat: "mp4",
+              },
+            },
+            toolInvocationId: "toolu_compose_2",
+          },
+          {
+            type: "tool_result",
+            name: "compose_media",
+            result: {
+              action: "compose_media",
+              planId: "compose-training-flesh-001",
+              generationStatus: "client_fetch_pending",
+            },
+            toolInvocationId: "toolu_compose_2",
+          },
+        ],
       },
-      payload: {
-        action: "generate_audio",
-        title: "Greeting",
-        text: "Hello",
-        assetId: null,
-        provider: "openai-speech",
-        generationStatus: "client_fetch_pending",
-        estimatedDurationSeconds: 4,
-        estimatedGenerationSeconds: 2,
-      },
-      status: "running",
-      sequence: 1,
-      progressPercent: 25,
-      progressLabel: "Generating audio",
-      conversationId: "conv_1",
-    });
+    ];
 
-    expect(part.resultEnvelope).toMatchObject({
-      executionMode: "browser",
-      payload: expect.objectContaining({
-        assetKind: "audio",
-        mimeType: "audio/mpeg",
-        assetSource: "generated",
-        retentionClass: "conversation",
+    expect(getBrowserRuntimeCandidates(messages)).toEqual([
+      expect.objectContaining({
+        jobId: "browser:msg_compose:compose_media:3",
+        messageId: "msg_compose",
+        toolInvocationId: "toolu_compose_2",
+        toolName: "compose_media",
+        resultIndex: 3,
       }),
-      artifacts: [
-        expect.objectContaining({ kind: "audio", retentionClass: "conversation", source: "generated" }),
-      ],
-    });
-    expect(part.toolInvocationId).toBe("toolu_audio_1");
-    expect(part.lifecyclePhase).toBe("pending_local_generation");
-    expect(part.progressLabel).toBe("Generating audio");
+    ]);
+  });
+
+  it("does not create transcript-derived generate_audio runtime candidates", () => {
+    const messages: ChatMessage[] = [
+      {
+        id: "msg_audio",
+        role: "assistant",
+        content: "",
+        timestamp: new Date("2026-04-30T03:13:00.000Z"),
+        parts: [
+          { type: "tool_call", name: "generate_audio", args: { text: "Hello", title: "Greeting" }, toolInvocationId: "toolu_audio_1" },
+          {
+            type: "tool_result",
+            name: "generate_audio",
+            result: {
+              action: "generate_audio",
+              title: "Greeting",
+              text: "Hello",
+              assetId: "uf_audio_1",
+              provider: "openai-speech",
+              generationStatus: "cached_asset",
+              estimatedDurationSeconds: 4,
+              estimatedGenerationSeconds: 2,
+            },
+            toolInvocationId: "toolu_audio_1",
+          },
+        ],
+      },
+    ];
+
+    expect(getBrowserRuntimeCandidates(messages)).toEqual([]);
   });
 
   it("marks reroute-required compose failures with canonical recovery metadata", () => {
@@ -121,43 +183,6 @@ describe("browser runtime job snapshots", () => {
       failureClass: "transient",
       recoveryMode: "rerun",
     });
-  });
-
-  it("canonicalizes failed generate_audio snapshots with durable assets to succeeded", () => {
-    const part = buildBrowserRuntimeJobStatusPart({
-      candidate: {
-        jobId: createBrowserRuntimeJobId("msg_3", "generate_audio", 1),
-        messageId: "msg_3",
-        toolName: "generate_audio",
-        args: { text: "Ode to cheese", title: "Ode to Cheese" },
-      },
-      payload: {
-        action: "generate_audio",
-        title: "Ode to Cheese",
-        text: "Ode to cheese",
-        assetId: "uf_6e9cee49-5d47-4497-89d2-0171e4b73b36",
-        provider: "user-file-cache",
-        generationStatus: "cached_asset",
-        estimatedDurationSeconds: 18,
-        estimatedGenerationSeconds: 4,
-      },
-      status: "failed",
-      browserExecutionStatus: "fallback_required",
-      sequence: 3,
-      error: "fallback_required",
-      failureCode: "fallback_required",
-      failureStage: "recovery",
-      conversationId: "conv_1",
-    });
-
-    expect(part).toMatchObject({
-      status: "succeeded",
-      lifecyclePhase: "durable_asset_available",
-      failureCode: null,
-      failureStage: null,
-    });
-    expect(part.failureClass).toBeUndefined();
-    expect(part.error).toBeUndefined();
   });
 
   it("canonicalizes failed compose_media snapshots with durable videos to succeeded", () => {
@@ -256,28 +281,5 @@ describe("browser runtime job snapshots", () => {
         source: "derived",
       }),
     ]);
-  });
-
-  it("marks resolved audio payloads as cached assets", () => {
-    expect(withResolvedAudioAsset({
-      action: "generate_audio",
-      title: "Greeting",
-      text: "Hello",
-      assetId: null,
-      assetKind: "audio",
-      mimeType: "audio/mpeg",
-      assetSource: "generated",
-      provider: "openai-speech",
-      generationStatus: "client_fetch_pending",
-      estimatedDurationSeconds: 4,
-      estimatedGenerationSeconds: 2,
-    }, { assetId: "uf_audio_1", conversationId: "conv_1" })).toMatchObject({
-      assetId: "uf_audio_1",
-      assetKind: "audio",
-      mimeType: "audio/mpeg",
-      assetSource: "generated",
-      retentionClass: "conversation",
-      generationStatus: "cached_asset",
-    });
   });
 });

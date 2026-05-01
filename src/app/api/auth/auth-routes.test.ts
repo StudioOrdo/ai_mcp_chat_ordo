@@ -565,12 +565,22 @@ describe("Auth API routes — full lifecycle", () => {
     authTestState.cookieJar.clear();
     authTestState.cookieJar.set("lms_anon_session", anonSessionId);
     authTestState.failReferralLinkCount = 1;
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    const failedRes = await loginRoute(
-      jsonRequest({ email: "retry-login@test.com", password: "password123" }),
-    );
+    try {
+      const failedRes = await loginRoute(
+        jsonRequest({ email: "retry-login@test.com", password: "password123" }),
+      );
 
-    expect(failedRes.status).toBe(500);
+      expect(failedRes.status).toBe(500);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "Referral linkage failed during login:",
+        expect.any(Error),
+      );
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+
     expect(authTestState.cookieJar.has("lms_session_token")).toBe(false);
     expect(authTestState.cookieJar.get("lms_anon_session")).toBe(anonSessionId);
 

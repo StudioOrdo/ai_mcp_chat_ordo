@@ -37,9 +37,12 @@ describe("stream-preparation", () => {
       routingAnalyzer: {
         analyze: vi.fn().mockResolvedValue(routingSnapshot),
       } as never,
+      relationshipMemoryReader: {
+        listActiveByConversation: vi.fn().mockResolvedValue([]),
+      } as never,
       conversationId: "conv_media_1",
       userId: "usr_1",
-      incomingMessages: [{ role: "user", content: "combine them", parts: [] }],
+      incomingMessages: [{ role: "user", content: "combine them" }],
       latestUserText: "combine them",
       latestUserContent: "combine them",
       taskOriginHandoff: null,
@@ -73,12 +76,86 @@ describe("stream-preparation", () => {
     );
   });
 
+  it("injects canonical relationship memory into primary stream preparation", async () => {
+    const builder = createBuilder();
+    const routingSnapshot = createConversationRoutingSnapshot();
+
+    await prepareStreamContext({
+      builder: builder as never,
+      interactor: {
+        getForStreamingContext: vi.fn().mockResolvedValue({
+          conversation: { routingSnapshot },
+          messages: [],
+        }),
+        updateRoutingSnapshot: vi.fn().mockResolvedValue(undefined),
+      } as never,
+      routingAnalyzer: {
+        analyze: vi.fn().mockResolvedValue(routingSnapshot),
+      } as never,
+      relationshipMemoryReader: {
+        listActiveByConversation: vi.fn().mockResolvedValue([
+          {
+            id: "mem_goal_1",
+            userId: "usr_1",
+            conversationId: "conv_media_1",
+            memoryType: "goal",
+            summary: "Goal: launch the new offer",
+            evidenceRefs: [],
+            status: "active",
+            confidence: 0.86,
+            createdAt: "2026-04-29T10:00:00.000Z",
+            updatedAt: "2026-04-29T10:00:00.000Z",
+          },
+          {
+            id: "mem_decision_1",
+            userId: "usr_1",
+            conversationId: "conv_media_1",
+            memoryType: "decision",
+            summary: "Decision: start with a worksheet",
+            evidenceRefs: [],
+            status: "active",
+            confidence: 0.88,
+            createdAt: "2026-04-29T10:05:00.000Z",
+            updatedAt: "2026-04-29T10:05:00.000Z",
+          },
+        ]),
+      } as never,
+      conversationId: "conv_media_1",
+      userId: "usr_1",
+      incomingMessages: [{ role: "user", content: "what next" }],
+      latestUserText: "what next",
+      latestUserContent: "what next",
+      taskOriginHandoff: null,
+      mediaContinuityHandoff: null,
+    });
+
+    expect(builder.withSection).toHaveBeenCalledWith(
+      expect.objectContaining({
+        key: "relationship_memory",
+        priority: 44,
+        content: expect.stringContaining("[Relationship memory]"),
+        payload: {
+          memoryRefs: [
+            { id: "mem_goal_1", memoryType: "goal", updatedAt: "2026-04-29T10:00:00.000Z" },
+            { id: "mem_decision_1", memoryType: "decision", updatedAt: "2026-04-29T10:05:00.000Z" },
+          ],
+        },
+      }),
+    );
+    expect(builder.withSection).toHaveBeenCalledWith(
+      expect.objectContaining({
+        key: "relationship_memory",
+        content: expect.stringContaining("Goal: launch the new offer"),
+      }),
+    );
+  });
+
   it("injects media continuity context into fallback stream preparation", async () => {
     const builder = createBuilder();
 
     const prepared = await prepareFallbackContext({
       builder: builder as never,
-      incomingMessages: [{ role: "user", content: "combine them", parts: [] }],
+      incomingMessages: [{ role: "user", content: "combine them" }],
       latestUserContent: "combine them",
       taskOriginHandoff: null,
       mediaContinuityHandoff: {

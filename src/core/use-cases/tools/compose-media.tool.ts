@@ -16,9 +16,9 @@ export type ComposeMediaInput = z.infer<typeof ComposeMediaInputSchema>;
 export async function executeComposeMedia(input: ComposeMediaInput): Promise<unknown> {
   return {
     action: "compose_media",
+    outcome: "canonical_job_required",
     planId: input.plan.id,
-    ...input.plan,
-    generationStatus: "client_fetch_pending",
+    plan: input.plan,
   };
 }
 

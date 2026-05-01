@@ -44,14 +44,14 @@ describe("useRuntimeSnapshots", () => {
     });
     result.current.persist({
       jobId: "job-2",
-      toolName: "generate_audio",
+      toolName: "generate_chart",
       conversationId: "conv-1",
       status: "running",
       updatedAt: "2026-04-24T10:00:01.000Z",
     });
 
     expect(result.current.restore("job-1")?.toolName).toBe("compose_media");
-    expect(result.current.restore("job-2")?.toolName).toBe("generate_audio");
+    expect(result.current.restore("job-2")?.toolName).toBe("generate_chart");
   });
 
   it("purges the previous conversation snapshot set when conversationId changes", () => {

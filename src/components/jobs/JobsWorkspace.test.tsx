@@ -2,7 +2,8 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { JobHistoryEntry } from "@/lib/jobs/job-event-history";
-import type { JobStatusSnapshot } from "@/lib/jobs/job-read-model";
+import type { CanonicalJobSnapshot } from "@/lib/jobs/job-read-model";
+import type { CanonicalMediaWorkflowSnapshot } from "@/lib/media/workflows/media-workflow-read-model";
 
 const { pushMock, replaceMock } = vi.hoisted(() => ({
   pushMock: vi.fn(),
@@ -41,25 +42,40 @@ vi.mock("next/navigation", () => ({
 import { JobsWorkspace } from "@/components/jobs/JobsWorkspace";
 
 function makeSnapshot(
-  overrides: Partial<JobStatusSnapshot["part"]> = {},
-): JobStatusSnapshot {
+  overrides: Partial<CanonicalJobSnapshot> = {},
+): CanonicalJobSnapshot {
   return {
-    messageId: "jobmsg_job_1",
+    jobId: "job_1",
     conversationId: "conv_jobs",
-    part: {
-      type: "job_status",
-      jobId: "job_1",
-      toolName: "produce_blog_article",
-      label: "Produce Blog Article",
-      status: "running",
-      title: "Launch Plan",
-      subtitle: "Compose, QA, and prepare a publish-ready draft",
-      summary: "Drafting the article.",
-      progressPercent: 42,
-      progressLabel: "Drafting",
-      updatedAt: "2026-03-30T09:00:00.000Z",
-      ...overrides,
+    userId: null,
+    toolName: "produce_blog_article",
+    label: "Produce Blog Article",
+    status: "running",
+    title: "Launch Plan",
+    subtitle: "Compose, QA, and prepare a publish-ready draft",
+    summary: "Drafting the article.",
+    progressPercent: 42,
+    progressLabel: "Drafting",
+    createdAt: "2026-03-30T08:59:00.000Z",
+    startedAt: null,
+    completedAt: null,
+    updatedAt: "2026-03-30T09:00:00.000Z",
+    origin: { fallback: "job_created_at" },
+    inputSnapshot: {},
+    resultEnvelope: null,
+    artifactRefs: [],
+    materializationRefs: [],
+    ownership: { userId: null, visibility: "anonymous_session", initiatorType: "user" },
+    failure: {
+      failureClass: null,
+      recoveryMode: null,
+      nextRetryAt: null,
+      lastCheckpointId: null,
+      replayedFromJobId: null,
+      supersededByJobId: null,
     },
+    ...overrides,
+    sequence: overrides.sequence ?? 0,
   };
 }
 
@@ -81,6 +97,32 @@ function makeHistoryEntry(overrides: Partial<JobHistoryEntry> = {}): JobHistoryE
       progressPercent: 42,
       progressLabel: "Drafting",
     },
+    ...overrides,
+  };
+}
+
+function makeWorkflow(overrides: Partial<CanonicalMediaWorkflowSnapshot> = {}): CanonicalMediaWorkflowSnapshot {
+  return {
+    workflowId: "mwf_1",
+    conversationId: "conv_jobs",
+    userId: "usr_1",
+    title: "Bloom video",
+    requestedDeliverable: "video",
+    status: "running",
+    stage: { key: "compose_media", label: "Compose video", progressPercent: 50 },
+    steps: [
+      { stepId: "step_audio", kind: "generate_audio", status: "ready", jobId: "job_audio", assetId: "uf_audio", label: "Generate audio" },
+      { stepId: "step_compose", kind: "compose_media", status: "running", jobId: "job_compose", assetId: null, label: "Compose video" },
+    ],
+    finalArtifact: null,
+    failure: { code: null, message: null },
+    linkedJobIds: ["job_audio", "job_compose"],
+    linkedJobs: [],
+    originMessageId: "msg_assistant",
+    originTurnId: null,
+    createdAt: "2026-05-01T17:00:00.000Z",
+    updatedAt: "2026-05-01T17:01:00.000Z",
+    completedAt: null,
     ...overrides,
   };
 }
@@ -139,6 +181,23 @@ describe("JobsWorkspace", () => {
       "href",
       "/?conversationId=conv_jobs",
     );
+  });
+
+  it("renders workflow summaries before underlying job diagnostics", () => {
+    render(
+      <JobsWorkspace
+        workflows={[makeWorkflow()]}
+        jobs={[makeSnapshot({ jobId: "job_audio", toolName: "generate_audio", title: "Audio dependency" })]}
+        selectedJob={makeSnapshot({ jobId: "job_audio", toolName: "generate_audio", title: "Audio dependency" })}
+        selectedJobHistory={[makeHistoryEntry({ jobId: "job_audio" })]}
+        selectedJobId="job_audio"
+        userName="Morgan"
+      />,
+    );
+
+    expect(screen.getByTestId("workflow-card-mwf_1")).toHaveTextContent("Bloom video");
+    expect(screen.getByTestId("workflow-card-mwf_1")).toHaveTextContent("2 linked jobs");
+    expect(screen.getByTestId("job-card-job_audio")).toHaveTextContent("Audio dependency");
   });
 
   it("navigates to a deep-linked selected job when another card is chosen", async () => {
@@ -466,7 +525,14 @@ describe("JobsWorkspace", () => {
             status: "running",
             progressPercent: 65,
             progressLabel: "Reviewing article",
-            replayedFromJobId: "job_retry",
+            failure: {
+              failureClass: null,
+              recoveryMode: "rerun",
+              nextRetryAt: null,
+              lastCheckpointId: null,
+              replayedFromJobId: "job_retry",
+              supersededByJobId: null,
+            },
           }),
         }),
       } as Response)

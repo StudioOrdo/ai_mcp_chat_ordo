@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildMediaCompositionCanonicalizationOptionsFromAssetCatalogEntries,
   buildMediaCompositionCanonicalizationOptionsFromChatMessages,
-  buildMediaCompositionCanonicalizationOptionsFromChatMessagesAndUserFiles,
 } from "./media-composition-asset-identity";
 
 describe("media-composition-asset-identity", () => {
@@ -82,7 +82,7 @@ describe("media-composition-asset-identity", () => {
     ]);
   });
 
-  it("derives audio aliases from generate_audio tool call titles when the runtime payload is minimal", () => {
+  it("does not derive audio aliases from direct generate_audio transcript payloads", () => {
     const options = buildMediaCompositionCanonicalizationOptionsFromChatMessages([
       {
         id: "msg_audio_1",
@@ -113,61 +113,30 @@ describe("media-composition-asset-identity", () => {
       },
     ]);
 
-    expect(options.assetCandidates).toEqual([
-      expect.objectContaining({
-        assetId: "uf_audio_1",
-        kind: "audio",
-        aliases: expect.arrayContaining(["Signal Stack Narration", "signal-stack-narration"]),
-      }),
-    ]);
+    expect(options.assetCandidates).toEqual([]);
   });
 
-  it("binds chart aliases from the transcript to a single governed chart file when the result payload omits assetId", () => {
-    const options = buildMediaCompositionCanonicalizationOptionsFromChatMessagesAndUserFiles(
-      [
-        {
-          id: "msg_chart_2",
-          role: "assistant",
-          content: "",
-          timestamp: new Date("2026-04-17T09:00:00.000Z"),
-          parts: [
-            {
-              type: "tool_call",
-              name: "generate_chart",
-              args: {
-                code: "flowchart TD\nA-->B",
-                title: "Signal Stack Chart",
-                downloadFileName: "signal-stack-chart",
-              },
-            },
-            {
-              type: "tool_result",
-              name: "generate_chart",
-              result: "Success. Chart generated and rendered silently on the client.",
-            },
-          ],
-        },
-      ],
-      [
-        {
-          id: "uf_chart_1",
-          userId: "usr_owner",
-          conversationId: "conv_media_1",
-          contentHash: "hash_chart_1",
-          fileType: "chart",
-          fileName: "9f86d081884c7d659a2feaa0c55ad015.mmd",
-          mimeType: "text/plain",
-          fileSize: 128,
-          metadata: {
-            assetKind: "chart",
-            source: "generated",
-            toolName: "generate_chart",
-            retentionClass: "conversation",
-          },
-          createdAt: "2026-04-17T09:00:01.000Z",
-        },
-      ],
-    );
+  it("builds canonical compose candidates directly from asset catalog entries", () => {
+    const options = buildMediaCompositionCanonicalizationOptionsFromAssetCatalogEntries([
+      {
+        assetId: "uf_chart_1",
+        kind: "chart",
+        ownerUserId: "usr_owner",
+        sourceType: "user_file",
+        status: "ready",
+        label: "Signal Stack Chart",
+        fileName: "9f86d081884c7d659a2feaa0c55ad015.mmd",
+        mimeType: "text/plain",
+        source: "generated",
+        retentionClass: "conversation",
+        createdAt: "2026-04-17T09:00:01.000Z",
+        updatedAt: "2026-04-17T09:00:01.000Z",
+        conversationId: "conv_media_1",
+        producedByJobId: "job_chart_1",
+        materializationKey: "generate_chart:key_1",
+        toolName: "generate_chart",
+      },
+    ]);
 
     expect(options.assetCandidates).toEqual([
       expect.objectContaining({

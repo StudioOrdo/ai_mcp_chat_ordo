@@ -3,16 +3,30 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   cookiesMock,
   migrateAnonymousConversationsMock,
+  identityMigrationRecordMock,
+  identityMigrationUpdateMock,
   findIdsByUserAndConvertedFromMock,
   transferJobsToUserMock,
+  transferFilesToUserMock,
+  transferMaterializationsToUserMock,
+  transferRelationshipMemoryToUserMock,
+  transferPromptBindingsToUserMock,
+  countPromptProvenanceByConversationsMock,
   repairConversationOwnershipIndexMock,
   linkConversationToAuthenticatedUserMock,
   clearAnonSessionMock,
 } = vi.hoisted(() => ({
   cookiesMock: vi.fn(),
   migrateAnonymousConversationsMock: vi.fn(),
+  identityMigrationRecordMock: vi.fn(),
+  identityMigrationUpdateMock: vi.fn(),
   findIdsByUserAndConvertedFromMock: vi.fn(),
   transferJobsToUserMock: vi.fn(),
+  transferFilesToUserMock: vi.fn(),
+  transferMaterializationsToUserMock: vi.fn(),
+  transferRelationshipMemoryToUserMock: vi.fn(),
+  transferPromptBindingsToUserMock: vi.fn(),
+  countPromptProvenanceByConversationsMock: vi.fn(),
   repairConversationOwnershipIndexMock: vi.fn(),
   linkConversationToAuthenticatedUserMock: vi.fn(),
   clearAnonSessionMock: vi.fn(),
@@ -24,11 +38,33 @@ vi.mock("next/headers", () => ({
 }));
 
 vi.mock("@/adapters/RepositoryFactory", () => ({
+  getIdentityMigrationRepository: () => ({
+    record: identityMigrationRecordMock,
+    update: identityMigrationUpdateMock,
+    findById: vi.fn(),
+    findLatestForSourceIdentity: vi.fn(),
+    findLatestForTargetIdentity: vi.fn(),
+  }),
   getConversationDataMapper: () => ({
     findIdsByUserAndConvertedFrom: findIdsByUserAndConvertedFromMock,
   }),
   getJobQueueRepository: () => ({
     transferJobsToUser: transferJobsToUserMock,
+  }),
+  getUserFileDataMapper: () => ({
+    transferOwnershipForConversations: transferFilesToUserMock,
+  }),
+  getMaterializationRepository: () => ({
+    transferOwnershipForConversations: transferMaterializationsToUserMock,
+  }),
+  getRelationshipMemoryRepository: () => ({
+    transferOwnershipForConversations: transferRelationshipMemoryToUserMock,
+  }),
+  getPromptBindingRepository: () => ({
+    transferOwnershipForConversations: transferPromptBindingsToUserMock,
+  }),
+  getPromptProvenanceDataMapper: () => ({
+    countByConversations: countPromptProvenanceByConversationsMock,
   }),
 }));
 
@@ -60,9 +96,16 @@ describe("job ownership migration", () => {
     cookiesMock.mockResolvedValue({
       get: (name: string) => (name === "lms_anon_session" ? { name, value: "seed_123" } : undefined),
     });
+    identityMigrationRecordMock.mockImplementation(async (event) => event);
+    identityMigrationUpdateMock.mockImplementation(async (event) => event);
     migrateAnonymousConversationsMock.mockResolvedValue(["conv_anon"]);
     findIdsByUserAndConvertedFromMock.mockResolvedValue(["conv_retry"]);
     transferJobsToUserMock.mockResolvedValue([]);
+    transferFilesToUserMock.mockResolvedValue([]);
+    transferMaterializationsToUserMock.mockResolvedValue([]);
+    transferRelationshipMemoryToUserMock.mockResolvedValue([]);
+    transferPromptBindingsToUserMock.mockResolvedValue([]);
+    countPromptProvenanceByConversationsMock.mockResolvedValue(0);
     repairConversationOwnershipIndexMock.mockResolvedValue(undefined);
     linkConversationToAuthenticatedUserMock.mockResolvedValue(undefined);
     clearAnonSessionMock.mockResolvedValue(undefined);
@@ -82,6 +125,38 @@ describe("job ownership migration", () => {
       "usr_owner",
       "anon_seed_123",
     );
+    expect(transferFilesToUserMock).toHaveBeenCalledWith({
+      conversationIds: ["conv_anon"],
+      previousUserId: "anon_seed_123",
+      userId: "usr_owner",
+    });
+    expect(transferMaterializationsToUserMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationIds: ["conv_anon"],
+        previousUserId: "anon_seed_123",
+        userId: "usr_owner",
+      }),
+    );
+    expect(transferRelationshipMemoryToUserMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationIds: ["conv_anon"],
+        previousUserId: "anon_seed_123",
+        userId: "usr_owner",
+      }),
+    );
+    expect(transferPromptBindingsToUserMock).toHaveBeenCalledWith({
+      conversationIds: ["conv_anon"],
+      previousUserId: "anon_seed_123",
+      userId: "usr_owner",
+    });
+    expect(countPromptProvenanceByConversationsMock).toHaveBeenCalledWith(["conv_anon"]);
+    expect(identityMigrationUpdateMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        status: "completed",
+        currentStage: "completed",
+      }),
+    );
+    expect(clearAnonSessionMock).toHaveBeenCalled();
   });
 
   it("reuses converted conversations on retry paths so job ownership still backfills", async () => {

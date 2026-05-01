@@ -30,6 +30,10 @@ function createMockVectorStore(): VectorStore {
     getBySourceId: vi.fn((sourceId: string) =>
       (records.get(sourceId) ?? []) as ReturnType<VectorStore["getBySourceId"]>,
     ),
+    searchSimilar: vi.fn(() => []),
+    searchKeyword: vi.fn(() => []),
+    hydrateByIds: vi.fn(() => []),
+    listSourceIds: vi.fn(() => [...records.keys()]),
     getContentHash: vi.fn(() => null),
     getModelVersion: vi.fn(() => null),
     count: vi.fn(() => {

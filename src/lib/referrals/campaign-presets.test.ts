@@ -180,15 +180,7 @@ describe("buildCampaignPresetCoachPayloadFromCorpus (Phase 4)", () => {
     );
     const payload = await buildCampaignPresetCoachPayloadFromCorpus(preset, repo);
     const templated = buildCampaignPresetCoachPayload(preset);
-    expect(payload.actions).toEqual([
-      ...templated.actions,
-      {
-        key: "read-full-guide",
-        kind: "navigate",
-        label: "Read the full guide",
-        href: "/library/campaign/friends-and-family",
-      },
-    ]);
+    expect(payload.actions).toEqual(templated.actions);
   });
 
   it("falls back when the section audience exceeds account", async () => {

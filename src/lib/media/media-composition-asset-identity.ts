@@ -1,4 +1,5 @@
 import type { ChatMessage } from "@/core/entities/chat-message";
+import type { AssetCatalogEntry } from "@/core/entities/asset-catalog";
 import type { MessagePart } from "@/core/entities/message-parts";
 import type { UserFile } from "@/core/entities/user-file";
 import { resolveGenerateChartPayload } from "@/core/use-cases/tools/chart-payload";
@@ -7,11 +8,10 @@ import type {
   CanonicalizeMediaCompositionPlanOptions,
   MediaCompositionAssetIdentityCandidate,
 } from "@/lib/media/ffmpeg/media-composition-plan";
-import { extractJobStatusSnapshots } from "@/lib/jobs/job-status-snapshots";
 import {
-  projectUserFileToConversationMediaAssetCandidate,
-  type ConversationMediaAssetCandidate,
-} from "./media-asset-projection";
+  projectAssetCatalogEntryToConversationMediaAssetCandidate,
+} from "@/core/platform/asset-catalog/AssetCatalogProjector";
+import type { ConversationMediaAssetCandidate } from "@/lib/media/media-asset-projection";
 
 function isCompositionEligibleAssetKind(
   kind: ConversationMediaAssetCandidate["assetKind"],
@@ -151,17 +151,17 @@ export function buildMediaCompositionCanonicalizationOptionsFromConversationAsse
   };
 }
 
-export function buildMediaCompositionCanonicalizationOptionsFromUserFiles(
-  files: readonly UserFile[],
+export function buildMediaCompositionCanonicalizationOptionsFromAssetCatalogEntries(
+  entries: readonly AssetCatalogEntry[],
 ): CanonicalizeMediaCompositionPlanOptions {
   return buildMediaCompositionCanonicalizationOptionsFromConversationAssets(
-    files
-      .map(projectUserFileToConversationMediaAssetCandidate)
+    entries
+      .map(projectAssetCatalogEntryToConversationMediaAssetCandidate)
       .filter((asset): asset is ConversationMediaAssetCandidate => Boolean(asset)),
   );
 }
 
-type SupportedAliasToolName = "generate_audio" | "generate_chart" | "generate_graph" | "generate_blog_image";
+type SupportedAliasToolName = "generate_chart" | "generate_graph" | "generate_blog_image";
 
 type ToolCallAliasSeed = {
   toolName: SupportedAliasToolName;
@@ -190,13 +190,6 @@ function buildToolCallAliasSeed(part: Extract<MessagePart, { type: "tool_call" }
     };
   }
 
-  if (part.name === "generate_audio") {
-    return {
-      toolName: part.name,
-      aliases: collectAliasVariants([readString(part.args.title)]),
-    };
-  }
-
   if (part.name === "generate_blog_image") {
     return {
       toolName: part.name,
@@ -216,72 +209,9 @@ function resolveFallbackFileType(toolName: SupportedAliasToolName): UserFile["fi
       return "chart";
     case "generate_graph":
       return "graph";
-    case "generate_audio":
-      return "audio";
     case "generate_blog_image":
       return "image";
   }
-}
-
-export function buildMediaCompositionCanonicalizationOptionsFromChatMessagesAndUserFiles(
-  messages: readonly ChatMessage[],
-  files: readonly UserFile[],
-): CanonicalizeMediaCompositionPlanOptions {
-  const seeds = new Map<SupportedAliasToolName, ToolCallAliasSeed[]>();
-
-  for (const message of messages) {
-    for (const part of message.parts ?? []) {
-      if (part.type !== "tool_call") {
-        continue;
-      }
-
-      const seed = buildToolCallAliasSeed(part);
-      if (!seed || seed.aliases.length === 0) {
-        continue;
-      }
-
-      const existing = seeds.get(seed.toolName) ?? [];
-      existing.push(seed);
-      seeds.set(seed.toolName, existing);
-    }
-  }
-
-  const candidates: MediaCompositionAssetIdentityCandidate[] = [];
-
-  for (const [toolName, toolSeeds] of seeds) {
-    if (toolSeeds.length !== 1) {
-      continue;
-    }
-
-    const expectedFileType = resolveFallbackFileType(toolName);
-    const matchingFiles = files.filter((file) => file.fileType === expectedFileType);
-    if (matchingFiles.length !== 1 && toolName !== "generate_blog_image") {
-      continue;
-    }
-
-    // For generate_blog_image, it uses blogasset_ not user files, so we handle it separately below.
-    if (toolName !== "generate_blog_image") {
-      const asset = projectUserFileToConversationMediaAssetCandidate(matchingFiles[0]);
-      if (!asset || !isCompositionEligibleAssetKind(asset.assetKind)) {
-        continue;
-      }
-
-      candidates.push({
-        assetId: asset.assetId,
-        kind: asset.assetKind,
-        aliases: collectAliasVariants([
-          asset.assetId,
-          asset.label,
-          asset.fileName,
-          ...toolSeeds[0].aliases,
-        ]),
-      });
-    }
-  }
-
-  return {
-    assetCandidates: mergeAssetCandidates(candidates),
-  };
 }
 
 function buildChartCandidate(payload: unknown, args: Record<string, unknown>): MediaCompositionAssetIdentityCandidate | null {
@@ -339,31 +269,6 @@ function buildGraphCandidate(payload: unknown, args: Record<string, unknown>): M
     assetId,
     kind: "graph",
     aliases: collectAliasVariants([assetId, title, caption, downloadFileName]),
-  };
-}
-
-function buildAudioCandidate(
-  payload: unknown,
-  args: Record<string, unknown>,
-  part: Extract<MessagePart, { type: "job_status" }> | Extract<MessagePart, { type: "tool_result" }>,
-): MediaCompositionAssetIdentityCandidate | null {
-  if (!isRecord(payload)) {
-    return null;
-  }
-
-  const assetId = readString(payload.assetId);
-  if (!assetId) {
-    return null;
-  }
-
-  const title = readString(payload.title);
-  const requestedTitle = readString(args.title);
-  const label = part.type === "job_status" ? readString(part.title) ?? readString(part.label) : null;
-
-  return {
-    assetId,
-    kind: "audio",
-    aliases: collectAliasVariants([assetId, title, requestedTitle, label]),
   };
 }
 
@@ -446,9 +351,7 @@ function buildCandidateFromPart(
   }
 
   if (part.type === "tool_result") {
-    const snapshots = extractJobStatusSnapshots(part.result);
-    const snapshot = snapshots.at(-1)?.part;
-    const payload = snapshot?.resultEnvelope?.payload ?? snapshot?.resultPayload ?? part.result;
+    const payload = part.result;
 
     if (part.name === "list_conversation_media_assets") {
       const candidates = buildListConversationMediaAssetsCandidates(payload);
@@ -463,36 +366,7 @@ function buildCandidateFromPart(
       return buildGraphCandidate(payload, callArgs);
     }
 
-    if (part.name === "generate_audio") {
-      return buildAudioCandidate(payload, callArgs, part);
-    }
-
     if (part.name === "generate_blog_image") {
-      return buildBlogImageCandidate(payload, callArgs);
-    }
-  }
-
-  if (part.type === "job_status") {
-    const payload = part.resultEnvelope?.payload ?? part.resultPayload;
-
-    if (part.toolName === "list_conversation_media_assets") {
-      const candidates = buildListConversationMediaAssetsCandidates(payload);
-      return candidates[0] ?? null;
-    }
-
-    if (part.toolName === "generate_chart") {
-      return buildChartCandidate(payload, callArgs);
-    }
-
-    if (part.toolName === "generate_graph") {
-      return buildGraphCandidate(payload, callArgs);
-    }
-
-    if (part.toolName === "generate_audio") {
-      return buildAudioCandidate(payload, callArgs, part);
-    }
-
-    if (part.toolName === "generate_blog_image") {
       return buildBlogImageCandidate(payload, callArgs);
     }
   }
@@ -516,7 +390,6 @@ export function buildMediaCompositionCanonicalizationOptionsFromChatMessages(
 
       if (
         part.type !== "tool_result"
-        && part.type !== "job_status"
         && part.type !== "attachment"
       ) {
         continue;
@@ -524,23 +397,13 @@ export function buildMediaCompositionCanonicalizationOptionsFromChatMessages(
 
       const toolName = part.type === "tool_result"
         ? part.name
-        : part.type === "job_status"
-          ? part.toolName
-          : "";
+        : "";
       const callArgs = latestToolArgs.get(toolName) ?? {};
       let candidate: MediaCompositionAssetIdentityCandidate | null = null;
 
       try {
-        if (
-          (part.type === "tool_result" && part.name === "list_conversation_media_assets")
-          || (part.type === "job_status" && part.toolName === "list_conversation_media_assets")
-        ) {
-          const payload = part.type === "tool_result"
-            ? extractJobStatusSnapshots(part.result).at(-1)?.part?.resultEnvelope?.payload
-              ?? extractJobStatusSnapshots(part.result).at(-1)?.part?.resultPayload
-              ?? part.result
-            : part.resultEnvelope?.payload ?? part.resultPayload;
-          candidates.push(...buildListConversationMediaAssetsCandidates(payload));
+        if (part.type === "tool_result" && part.name === "list_conversation_media_assets") {
+          candidates.push(...buildListConversationMediaAssetsCandidates(part.result));
           continue;
         }
 

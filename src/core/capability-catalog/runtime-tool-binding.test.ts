@@ -57,10 +57,17 @@ import type { BlogAssetRepository } from "@/core/use-cases/BlogAssetRepository";
 import type { BlogPostRepository } from "@/core/use-cases/BlogPostRepository";
 import type { BlogPostRevisionRepository } from "@/core/use-cases/BlogPostRevisionRepository";
 import type { CorpusRepository } from "@/core/use-cases/CorpusRepository";
+import type { AssetCatalogReader } from "@/core/use-cases/AssetCatalogReader";
 import type { JobQueueRepository } from "@/core/use-cases/JobQueueRepository";
 import type { JobStatusQuery } from "@/core/use-cases/JobStatusQuery";
+import type { MaterializationRepository } from "@/core/use-cases/MaterializationRepository";
 import type { JournalEditorialInteractor } from "@/core/use-cases/JournalEditorialInteractor";
 import type { UserFileRepository } from "@/core/use-cases/UserFileRepository";
+import {
+  createEmptyFleetUserFileStorageSummary,
+  createEmptyUserFileStorageSummary,
+} from "@/core/entities/user-file-storage";
+import type { RelationshipMemoryReader } from "@/core/use-cases/RelationshipMemoryRepository";
 import { closeGlobalMcpProcessSessions } from "@/lib/capabilities/mcp-process-runtime";
 import type { BlogArticleProductionService } from "@/lib/blog/blog-article-production-service";
 import type { BlogImageGenerationService } from "@/lib/blog/blog-image-generation-service";
@@ -83,6 +90,7 @@ const ROOT = path.resolve(__dirname, "../../..");
 const ADMIN_WEB_SEARCH_MCP_SERVICE = "admin-web-search-mcp";
 const DOCKER_COMPOSE_AVAILABLE = canUseDockerCompose();
 const DOCKER_TEST_TIMEOUT_MS = 120_000;
+const MCP_PLANNER_TEST_TIMEOUT_MS = 15_000;
 
 function readSource(relativePath: string): string {
   return fs.readFileSync(path.join(ROOT, relativePath), "utf-8");
@@ -292,6 +300,21 @@ function createJobQueueRepositoryMock(overrides: Partial<JobQueueRepository> = {
   } as unknown as JobQueueRepository;
 }
 
+function createMaterializationRepositoryMock(
+  overrides: Partial<MaterializationRepository> = {},
+): MaterializationRepository {
+  return {
+    findById: vi.fn(async () => null),
+    findByMaterializationKey: vi.fn(async () => null),
+    listByConversation: vi.fn(async () => []),
+    findLatestByOutputRef: vi.fn(async () => null),
+    findReusableSuccess: vi.fn(async () => null),
+    upsert: vi.fn(async (record) => record),
+    markSuperseded: vi.fn(async () => null),
+    ...overrides,
+  };
+}
+
 function createProfileViewModel(overrides: Partial<UserProfileViewModel> = {}): UserProfileViewModel {
   return {
     id: "user-1",
@@ -335,6 +358,10 @@ function createVectorStoreMock(overrides: Partial<VectorStore> = {}): VectorStor
     delete: vi.fn(() => undefined),
     getAll: vi.fn(() => []),
     getBySourceId: vi.fn(() => []),
+    searchSimilar: vi.fn(() => []),
+    searchKeyword: vi.fn(() => []),
+    hydrateByIds: vi.fn(() => []),
+    listSourceIds: vi.fn(() => []),
     getContentHash: vi.fn(() => null),
     getModelVersion: vi.fn(() => null),
     count: vi.fn(() => 0),
@@ -351,10 +378,38 @@ function createUserFileRepositoryMock(
     findByHash: vi.fn(),
     listByConversation: vi.fn(async () => []),
     listByUser: vi.fn(async () => []),
+    listForUser: vi.fn(async () => ({ items: [], nextCursor: null })),
+    getUserStorageSummary: vi.fn(async () => createEmptyUserFileStorageSummary()),
+    listForAdmin: vi.fn(async () => []),
+    countForAdmin: vi.fn(async () => 0),
+    getFleetStorageSummary: vi.fn(async () => createEmptyFleetUserFileStorageSummary()),
+    listLargestUsersByStorage: vi.fn(async () => []),
     listUnattachedCreatedBefore: vi.fn(async () => []),
     assignConversation: vi.fn(async () => undefined),
     deleteIfUnattached: vi.fn(async () => null),
     delete: vi.fn(async () => undefined),
+    ...overrides,
+  };
+}
+
+function createRelationshipMemoryReaderMock(
+  overrides: Partial<RelationshipMemoryReader> = {},
+): RelationshipMemoryReader {
+  return {
+    findById: vi.fn(async () => null),
+    listActiveByConversation: vi.fn(async () => []),
+    listActiveByUser: vi.fn(async () => []),
+    ...overrides,
+  };
+}
+
+function createAssetCatalogReaderMock(
+  overrides: Partial<AssetCatalogReader> = {},
+): AssetCatalogReader {
+  return {
+    listConversationAssets: vi.fn(async () => []),
+    listReusableMediaAssets: vi.fn(async () => []),
+    findByAssetId: vi.fn(async () => null),
     ...overrides,
   };
 }
@@ -376,6 +431,8 @@ function createSharedDeps(registry = new ToolRegistry()) {
     analyticsService: {} as unknown as ReferralAnalyticsService,
     adminAnalyticsService: {} as unknown as AdminReferralAnalyticsService,
     vectorStore: createVectorStoreMock(),
+    relationshipMemoryReader: createRelationshipMemoryReaderMock(),
+    assetCatalogReader: createAssetCatalogReaderMock(),
     userFileRepository: createUserFileRepositoryMock(),
   };
 }
@@ -1120,6 +1177,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
     const jobQueueRepository = createJobQueueRepositoryMock();
     const descriptor = projectCatalogBoundToolDescriptor("compose_media", {
       jobQueueRepository,
+      materializationRepository: createMaterializationRepositoryMock(),
       userFileRepository: createUserFileRepositoryMock(),
     });
 
@@ -1162,10 +1220,74 @@ describe("Sprint 23 — Catalog runtime binding", () => {
     });
   });
 
-  it("routes compose_media through the local native_process target before deferred_job", async () => {
+  it("returns a renderable exact reuse payload for completed compose materializations", async () => {
+    const jobQueueRepository = createJobQueueRepositoryMock();
+    const materializationRepository = createMaterializationRepositoryMock({
+      findReusableSuccess: vi.fn(async () => ({
+        id: "mat_compose_1",
+        userId: "user-1",
+        conversationId: "conv_media_1",
+        materializationKey: "compose_media:reusable",
+        toolName: "compose_media",
+        pipelineVersion: null,
+        status: "ready" as const,
+        reusePolicy: "same_conversation" as const,
+        inputSourceRefs: [],
+        outputRefs: [{
+          kind: "asset" as const,
+          id: "uf_video_reused_1",
+          userId: "user-1",
+          conversationId: "conv_media_1",
+        }],
+        evidenceRefs: [],
+        producedByJobId: "job_completed_1",
+        supersededByRecordId: null,
+        createdAt: "2026-04-13T12:00:00.000Z",
+        updatedAt: "2026-04-13T12:00:00.000Z",
+      })),
+    });
+    const descriptor = projectCatalogBoundToolDescriptor("compose_media", {
+      jobQueueRepository,
+      materializationRepository,
+      userFileRepository: createUserFileRepositoryMock(),
+    });
+
+    const result = await descriptor.command.execute(
+      {
+        plan: {
+          id: "plan_media_1",
+          conversationId: "conv_media_1",
+          visualClips: [{ assetId: "asset_visual_1", kind: "video" }],
+          audioClips: [],
+          subtitlePolicy: "none",
+          waveformPolicy: "none",
+          outputFormat: "mp4",
+        },
+      },
+      {
+        role: "AUTHENTICATED",
+        userId: "user-1",
+        conversationId: "conv_media_1",
+      },
+    ) as Record<string, unknown>;
+
+    expect(jobQueueRepository.createJob).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      action: "compose_media",
+      outcome: "exact_reuse",
+      materializationId: "mat_compose_1",
+      producedByJobId: "job_completed_1",
+      primaryAssetId: "uf_video_reused_1",
+      mimeType: "video/mp4",
+      retentionClass: "conversation",
+    });
+  });
+
+  it("ignores direct native_process overrides for user compose_media requests", async () => {
     const jobQueueRepository = createJobQueueRepositoryMock();
     const descriptor = projectCatalogBoundToolDescriptor("compose_media", {
       jobQueueRepository,
+      materializationRepository: createMaterializationRepositoryMock(),
       userFileRepository: createUserFileRepositoryMock(),
     });
     const previousFixture = process.env.ORDO_NATIVE_COMPOSE_MEDIA_RESULT_FIXTURE;
@@ -1225,24 +1347,22 @@ describe("Sprint 23 — Catalog runtime binding", () => {
           userId: "user-1",
           conversationId: "conv_media_1",
           executionPlanning: {
+            enabledTargetKinds: ["native_process", "deferred_job", "host_ts"],
+            preferredTargetKinds: ["native_process", "deferred_job", "host_ts"],
             browserRuntimeAvailable: false,
           },
         },
       ) as Record<string, unknown>;
 
-      expect(jobQueueRepository.createJob).not.toHaveBeenCalled();
+      expect(jobQueueRepository.createJob).toHaveBeenCalledTimes(1);
       expect(result).toMatchObject({
-        toolName: "compose_media",
-        replaySnapshot: {
-          route: "native_process",
-          planId: "plan_media_1",
-        },
-        payload: {
-          route: "native_process",
-          primaryAssetId: "uf_media_native_1",
-          outputFormat: "mp4",
+        deferred_job: {
+          jobId: "job_media_1",
+          toolName: "compose_media",
+          status: "queued",
         },
       });
+      expect(executeComposeMediaJobMock).not.toHaveBeenCalled();
     } finally {
       if (previousFixture === undefined) {
         delete process.env.ORDO_NATIVE_COMPOSE_MEDIA_RESULT_FIXTURE;
@@ -1255,6 +1375,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
   it("routes compose_media worker execution through the media worker and preserves canonical envelope shape", async () => {
     const descriptor = projectCatalogBoundToolDescriptor("compose_media", {
       jobQueueRepository: createJobQueueRepositoryMock(),
+      materializationRepository: createMaterializationRepositoryMock(),
       userFileRepository: createUserFileRepositoryMock(),
     });
     executeComposeMediaJobMock.mockImplementation(async (_request, onProgress) => {
@@ -1372,26 +1493,61 @@ describe("Sprint 23 — Catalog runtime binding", () => {
     });
   });
 
-  it("routes generate_audio and preserves its payload", async () => {
-    const descriptor = projectCatalogBoundToolDescriptor("generate_audio");
+  it("routes generate_audio through the canonical deferred job path", async () => {
+    const jobQueueRepository = createJobQueueRepositoryMock({
+      createJob: vi.fn(async (seed: JobRequestSeed) => createJobRequest({
+        id: "job_audio_1",
+        toolName: "generate_audio",
+        requestPayload: seed.requestPayload,
+        toolInvocationId: seed.toolInvocationId ?? null,
+      })),
+      appendEvent: vi.fn(async (seed: JobEventSeed) => createJobEvent({
+        id: "evt_audio_1",
+        jobId: seed.jobId,
+        conversationId: seed.conversationId,
+        payload: seed.payload,
+      })),
+    });
+    const descriptor = projectCatalogBoundToolDescriptor("generate_audio", {
+      jobQueueRepository,
+      materializationRepository: createMaterializationRepositoryMock(),
+      userFileRepository: createUserFileRepositoryMock(),
+    });
 
     const result = await descriptor.command.execute(
       {
         title: "Founder memo",
         text: "This is the founder memo for the weekly review.",
       },
-      { role: "AUTHENTICATED", userId: "user-1", toolInvocationId: "toolu_audio_1" },
+      {
+        role: "AUTHENTICATED",
+        userId: "user-1",
+        conversationId: "conv_audio_1",
+        toolInvocationId: "toolu_audio_1",
+      },
     ) as Record<string, unknown>;
 
     expect(result).toMatchObject({
-      title: "Founder memo",
-      text: "This is the founder memo for the weekly review.",
-      assetId: "uf_audio_mock",
-      toolInvocationId: "toolu_audio_1",
+      deferred_job: {
+        jobId: "job_audio_1",
+        toolName: "generate_audio",
+        toolInvocationId: "toolu_audio_1",
+        status: "queued",
+      },
     });
-    expect(generateStoredAudioArtifactMock).toHaveBeenCalledWith(
-      expect.objectContaining({ toolInvocationId: "toolu_audio_1" }),
+    expect(jobQueueRepository.createJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolName: "generate_audio",
+        conversationId: "conv_audio_1",
+        toolInvocationId: "toolu_audio_1",
+        requestPayload: expect.objectContaining({
+          title: "Founder memo",
+          text: "This is the founder memo for the weekly review.",
+          materializationKey: expect.stringContaining("generate_audio:"),
+        }),
+      }),
     );
+    expect(generateStoredAudioArtifactMock).not.toHaveBeenCalled();
   });
 
   it("routes chart and graph generation with tool invocation provenance", async () => {
@@ -1454,8 +1610,25 @@ describe("Sprint 23 — Catalog runtime binding", () => {
     );
   });
 
-  it("falls back to host_ts when browser planner availability is explicitly disabled", async () => {
-    const descriptor = projectCatalogBoundToolDescriptor("generate_audio");
+  it("keeps generate_audio on deferred_job when browser planner availability is explicitly disabled", async () => {
+    const jobQueueRepository = createJobQueueRepositoryMock({
+      createJob: vi.fn(async (seed: JobRequestSeed) => createJobRequest({
+        id: "job_audio_2",
+        toolName: "generate_audio",
+        requestPayload: seed.requestPayload,
+      })),
+      appendEvent: vi.fn(async (seed: JobEventSeed) => createJobEvent({
+        id: "evt_audio_2",
+        jobId: seed.jobId,
+        conversationId: seed.conversationId,
+        payload: seed.payload,
+      })),
+    });
+    const descriptor = projectCatalogBoundToolDescriptor("generate_audio", {
+      jobQueueRepository,
+      materializationRepository: createMaterializationRepositoryMock(),
+      userFileRepository: createUserFileRepositoryMock(),
+    });
 
     const result = await descriptor.command.execute(
       {
@@ -1465,6 +1638,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
       {
         role: "AUTHENTICATED",
         userId: "user-1",
+        conversationId: "conv_audio_1",
         executionPlanning: {
           browserRuntimeAvailable: false,
         },
@@ -1472,13 +1646,14 @@ describe("Sprint 23 — Catalog runtime binding", () => {
     ) as Record<string, unknown>;
 
     expect(result).toMatchObject({
-      action: "generate_audio",
-      title: "Founder memo",
-      assetId: "uf_audio_mock",
+      deferred_job: {
+        jobId: "job_audio_2",
+        toolName: "generate_audio",
+        status: "queued",
+      },
     });
-    expect(generateStoredAudioArtifactMock).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: "user-1" }),
-    );
+    expect(jobQueueRepository.createJob).toHaveBeenCalledTimes(1);
+    expect(generateStoredAudioArtifactMock).not.toHaveBeenCalled();
   });
 
   it("uses the catalog-backed search_corpus validator before repository work", async () => {
@@ -1558,7 +1733,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
     } finally {
       executeSpy.mockRestore();
     }
-  });
+  }, MCP_PLANNER_TEST_TIMEOUT_MS);
 
   it("uses the catalog-backed inspect_runtime_context executor with registry deps", async () => {
     const registry = new ToolRegistry();
@@ -1638,7 +1813,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
     expect(CATALOG_BOUND_TOOL_NAMES).toEqual(
       runtimeCatalogBoundToolNames,
     );
-    expect(CATALOG_BOUND_TOOL_NAMES).toHaveLength(58);
+    expect(CATALOG_BOUND_TOOL_NAMES).toHaveLength(59);
 
     expect(getCatalogBoundToolNamesForBundle("admin")).toEqual([
       "admin_prioritize_leads",
@@ -1679,7 +1854,10 @@ describe("Sprint 23 — Catalog runtime binding", () => {
     expect(getCatalogBoundToolNamesForBundle("calculator")).toEqual([
       "calculator",
     ]);
-    expect(getCatalogBoundToolNamesForBundle("conversation")).toEqual(["search_my_conversations"]);
+    expect(getCatalogBoundToolNamesForBundle("conversation")).toEqual([
+      "search_my_conversations",
+      "search_relationship_memory",
+    ]);
     expect(getCatalogBoundToolNamesForBundle("corpus")).toEqual([
       "get_checklist",
       "get_corpus_summary",

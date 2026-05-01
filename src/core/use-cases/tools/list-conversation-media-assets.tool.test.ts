@@ -1,63 +1,54 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { UserFile } from "@/core/entities/user-file";
+import type { AssetCatalogEntry } from "@/core/entities/asset-catalog";
 import { createListConversationMediaAssetsTool } from "./list-conversation-media-assets.tool";
 
-function createUserFile(overrides: Partial<UserFile> = {}): UserFile {
+function createAssetCatalogEntry(overrides: Partial<AssetCatalogEntry> = {}): AssetCatalogEntry {
   return {
-    id: "uf_1",
-    userId: "usr_1",
-    conversationId: "conv_1",
-    contentHash: "hash_1",
-    fileType: "audio",
+    assetId: "uf_1",
+    kind: "audio",
+    ownerUserId: "usr_1",
+    sourceType: "user_file",
+    status: "ready",
+    label: "voiceover.mp3",
     fileName: "voiceover.mp3",
     mimeType: "audio/mpeg",
-    fileSize: 1024,
-    metadata: {
-      assetKind: "audio",
-      source: "generated",
-      toolName: "generate_audio",
-      durationSeconds: 18,
-    },
+    source: "generated",
+    retentionClass: "conversation",
     createdAt: "2026-04-14T12:00:00.000Z",
+    updatedAt: "2026-04-14T12:00:00.000Z",
+    conversationId: "conv_1",
+    producedByJobId: "job_audio_1",
+    materializationKey: "generate_audio:key_1",
+    toolName: "generate_audio",
+    durationSeconds: 18,
     ...overrides,
   };
 }
 
 describe("createListConversationMediaAssetsTool", () => {
   it("returns reusable conversation media assets for the active signed-in user", async () => {
-    const listByConversation = vi.fn().mockResolvedValue([
-      createUserFile(),
-      createUserFile({
-        id: "uf_2",
-        fileType: "chart",
+    const listReusableMediaAssets = vi.fn().mockResolvedValue([
+      createAssetCatalogEntry({
+        assetId: "uf_2",
+        kind: "chart",
+        label: "funnel.svg",
         fileName: "funnel.svg",
         mimeType: "image/svg+xml",
-        metadata: {
-          assetKind: "chart",
-          source: "generated",
-          toolName: "generate_chart",
-          derivativeOfAssetId: "chart_test_001",
-          width: 1280,
-          height: 720,
-        },
+        durationSeconds: undefined,
+        toolName: "generate_chart",
+        derivativeOfAssetId: "chart_test_001",
+        width: 1280,
+        height: 720,
+        producedByJobId: null,
+        materializationKey: null,
         createdAt: "2026-04-14T12:05:00.000Z",
+        updatedAt: "2026-04-14T12:05:00.000Z",
       }),
-      createUserFile({
-        id: "uf_3",
-        fileType: "document",
-        fileName: "notes.txt",
-        mimeType: "text/plain",
-        metadata: {},
-      }),
-      createUserFile({
-        id: "uf_4",
-        userId: "usr_other",
-        fileName: "other-user.mp3",
-      }),
+      createAssetCatalogEntry(),
     ]);
     const tool = createListConversationMediaAssetsTool({
-      listByConversation,
+      listReusableMediaAssets,
     } as never);
 
     const result = await tool.command.execute(
@@ -65,7 +56,12 @@ describe("createListConversationMediaAssetsTool", () => {
       { role: "AUTHENTICATED", userId: "usr_1", conversationId: "conv_1" },
     );
 
-    expect(listByConversation).toHaveBeenCalledWith("conv_1");
+    expect(listReusableMediaAssets).toHaveBeenCalledWith({
+      conversationId: "conv_1",
+      userId: "usr_1",
+      kinds: ["audio", "chart"],
+      limit: undefined,
+    });
     expect(result).toEqual({
       ok: true,
       action: "list_conversation_media_assets",
@@ -81,6 +77,8 @@ describe("createListConversationMediaAssetsTool", () => {
           retentionClass: "conversation",
           createdAt: "2026-04-14T12:05:00.000Z",
           conversationId: "conv_1",
+          producedByJobId: null,
+          materializationKey: null,
           derivativeOfAssetId: "chart_test_001",
           toolName: "generate_chart",
           width: 1280,
@@ -96,6 +94,8 @@ describe("createListConversationMediaAssetsTool", () => {
           retentionClass: "conversation",
           createdAt: "2026-04-14T12:00:00.000Z",
           conversationId: "conv_1",
+          producedByJobId: "job_audio_1",
+          materializationKey: "generate_audio:key_1",
           toolName: "generate_audio",
           durationSeconds: 18,
         },
@@ -106,7 +106,7 @@ describe("createListConversationMediaAssetsTool", () => {
 
   it("rejects anonymous access", async () => {
     const tool = createListConversationMediaAssetsTool({
-      listByConversation: vi.fn(),
+      listReusableMediaAssets: vi.fn(),
     } as never);
 
     await expect(

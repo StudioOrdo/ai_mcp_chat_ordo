@@ -12,7 +12,6 @@ import { localEmbedder } from "@/adapters/LocalEmbedder";
 import { SQLiteVectorStore } from "@/adapters/SQLiteVectorStore";
 import { SQLiteBM25IndexStore } from "@/adapters/SQLiteBM25IndexStore";
 import { EmbeddingPipelineFactory } from "@/core/search/EmbeddingPipelineFactory";
-import { BM25Scorer } from "@/core/search/BM25Scorer";
 import { QueryProcessor } from "@/core/search/QueryProcessor";
 import { LowercaseStep } from "@/core/search/query-steps/LowercaseStep";
 import { StopwordStep } from "@/core/search/query-steps/StopwordStep";
@@ -21,7 +20,6 @@ import { HybridSearchEngine } from "@/core/search/HybridSearchEngine";
 import {
   HybridSearchHandler,
   BM25SearchHandler,
-  LegacyKeywordHandler,
   EmptyResultHandler,
 } from "@/core/search/SearchHandlerChain";
 import { STOPWORDS } from "@/core/search/data/stopwords";
@@ -64,18 +62,18 @@ import {
   getAnalyticsToolSchemas,
 } from "@/lib/capabilities/shared/analytics-tool";
 import type { AdminIntelligenceToolDeps } from "@/lib/capabilities/shared/admin-intelligence-tool";
-import {
-  adminPrioritizeLeads,
-  adminPrioritizeOffer,
-  adminSearch,
-  adminTriageRoutingRisk,
-  getAdminIntelligenceToolSchemas,
-} from "@/lib/capabilities/shared/admin-intelligence-tool";
 import { SystemPromptDataMapper } from "@/adapters/SystemPromptDataMapper";
 import { ConversationEventDataMapper } from "@/adapters/ConversationEventDataMapper";
 import { ConversationEventRecorder } from "@/core/use-cases/ConversationEventRecorder";
 import { corpusConfig } from "@/lib/corpus-vocabulary";
 import { getAllMcpExportableTools } from "@/core/capability-catalog/mcp-export";
+import {
+  createCatalogMcpToolEntries,
+  type McpExportAdapterDeps,
+  type McpExportToolHandler,
+  type McpToolArgs,
+  type McpToolSchema,
+} from "@/lib/capabilities/mcp-export-adapter-registry";
 import {
   loadOperatorAnonymousOpportunities,
   loadOperatorFunnelRecommendations,
@@ -105,12 +103,8 @@ interface AllDeps {
   adminIntelligence: AdminIntelligenceToolDeps;
 }
 
-type ToolArgs = Record<string, unknown>;
-type ToolSchema = {
-  name: string;
-  description: string;
-  inputSchema: Record<string, unknown>;
-};
+type ToolArgs = McpToolArgs;
+type ToolSchema = McpToolSchema;
 type ToolHandler = (deps: AllDeps, args: ToolArgs) => Promise<unknown> | unknown;
 
 function buildDeps(): AllDeps {
@@ -130,7 +124,6 @@ function buildDeps(): AllDeps {
     MODEL_VERSION,
   );
 
-  const bm25Scorer = new BM25Scorer();
   const vectorProcessor = new QueryProcessor([
     new LowercaseStep(),
     new StopwordStep(STOPWORDS),
@@ -143,25 +136,19 @@ function buildDeps(): AllDeps {
   const engine = new HybridSearchEngine(
     embedder,
     vectorStore,
-    bm25Scorer,
-    bm25IndexStore,
     vectorProcessor,
     bm25Processor,
     { vectorTopN: 50, bm25TopN: 50, rrfK: 60, maxResults: 10 },
   );
-  const hybrid = new HybridSearchHandler(engine, embedder, bm25IndexStore, corpusConfig.sourceType);
+  const hybrid = new HybridSearchHandler(engine, embedder, corpusConfig.sourceType);
   const bm25 = new BM25SearchHandler(
-    bm25Scorer,
-    bm25IndexStore,
     vectorStore,
     bm25Processor,
     corpusConfig.sourceType,
   );
-  const legacy = new LegacyKeywordHandler(corpusRepo);
   const empty = new EmptyResultHandler();
   hybrid.setNext(bm25);
-  bm25.setNext(legacy);
-  legacy.setNext(empty);
+  bm25.setNext(empty);
 
   return {
     embedding: {
@@ -228,12 +215,20 @@ function defineTool(schema: ToolSchema, handler: ToolHandler) {
   return [schema.name, { schema, handler }] as const;
 }
 
+function bindCatalogHandler(handler: McpExportToolHandler): ToolHandler {
+  return (deps, args) => handler(deps as McpExportAdapterDeps, args);
+}
+
+const catalogToolEntries = createCatalogMcpToolEntries(catalogExportableTools)
+  .map(([, entry]) => defineTool(entry.schema, bindCatalogHandler(entry.handler)));
+const catalogToolSchemas = catalogToolEntries.map(([, entry]) => entry.schema);
+
 const toolSchemas = [
   ...getEmbeddingToolSchemas(corpusConfig.sourceType),
   ...getCorpusToolSchemas(),
   ...getPromptToolSchemas(),
   ...getAnalyticsToolSchemas(),
-  ...getAdminIntelligenceToolSchemas(),
+  ...catalogToolSchemas,
 ];
 
 const toolRegistry = new Map<string, { schema: ToolSchema; handler: ToolHandler }>([
@@ -279,10 +274,7 @@ const toolRegistry = new Map<string, { schema: ToolSchema; handler: ToolHandler 
     cohort_b: "anonymous" | "authenticated" | "converted";
     metric: "message_count" | "tool_usage" | "session_duration" | "return_rate";
   })),
-  defineTool(getAdminIntelligenceToolSchemas()[0], (d, a) => adminSearch(d.adminIntelligence, a)),
-  defineTool(getAdminIntelligenceToolSchemas()[1], (d, a) => adminPrioritizeLeads(d.adminIntelligence, a)),
-  defineTool(getAdminIntelligenceToolSchemas()[2], (d, a) => adminPrioritizeOffer(d.adminIntelligence, a)),
-  defineTool(getAdminIntelligenceToolSchemas()[3], (d, a) => adminTriageRoutingRisk(d.adminIntelligence, a)),
+  ...catalogToolEntries,
   ["librarian_list", { schema: getCorpusToolSchemas()[0], handler: (d: AllDeps) => corpusList(d.librarian) }],
   ["librarian_get_book", { schema: getCorpusToolSchemas()[1], handler: (d: AllDeps, a: ToolArgs) => corpusGetDocument(d.librarian, a as { slug: string }) }],
   ["librarian_add_book", { schema: getCorpusToolSchemas()[2], handler: (d: AllDeps, a: ToolArgs) => corpusAddDocument(d.librarian, a as {

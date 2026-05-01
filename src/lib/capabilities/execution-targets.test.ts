@@ -107,18 +107,19 @@ describe("execution-target planning", () => {
       "remote_service",
     ]);
     expect(plan.primaryTarget?.kind).toBe("browser_wasm");
-    expect(plan.fallbackTargets.map((target) => target.kind)).toEqual(["deferred_job"]);
+    expect(plan.fallbackTargets.map((target) => target.kind)).toEqual(["deferred_job", "host_ts"]);
   });
 
   it("applies the pack-owned default planning context for compose_media", () => {
     const plan = planCapabilityExecutionWithDefaults(CAPABILITY_CATALOG.compose_media);
 
-    expect(plan.primaryTarget?.kind).toBe("browser_wasm");
-    expect(plan.fallbackTargets.map((target) => target.kind)).toEqual(["native_process", "deferred_job"]);
+    expect(plan.primaryTarget?.kind).toBe("deferred_job");
+    expect(plan.fallbackTargets.map((target) => target.kind)).toEqual(["host_ts"]);
     expect(plan.candidates.map((candidate) => [candidate.kind, candidate.readiness])).toEqual([
-      ["browser_wasm", "active"],
-      ["native_process", "active"],
       ["deferred_job", "active"],
+      ["host_ts", "active"],
+      ["browser_wasm", "declared"],
+      ["native_process", "declared"],
     ]);
   });
 
@@ -131,6 +132,7 @@ describe("execution-target planning", () => {
     expect(plan.candidates.map((candidate) => [candidate.kind, candidate.readiness])).toEqual([
       ["browser_wasm", "declared"],
       ["deferred_job", "active"],
+      ["host_ts", "active"],
       ["native_process", "declared"],
     ]);
   });
@@ -152,11 +154,11 @@ describe("execution-target planning", () => {
   it("applies the pack-owned default planning context for generate_audio", () => {
     const plan = planCapabilityExecutionWithDefaults(CAPABILITY_CATALOG.generate_audio);
 
-    expect(plan.primaryTarget?.kind).toBe("browser_wasm");
-    expect(plan.fallbackTargets.map((target) => target.kind)).toEqual(["host_ts"]);
+    expect(plan.primaryTarget?.kind).toBe("deferred_job");
+    expect(plan.fallbackTargets.map((target) => target.kind)).toEqual([]);
     expect(plan.candidates.map((candidate) => [candidate.kind, candidate.readiness])).toEqual([
-      ["browser_wasm", "active"],
-      ["host_ts", "active"],
+      ["deferred_job", "active"],
+      ["host_ts", "declared"],
     ]);
   });
 

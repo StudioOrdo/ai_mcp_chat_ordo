@@ -6,7 +6,6 @@ import { getJobQueueDataMapper } from "@/adapters/RepositoryFactory";
 import type { JobRequest, JobStatus } from "@/core/entities/job";
 import type { RoleName } from "@/core/entities/user";
 import { getAdminJobsDetailPath } from "@/lib/admin/jobs/admin-jobs-routes";
-import { createDeferredJobConversationProjector } from "@/lib/jobs/deferred-job-projector-root";
 import { canRolesManageGlobalJob } from "@/lib/jobs/job-capability-registry";
 import { performManualJobReplay } from "@/lib/jobs/manual-replay";
 
@@ -55,7 +54,6 @@ export async function retryJobAction(formData: FormData) {
     }
 
     const replay = await performManualJobReplay(mapper, job, {
-      projector: createDeferredJobConversationProjector(),
       requestedByUserId: admin.id,
     });
     revalidatePath("/admin/jobs");
@@ -96,7 +94,7 @@ export async function requeueJobAction(formData: FormData) {
       nextRetryAt: null,
     });
 
-    const requeuedEvent = await mapper.appendEvent({
+    await mapper.appendEvent({
       jobId: job.id,
       conversationId: job.conversationId,
       eventType: "requeued",
@@ -108,7 +106,7 @@ export async function requeueJobAction(formData: FormData) {
       },
     });
 
-    await createDeferredJobConversationProjector().project(requeuedJob, requeuedEvent);
+    void requeuedJob;
     revalidatePath("/admin/jobs");
     revalidatePath(getAdminJobsDetailPath(id));
   });
@@ -163,7 +161,6 @@ export async function bulkRetryJobsAction(formData: FormData) {
 
       if (RETRIABLE_STATUSES.has(job.status)) {
         await performManualJobReplay(mapper, job, {
-          projector: createDeferredJobConversationProjector(),
           requestedByUserId: admin.id,
         });
       }
@@ -189,7 +186,7 @@ export async function bulkRequeueJobsAction(formData: FormData) {
       ensureGlobalManagePermission(job, admin.roles);
 
       if (REQUEUEABLE_STATUSES.has(job.status)) {
-        const requeuedJob = await mapper.updateJobStatus(id, {
+        await mapper.updateJobStatus(id, {
           status: "queued",
           resultPayload: null,
           errorMessage: null,
@@ -203,7 +200,7 @@ export async function bulkRequeueJobsAction(formData: FormData) {
           nextRetryAt: null,
         });
 
-        const requeuedEvent = await mapper.appendEvent({
+        await mapper.appendEvent({
           jobId: job.id,
           conversationId: job.conversationId,
           eventType: "requeued",
@@ -214,8 +211,6 @@ export async function bulkRequeueJobsAction(formData: FormData) {
             summary: `Admin requeued job from ${job.status} state.`,
           },
         });
-
-        await createDeferredJobConversationProjector().project(requeuedJob, requeuedEvent);
       }
     }
 

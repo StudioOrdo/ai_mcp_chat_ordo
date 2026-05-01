@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { JobEvent, JobRequest } from "@/core/entities/job";
-import { buildJobStatusSnapshot } from "@/lib/jobs/job-read-model";
+import { buildCanonicalJobSnapshot } from "@/lib/jobs/job-read-model";
 
 function buildJob(overrides: Partial<JobRequest> = {}): JobRequest {
   return {
@@ -55,18 +55,18 @@ function buildEvent(overrides: Partial<JobEvent> = {}): JobEvent {
   };
 }
 
-describe("buildJobStatusSnapshot", () => {
+describe("buildCanonicalJobSnapshot", () => {
   it("uses the durable job state for audit-only events", () => {
-    const snapshot = buildJobStatusSnapshot(buildJob(), buildEvent());
+    const snapshot = buildCanonicalJobSnapshot(buildJob(), buildEvent());
 
-    expect(snapshot.part.status).toBe("running");
-    expect(snapshot.part.progressLabel).toBe("Awaiting sign-in recovery");
-    expect(snapshot.part.progressPercent).toBe(12);
-    expect(snapshot.part.summary).toBeUndefined();
+    expect(snapshot.status).toBe("running");
+    expect(snapshot.progressLabel).toBe("Awaiting sign-in recovery");
+    expect(snapshot.progressPercent).toBe(12);
+    expect(snapshot.summary).toBeUndefined();
   });
 
   it("preserves phased progress metadata when a renderable event is available", () => {
-    const snapshot = buildJobStatusSnapshot(
+    const snapshot = buildCanonicalJobSnapshot(
       buildJob(),
       buildEvent({
         eventType: "progress",
@@ -82,11 +82,58 @@ describe("buildJobStatusSnapshot", () => {
       }),
     );
 
-    expect(snapshot.part.resultEnvelope?.progress).toMatchObject({
+    expect(snapshot.resultEnvelope?.progress).toMatchObject({
       activePhaseKey: "qa_blog_article",
       phases: expect.arrayContaining([
         expect.objectContaining({ key: "qa_blog_article", status: "active", percent: 60 }),
       ]),
     });
+  });
+
+  it("redacts sensitive request and envelope input fields from the product snapshot", () => {
+    const snapshot = buildCanonicalJobSnapshot(
+      buildJob({
+        requestPayload: {
+          brief: "Inherited migration brief",
+          nested: {
+            apiKey: "sk-live",
+            safe: "visible",
+          },
+          tokens: ["one", "two"],
+        },
+      }),
+      buildEvent({
+        eventType: "progress",
+        payload: {
+          resultEnvelope: {
+            schemaVersion: 1,
+            toolName: "produce_blog_article",
+            family: "editorial",
+            cardKind: "editorial_workflow",
+            executionMode: "deferred",
+            inputSnapshot: {
+              brief: "Inherited migration brief",
+              authorization: "Bearer secret",
+              nested: {
+                sessionCookie: "cookie",
+                safe: "visible",
+              },
+            },
+            summary: { title: "Launch plan" },
+            payload: null,
+          },
+        },
+      }),
+    );
+
+    expect(snapshot.inputSnapshot).toMatchObject({
+      brief: "Inherited migration brief",
+      authorization: "[redacted]",
+      nested: {
+        sessionCookie: "[redacted]",
+        safe: "visible",
+      },
+    });
+    expect(snapshot.resultEnvelope?.inputSnapshot).toEqual(snapshot.inputSnapshot);
   });
 });

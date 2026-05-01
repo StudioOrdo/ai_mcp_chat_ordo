@@ -144,4 +144,20 @@ describe("PromptProvenanceDataMapper", () => {
     expect(byAssistantTurn?.id).toBe(created.id);
     expect(latest?.id).toBe(created.id);
   });
+
+  it("counts prompt provenance records across migrated conversations", async () => {
+    await mapper.create({
+      conversationId: "conv_prompt",
+      userMessageId: "msg_user_turn",
+      surface: "chat_stream",
+      effectiveHash: "hash_prompt_3",
+      slotRefs: [],
+      sections: [],
+      warnings: [],
+      replayContext: { surface: "chat_stream", role: "ADMIN" },
+    });
+
+    await expect(mapper.countByConversations(["conv_prompt", "conv_missing"])).resolves.toBe(1);
+    await expect(mapper.countByConversations([])).resolves.toBe(0);
+  });
 });

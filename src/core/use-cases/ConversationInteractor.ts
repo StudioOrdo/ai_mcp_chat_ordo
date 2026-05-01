@@ -5,6 +5,7 @@ import type {
 } from "./ConversationRepository";
 import type { MessageRepository } from "./MessageRepository";
 import type { ConversationEventRecorder } from "./ConversationEventRecorder";
+import type { RelationshipMemoryProjectionService } from "./RelationshipMemoryProjectionService";
 import type { UserFileRepository } from "./UserFileRepository";
 import type { Conversation, ConversationSummary, Message, NewMessage } from "../entities/conversation";
 import type { MessagePart } from "../entities/message-parts";
@@ -148,6 +149,7 @@ export class ConversationInteractor {
     private readonly messageRepo: MessageRepository,
     private readonly eventRecorder?: ConversationEventRecorder,
     private readonly userFileRepo?: UserFileRepository,
+    private readonly relationshipMemoryProjectionService?: RelationshipMemoryProjectionService,
   ) {}
 
   async ensureActive(
@@ -324,6 +326,8 @@ export class ConversationInteractor {
       imported_message_count: importedMessages.length,
     });
 
+    await this.projectRelationshipMemory(conversation.id, userId);
+
     return {
       conversation: refreshedConversation,
       messages: importedMessages,
@@ -439,7 +443,11 @@ export class ConversationInteractor {
     return active;
   }
 
-  async appendMessage(msg: NewMessage, userId: string): Promise<Message> {
+  async appendMessage(
+    msg: NewMessage,
+    userId: string,
+    options?: { sourcePromptBindingId?: string | null },
+  ): Promise<Message> {
     const conversation = await this.conversationRepo.findById(msg.conversationId);
     if (!conversation || conversation.userId !== userId || isDeletedConversation(conversation)) {
       throw new ConversationNotFoundError("Conversation not found");
@@ -481,8 +489,33 @@ export class ConversationInteractor {
       }
     }
 
+      await this.projectRelationshipMemory(msg.conversationId, userId, options?.sourcePromptBindingId);
+
     return message;
   }
+
+    private async projectRelationshipMemory(
+      conversationId: string,
+      userId: string,
+      sourcePromptBindingId?: string | null,
+    ): Promise<void> {
+      if (!this.relationshipMemoryProjectionService) {
+        return;
+      }
+
+      try {
+        await this.relationshipMemoryProjectionService.projectConversation({
+          conversationId,
+          userId,
+          sourcePromptBindingId,
+        });
+      } catch (error) {
+        await this.eventRecorder?.record(conversationId, "relationship_memory_projection_failed", {
+          projected_by: userId,
+          reason: error instanceof Error ? error.message : "unknown_error",
+        });
+      }
+    }
 
   private async createMessageWithFallbackLimitCheck(
     msg: NewMessage,

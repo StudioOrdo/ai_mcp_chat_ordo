@@ -371,7 +371,11 @@ export class UserFileDataMapper implements UserFileRepository {
   ): Promise<UserFile | null> {
     const row = this.db
       .prepare(
-        `SELECT * FROM user_files WHERE user_id = ? AND content_hash = ? AND file_type = ?`,
+        `SELECT * FROM user_files
+         WHERE user_id = ? AND content_hash = ? AND file_type = ?
+         ORDER BY CASE WHEN conversation_id IS NULL THEN 1 ELSE 0 END ASC,
+                  datetime(created_at) DESC,
+                  id DESC`,
       )
       .get(userId, contentHash, fileType) as UserFileRow | undefined;
 
@@ -675,10 +679,55 @@ export class UserFileDataMapper implements UserFileRepository {
     this.db
       .prepare(
         `UPDATE user_files
-         SET conversation_id = ?
+         SET conversation_id = ?,
+             metadata_json = CASE
+               WHEN COALESCE(json_extract(metadata_json, '$.retentionClass'), '') IN ('', 'ephemeral', 'conversation')
+                 THEN json_set(COALESCE(NULLIF(metadata_json, ''), '{}'), '$.retentionClass', 'conversation')
+               ELSE metadata_json
+             END
          WHERE user_id = ? AND id IN (${placeholders})`,
       )
       .run(conversationId, userId, ...fileIds);
+  }
+
+  async transferOwnershipForConversations(input: {
+    conversationIds: readonly string[];
+    previousUserId: string;
+    userId: string;
+  }): Promise<UserFile[]> {
+    const conversationIds = Array.from(new Set(input.conversationIds.map((id) => id.trim()).filter(Boolean)));
+    if (conversationIds.length === 0) {
+      return [];
+    }
+
+    const placeholders = conversationIds.map(() => "?").join(", ");
+    const rows = this.db.prepare(
+      `SELECT * FROM user_files
+       WHERE conversation_id IN (${placeholders})
+         AND user_id IN (?, ?)
+       ORDER BY created_at ASC, id ASC`,
+    ).all(...conversationIds, input.previousUserId, input.userId) as UserFileRow[];
+
+    this.db.prepare(
+      `UPDATE user_files
+       SET user_id = ?
+       WHERE conversation_id IN (${placeholders})
+         AND user_id = ?`,
+    ).run(input.userId, ...conversationIds, input.previousUserId);
+
+    if (rows.length === 0) {
+      return [];
+    }
+
+    const ids = rows.map((row) => row.id);
+    const idPlaceholders = ids.map(() => "?").join(", ");
+    const transferredRows = this.db.prepare(
+      `SELECT * FROM user_files
+       WHERE id IN (${idPlaceholders})
+       ORDER BY created_at ASC, id ASC`,
+    ).all(...ids) as UserFileRow[];
+
+    return transferredRows.map(mapRow);
   }
 
   async deleteIfUnattached(id: string, userId: string): Promise<UserFile | null> {

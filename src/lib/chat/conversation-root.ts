@@ -2,11 +2,12 @@ import { getDb } from "../db";
 import { ConversationDataMapper } from "../../adapters/ConversationDataMapper";
 import { MessageDataMapper } from "../../adapters/MessageDataMapper";
 import { ConversationEventDataMapper } from "../../adapters/ConversationEventDataMapper";
+import { RelationshipMemoryDataMapper } from "../../adapters/RelationshipMemoryDataMapper";
 import { LeadRecordDataMapper } from "../../adapters/LeadRecordDataMapper";
 import { ConsultationRequestDataMapper } from "../../adapters/ConsultationRequestDataMapper";
 import { DealRecordDataMapper } from "../../adapters/DealRecordDataMapper";
 import { TrainingPathRecordDataMapper } from "../../adapters/TrainingPathRecordDataMapper";
-import { getUserFileDataMapper } from "@/adapters/RepositoryFactory";
+import { getPromptBindingRepository, getUserFileDataMapper } from "@/adapters/RepositoryFactory";
 import { ConversationInteractor } from "../../core/use-cases/ConversationInteractor";
 import { ConversationEventRecorder } from "../../core/use-cases/ConversationEventRecorder";
 import { LeadCaptureInteractor } from "../../core/use-cases/LeadCaptureInteractor";
@@ -16,8 +17,10 @@ import { CreateDealFromWorkflowInteractor } from "../../core/use-cases/CreateDea
 import { CreateTrainingPathFromWorkflowInteractor } from "../../core/use-cases/CreateTrainingPathFromWorkflowInteractor";
 import { SummarizationInteractor } from "../../core/use-cases/SummarizationInteractor";
 import { AnthropicSummarizer } from "../../adapters/AnthropicSummarizer";
+import { createRelationshipMemoryProjectionService } from "@/core/platform/relationship-memory/RelationshipMemoryProjectionService";
 import { getAnthropicApiKey, getModelFallbacks } from "../config/env";
 import { getReferralLedgerService } from "@/lib/referrals/referral-ledger";
+import type { RelationshipMemoryReader } from "@/core/use-cases/RelationshipMemoryRepository";
 import {
   HeuristicConversationRoutingAnalyzer,
   type ConversationRoutingAnalyzer,
@@ -26,6 +29,7 @@ import {
 type ChatPersistence = {
   conversationRepo: ConversationDataMapper;
   messageRepo: MessageDataMapper;
+  relationshipMemoryRepo: RelationshipMemoryDataMapper;
 };
 
 type WorkflowRepositories = {
@@ -43,6 +47,7 @@ function createConversationPersistence(): ChatPersistence {
   return {
     conversationRepo: new ConversationDataMapper(db),
     messageRepo: new MessageDataMapper(db),
+    relationshipMemoryRepo: new RelationshipMemoryDataMapper(db),
   };
 }
 
@@ -78,6 +83,7 @@ export type ConversationRuntimeServices = {
   interactor: ConversationInteractor;
   routingAnalyzer: ConversationRoutingAnalyzer;
   summarizationInteractor: SummarizationInteractor;
+  relationshipMemoryReader: RelationshipMemoryReader;
 };
 
 export type ConversationRouteServices = {
@@ -91,8 +97,13 @@ export function createConversationRouteServices(): ConversationRouteServices {
 }
 
 export function createConversationRuntimeServices(): ConversationRuntimeServices {
-  const { conversationRepo, messageRepo } = createConversationPersistence();
+  const { conversationRepo, messageRepo, relationshipMemoryRepo } = createConversationPersistence();
   const eventRecorder = createEventRecorder();
+  const relationshipMemoryProjectionService = createRelationshipMemoryProjectionService({
+    messageRepository: messageRepo,
+    relationshipMemoryRepository: relationshipMemoryRepo,
+    promptBindingRepository: getPromptBindingRepository(),
+  });
 
   return {
     interactor: new ConversationInteractor(
@@ -100,6 +111,7 @@ export function createConversationRuntimeServices(): ConversationRuntimeServices
       messageRepo,
       eventRecorder,
       getUserFileDataMapper(),
+      relationshipMemoryProjectionService,
     ),
     routingAnalyzer: new HeuristicConversationRoutingAnalyzer(),
     summarizationInteractor: new SummarizationInteractor(
@@ -107,13 +119,25 @@ export function createConversationRuntimeServices(): ConversationRuntimeServices
       createConversationSummarizer(),
       eventRecorder,
     ),
+    relationshipMemoryReader: relationshipMemoryRepo,
   };
 }
 
 export function getConversationInteractor(): ConversationInteractor {
-  const { conversationRepo, messageRepo } = createConversationPersistence();
+  const { conversationRepo, messageRepo, relationshipMemoryRepo } = createConversationPersistence();
   const eventRecorder = createEventRecorder();
-  return new ConversationInteractor(conversationRepo, messageRepo, eventRecorder, getUserFileDataMapper());
+  const relationshipMemoryProjectionService = createRelationshipMemoryProjectionService({
+    messageRepository: messageRepo,
+    relationshipMemoryRepository: relationshipMemoryRepo,
+    promptBindingRepository: getPromptBindingRepository(),
+  });
+  return new ConversationInteractor(
+    conversationRepo,
+    messageRepo,
+    eventRecorder,
+    getUserFileDataMapper(),
+    relationshipMemoryProjectionService,
+  );
 }
 
 export function getSummarizationInteractor(): SummarizationInteractor {

@@ -135,8 +135,8 @@ describe("Sprint 12 — Registry Convergence", () => {
       }
     });
 
-    it("has exactly 12 entries", () => {
-      expect(Object.keys(JOB_CAPABILITY_REGISTRY)).toHaveLength(12);
+    it("has exactly 13 entries", () => {
+      expect(Object.keys(JOB_CAPABILITY_REGISTRY)).toHaveLength(13);
     });
   });
 
@@ -153,8 +153,8 @@ describe("Sprint 12 — Registry Convergence", () => {
       expect(source).not.toContain("fallbackPolicy:");
     });
 
-    it("has exactly 4 entries", () => {
-      expect(BROWSER_CAPABILITY_TOOL_NAMES).toHaveLength(4);
+    it("has exactly 3 entries", () => {
+      expect(BROWSER_CAPABILITY_TOOL_NAMES).toHaveLength(3);
     });
 
     it("derives browser entries by iterating the catalog", () => {
@@ -169,8 +169,8 @@ describe("Sprint 12 — Registry Convergence", () => {
       expect(source).not.toContain("compose_media:");
     });
 
-    it("covers generate_audio, generate_chart, generate_graph, compose_media", () => {
-      const expected = ["generate_audio", "generate_chart", "generate_graph", "compose_media"];
+    it("covers generate_chart, generate_graph, compose_media", () => {
+      const expected = ["generate_chart", "generate_graph", "compose_media"];
       for (const name of expected) {
         const desc = getBrowserCapabilityDescriptor(name);
         expect(desc, `Missing browser descriptor for: ${name}`).not.toBeNull();
@@ -209,7 +209,7 @@ describe("Sprint 12 — Registry Convergence", () => {
       const mcpSidecarSource = readSource("src/lib/capabilities/mcp-sidecar-inventory.ts");
       const roleDirectiveSource = readSource("src/core/entities/role-directive-assembler.ts");
       const localExternalTargetSource = readSource("src/lib/capabilities/local-external-target-inventory.ts");
-      const executionTargetsSource = readSource("src/lib/capabilities/execution-targets.ts");
+      const executionTargetsSource = readSource("src/core/platform/execution/ExecutionPlanner.ts");
 
       expect(schemaProjectionSource).toContain("projectAllCapabilityRuntimeStatics");
       expect(schemaProjectionSource).not.toContain("Object.values(CAPABILITY_CATALOG)");

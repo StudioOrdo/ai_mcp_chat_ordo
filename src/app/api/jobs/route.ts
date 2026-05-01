@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { getPlatformInteractionFacade } from "@/adapters/RepositoryFactory";
+import { getMediaWorkflowReadModel, getPlatformInteractionFacade } from "@/adapters/RepositoryFactory";
 import { runRouteTemplate, successJson } from "@/lib/chat/http-facade";
 import { getActiveJobStatuses } from "@/lib/jobs/job-read-model";
 import { DEFAULT_JOBS_LIMIT, parsePositiveInteger, requireAuthenticatedUser } from "./_lib";
@@ -22,10 +22,12 @@ export async function GET(request: NextRequest) {
         statuses: activeOnly ? getActiveJobStatuses() : undefined,
         limit,
       });
+      const workflows = await getMediaWorkflowReadModel().listUserWorkflows(user.id, { limit });
 
       return successJson(context, {
         ok: true,
         jobs: interactions.map((result) => result.snapshot),
+        workflows,
         interactions,
       });
     },

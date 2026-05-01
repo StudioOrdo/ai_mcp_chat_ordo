@@ -1,8 +1,13 @@
 import { useEffect, type Dispatch } from "react";
 
 import type { Conversation } from "@/core/entities/conversation";
+import type { WorkspaceRestorePayload } from "@/core/platform/conversation-restore/WorkspaceRestore";
 import type { ChatAction } from "./chatState";
-import { restoreActiveConversation, restoreConversationById } from "./chatConversationApi";
+import {
+  isTransientWorkspaceRestoreStatus,
+  restoreActiveWorkspace,
+  restoreWorkspaceByConversationId,
+} from "./workspaceRestoreApi";
 
 function clearConversationIdQueryParam(): void {
   const url = new URL(window.location.href);
@@ -21,6 +26,7 @@ interface UseChatRestoreOptions {
   setCurrentConversation: (conversation: Conversation | null) => void;
   setConversationId: (conversationId: string | null) => void;
   setIsLoadingMessages: (isLoading: boolean) => void;
+  setWorkspaceRestore: (workspaceRestore: WorkspaceRestorePayload | null) => void;
 }
 
 export function useChatRestore({
@@ -28,14 +34,20 @@ export function useChatRestore({
   setCurrentConversation,
   setConversationId,
   setIsLoadingMessages,
+  setWorkspaceRestore,
 }: UseChatRestoreOptions): void {
   useEffect(() => {
     const loadActiveConversation = async () => {
+      let shouldClearConversationId = false;
+
       try {
         const queryConversationId = new URLSearchParams(window.location.search).get("conversationId");
         const result = queryConversationId
-          ? await restoreConversationById(queryConversationId)
-          : await restoreActiveConversation();
+          ? await restoreWorkspaceByConversationId(queryConversationId)
+          : await restoreActiveWorkspace();
+
+        shouldClearConversationId = Boolean(queryConversationId)
+          && !isTransientWorkspaceRestoreStatus(result.status);
 
         if (result.status === "missing") {
           return;
@@ -45,7 +57,7 @@ export function useChatRestore({
           console.warn(
             queryConversationId
               ? `Conversation restore unexpectedly required authentication for ${queryConversationId}.`
-              : "Active conversation restore unexpectedly required authentication.",
+              : "Active workspace restore unexpectedly required authentication.",
           );
           return;
         }
@@ -58,7 +70,7 @@ export function useChatRestore({
           console.error(
             queryConversationId
               ? `Unexpected failure while restoring conversation ${queryConversationId}.`
-              : "Unexpected failure while restoring active conversation.",
+              : "Unexpected failure while restoring active workspace.",
           );
           return;
         }
@@ -67,7 +79,7 @@ export function useChatRestore({
           console.error(
             queryConversationId
               ? `Failed to restore conversation ${queryConversationId}: ${result.statusCode ?? "unknown"}`
-              : `Failed to restore active conversation: ${result.statusCode ?? "unknown"}`,
+              : `Failed to restore active workspace: ${result.statusCode ?? "unknown"}`,
           );
           return;
         }
@@ -75,14 +87,17 @@ export function useChatRestore({
         if (result.payload) {
           setConversationId(result.payload.conversationId);
           setCurrentConversation(result.payload.conversation);
+          setWorkspaceRestore(result.payload.workspaceRestore);
           dispatch({ type: "REPLACE_ALL", messages: result.payload.messages });
         }
       } finally {
-        clearConversationIdQueryParam();
+        if (shouldClearConversationId) {
+          clearConversationIdQueryParam();
+        }
         setIsLoadingMessages(false);
       }
     };
 
     void loadActiveConversation();
-  }, [dispatch, setCurrentConversation, setConversationId, setIsLoadingMessages]);
+  }, [dispatch, setCurrentConversation, setConversationId, setIsLoadingMessages, setWorkspaceRestore]);
 }

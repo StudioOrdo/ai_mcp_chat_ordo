@@ -669,7 +669,7 @@ const LIVE_SCENARIO_FIXTURES: Record<string, LiveEvalScenarioFixture> = {
       toolFixtures: [],
     },
     promptMessages: [
-      { role: "user", content: "Use the deferred job tools to recover the completed blog production job and explain the publish-ready outcome without starting a new run." },
+      { role: "user", content: "Recover the completed blog production job from the latest durable state and explain the publish-ready outcome without starting a new run." },
     ],
   },
   "mcp-tool-choice-and-recovery": {

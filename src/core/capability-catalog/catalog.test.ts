@@ -12,9 +12,9 @@ import {
 
 describe("capability-catalog", () => {
   describe("catalog integrity", () => {
-    it("contains all 56 tool capabilities", () => {
+    it("contains all 59 tool capabilities", () => {
       const names = Object.keys(CAPABILITY_CATALOG);
-      expect(names.length).toBe(56);
+      expect(names.length).toBe(59);
       // Verify pilot entries still present
       expect(names).toContain("draft_content");
       expect(names).toContain("publish_content");
@@ -106,14 +106,14 @@ describe("capability-catalog", () => {
       ]);
     });
 
-    it("projects admin_web_search presentation as inline", () => {
+    it("projects admin_web_search presentation as deferred", () => {
       const result = projectPresentationDescriptor(CAPABILITY_CATALOG.admin_web_search);
       expect(result.toolName).toBe("admin_web_search");
       expect(result.family).toBe("search");
       expect(result.cardKind).toBe("search_result");
-      expect(result.executionMode).toBe("inline");
-      expect(result.progressMode).toBe("none"); // default for inline
-      expect(result.supportsRetry).toBe("none"); // default for inline
+      expect(result.executionMode).toBe("deferred");
+      expect(result.progressMode).toBe("single");
+      expect(result.supportsRetry).toBe("whole_job");
     });
   });
 
@@ -150,21 +150,30 @@ describe("capability-catalog", () => {
       expect(result).not.toBeNull();
       expect(result!.toolName).toBe("compose_media");
       expect(result!.family).toBe("media");
-      expect(result!.retryPolicy.maxAttempts).toBe(2);
-      expect(result!.retryPolicy.baseDelayMs).toBe(5_000);
+      expect(result!.retryPolicy.maxAttempts).toBe(10);
+      expect(result!.retryPolicy.baseDelayMs).toBe(3_000);
       expect(result!.defaultSurface).toBe("self");
       expect(result!.initiatorRoles).toContain("AUTHENTICATED");
     });
 
-    it("returns null for admin_web_search (no job facet)", () => {
+    it("projects admin_web_search job capability", () => {
       const result = projectJobCapability(CAPABILITY_CATALOG.admin_web_search);
-      expect(result).toBeNull();
+      expect(result).not.toBeNull();
+      expect(result!.toolName).toBe("admin_web_search");
+      expect(result!.family).toBe("system");
+      expect(result!.retryPolicy).toMatchObject({
+        mode: "automatic",
+        maxAttempts: 2,
+      });
+      expect(result!.defaultSurface).toBe("global");
+      expect(result!.initiatorRoles).toEqual(["ADMIN"]);
     });
   });
 
   describe("browser projection", () => {
     it("uses explicit collision resolutions for shared media tool keys", () => {
-      expect(CAPABILITY_CATALOG.generate_audio.presentation.executionMode).toBe("browser");
+      expect(CAPABILITY_CATALOG.generate_audio.presentation.executionMode).toBe("deferred");
+      expect(projectBrowserCapability(CAPABILITY_CATALOG.generate_audio)).toBeNull();
       expect(CAPABILITY_CATALOG.generate_chart.presentation.executionMode).toBe("browser");
       expect(CAPABILITY_CATALOG.generate_graph.presentation.executionMode).toBe("browser");
     });
@@ -199,7 +208,7 @@ describe("capability-catalog", () => {
       expect(lines).not.toBeNull();
       expect(lines!.length).toBeGreaterThan(0);
       expect(lines![0]).toContain("MEDIA COMPOSITION");
-      expect(lines![0]).toContain("hybrid");
+      expect(lines![0]).toContain("canonical job execution");
     });
 
     it("returns compose_media AUTHENTICATED directive lines without hybrid mention", () => {
@@ -246,9 +255,9 @@ describe("capability-catalog", () => {
   });
 
   describe("facet absence correctness", () => {
-    it("admin_web_search has no job, no browser, has MCP export", () => {
+    it("admin_web_search has job and MCP export facets, but no browser facet", () => {
       const def = getCatalogDefinition("admin_web_search")!;
-      expect(def.job).toBeUndefined();
+      expect(def.job).toBeDefined();
       expect(def.browser).toBeUndefined();
       expect(def.mcpExport).toBeDefined();
     });

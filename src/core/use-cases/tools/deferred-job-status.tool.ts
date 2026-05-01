@@ -3,7 +3,7 @@ import type { ToolCommand } from "@/core/tool-registry/ToolCommand";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
 import { buildJobStatusToolDescription } from "@/core/entities/job-status-response-strategy";
 import type { JobStatusQuery } from "@/core/use-cases/JobStatusQuery";
-import { type JobStatusSnapshot, getActiveJobStatuses } from "@/lib/jobs/job-read-model";
+import { type CanonicalJobSnapshot, getActiveJobStatuses } from "@/lib/jobs/job-read-model";
 import {
   getGlobalJobOperatorRoles,
   getSignedInJobAudienceRoles,
@@ -20,12 +20,12 @@ interface ListDeferredJobsInput {
 
 interface DeferredJobStatusOutput {
   ok: true;
-  job: JobStatusSnapshot;
+  job: CanonicalJobSnapshot;
 }
 
 interface ListDeferredJobsOutput {
   ok: true;
-  jobs: JobStatusSnapshot[];
+  jobs: CanonicalJobSnapshot[];
 }
 
 interface GetMyJobStatusInput {
@@ -39,13 +39,13 @@ interface ListMyJobsInput {
 
 interface GetMyJobStatusOutput {
   ok: true;
-  job: JobStatusSnapshot;
+  job: CanonicalJobSnapshot;
   summary: string;
 }
 
 interface ListMyJobsOutput {
   ok: true;
-  jobs: JobStatusSnapshot[];
+  jobs: CanonicalJobSnapshot[];
   summary: string;
 }
 
@@ -117,7 +117,7 @@ class GetMyJobStatusCommand implements ToolCommand<GetMyJobStatusInput, GetMyJob
     return {
       ok: true,
       job,
-      summary: job.part.summary ?? "Returned the current status for the requested job.",
+      summary: job.summary ?? "Returned the current status for the requested job.",
     };
   }
 }
@@ -133,7 +133,7 @@ class ListMyJobsCommand implements ToolCommand<ListMyJobsInput, ListMyJobsOutput
       limit,
     });
 
-    const activeCount = jobs.filter((snapshot) => getActiveJobStatuses().includes(snapshot.part.status)).length;
+    const activeCount = jobs.filter((snapshot) => getActiveJobStatuses().includes(snapshot.status)).length;
     const terminalCount = jobs.length - activeCount;
 
     return {

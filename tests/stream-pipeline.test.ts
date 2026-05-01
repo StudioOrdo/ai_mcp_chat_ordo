@@ -113,6 +113,7 @@ vi.mock("@/lib/chat/conversation-root", () => ({
     },
     routingAnalyzer: { analyze: vi.fn() },
     summarizationInteractor: { summarizeIfNeeded: vi.fn() },
+    relationshipMemoryReader: { listActiveByConversation: vi.fn(async () => []) },
   }),
 }));
 
@@ -187,11 +188,13 @@ vi.mock("@/adapters/RepositoryFactory", () => ({
     findByConversationAndTurnId: vi.fn(async () => null),
     listByConversation: vi.fn(async () => []),
   }),
+  getRelationshipMemoryRepository: () => ({
+    listActiveByConversation: vi.fn(async () => []),
+  }),
 }));
 
 vi.mock("@/lib/jobs/deferred-job-result", () => ({
   createDeferredJobResultPayload: vi.fn(),
-  deferredJobResultToMessagePart: vi.fn(),
   deferredJobResultToStreamEvent: vi.fn(),
   isDeferredJobResultPayload: vi.fn(() => false),
 }));
@@ -201,7 +204,6 @@ vi.mock("@/lib/jobs/job-dedupe", () => ({
 }));
 
 vi.mock("@/lib/jobs/job-status-snapshots", () => ({
-  extractJobStatusSnapshots: vi.fn(() => []),
   jobStatusSnapshotToStreamEvent: vi.fn(),
 }));
 
@@ -537,6 +539,9 @@ describe("Spec 10 — Stream Route Decomposition", () => {
     const routingAnalyzer = {
       analyze: vi.fn(async () => ({ lane: "organization" })),
     };
+    const relationshipMemoryReader = {
+      listActiveByConversation: vi.fn(async () => []),
+    };
 
     vi.mocked(contextWindowModule.buildContextWindow).mockReturnValueOnce({
       contextMessages: [{ role: "user", content: "hello" }],
@@ -559,11 +564,13 @@ describe("Spec 10 — Stream Route Decomposition", () => {
       builder as never,
       interactor as never,
       routingAnalyzer as never,
+      relationshipMemoryReader as never,
       "conv_1",
       "u1",
       [{ role: "user", content: "hello" }],
       "hello",
       "hello",
+      null,
       null,
     );
 
@@ -648,6 +655,7 @@ describe("Spec 10 — Stream Route Decomposition", () => {
       latestUserText: "hello",
       latestUserContent: "hello",
       taskOriginHandoff: null,
+      mediaContinuityHandoff: null,
       conversationId: "conv_1",
       userId: "u1",
     });
@@ -690,6 +698,7 @@ describe("Spec 10 — Stream Route Decomposition", () => {
       builder as never,
       [{ role: "user", content: "short" }],
       "ctx",
+      null,
       null,
     );
 
@@ -950,6 +959,7 @@ describe("Spec 10 — Stream Route Decomposition", () => {
         ]),
       }),
       "u1",
+      expect.objectContaining({ sourcePromptBindingId: undefined }),
     );
     expect(getActiveStreamSnapshot(streamId!)).toBeNull();
     expect(body).toContain('"type":"generation_interrupted"');
@@ -1021,6 +1031,7 @@ describe("Spec 10 — Stream Route Decomposition", () => {
         ]),
       }),
       "u1",
+      expect.objectContaining({ sourcePromptBindingId: undefined }),
     );
     expect(getActiveStreamSnapshot(streamId!)).toBeNull();
     expect(remainingText).toContain('"type":"generation_interrupted"');

@@ -5,7 +5,6 @@ import { renderHook, waitFor } from "@testing-library/react";
 
 import type { ChatMessage } from "@/core/entities/chat-message";
 import { COMPOSE_MEDIA_INVALID_PLAN_FAILURE_CODE } from "@/lib/media/compose-media-errors";
-
 const {
   getBrowserRuntimeCandidatesMock,
   buildBrowserRuntimeJobStatusPartMock,
@@ -153,14 +152,14 @@ describe("useBrowserCapabilityRuntime", () => {
 
     await waitFor(() => {
       expect(planBrowserCapabilityRuntimeCycleMock).toHaveBeenCalledWith(
-        expect.objectContaining({ candidates: [] }),
+        expect.objectContaining({ candidates: [expect.objectContaining({ toolName: "compose_media" })] }),
       );
     });
 
     expect(dispatch).not.toHaveBeenCalled();
   });
 
-  it("emits an invalid-plan terminal snapshot instead of crashing when compose candidate has no valid plan", async () => {
+  it("fails compose candidates without executing when the plan is invalid", async () => {
     const messages = [createMessage([
       { type: "tool_call", name: "compose_media", args: {} },
       {
@@ -197,22 +196,58 @@ describe("useBrowserCapabilityRuntime", () => {
     }));
 
     await waitFor(() => {
-      expect(dispatch).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: "REWRITE_TOOL_RESULT_AS_BROWSER_JOB",
-          messageId: "msg_1",
-          resultIndex: 1,
-          part: expect.objectContaining({
-            status: "failed",
-            failureCode: COMPOSE_MEDIA_INVALID_PLAN_FAILURE_CODE,
-            failureStage: "composition_preflight",
-          }),
+      expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({
+        type: "REWRITE_TOOL_RESULT_AS_BROWSER_JOB",
+        part: expect.objectContaining({
+          status: "failed",
+          failureCode: COMPOSE_MEDIA_INVALID_PLAN_FAILURE_CODE,
         }),
-      );
+      }));
     });
+
+    expect(executeComposeMediaMock).not.toHaveBeenCalled();
   });
 
-  it("keeps a browser-composed video when playback verification times out after upload", async () => {
+  it("ignores browser-runtime candidates discovered only in restored historical messages", async () => {
+    const messages = [createMessage([
+      { type: "tool_call", name: "compose_media", args: { plan: { id: "plan_restore" } } },
+      {
+        type: "tool_result",
+        name: "compose_media",
+        result: { plan: { id: "plan_restore" } },
+      },
+    ])];
+
+    getBrowserRuntimeCandidatesMock.mockReturnValue([
+      {
+        jobId: "browser:msg_1:compose_media:1",
+        messageId: "msg_1",
+        toolName: "compose_media",
+        args: { plan: { id: "plan_restore" } },
+        payload: { plan: { id: "plan_restore" } },
+        resultIndex: 1,
+      },
+    ]);
+
+    const dispatch = vi.fn();
+
+    renderHook(() => useBrowserCapabilityRuntime({
+      conversationId: "conv_1",
+      messages,
+      dispatch,
+      nonExecutableMessageIds: new Set(["msg_1"]),
+    }));
+
+    await waitFor(() => {
+      expect(planBrowserCapabilityRuntimeCycleMock).toHaveBeenCalledWith(
+        expect.objectContaining({ candidates: [] }),
+      );
+    });
+
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it("starts browser compose execution for current pending compose_media state", async () => {
     const plan = {
       id: "plan_cheese_video_001",
       conversationId: "conv_1",
@@ -273,15 +308,147 @@ describe("useBrowserCapabilityRuntime", () => {
     }));
 
     await waitFor(() => {
-      expect(buildBrowserRuntimeJobStatusPartMock).toHaveBeenCalledWith(expect.objectContaining({
-        status: "succeeded",
-        sequence: 4,
-        payload: expect.objectContaining({ primaryAssetId: "uf_video_1" }),
-      }));
+      expect(executeComposeMediaMock).toHaveBeenCalledWith(
+        expect.objectContaining({ id: plan.id }),
+        expect.objectContaining({ conversationId: "conv_1", toolInvocationId: "toolu_compose_1" }),
+        expect.any(Function),
+        expect.any(AbortSignal),
+      );
     });
-    expect(buildBrowserRuntimeJobStatusPartMock).not.toHaveBeenCalledWith(expect.objectContaining({
-      status: "failed",
-      failureCode: "playback_readiness_timeout",
+    expect(waitForPlayableVideoAssetMock).toHaveBeenCalledWith(
+      expect.objectContaining({ uri: "/api/user-files/uf_video_1" }),
+    );
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({
+      type: "REWRITE_TOOL_RESULT_AS_BROWSER_JOB",
+      part: expect.objectContaining({ status: "succeeded" }),
     }));
+  });
+
+  it("canonicalizes browser compose plans with restored reusable media assets before execution", async () => {
+    const plan = {
+      id: "plan_restored_catalog_aliases",
+      conversationId: "conv_1",
+      profile: "still_image_narration_fast" as const,
+      visualClips: [{ assetId: "Hero Image", kind: "image" as const, duration: 12 }],
+      audioClips: [{ assetId: "Narration Track", kind: "audio" as const }],
+      subtitlePolicy: "none" as const,
+      waveformPolicy: "none" as const,
+      outputFormat: "mp4" as const,
+      resolution: { width: 720, height: 1280 },
+    };
+    const candidate = {
+      jobId: "browser:msg_1:compose_media:1",
+      messageId: "msg_1",
+      toolName: "compose_media",
+      toolInvocationId: "toolu_compose_1",
+      args: { plan },
+      payload: { action: "compose_media", generationStatus: "client_fetch_pending" },
+      resultIndex: 1,
+    };
+
+    getBrowserRuntimeCandidatesMock.mockReturnValue([candidate]);
+    planBrowserCapabilityRuntimeCycleMock.mockReturnValue({
+      reconcile: [],
+      queue: [],
+      start: [candidate],
+      overflow: [],
+      cleanupJobIds: [],
+    });
+    executeComposeMediaMock.mockResolvedValue({
+      status: "succeeded",
+      envelope: {
+        payload: {
+          route: "browser_wasm",
+          planId: plan.id,
+          primaryAssetId: "uf_video_1",
+          outputFormat: "mp4",
+        },
+        artifacts: [{ kind: "video", assetId: "uf_video_1", uri: "/api/user-files/uf_video_1" }],
+      },
+    });
+    waitForPlayableVideoAssetMock.mockResolvedValue(undefined);
+
+    renderHook(() => useBrowserCapabilityRuntime({
+      conversationId: "conv_1",
+      messages: [createMessage([
+        { type: "tool_call", name: "compose_media", args: { plan }, toolInvocationId: "toolu_compose_1" },
+        { type: "tool_result", name: "compose_media", result: candidate.payload, toolInvocationId: "toolu_compose_1" },
+      ])],
+      dispatch: vi.fn(),
+      reusableMediaAssets: [
+        {
+          assetId: "uf_image_1",
+          assetKind: "image",
+          label: "Hero Image",
+          fileName: "hero-image.png",
+          mimeType: "image/png",
+          source: "generated",
+          retentionClass: "conversation",
+          createdAt: "2026-04-30T03:13:00.000Z",
+          conversationId: "conv_1",
+        },
+        {
+          assetId: "uf_audio_1",
+          assetKind: "audio",
+          label: "Narration Track",
+          fileName: "narration-track.mp3",
+          mimeType: "audio/mpeg",
+          source: "generated",
+          retentionClass: "conversation",
+          createdAt: "2026-04-30T03:13:01.000Z",
+          conversationId: "conv_1",
+        },
+      ],
+    }));
+
+    await waitFor(() => {
+      expect(executeComposeMediaMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          visualClips: [expect.objectContaining({ assetId: "uf_image_1" })],
+          audioClips: [expect.objectContaining({ assetId: "uf_audio_1" })],
+        }),
+        expect.any(Object),
+        expect.any(Function),
+        expect.any(AbortSignal),
+      );
+    });
+  });
+
+  it("keeps persisted compose runtime ownership available to the browser planner", async () => {
+    readPersistedBrowserRuntimeEntriesMock.mockReturnValue([
+      {
+        jobId: "browser:msg_old:compose_media:1",
+        toolName: "compose_media",
+        conversationId: "conv_1",
+        status: "running",
+        updatedAt: "2026-04-30T03:13:00.000Z",
+      },
+      {
+        jobId: "browser:msg_newer:compose_media:1",
+        toolName: "compose_media",
+        conversationId: "conv_1",
+        status: "running",
+        updatedAt: "2026-04-30T03:13:00.000Z",
+      },
+    ]);
+    getBrowserRuntimeCandidatesMock.mockReturnValue([]);
+
+    renderHook(() => useBrowserCapabilityRuntime({
+      conversationId: "conv_1",
+      messages: [],
+      dispatch: vi.fn(),
+    }));
+
+    await waitFor(() => {
+      expect(planBrowserCapabilityRuntimeCycleMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          persistedEntries: [
+            expect.objectContaining({ jobId: "browser:msg_old:compose_media:1" }),
+            expect.objectContaining({ jobId: "browser:msg_newer:compose_media:1" }),
+          ],
+        }),
+      );
+    });
+    expect(removePersistedBrowserRuntimeEntryMock).not.toHaveBeenCalled();
   });
 });

@@ -201,4 +201,20 @@ export class PromptProvenanceDataMapper {
 
     return rows.map(mapRow);
   }
+
+  async countByConversations(conversationIds: readonly string[]): Promise<number> {
+    const ids = Array.from(new Set(conversationIds.map((id) => id.trim()).filter(Boolean)));
+    if (ids.length === 0) {
+      return 0;
+    }
+
+    const placeholders = ids.map(() => "?").join(", ");
+    const row = this.db.prepare(
+      `SELECT COUNT(*) AS total
+       FROM prompt_provenance_records
+       WHERE conversation_id IN (${placeholders})`,
+    ).get(...ids) as { total: number } | undefined;
+
+    return row?.total ?? 0;
+  }
 }

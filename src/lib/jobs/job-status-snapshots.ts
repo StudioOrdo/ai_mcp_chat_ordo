@@ -1,58 +1,21 @@
 import type { StreamEvent } from "@/core/entities/chat-stream";
 import type { JobStatusMessagePart } from "@/core/entities/message-parts";
-import type { JobStatusSnapshot } from "@/lib/jobs/job-read-model";
-
-function isJobStatusMessagePart(value: unknown): value is JobStatusMessagePart {
-  return typeof value === "object"
-    && value !== null
-    && (value as { type?: unknown }).type === "job_status"
-    && typeof (value as { jobId?: unknown }).jobId === "string"
-    && typeof (value as { toolName?: unknown }).toolName === "string"
-    && typeof (value as { label?: unknown }).label === "string";
-}
-
-function isJobStatusSnapshot(value: unknown): value is JobStatusSnapshot {
-  return typeof value === "object"
-    && value !== null
-    && typeof (value as { messageId?: unknown }).messageId === "string"
-    && (
-      (value as { conversationId?: unknown }).conversationId === undefined
-      || typeof (value as { conversationId?: unknown }).conversationId === "string"
-    )
-    && isJobStatusMessagePart((value as { part?: unknown }).part);
-}
-
-export function extractJobStatusSnapshots(value: unknown): JobStatusSnapshot[] {
-  if (isJobStatusSnapshot(value)) {
-    return [value];
-  }
-
-  if (typeof value !== "object" || value === null) {
-    return [];
-  }
-
-  const record = value as { job?: unknown; jobs?: unknown };
-  if (isJobStatusSnapshot(record.job)) {
-    return [record.job];
-  }
-
-  if (Array.isArray(record.jobs)) {
-    return record.jobs.filter(isJobStatusSnapshot);
-  }
-
-  return [];
-}
+import {
+  canonicalJobSnapshotToStatusPart,
+  type CanonicalJobSnapshot,
+} from "@/lib/jobs/job-read-model";
+import { getJobMessageId } from "@/lib/jobs/job-status";
 
 export function jobStatusSnapshotToStreamEvent(
-  snapshot: JobStatusSnapshot,
+  snapshot: CanonicalJobSnapshot,
   conversationId = "",
 ): Extract<
   StreamEvent,
   { type: "job_queued" | "job_started" | "job_progress" | "job_completed" | "job_failed" | "job_canceled" }
 > {
-  return jobStatusPartToStreamEvent(snapshot.part, {
-    messageId: snapshot.messageId,
-    conversationId: snapshot.conversationId ?? conversationId,
+  return jobStatusPartToStreamEvent(canonicalJobSnapshotToStatusPart(snapshot), {
+    messageId: getJobMessageId(snapshot.jobId),
+    conversationId: snapshot.conversationId || conversationId,
   });
 }
 

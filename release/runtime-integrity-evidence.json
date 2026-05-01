@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "generatedAt": "2026-04-17T03:05:48.408Z",
+  "generatedAt": "2026-04-29T22:55:25.087Z",
   "bundleId": "agent-runtime-truthfulness-and-retrieval-integrity",
-  "status": "passed",
+  "status": "failed",
   "inventory": {
-    "generatedAt": "2026-04-17T03:05:44.621Z",
+    "generatedAt": "2026-04-29T22:55:19.635Z",
     "corpus": {
       "name": "Second Renaissance Knowledge System",
       "documentCount": 11,
@@ -14,10 +14,10 @@
     "tools": {
       "countsByRole": {
         "ANONYMOUS": 16,
-        "AUTHENTICATED": 27,
-        "APPRENTICE": 27,
-        "STAFF": 27,
-        "ADMIN": 56
+        "AUTHENTICATED": 28,
+        "APPRENTICE": 28,
+        "STAFF": 28,
+        "ADMIN": 59
       },
       "manifestsByRole": {
         "ANONYMOUS": [
@@ -220,7 +220,12 @@
           },
           {
             "name": "search_my_conversations",
-            "description": "Search your own conversation history to recall past discussions.",
+            "description": "Search your own conversation transcript history to recall past discussion turns.",
+            "category": "system"
+          },
+          {
+            "name": "search_relationship_memory",
+            "description": "Search active relationship memory to recall goals, preferences, decisions, commitments, milestones, and unresolved questions.",
             "category": "system"
           },
           {
@@ -357,7 +362,12 @@
           },
           {
             "name": "search_my_conversations",
-            "description": "Search your own conversation history to recall past discussions.",
+            "description": "Search your own conversation transcript history to recall past discussion turns.",
+            "category": "system"
+          },
+          {
+            "name": "search_relationship_memory",
+            "description": "Search active relationship memory to recall goals, preferences, decisions, commitments, milestones, and unresolved questions.",
             "category": "system"
           },
           {
@@ -494,7 +504,12 @@
           },
           {
             "name": "search_my_conversations",
-            "description": "Search your own conversation history to recall past discussions.",
+            "description": "Search your own conversation transcript history to recall past discussion turns.",
+            "category": "system"
+          },
+          {
+            "name": "search_relationship_memory",
+            "description": "Search active relationship memory to recall goals, preferences, decisions, commitments, milestones, and unresolved questions.",
             "category": "system"
           },
           {
@@ -660,6 +675,11 @@
             "category": "system"
           },
           {
+            "name": "inspect_runtime_logs",
+            "description": "Inspect system runtime logs for debugging issues with deferred jobs, MCP processes, and remote services. Output should be summarized as a Markdown report so the admin can copy it to GitHub if needed.",
+            "category": "system"
+          },
+          {
             "name": "inspect_theme",
             "description": "Inspect the active theme configuration and return machine-readable design tokens.",
             "category": "ui"
@@ -725,6 +745,11 @@
             "category": "content"
           },
           {
+            "name": "produce_product",
+            "description": "Run the factory orchestration pipeline from validated brief through release persistence.",
+            "category": "content"
+          },
+          {
             "name": "publish_content",
             "description": "Publish a draft journal article, making it publicly visible in the journal. Accepts either the post ID or the article slug.",
             "category": "content"
@@ -756,7 +781,12 @@
           },
           {
             "name": "search_my_conversations",
-            "description": "Search your own conversation history to recall past discussions.",
+            "description": "Search your own conversation transcript history to recall past discussion turns.",
+            "category": "system"
+          },
+          {
+            "name": "search_relationship_memory",
+            "description": "Search active relationship memory to recall goals, preferences, decisions, commitments, milestones, and unresolved questions.",
             "category": "system"
           },
           {
@@ -800,10 +830,10 @@
     "navigation": {
       "countsByRole": {
         "ANONYMOUS": 7,
-        "AUTHENTICATED": 10,
-        "APPRENTICE": 10,
-        "STAFF": 12,
-        "ADMIN": 20
+        "AUTHENTICATED": 11,
+        "APPRENTICE": 11,
+        "STAFF": 14,
+        "ADMIN": 22
       },
       "routesByRole": {
         "ANONYMOUS": [
@@ -890,6 +920,11 @@
             "description": "View profile, referral, and personal settings."
           },
           {
+            "label": "Referrals",
+            "href": "/referrals",
+            "description": "Open referral sharing, activity, and trust-distribution next actions."
+          },
+          {
             "label": "Register",
             "href": "/register",
             "description": null
@@ -942,6 +977,11 @@
             "description": "View profile, referral, and personal settings."
           },
           {
+            "label": "Referrals",
+            "href": "/referrals",
+            "description": "Open referral sharing, activity, and trust-distribution next actions."
+          },
+          {
             "label": "Register",
             "href": "/register",
             "description": null
@@ -957,6 +997,11 @@
             "label": "Journal",
             "href": "/admin/journal",
             "description": "Manage journal inventory, workflow, and preview states."
+          },
+          {
+            "label": "Training",
+            "href": "/admin/training",
+            "description": "Access internal training references and operator playbooks."
           },
           {
             "label": "Legacy Book Chapter Redirect",
@@ -1002,6 +1047,11 @@
             "label": "Profile",
             "href": "/profile",
             "description": "View profile, referral, and personal settings."
+          },
+          {
+            "label": "Referrals",
+            "href": "/referrals",
+            "description": "Open referral sharing, activity, and trust-distribution next actions."
           },
           {
             "label": "Register",
@@ -1056,6 +1106,11 @@
             "description": "Inspect feature flags, model policy, and runtime status."
           },
           {
+            "label": "Training",
+            "href": "/admin/training",
+            "description": "Access internal training references and operator playbooks."
+          },
+          {
             "label": "Users",
             "href": "/admin/users",
             "description": "Review people, roles, and account context."
@@ -1106,6 +1161,11 @@
             "description": "View profile, referral, and personal settings."
           },
           {
+            "label": "Referrals",
+            "href": "/referrals",
+            "description": "Open referral sharing, activity, and trust-distribution next actions."
+          },
+          {
             "label": "Register",
             "href": "/register",
             "description": null
@@ -1114,7 +1174,7 @@
       }
     },
     "mcp": {
-      "processCount": 3,
+      "processCount": 4,
       "processes": [
         {
           "id": "admin-web-search",
@@ -1138,6 +1198,17 @@
           ]
         },
         {
+          "id": "generate-audio",
+          "serverName": "generate-audio-mcp-server",
+          "entrypoint": "mcp/generate-audio-server.ts",
+          "canonicalCommand": "npm run mcp:generate-audio",
+          "compatibilityAliases": [],
+          "capabilityGroups": [
+            "media",
+            "audio"
+          ]
+        },
+        {
           "id": "operations",
           "serverName": "operations-mcp-server",
           "entrypoint": "mcp/operations-server.ts",
@@ -1156,7 +1227,7 @@
   },
   "eliteOps": {
     "version": 1,
-    "generatedAt": "2026-04-17T03:05:48.408Z",
+    "generatedAt": "2026-04-29T22:55:25.087Z",
     "status": "passed",
     "architectureDrift": {
       "status": "passed",
@@ -1175,8 +1246,8 @@
           "id": "mcp_transport_boundary_canonical",
           "label": "mcp/ stays transport-only",
           "status": "passed",
-          "expected": "[\"admin-web-search-server.ts\",\"calculator-server.ts\",\"operations-server.ts\"]",
-          "observed": "[\"admin-web-search-server.ts\",\"calculator-server.ts\",\"operations-server.ts\"]",
+          "expected": "[\"admin-web-search-server.ts\",\"calculator-server.ts\",\"generate-audio-server.ts\",\"operations-server.ts\"]",
+          "observed": "[\"admin-web-search-server.ts\",\"calculator-server.ts\",\"generate-audio-server.ts\",\"operations-server.ts\"]",
           "sources": [
             "mcp",
             "src/core/capability-catalog/mcp-process-metadata.ts"
@@ -1200,8 +1271,8 @@
           "id": "runtime_inventory_tracks_mcp_process_metadata",
           "label": "Runtime inventory MCP processes match canonical process metadata",
           "status": "passed",
-          "expected": "[{\"id\":\"admin-web-search\",\"serverName\":\"admin-web-search-mcp-server\",\"entrypoint\":\"mcp/admin-web-search-server.ts\",\"canonicalCommand\":\"npm run mcp:admin-web-search\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"admin\",\"web-search\"]},{\"id\":\"calculator\",\"serverName\":\"calculator-mcp-server\",\"entrypoint\":\"mcp/calculator-server.ts\",\"canonicalCommand\":\"npm run mcp:calculator\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"math\"]},{\"id\":\"operations\",\"serverName\":\"operations-mcp-server\",\"entrypoint\":\"mcp/operations-server.ts\",\"canonicalCommand\":\"npm run mcp:operations\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"admin-intelligence\",\"analytics\",\"corpus\",\"embeddings\",\"prompt\"]}]",
-          "observed": "[{\"id\":\"admin-web-search\",\"serverName\":\"admin-web-search-mcp-server\",\"entrypoint\":\"mcp/admin-web-search-server.ts\",\"canonicalCommand\":\"npm run mcp:admin-web-search\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"admin\",\"web-search\"]},{\"id\":\"calculator\",\"serverName\":\"calculator-mcp-server\",\"entrypoint\":\"mcp/calculator-server.ts\",\"canonicalCommand\":\"npm run mcp:calculator\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"math\"]},{\"id\":\"operations\",\"serverName\":\"operations-mcp-server\",\"entrypoint\":\"mcp/operations-server.ts\",\"canonicalCommand\":\"npm run mcp:operations\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"admin-intelligence\",\"analytics\",\"corpus\",\"embeddings\",\"prompt\"]}]",
+          "expected": "[{\"id\":\"admin-web-search\",\"serverName\":\"admin-web-search-mcp-server\",\"entrypoint\":\"mcp/admin-web-search-server.ts\",\"canonicalCommand\":\"npm run mcp:admin-web-search\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"admin\",\"web-search\"]},{\"id\":\"calculator\",\"serverName\":\"calculator-mcp-server\",\"entrypoint\":\"mcp/calculator-server.ts\",\"canonicalCommand\":\"npm run mcp:calculator\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"math\"]},{\"id\":\"generate-audio\",\"serverName\":\"generate-audio-mcp-server\",\"entrypoint\":\"mcp/generate-audio-server.ts\",\"canonicalCommand\":\"npm run mcp:generate-audio\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"audio\",\"media\"]},{\"id\":\"operations\",\"serverName\":\"operations-mcp-server\",\"entrypoint\":\"mcp/operations-server.ts\",\"canonicalCommand\":\"npm run mcp:operations\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"admin-intelligence\",\"analytics\",\"corpus\",\"embeddings\",\"prompt\"]}]",
+          "observed": "[{\"id\":\"admin-web-search\",\"serverName\":\"admin-web-search-mcp-server\",\"entrypoint\":\"mcp/admin-web-search-server.ts\",\"canonicalCommand\":\"npm run mcp:admin-web-search\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"admin\",\"web-search\"]},{\"id\":\"calculator\",\"serverName\":\"calculator-mcp-server\",\"entrypoint\":\"mcp/calculator-server.ts\",\"canonicalCommand\":\"npm run mcp:calculator\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"math\"]},{\"id\":\"generate-audio\",\"serverName\":\"generate-audio-mcp-server\",\"entrypoint\":\"mcp/generate-audio-server.ts\",\"canonicalCommand\":\"npm run mcp:generate-audio\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"audio\",\"media\"]},{\"id\":\"operations\",\"serverName\":\"operations-mcp-server\",\"entrypoint\":\"mcp/operations-server.ts\",\"canonicalCommand\":\"npm run mcp:operations\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"admin-intelligence\",\"analytics\",\"corpus\",\"embeddings\",\"prompt\"]}]",
           "sources": [
             "src/lib/evals/runtime-integrity-evidence.ts",
             "src/core/capability-catalog/mcp-process-metadata.ts"
@@ -2423,7 +2494,7 @@
           "id": "retrieval_preparation",
           "label": "Retrieval preparation",
           "budgetMs": 250,
-          "observedMs": 0.3306250000023283,
+          "observedMs": 0.4495829999941634,
           "status": "passed",
           "notes": [
             "vectorTokens=9",
@@ -2435,7 +2506,7 @@
           "id": "prompt_assembly",
           "label": "Prompt assembly",
           "budgetMs": 1500,
-          "observedMs": 1.6316659999999956,
+          "observedMs": 2.0277499999997417,
           "status": "passed",
           "notes": [
             "Measures the governed ADMIN prompt assembly path with the live tool manifest."
@@ -2445,7 +2516,7 @@
           "id": "first_tool_execution",
           "label": "First tool execution",
           "budgetMs": 1500,
-          "observedMs": 1.8346670000000813,
+          "observedMs": 6.771624999999858,
           "status": "passed",
           "notes": [
             "Measures the first governed calculator execution through the composition root."
@@ -2455,7 +2526,7 @@
           "id": "representative_mcp_round_trip",
           "label": "Representative MCP stdio round trip",
           "budgetMs": 8000,
-          "observedMs": 1009.1859590000001,
+          "observedMs": 1314.976333,
           "status": "passed",
           "notes": [
             "Measures calculator MCP stdio startup, call, and teardown as the representative export path."
@@ -2506,7 +2577,7 @@
           "id": "mcp_startup_failure_diagnostics",
           "label": "MCP process startup failure diagnostics",
           "status": "passed",
-          "diagnostic": "node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '/Users/kwilliams/Projects/ordoSite/mcp/does-not-exist.ts' imported from /Users/kwilliams/Projects/ordoSite/\n    at finalizeResolution (node:internal/modules/esm/resolve:271:11)\n    at moduleResolve (node:internal/modules/esm/resolve:861:10)\n    at defaultResolve (node:internal/modules/esm/resolve:988:11)\n    at nextResolve (node:internal/modules/esm/hooks:769:28)\n    at resolveBase (file:///Users/kwilliams/Projects/ordoSite/node_modules/tsx/dist/esm/index.mjs?1776395148303:2:3744)\n    at async resolveDirectory (file:///Users/kwilliams/Projects/ordoSite/node_modules/tsx/dist/esm/index.mjs?1776395148303:2:4237)\n    at async resolve (file:///Users/kwilliams/Projects/ordoSite/node_modules/tsx/dist/esm/index.mjs?1776395148303:2:5355)\n    at async nextResolve (node:internal/modules/esm/hooks:769:22)\n    at async AsyncLoaderHooksOnLoaderHookWorker.resolve (node:internal/modules/esm/hooks:265:24)\n    at async handleMessage (node:internal/modules/esm/worker:251:18) {\n  code: 'ERR_MODULE_NOT_FOUND',\n  url: 'file:///Users/kwilliams/Projects/ordoSite/mcp/does-not-exist.ts'\n}\n\nNode.js v25.9.0",
+          "diagnostic": "node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '/Users/kwilliams/Projects/ordoSite/mcp/does-not-exist.ts' imported from /Users/kwilliams/Projects/ordoSite/\n    at finalizeResolution (node:internal/modules/esm/resolve:271:11)\n    at moduleResolve (node:internal/modules/esm/resolve:861:10)\n    at defaultResolve (node:internal/modules/esm/resolve:988:11)\n    at nextResolve (node:internal/modules/esm/hooks:769:28)\n    at resolveBase (file:///Users/kwilliams/Projects/ordoSite/node_modules/tsx/dist/esm/index.mjs?1777503324947:2:3744)\n    at async resolveDirectory (file:///Users/kwilliams/Projects/ordoSite/node_modules/tsx/dist/esm/index.mjs?1777503324947:2:4237)\n    at async resolve (file:///Users/kwilliams/Projects/ordoSite/node_modules/tsx/dist/esm/index.mjs?1777503324947:2:5355)\n    at async nextResolve (node:internal/modules/esm/hooks:769:22)\n    at async AsyncLoaderHooksOnLoaderHookWorker.resolve (node:internal/modules/esm/hooks:265:24)\n    at async handleMessage (node:internal/modules/esm/worker:251:18) {\n  code: 'ERR_MODULE_NOT_FOUND',\n  url: 'file:///Users/kwilliams/Projects/ordoSite/mcp/does-not-exist.ts'\n}\n\nNode.js v25.9.0",
           "expectedSignal": "A broken MCP entrypoint fails fast with an explicit missing-module diagnostic.",
           "evidenceSources": [
             "tests/mcp/transport/stdio-harness.ts",
@@ -2592,7 +2663,10 @@
     "mappingDocumentPath": "docs/_refactor/agent-runtime-truthfulness-and-retrieval-integrity/spec.md"
   },
   "review": {
-    "blockingReasons": [],
+    "blockingReasons": [
+      "Failed step: production build.",
+      "QA step failed: production build."
+    ],
     "warnings": [
       "Budgets are intentionally generous and rely on representative local samples so the gate catches order-of-magnitude regressions rather than incidental variance."
     ]
@@ -2606,7 +2680,7 @@
     {
       "label": "production build",
       "command": "npm run build",
-      "status": "passed"
+      "status": "failed"
     }
   ]
 }

@@ -105,11 +105,15 @@ describe("ChatStreamPipeline prompt-runtime seam", () => {
         }),
       ),
     };
+    const relationshipMemoryReader = {
+      listActiveByConversation: vi.fn(async () => []),
+    };
 
     const preparedContext = await pipeline.prepareStreamContext(
       builder,
       interactor as never,
       routingAnalyzer as never,
+      relationshipMemoryReader as never,
       "conv_prompt_runtime",
       "usr_admin",
       [{ role: "user", content: latestUserText }],
@@ -119,6 +123,7 @@ describe("ChatStreamPipeline prompt-runtime seam", () => {
         sourceBlockId: "lead_queue",
         sourceContextId: "lead-queue:header",
       },
+      null,
     );
 
     const result = await pipeline.finalizePreparedPrompt({
@@ -131,6 +136,7 @@ describe("ChatStreamPipeline prompt-runtime seam", () => {
         sourceBlockId: "lead_queue",
         sourceContextId: "lead-queue:header",
       },
+      mediaContinuityHandoff: null,
       conversationId: "conv_prompt_runtime",
       userId: "usr_admin",
     });

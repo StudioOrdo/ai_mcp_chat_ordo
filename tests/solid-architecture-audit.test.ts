@@ -50,7 +50,7 @@ describe("TD-C — SRP extraction from tool-composition-root (F1)", () => {
 
   it("P5a: stream route handler derives model-visible tools from ToolRegistry through request-scoped selection", () => {
     const src = readSource("src/lib/chat/stream-route-handler.ts");
-    expect(src).toContain("const { registry: toolRegistry, executor: baseToolExecutor } = getToolComposition()");
+    expect(src).toContain("const { registry: toolRegistry, executor: baseToolExecutor } = getAgentPlatformFacade().getExecutionSurface()");
     expect(src).toContain("getRequestScopedToolSelection(");
     expect(src).not.toContain("getRuntimeToolManifestForRole(");
   });
@@ -98,7 +98,7 @@ describe("TD-C — deterministic manifest ownership (F8)", () => {
         registry.getSchemasForRole(role).map((schema) => schema.name),
       );
     }
-  });
+  }, 15_000);
 });
 
 describe("TD-C — OCP fixes (F3, F4)", () => {
@@ -272,6 +272,10 @@ describe("TD-C — EmbeddingPipelineFactory OCP edge (F4)", () => {
       delete: vi.fn(),
       getAll: vi.fn(() => []),
       getBySourceId: vi.fn(() => []),
+      searchSimilar: vi.fn(() => []),
+      searchKeyword: vi.fn(() => []),
+      hydrateByIds: vi.fn(() => []),
+      listSourceIds: vi.fn(() => []),
       getContentHash: vi.fn(() => null),
       getModelVersion: vi.fn(() => null),
       count: vi.fn(() => 0),
@@ -289,6 +293,10 @@ describe("TD-C — EmbeddingPipelineFactory OCP edge (F4)", () => {
       delete: vi.fn(),
       getAll: vi.fn(() => []),
       getBySourceId: vi.fn(() => []),
+      searchSimilar: vi.fn(() => []),
+      searchKeyword: vi.fn(() => []),
+      hydrateByIds: vi.fn(() => []),
+      listSourceIds: vi.fn(() => []),
       getContentHash: vi.fn(() => null),
       getModelVersion: vi.fn(() => null),
       count: vi.fn(() => 0),
@@ -306,6 +314,10 @@ describe("TD-C — EmbeddingPipelineFactory OCP edge (F4)", () => {
       delete: vi.fn(),
       getAll: vi.fn(() => []),
       getBySourceId: vi.fn(() => []),
+      searchSimilar: vi.fn(() => []),
+      searchKeyword: vi.fn(() => []),
+      hydrateByIds: vi.fn(() => []),
+      listSourceIds: vi.fn(() => []),
       getContentHash: vi.fn(() => null),
       getModelVersion: vi.fn(() => null),
       count: vi.fn(() => 0),

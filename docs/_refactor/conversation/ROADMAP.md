@@ -6,6 +6,16 @@ Provide a phase-shaping roadmap for the greenfield conversation architecture.
 This is not the final implementation plan. It is the sequence that future phase
 documents should refine.
 
+Detailed phase instructions now live in [phases/README.md](phases/README.md).
+Those phase docs are the implementation control surface for this work package.
+
+## Current Status
+
+- Phases 0 through 11 are now implemented in code and validated through the
+  conversation-refactor, runtime-integrity, Phase 11 tool-invocation, and
+  composite release-evidence gates.
+- Phase 12 remains the explicit documentation and platform-vision handoff.
+
 ## Sequencing Principle
 
 Do not start by redesigning the chat UI.
@@ -34,16 +44,24 @@ Deliverables:
 
 Goal:
 
-- introduce contracts for workspace snapshot, relationship memory, asset
-  catalog, prompt binding, and materialization records
+- introduce contracts for workspace snapshot, business workflow context,
+  operator transition, trust distribution, relationship memory, prompt binding,
+  identity migration, and materialization records
 
 Deliverables:
 
 - types and repository ports
-- no-op or projection-backed implementations
+- no-op, empty, or projection-backed implementations only when useful
 - contract tests
 
-### Phase 2: Workspace Restore Projection
+Status:
+
+- implemented as pure domain contracts and ports, with no runtime cutover or
+  schema change
+- covered by `tests/conversation/phase-01-canonical-domain-contracts.test.ts`
+- included in `npm run qa:conversation-refactor`
+
+### Phase 2: Workspace Snapshot Projection
 
 Goal:
 
@@ -58,7 +76,51 @@ Deliverables:
 - recent transcript projection
 - restore idempotency tests
 
-### Phase 3: Asset Catalog And Materialization Reuse
+### Phase 2A: Business Workflow Context Projection
+
+Goal:
+
+- preserve task origin, related business objects, setup state, notifications,
+  retries, and next actions around the conversation
+
+Deliverables:
+
+- workflow context projection
+- compact related business refs
+- setup and health blocker refs
+- return-to-source context
+
+### Phase 2B: Operator Transition And Trust Distribution Projection
+
+Goal:
+
+- make first-run and restore support users becoming economically effective,
+  including QR/referral trust distribution
+
+Deliverables:
+
+- operator transition projection
+- trust distribution projection
+- referral QR/link readiness
+- first-share, follow-up, and credit-review next actions
+- proof that referral motion survives visit, chat, registration, and restore
+
+### Phase 3: Restore Read Model And Idempotent Homepage
+
+Goal:
+
+- establish the canonical restore contract and cut homepage load away from
+  transcript-driven execution
+
+Deliverables:
+
+- restore read model or endpoint
+- canonical active-work filtering
+- nullable or guarded placeholders for later asset, memory, prompt, and product
+  projections
+- homepage restore idempotency proof
+
+### Phase 4: Job Ledger And Materialization Registry
 
 Goal:
 
@@ -71,7 +133,20 @@ Deliverables:
 - asset catalog lineage fields
 - exact-reuse and variant UX contracts
 
-### Phase 4: Relationship Memory Projection
+### Phase 5: Asset Catalog And Reusable Outputs
+
+Goal:
+
+- promote durable generated and uploaded outputs into a queryable asset catalog
+
+Deliverables:
+
+- asset catalog entity or projection
+- output registration hooks
+- reusable asset query for restore
+- lineage and migration-safe repair strategy
+
+### Phase 6: Relationship Memory Projection
 
 Goal:
 
@@ -84,7 +159,7 @@ Deliverables:
 - memory evidence refs
 - memory-backed restore summary
 
-### Phase 5: Search Surface Split
+### Phase 7: Search Surface Split
 
 Goal:
 
@@ -98,7 +173,7 @@ Deliverables:
 - transcript recall API
 - memory retrieval API
 
-### Phase 6: Prompt Binding And Governance
+### Phase 8: Prompt Binding And Governance
 
 Goal:
 
@@ -110,7 +185,7 @@ Deliverables:
 - binding refs on memory and asset-producing executions
 - prompt drift diagnostics
 
-### Phase 7: Identity Migration And Repair
+### Phase 9: Identity Migration And Repair
 
 Goal:
 
@@ -124,7 +199,7 @@ Deliverables:
 - migration status projection
 - post-login restore proof
 
-### Phase 8: UI Simplification
+### Phase 10: UI Simplification
 
 Goal:
 
@@ -136,7 +211,45 @@ Deliverables:
 - active work strip driven only by durable jobs
 - reusable asset shelf
 - memory-backed next action
+- operator transition or trust-distribution next action
 - transcript as history view
+
+### Phase 11: Release Hardening And Learning Loop
+
+Goal:
+
+- consolidate the release gates, retire the remaining transcript-era
+  compatibility seams, and close the package with release-grade evidence
+
+Deliverables:
+
+- shared QA-runner orchestration
+- composite release evidence including tool-invocation provenance
+- canonical-only workspace restore parsing
+- governed-only chart and graph source rehydration
+- final hardening artifacts and phase closeout documentation
+
+Status:
+
+- implemented and validated
+
+### Phase 12: Platform Vision Research And Recording
+
+Goal:
+
+- record the next platform kernel and handoff without reopening completed
+  conversation-package scope
+
+Deliverables:
+
+- platform-vision record
+- next-batch kernel map and phase sequence
+- explicit handoff grounded in the validated Phase 11 outcomes
+
+Status:
+
+- handoff phase only; not runtime implementation work in the completed
+  conversation package
 
 ## Anti-Goals
 
@@ -145,8 +258,22 @@ Deliverables:
 - Do not rebuild the job ledger without cause.
 - Do not treat embeddings as memory.
 - Do not let browser session storage own recovery truth.
+- Do not treat first-run as configuration before agency.
+- Do not treat QR/referral as a marketing add-on when it is the trust layer.
 
 ## Definition Of Done
 
 The roadmap is ready for phase documents when each future phase can be scoped
 around one canonical ownership change and one executable proof.
+
+## Phase Package
+
+The current phase package expands this roadmap into the full supervised
+AI-engineering loop:
+
+```text
+Collect -> Decide -> Spec -> QA -> Ground -> Phase QA -> Implement -> QA -> Update -> Repeat
+```
+
+Start at [phases/README.md](phases/README.md), then execute phases in numeric
+order unless a phase QA review changes the sequence.

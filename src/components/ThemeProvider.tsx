@@ -78,6 +78,32 @@ function skipViewTransition(transition: ViewTransition | null): void {
 
 const THEME_TRANSITION_OVERLAY_DURATION_MS = 350;
 
+function getThemeStorage(): Storage | null {
+  const globalStorageDescriptor = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  if (
+    globalStorageDescriptor &&
+    "value" in globalStorageDescriptor &&
+    globalStorageDescriptor.value &&
+    typeof globalStorageDescriptor.value.getItem === "function"
+  ) {
+    return globalStorageDescriptor.value as Storage;
+  }
+
+  if (process.env.VITEST) {
+    return null;
+  }
+
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 export function ThemeProvider({
   children,
   respectSystemDarkMode = true,
@@ -177,10 +203,11 @@ export function ThemeProvider({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
 
-    const storedTheme = getSupportedTheme(localStorage.getItem(THEME_STORAGE_KEYS.theme));
-    const storedDark = localStorage.getItem(THEME_STORAGE_KEYS.dark);
+    const storage = getThemeStorage();
+    const storedTheme = getSupportedTheme(storage?.getItem(THEME_STORAGE_KEYS.theme) ?? null);
+    const storedDark = storage?.getItem(THEME_STORAGE_KEYS.dark) ?? null;
     const storedAccessibility = parseStoredAccessibilitySettings(
-      localStorage.getItem(THEME_STORAGE_KEYS.accessibility),
+      storage?.getItem(THEME_STORAGE_KEYS.accessibility) ?? null,
     );
 
     applyThemeStateOverrides({
@@ -269,18 +296,19 @@ export function ThemeProvider({
       accessibility,
     });
     const serializedAccessibility = JSON.stringify(snapshot.accessibility);
+    const storage = getThemeStorage();
 
-    if (typeof localStorage?.setItem === "function") {
-      if (localStorage.getItem(THEME_STORAGE_KEYS.theme) !== snapshot.theme) {
-        localStorage.setItem(THEME_STORAGE_KEYS.theme, snapshot.theme);
+    if (storage && typeof storage.setItem === "function") {
+      if (storage.getItem(THEME_STORAGE_KEYS.theme) !== snapshot.theme) {
+        storage.setItem(THEME_STORAGE_KEYS.theme, snapshot.theme);
       }
 
-      if (localStorage.getItem(THEME_STORAGE_KEYS.dark) !== String(snapshot.isDark)) {
-        localStorage.setItem(THEME_STORAGE_KEYS.dark, String(snapshot.isDark));
+      if (storage.getItem(THEME_STORAGE_KEYS.dark) !== String(snapshot.isDark)) {
+        storage.setItem(THEME_STORAGE_KEYS.dark, String(snapshot.isDark));
       }
 
-      if (localStorage.getItem(THEME_STORAGE_KEYS.accessibility) !== serializedAccessibility) {
-        localStorage.setItem(
+      if (storage.getItem(THEME_STORAGE_KEYS.accessibility) !== serializedAccessibility) {
+        storage.setItem(
           THEME_STORAGE_KEYS.accessibility,
           serializedAccessibility,
         );

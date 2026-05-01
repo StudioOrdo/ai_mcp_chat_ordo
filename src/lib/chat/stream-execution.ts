@@ -20,15 +20,10 @@ import type {
 import { resolveSessionResolutionSignal } from "@/lib/chat/session-resolution";
 import type { ToolCompositionResult } from "@/lib/chat/tool-composition-root";
 import {
-  deferredJobResultToMessagePart,
   deferredJobResultToStreamEvent,
   isDeferredJobResultPayload,
 } from "@/lib/jobs/deferred-job-result";
 import { enqueueDeferredToolJob } from "@/lib/jobs/enqueue-deferred-tool-job";
-import {
-  extractJobStatusSnapshots,
-  jobStatusSnapshotToStreamEvent,
-} from "@/lib/jobs/job-status-snapshots";
 import { logDegradation, logFailure } from "@/lib/observability/logger";
 import { REASON_CODES } from "@/lib/observability/reason-codes";
 
@@ -77,6 +72,7 @@ export type CreateStreamResponseOptions = {
   requestSignal?: AbortSignal;
   latestAttachments?: AttachmentPart[];
   promptProvenanceRecordId?: string | null;
+  promptBindingId?: string | null;
 };
 
 function resolveAbortReason(signal: AbortSignal, fallbackReason: string): string {
@@ -195,6 +191,31 @@ function resolveUnexpectedLifecycle(error: unknown): GenerationLifecycleDescript
   };
 }
 
+function hasSameTurnMediaDiscovery(assistantParts: readonly MessagePart[]): boolean {
+  return assistantParts.some((part) => (
+    part.type === "tool_result"
+    && part.name === "list_conversation_media_assets"
+    && typeof part.result === "object"
+    && part.result !== null
+    && (part.result as { ok?: unknown }).ok === true
+  ));
+}
+
+export function resolveMediaAssetDiscoveryGuard(
+  name: string,
+  assistantParts: readonly MessagePart[],
+): Record<string, unknown> | null {
+  if (name !== "compose_media" || hasSameTurnMediaDiscovery(assistantParts)) {
+    return null;
+  }
+
+  return {
+    ok: false,
+    action: "media_asset_discovery_required",
+    error: "Call list_conversation_media_assets before compose_media, then pass the returned assetId values exactly into the composition plan.",
+  };
+}
+
 async function buildAnthropicMessages(options: {
   contextMessages: Array<{ role: "user" | "assistant"; content: string }>;
   latestAttachments: AttachmentPart[];
@@ -269,6 +290,7 @@ export async function createDeferredToolExecutor(options: DeferredToolExecutorOp
       userId: options.context.userId,
       toolName: name,
       requestPayload: input,
+      promptBindingId: options.context.promptBindingId,
       initiatorType: options.isAnonymous ? "anonymous_session" : "user",
       deferred: descriptor.deferred,
       toolInvocationId,
@@ -350,6 +372,7 @@ export function createStreamResponse(options: CreateStreamResponseOptions): Resp
                   ],
                 },
                 options.userId,
+                { sourcePromptBindingId: options.promptBindingId },
               );
 
               messageId = message?.id;
@@ -438,8 +461,14 @@ export function createStreamResponse(options: CreateStreamResponseOptions): Resp
           signal: streamAbortController.signal,
           systemPrompt: options.systemPrompt,
           tools: options.tools,
-          toolExecutor: (name, input, toolInvocationId) =>
-            options.toolExecutor(name, input, streamAbortController.signal, toolInvocationId),
+          toolExecutor: (name, input, toolInvocationId) => {
+            const guardedResult = resolveMediaAssetDiscoveryGuard(name, assistantParts);
+            if (guardedResult) {
+              return Promise.resolve(guardedResult);
+            }
+
+            return options.toolExecutor(name, input, streamAbortController.signal, toolInvocationId);
+          },
           callbacks: {
             onDelta(text) {
               assistantText += text;
@@ -467,26 +496,8 @@ export function createStreamResponse(options: CreateStreamResponseOptions): Resp
 
               if (isDeferredJobResultPayload(result)) {
                 const streamEvent = deferredJobResultToStreamEvent(result, toolInvocationId);
-                assistantParts.push(deferredJobResultToMessagePart(result, toolInvocationId));
                 controller.enqueue(
                   encoder.encode(sseChunk(streamEvent as unknown as Record<string, unknown>)),
-                );
-                return;
-              }
-
-              const jobSnapshots = extractJobStatusSnapshots(result);
-              for (const snapshot of jobSnapshots) {
-                const part = snapshot.part.toolInvocationId
-                  ? snapshot.part
-                  : { ...snapshot.part, toolInvocationId };
-                assistantParts.push(part);
-                controller.enqueue(
-                  encoder.encode(
-                    sseChunk(jobStatusSnapshotToStreamEvent(
-                      { ...snapshot, part },
-                      options.conversationId,
-                    ) as unknown as Record<string, unknown>),
-                  ),
                 );
               }
             },
@@ -527,6 +538,7 @@ export function createStreamResponse(options: CreateStreamResponseOptions): Resp
                   parts: assistantParts,
                 },
                 options.userId,
+                { sourcePromptBindingId: options.promptBindingId },
               );
               assistantPersisted = true;
               persistedMessageId = message?.id;

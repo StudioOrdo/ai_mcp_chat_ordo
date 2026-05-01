@@ -15,7 +15,6 @@ import type { ProductBrief } from "@/core/entities/product-brief";
 import { KnowledgeAccessService } from "@/core/platform/knowledge-access/KnowledgeAccessService";
 import { getToolComposition } from "@/lib/chat/tool-composition-root";
 import { createFactoryRevisionRoot } from "@/lib/factory/factory-revision-root";
-import { createDeferredJobConversationProjector } from "@/lib/jobs/deferred-job-projector-root";
 import { canManualReplayJob, isJobCancelable, performManualJobReplay } from "@/lib/jobs/manual-replay";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -87,7 +86,6 @@ class DefaultRevisionActionRuntime implements RevisionActionRuntime {
       throw new RevisionActionError("Job not found", 404);
     }
 
-    const projector = createDeferredJobConversationProjector();
     const now = new Date().toISOString();
 
     if (request.action === "cancel") {
@@ -103,8 +101,6 @@ class DefaultRevisionActionRuntime implements RevisionActionRuntime {
         eventType: "canceled",
         payload: buildCanceledEventPayload(latestRenderableEvent?.payload, request.userId),
       });
-
-      await projector.project(canceledJob, canceledEvent);
 
       return {
         accepted: true,
@@ -128,7 +124,6 @@ class DefaultRevisionActionRuntime implements RevisionActionRuntime {
 
     const replay = await performManualJobReplay(repository, job, {
       ownerUserId: request.userId,
-      projector,
       requestedByUserId: request.userId,
     });
 

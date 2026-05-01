@@ -43,6 +43,7 @@ export function EyeOfOrdoMark({
 
 interface ShellBrandProps {
   href?: string;
+  showMark?: boolean;
   showWordmark?: boolean;
   compactOnMobile?: boolean;
   className?: string;
@@ -50,6 +51,7 @@ interface ShellBrandProps {
 
 export function ShellBrand({
   href = SHELL_BRAND.homeHref,
+  showMark = true,
   showWordmark = true,
   compactOnMobile = false,
   className,
@@ -69,13 +71,15 @@ export function ShellBrand({
       className={classes}
       data-shell-brand="true"
     >
-      <div
-        className="shell-brand-mark overflow-hidden rounded-[0.58rem]"
-        aria-hidden="true"
-        data-shell-brand-mark="true"
-      >
-        <Image src={identity.logoPath} alt="" width={40} height={40} className="h-full w-full object-cover" />
-      </div>
+      {showMark ? (
+        <div
+          className="shell-brand-mark overflow-hidden rounded-[0.58rem]"
+          aria-hidden="true"
+          data-shell-brand-mark="true"
+        >
+          <Image src={identity.logoPath} alt="" width={40} height={40} className="h-full w-full object-cover" />
+        </div>
+      ) : null}
       {showWordmark ? (
         <span className={`theme-display font-semibold tracking-[-0.06em] text-foreground ${compactOnMobile ? "hidden sm:inline" : ""}`.trim()} data-shell-brand-wordmark="true">{identity.name}</span>
       ) : (

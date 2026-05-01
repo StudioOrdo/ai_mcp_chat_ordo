@@ -1,51 +1,27 @@
 #!/usr/bin/env tsx
-import { spawnSync } from "node:child_process";
-
 import {
   RUNTIME_INTEGRITY_FOCUSED_TEST_SUITES,
   writeRuntimeIntegrityQaEvidenceArtifact,
   type RuntimeIntegrityQaStepResult,
 } from "../src/lib/evals/runtime-integrity-evidence";
-
-type Step = {
-  label: string;
-  command: string;
-  args: string[];
-};
-
-function printUsage(): void {
-  process.stderr.write(
-    [
-      "Usage: npm run qa:runtime-integrity",
-      "Runs the focused runtime-truthfulness and retrieval-integrity bundle, writes release/runtime-integrity-evidence.json, and exits non-zero on any blocker.",
-    ].join("\n") + "\n",
-  );
-}
-
-function runStep(step: Step): RuntimeIntegrityQaStepResult {
-  process.stdout.write(`\n==> ${step.label}\n`);
-
-  const result = spawnSync(step.command, step.args, {
-    cwd: process.cwd(),
-    env: process.env,
-    stdio: "inherit",
-    shell: process.platform === "win32",
-  });
-
-  return {
-    label: step.label,
-    command: [step.command, ...step.args].join(" "),
-    status: result.status === 0 ? "passed" : "failed",
-  };
-}
+import {
+  formatQaCommand,
+  hasHelpFlag,
+  printUsage,
+  runQaCommandSteps,
+  type QaCommandStep,
+} from "./lib/qa-runner";
 
 async function main(): Promise<void> {
-  if (process.argv.includes("--help")) {
-    printUsage();
+  if (hasHelpFlag()) {
+    printUsage([
+      "Usage: npm run qa:runtime-integrity",
+      "Runs the focused runtime-truthfulness and retrieval-integrity bundle, writes release/runtime-integrity-evidence.json, and exits non-zero on any blocker.",
+    ]);
     return;
   }
 
-  const steps: Step[] = [
+  const steps: QaCommandStep[] = [
     {
       label: "integrity eval suites",
       command: "npm",
@@ -58,15 +34,11 @@ async function main(): Promise<void> {
     },
   ];
 
-  const results: RuntimeIntegrityQaStepResult[] = [];
-
-  for (const step of steps) {
-    const result = runStep(step);
-    results.push(result);
-    if (result.status === "failed") {
-      break;
-    }
-  }
+  const results: RuntimeIntegrityQaStepResult[] = runQaCommandSteps(steps).map((result) => ({
+    label: result.label,
+    command: formatQaCommand(result.command, result.args),
+    status: result.status === "failed" ? "failed" : "passed",
+  }));
 
   const blockingReasons = results
     .filter((result) => result.status === "failed")
@@ -90,7 +62,10 @@ main().catch((error) => {
     blockingReasons: [error instanceof Error ? error.message : String(error)],
   });
 
-  printUsage();
+  printUsage([
+    "Usage: npm run qa:runtime-integrity",
+    "Runs the focused runtime-truthfulness and retrieval-integrity bundle, writes release/runtime-integrity-evidence.json, and exits non-zero on any blocker.",
+  ]);
   process.stderr.write(`Runtime integrity evidence: ${artifactPath}\n`);
   process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
   process.exitCode = 1;

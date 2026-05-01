@@ -17,8 +17,9 @@ import {
 } from "@/components/jobs/job-workspace-helpers";
 import type { JobHistoryEntry } from "@/lib/jobs/job-event-history";
 import type { JobRequest } from "@/core/entities/job";
-import { buildJobStatusSnapshot } from "@/lib/jobs/job-read-model";
-import type { JobStatusSnapshot } from "@/lib/jobs/job-read-model";
+import { buildCanonicalJobSnapshot } from "@/lib/jobs/job-read-model";
+import type { CanonicalJobSnapshot } from "@/lib/jobs/job-read-model";
+import { getWorkflowStatusBucket, type CanonicalMediaWorkflowSnapshot } from "@/lib/media/workflows/media-workflow-read-model";
 import {
   applyJobsWorkspaceEvent,
   applyOptimisticJobSnapshot,
@@ -33,15 +34,18 @@ import {
 import { useJobsEventStream } from "@/components/jobs/useJobsEventStream";
 
 interface JobsWorkspaceProps {
-  jobs: JobStatusSnapshot[];
-  selectedJob: JobStatusSnapshot | null;
+  workflows?: CanonicalMediaWorkflowSnapshot[];
+  jobs: CanonicalJobSnapshot[];
+  selectedJob: CanonicalJobSnapshot | null;
   selectedJobHistory: JobHistoryEntry[];
   selectedJobId: string | null;
   userName: string;
 }
 
+const EMPTY_WORKFLOWS: CanonicalMediaWorkflowSnapshot[] = [];
+
 interface JobSelectionResponse {
-  job?: JobStatusSnapshot;
+  job?: CanonicalJobSnapshot;
 }
 
 interface JobHistoryResponse {
@@ -100,6 +104,7 @@ function getSyncLabel(syncState: ReturnType<typeof useJobsEventStream>): string 
 }
 
 export function JobsWorkspace({
+  workflows = EMPTY_WORKFLOWS,
   jobs,
   selectedJob,
   selectedJobHistory,
@@ -114,6 +119,7 @@ export function JobsWorkspace({
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [workspace, setWorkspace] = useState<JobsWorkspaceState>(() =>
     createJobsWorkspaceState({
+      workflows,
       jobs,
       selectedJob,
       selectedJobHistory,
@@ -128,12 +134,13 @@ export function JobsWorkspace({
     setWorkspace((current) =>
       replaceJobsWorkspaceState(current, {
         jobs,
+        workflows,
         selectedJob,
         selectedJobHistory,
         selectedJobId,
       }),
     );
-  }, [jobs, selectedJob, selectedJobHistory, selectedJobId]);
+  }, [jobs, selectedJob, selectedJobHistory, selectedJobId, workflows]);
 
   const syncState = useJobsEventStream({
     initialAfterSequence: getJobsWorkspaceMaxSequence(workspace),
@@ -147,9 +154,13 @@ export function JobsWorkspace({
     },
   });
 
-  const activeCount = workspace.jobs.filter((job) => job.part.status === "queued" || job.part.status === "running").length;
-  const attentionCount = workspace.jobs.filter((job) => job.part.status === "failed" || job.part.status === "canceled").length;
-  const completedCount = workspace.jobs.filter((job) => job.part.status === "succeeded").length;
+  const workspaceWorkflows = workspace.workflows ?? [];
+  const activeCount = workspace.jobs.filter((job) => job.status === "queued" || job.status === "running").length
+    + workspaceWorkflows.filter((workflow) => getWorkflowStatusBucket(workflow.status) === "active").length;
+  const attentionCount = workspace.jobs.filter((job) => job.status === "failed" || job.status === "canceled").length
+    + workspaceWorkflows.filter((workflow) => getWorkflowStatusBucket(workflow.status) === "attention").length;
+  const completedCount = workspace.jobs.filter((job) => job.status === "succeeded").length
+    + workspaceWorkflows.filter((workflow) => getWorkflowStatusBucket(workflow.status) === "completed").length;
 
   async function loadSelectedJob(jobId: string): Promise<void> {
     const requestId = selectionRequestRef.current + 1;
@@ -177,7 +188,7 @@ export function JobsWorkspace({
         ? await historyResponse.json() as JobHistoryResponse
         : null;
 
-      const nextSelectedJob = jobPayload?.job ?? workspace.jobs.find((job) => job.part.jobId === jobId) ?? null;
+      const nextSelectedJob = jobPayload?.job ?? workspace.jobs.find((job) => job.jobId === jobId) ?? null;
       const nextSelectedHistory = Array.isArray(historyPayload?.events) ? historyPayload.events : [];
 
       setWorkspace((current) =>
@@ -230,7 +241,7 @@ export function JobsWorkspace({
       }
 
       const body = await response.json() as JobActionResponse;
-      const nextSnapshot = body.job ? buildJobStatusSnapshot(body.job) : null;
+      const nextSnapshot = body.job ? buildCanonicalJobSnapshot(body.job) : null;
 
       if (nextSnapshot) {
         const isSelectedJobAction = workspace.selectedJobId === jobId;
@@ -247,11 +258,11 @@ export function JobsWorkspace({
           }),
         );
 
-        if (action === "retry" && isSelectedJobAction && nextSnapshot.part.jobId !== jobId) {
+        if (action === "retry" && isSelectedJobAction && nextSnapshot.jobId !== jobId) {
           const params = new URLSearchParams();
-          params.set("jobId", nextSnapshot.part.jobId);
+          params.set("jobId", nextSnapshot.jobId);
           router.replace(`/jobs?${params.toString()}`);
-          void loadSelectedJob(nextSnapshot.part.jobId);
+          void loadSelectedJob(nextSnapshot.jobId);
         }
 
         if (action === "cancel") {
@@ -275,7 +286,7 @@ export function JobsWorkspace({
     });
   }
 
-  async function handleCopySummary(job: JobStatusSnapshot): Promise<void> {
+  async function handleCopySummary(job: CanonicalJobSnapshot): Promise<void> {
     setErrorMessage(null);
     setStatusMessage(null);
 
@@ -287,7 +298,7 @@ export function JobsWorkspace({
     }
   }
 
-  async function handleCopyFailure(job: JobStatusSnapshot): Promise<void> {
+  async function handleCopyFailure(job: CanonicalJobSnapshot): Promise<void> {
     setErrorMessage(null);
     setStatusMessage(null);
 
@@ -305,7 +316,7 @@ export function JobsWorkspace({
     }
   }
 
-  function handleExportLog(job: JobStatusSnapshot, history: JobHistoryEntry[]): void {
+  function handleExportLog(job: CanonicalJobSnapshot, history: JobHistoryEntry[]): void {
     setErrorMessage(null);
     setStatusMessage(null);
 
@@ -363,7 +374,7 @@ export function JobsWorkspace({
           </div>
         )}
 
-        {workspace.jobs.length === 0 ? (
+        {workspace.jobs.length === 0 && workspaceWorkflows.length === 0 ? (
           <div className="jobs-empty-state px-(--space-inset-default) py-(--space-10) text-center sm:px-(--space-inset-panel) sm:py-(--space-16)" data-jobs-empty-state="true">
             <h2 className="text-xl font-semibold text-foreground/72">No jobs yet</h2>
             <p className="mx-auto mt-(--space-3) max-w-xl text-sm leading-6 text-foreground/55">
@@ -373,28 +384,80 @@ export function JobsWorkspace({
         ) : (
           <div className="jobs-workspace-grid grid gap-(--space-3) xl:grid-cols-2 sm:gap-(--space-4)" data-jobs-workspace-grid="true">
             <div className="jobs-job-list grid gap-(--space-2) sm:gap-(--space-3)" data-jobs-list="true">
+              {workspaceWorkflows.map((workflow) => {
+                const isTerminal = workflow.status === "succeeded" || workflow.status === "failed" || workflow.status === "blocked" || workflow.status === "canceled";
+
+                return (
+                  <article
+                    key={workflow.workflowId}
+                    className="jobs-detail-surface w-full px-(--space-inset-default) py-(--space-inset-default) text-left sm:px-(--space-inset-panel) sm:py-(--space-inset-panel)"
+                    data-testid={`workflow-card-${workflow.workflowId}`}
+                    data-jobs-workflow-card="true"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-(--space-3)">
+                      <div className="flex flex-wrap items-center gap-(--space-2)">
+                        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.12em] ${isTerminal ? getStatusTone(workflow.status === "blocked" ? "failed" : workflow.status) : getStatusTone("running")}`}>
+                          {workflow.status === "blocked" ? "Needs Attention" : workflow.status}
+                        </span>
+                        <span className="jobs-metric-pill inline-flex rounded-full px-2 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-foreground/55">
+                          {workflow.requestedDeliverable}_workflow
+                        </span>
+                      </div>
+                      <span className="text-xs text-foreground/45">Updated {formatJobTimestamp(workflow.updatedAt)}</span>
+                    </div>
+                    <h2 className="mt-(--space-3) text-lg font-semibold tracking-tight text-foreground">{workflow.title}</h2>
+                    <p className="mt-(--space-3) text-sm leading-6 text-foreground/68">
+                      {workflow.failure.message ?? workflow.stage.label}
+                    </p>
+                    {workflow.stage.progressPercent != null ? (
+                      <div className="mt-(--space-3) space-y-1">
+                        <div className="flex items-center justify-between text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-foreground/45">
+                          <span>{workflow.stage.label}</span>
+                          <span>{Math.round(workflow.stage.progressPercent)}%</span>
+                        </div>
+                        <div className="jobs-progress-track h-1.5 overflow-hidden rounded-full">
+                          <div
+                            className="jobs-progress-fill h-full rounded-full"
+                            style={{ width: `${Math.max(0, Math.min(100, workflow.stage.progressPercent))}%` }}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+                    <div className="mt-(--space-3) flex flex-wrap gap-(--space-2) text-xs text-foreground/50">
+                      {workflow.linkedJobIds.length > 0 ? (
+                        <span>{workflow.linkedJobIds.length} linked job{workflow.linkedJobIds.length === 1 ? "" : "s"}</span>
+                      ) : null}
+                      {workflow.finalArtifact ? (
+                        <a className="font-semibold text-foreground/70 underline-offset-4 hover:underline" href={`/api/user-files/${workflow.finalArtifact.assetId}`}>
+                          Open {workflow.finalArtifact.kind}
+                        </a>
+                      ) : null}
+                    </div>
+                  </article>
+                );
+              })}
               {workspace.jobs.map((snapshot) => {
-                const title = snapshot.part.title ?? snapshot.part.label;
-                const isSelected = snapshot.part.jobId === workspace.selectedJobId;
+                const title = snapshot.title ?? snapshot.label;
+                const isSelected = snapshot.jobId === workspace.selectedJobId;
                 const summary = formatJobSummary(snapshot);
 
                 return (
                   <button
-                    key={snapshot.part.jobId}
+                    key={snapshot.jobId}
                     type="button"
                     className={`jobs-detail-surface w-full px-(--space-inset-default) py-(--space-inset-default) text-left transition sm:px-(--space-inset-panel) sm:py-(--space-inset-panel) ${isSelected ? "jobs-card-selected" : "jobs-card-idle"}`}
-                    onClick={() => handleSelectJob(snapshot.part.jobId)}
+                    onClick={() => handleSelectJob(snapshot.jobId)}
                     aria-pressed={isSelected}
-                    data-testid={`job-card-${snapshot.part.jobId}`}
+                    data-testid={`job-card-${snapshot.jobId}`}
                     data-jobs-card="true"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-(--space-3)">
                       <div className="flex flex-wrap items-center gap-(--space-2)">
-                        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.12em] ${getStatusTone(snapshot.part.status)}`}>
-                          {STATUS_LABELS[snapshot.part.status]}
+                        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.12em] ${getStatusTone(snapshot.status)}`}>
+                          {STATUS_LABELS[snapshot.status]}
                         </span>
                         <span className="jobs-metric-pill inline-flex rounded-full px-2 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-foreground/55">
-                          {snapshot.part.toolName}
+                          {snapshot.toolName}
                         </span>
                         {isSelected ? (
                           <span className="inline-flex rounded-full border border-foreground/12 px-2 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-foreground/50">
@@ -402,34 +465,34 @@ export function JobsWorkspace({
                           </span>
                         ) : null}
                       </div>
-                      <span className="text-xs text-foreground/45">Updated {formatJobTimestamp(snapshot.part.updatedAt)}</span>
+                      <span className="text-xs text-foreground/45">Updated {formatJobTimestamp(snapshot.updatedAt)}</span>
                     </div>
                     <h2 className="mt-(--space-3) text-lg font-semibold tracking-tight text-foreground">{title}</h2>
-                    {!isSelected && snapshot.part.subtitle ? (
-                      <p className="mt-1 text-sm text-foreground/55">{snapshot.part.subtitle}</p>
+                    {!isSelected && snapshot.subtitle ? (
+                      <p className="mt-1 text-sm text-foreground/55">{snapshot.subtitle}</p>
                     ) : null}
                     <p className="mt-(--space-3) text-sm leading-6 text-foreground/68">
                       {isSelected ? "Opened in the detail panel. Use the right side for full history and actions." : summary}
                     </p>
-                    {snapshot.part.progressPercent != null ? (
+                    {snapshot.progressPercent != null ? (
                       <div className="mt-(--space-3) space-y-1">
                         <div className="flex items-center justify-between text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-foreground/45">
-                          <span>{snapshot.part.progressLabel ?? "Progress"}</span>
-                          <span>{Math.round(snapshot.part.progressPercent)}%</span>
+                          <span>{snapshot.progressLabel ?? "Progress"}</span>
+                          <span>{Math.round(snapshot.progressPercent)}%</span>
                         </div>
                         <div className="jobs-progress-track h-1.5 overflow-hidden rounded-full">
                           <div
                             className="jobs-progress-fill h-full rounded-full"
-                            style={{ width: `${Math.max(0, Math.min(100, snapshot.part.progressPercent))}%` }}
+                            style={{ width: `${Math.max(0, Math.min(100, snapshot.progressPercent))}%` }}
                           />
                         </div>
                       </div>
                     ) : null}
                     <div className="mt-(--space-3) flex flex-wrap items-center gap-(--space-2) text-xs text-foreground/50">
                       {isSelected ? (
-                        <span>Job {snapshot.part.jobId}</span>
+                        <span>Job {snapshot.jobId}</span>
                       ) : (
-                        <span>{STATUS_LABELS[snapshot.part.status]} queue item</span>
+                        <span>{STATUS_LABELS[snapshot.status]} queue item</span>
                       )}
                     </div>
                   </button>

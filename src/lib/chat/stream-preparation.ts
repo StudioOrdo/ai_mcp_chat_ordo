@@ -15,6 +15,7 @@ import {
   buildMediaContinuityContextBlock,
   type MediaContinuityHandoff,
 } from "@/lib/chat/media-continuity-handoff";
+import { buildRelationshipMemoryContextBlock } from "@/lib/chat/relationship-memory-context";
 import type {
   PromptAssemblyBuilder,
   PromptRuntimeResult,
@@ -149,6 +150,7 @@ export async function prepareStreamContext(options: {
   builder: PromptAssemblyBuilder;
   interactor: ReturnType<typeof createConversationRuntimeServices>["interactor"];
   routingAnalyzer: ReturnType<typeof createConversationRuntimeServices>["routingAnalyzer"];
+  relationshipMemoryReader: ReturnType<typeof createConversationRuntimeServices>["relationshipMemoryReader"];
   conversationId: string;
   userId: string;
   incomingMessages: ChatMessage[];
@@ -188,6 +190,22 @@ export async function prepareStreamContext(options: {
   const contextWindow = buildContextWindow(allMessages.messages);
   options.builder.withConversationSummary(contextWindow.summaryText);
   applyContextWindowGuard(options.builder, contextWindow.guard);
+  const activeRelationshipMemory = await options.relationshipMemoryReader.listActiveByConversation(options.conversationId);
+  const relationshipMemoryBlock = buildRelationshipMemoryContextBlock(activeRelationshipMemory);
+  if (relationshipMemoryBlock) {
+    options.builder.withSection({
+      key: "relationship_memory",
+      content: relationshipMemoryBlock,
+      priority: 44,
+      payload: {
+        memoryRefs: activeRelationshipMemory.map((record) => ({
+          id: record.id,
+          memoryType: record.memoryType,
+          updatedAt: record.updatedAt,
+        })),
+      },
+    });
+  }
   options.builder.withRoutingContext(routingSnapshot);
   applyMediaContinuityHandoff(options.builder, options.mediaContinuityHandoff);
   if (options.mediaContinuityHandoff) {

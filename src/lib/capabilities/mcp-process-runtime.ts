@@ -18,6 +18,31 @@ export interface McpToolCallRequest {
   arguments?: Record<string, unknown>;
 }
 
+interface McpToolCallAuditContext {
+  userId?: string;
+  role?: string;
+  conversationId?: string;
+  toolInvocationId?: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function extractMcpToolCallAuditContext(request: McpToolCallRequest): McpToolCallAuditContext {
+  const executionContext = request.arguments?.__executionContext;
+  if (!isRecord(executionContext)) {
+    return {};
+  }
+
+  return {
+    ...(typeof executionContext.userId === "string" ? { userId: executionContext.userId } : {}),
+    ...(typeof executionContext.role === "string" ? { role: executionContext.role } : {}),
+    ...(typeof executionContext.conversationId === "string" ? { conversationId: executionContext.conversationId } : {}),
+    ...(typeof executionContext.toolInvocationId === "string" ? { toolInvocationId: executionContext.toolInvocationId } : {}),
+  };
+}
+
 export interface McpProcessSession {
   callTool(request: McpToolCallRequest): Promise<unknown>;
   close(): Promise<void>;
@@ -103,11 +128,14 @@ class DefaultMcpProcessSession implements McpProcessSession {
   }
 
   async callTool(request: McpToolCallRequest): Promise<unknown> {
+    const auditContext = extractMcpToolCallAuditContext(request);
+
     try {
       await appendRuntimeAuditLog("mcp_process", "tool_call_started", {
         targetId: this.options.targetId,
         toolName: request.name,
         arguments: request.arguments,
+        ...auditContext,
       });
 
       const result = await this.client.callTool(request);
@@ -115,6 +143,7 @@ class DefaultMcpProcessSession implements McpProcessSession {
         targetId: this.options.targetId,
         toolName: request.name,
         result,
+        ...auditContext,
       });
       return result;
     } catch (error) {
@@ -124,6 +153,7 @@ class DefaultMcpProcessSession implements McpProcessSession {
         toolName: request.name,
         arguments: request.arguments,
         stderrOutput: stderrOutput || null,
+        ...auditContext,
         error,
       });
       if (stderrOutput.length > 0) {

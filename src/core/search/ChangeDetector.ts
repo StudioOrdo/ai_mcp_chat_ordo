@@ -18,8 +18,7 @@ export class ChangeDetector {
   }
 
   findOrphaned(sourceType: string, activeSourceIds: Set<string>): string[] {
-    const stored = this.vectorStore.getAll({ sourceType });
-    const storedIds = new Set(stored.map((r) => r.sourceId));
+    const storedIds = new Set(this.vectorStore.listSourceIds(sourceType));
     return [...storedIds].filter((id) => !activeSourceIds.has(id));
   }
 }

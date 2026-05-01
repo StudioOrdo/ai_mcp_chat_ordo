@@ -115,6 +115,31 @@ export function runMigrations(db: Database.Database): void {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_conv_purge_audits_purged_at ON conversation_purge_audits(purged_at)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_conv_purge_audits_reason ON conversation_purge_audits(purge_reason)`);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS identity_migration_events (
+      id TEXT PRIMARY KEY,
+      source_user_id TEXT NOT NULL,
+      target_user_id TEXT NOT NULL,
+      migrated_conversation_ids_json TEXT NOT NULL DEFAULT '[]',
+      migrated_job_ids_json TEXT NOT NULL DEFAULT '[]',
+      migrated_asset_ids_json TEXT NOT NULL DEFAULT '[]',
+      repaired_memory_refs_json TEXT NOT NULL DEFAULT '[]',
+      repaired_search_source_ids_json TEXT NOT NULL DEFAULT '[]',
+      object_counts_json TEXT NOT NULL DEFAULT '[]',
+      repair_refs_json TEXT NOT NULL DEFAULT '[]',
+      status TEXT NOT NULL,
+      current_stage TEXT DEFAULT NULL,
+      failure_message TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      completed_at TEXT DEFAULT NULL,
+      FOREIGN KEY (source_user_id) REFERENCES users(id),
+      FOREIGN KEY (target_user_id) REFERENCES users(id)
+    )
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_identity_migration_source_created ON identity_migration_events(source_user_id, created_at DESC)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_identity_migration_target_created ON identity_migration_events(target_user_id, created_at DESC)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_identity_migration_status_stage ON identity_migration_events(status, current_stage, created_at DESC)`);
+
   addColumnIfNotExists(
     db,
     "messages",
@@ -142,18 +167,152 @@ export function runMigrations(db: Database.Database): void {
   db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_prompt_provenance_user_message ON prompt_provenance_records(user_message_id)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_prompt_provenance_assistant_message ON prompt_provenance_records(assistant_message_id)`);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS prompt_bindings (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      conversation_id TEXT DEFAULT NULL,
+      surface TEXT NOT NULL,
+      target_kind TEXT NOT NULL,
+      target_id TEXT NOT NULL,
+      source_prompt_binding_id TEXT DEFAULT NULL,
+      effective_hash TEXT NOT NULL,
+      slot_refs_json TEXT NOT NULL DEFAULT '[]',
+      overlay_refs_json TEXT NOT NULL DEFAULT '[]',
+      request_refs_json TEXT NOT NULL DEFAULT '[]',
+      decision_source_refs_json TEXT NOT NULL DEFAULT '[]',
+      evidence_refs_json TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+      FOREIGN KEY (source_prompt_binding_id) REFERENCES prompt_bindings(id) ON DELETE SET NULL
+    )
+  `);
+  addColumnIfNotExists(db, "prompt_bindings", "target_kind", "TEXT NOT NULL DEFAULT 'conversation'");
+  addColumnIfNotExists(db, "prompt_bindings", "target_id", "TEXT NOT NULL DEFAULT ''");
+  addColumnIfNotExists(db, "prompt_bindings", "source_prompt_binding_id", "TEXT DEFAULT NULL");
+  addColumnIfNotExists(db, "prompt_bindings", "request_refs_json", "TEXT NOT NULL DEFAULT '[]'");
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_prompt_bindings_conversation_created ON prompt_bindings(conversation_id, created_at)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_prompt_bindings_user_created ON prompt_bindings(user_id, created_at)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_prompt_bindings_target ON prompt_bindings(target_kind, target_id, created_at)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_prompt_bindings_source_binding ON prompt_bindings(source_prompt_binding_id, created_at)`);
+
   addColumnIfNotExists(db, "job_requests", "failure_class", "TEXT DEFAULT NULL");
   addColumnIfNotExists(db, "job_requests", "next_retry_at", "TEXT DEFAULT NULL");
   addColumnIfNotExists(db, "job_requests", "recovery_mode", "TEXT DEFAULT NULL");
   addColumnIfNotExists(db, "job_requests", "last_checkpoint_id", "TEXT DEFAULT NULL");
   addColumnIfNotExists(db, "job_requests", "replayed_from_job_id", "TEXT DEFAULT NULL");
   addColumnIfNotExists(db, "job_requests", "superseded_by_job_id", "TEXT DEFAULT NULL");
+  addColumnIfNotExists(db, "job_requests", "origin_message_id", "TEXT DEFAULT NULL");
+  addColumnIfNotExists(db, "job_requests", "origin_turn_id", "TEXT DEFAULT NULL");
+  addColumnIfNotExists(db, "job_requests", "tool_invocation_id", "TEXT DEFAULT NULL");
   db.exec(`CREATE INDEX IF NOT EXISTS idx_job_requests_replayed_from ON job_requests(replayed_from_job_id)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_job_requests_superseded_by ON job_requests(superseded_by_job_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_job_requests_origin_turn ON job_requests(origin_turn_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_job_requests_tool_invocation ON job_requests(tool_invocation_id)`);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS materialization_records (
+      id TEXT PRIMARY KEY,
+      user_id TEXT DEFAULT NULL,
+      conversation_id TEXT DEFAULT NULL,
+      materialization_key TEXT NOT NULL,
+      tool_name TEXT NOT NULL,
+      pipeline_version TEXT DEFAULT NULL,
+      status TEXT NOT NULL,
+      reuse_policy TEXT NOT NULL,
+      input_source_refs_json TEXT NOT NULL DEFAULT '[]',
+      output_refs_json TEXT NOT NULL DEFAULT '[]',
+      evidence_refs_json TEXT NOT NULL DEFAULT '[]',
+      produced_by_job_id TEXT DEFAULT NULL,
+      superseded_by_record_id TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+      FOREIGN KEY (produced_by_job_id) REFERENCES job_requests(id) ON DELETE SET NULL,
+      FOREIGN KEY (superseded_by_record_id) REFERENCES materialization_records(id) ON DELETE SET NULL
+    )
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_materialization_key ON materialization_records(materialization_key)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_materialization_tool_status ON materialization_records(tool_name, status)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_materialization_job ON materialization_records(produced_by_job_id)`);
   addColumnIfNotExists(db, "user_files", "metadata_json", "TEXT NOT NULL DEFAULT '{}'" );
   addColumnIfNotExists(db, "user_files", "status", "TEXT NOT NULL DEFAULT 'ready'" );
   db.exec(`CREATE INDEX IF NOT EXISTS idx_uf_user_created_id ON user_files(user_id, created_at DESC, id DESC)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_uf_created_id ON user_files(created_at DESC, id DESC)`);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS media_workflows (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      conversation_id TEXT NOT NULL,
+      origin_message_id TEXT DEFAULT NULL,
+      origin_turn_id TEXT DEFAULT NULL,
+      requested_deliverable TEXT NOT NULL,
+      title TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL,
+      final_asset_id TEXT DEFAULT NULL,
+      failure_code TEXT DEFAULT NULL,
+      failure_message TEXT DEFAULT NULL,
+      request_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      completed_at TEXT DEFAULT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_media_workflows_conversation_created
+      ON media_workflows(conversation_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_media_workflows_user_status
+      ON media_workflows(user_id, status, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_media_workflows_origin_message
+      ON media_workflows(origin_message_id);
+
+    CREATE TABLE IF NOT EXISTS media_workflow_steps (
+      id TEXT PRIMARY KEY,
+      workflow_id TEXT NOT NULL,
+      sequence INTEGER NOT NULL,
+      kind TEXT NOT NULL,
+      status TEXT NOT NULL,
+      depends_on_step_ids_json TEXT NOT NULL DEFAULT '[]',
+      job_id TEXT DEFAULT NULL,
+      asset_id TEXT DEFAULT NULL,
+      input_json TEXT NOT NULL DEFAULT '{}',
+      output_json TEXT NOT NULL DEFAULT '{}',
+      failure_code TEXT DEFAULT NULL,
+      failure_message TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (workflow_id) REFERENCES media_workflows(id) ON DELETE CASCADE,
+      FOREIGN KEY (job_id) REFERENCES job_requests(id) ON DELETE SET NULL
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_media_workflow_steps_sequence
+      ON media_workflow_steps(workflow_id, sequence);
+    CREATE INDEX IF NOT EXISTS idx_media_workflow_steps_workflow_status
+      ON media_workflow_steps(workflow_id, status, sequence);
+    CREATE INDEX IF NOT EXISTS idx_media_workflow_steps_job
+      ON media_workflow_steps(job_id);
+    CREATE INDEX IF NOT EXISTS idx_media_workflow_steps_asset
+      ON media_workflow_steps(asset_id);
+
+    CREATE TABLE IF NOT EXISTS media_workflow_events (
+      id TEXT PRIMARY KEY,
+      workflow_id TEXT NOT NULL,
+      step_id TEXT DEFAULT NULL,
+      event_type TEXT NOT NULL,
+      payload_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (workflow_id) REFERENCES media_workflows(id) ON DELETE CASCADE,
+      FOREIGN KEY (step_id) REFERENCES media_workflow_steps(id) ON DELETE SET NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_media_workflow_events_workflow_created
+      ON media_workflow_events(workflow_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_media_workflow_events_step
+      ON media_workflow_events(step_id, created_at);
+  `);
 
   addColumnIfNotExists(
     db,

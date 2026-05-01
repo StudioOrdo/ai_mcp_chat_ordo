@@ -335,13 +335,8 @@ describe("deferred job runtime", () => {
         progressPercent: 5,
         progressLabel: getComposeMediaProgressLabel("staging_assets", {
           plan: {
-            id: "plan_media_1",
-            conversationId: "conv_jobs",
             visualClips: [{ assetId: "asset_visual_1", kind: "video" }],
             audioClips: [],
-            subtitlePolicy: "none",
-            waveformPolicy: "none",
-            outputFormat: "mp4",
           },
           progressPercent: 5,
         }),
@@ -374,23 +369,22 @@ describe("deferred job runtime", () => {
       { abortSignal: new AbortController().signal, reportProgress },
     );
 
-    expect(executeComposeMediaJobMock).toHaveBeenCalledWith({
-      plan: expect.objectContaining({ id: "plan_media_1", conversationId: "conv_jobs" }),
-      userId: "usr_admin",
-      conversationId: "conv_jobs",
-    }, expect.any(Function));
+    expect(executeComposeMediaJobMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        plan: expect.objectContaining({ id: "plan_media_1", conversationId: "conv_jobs" }),
+        userId: "usr_admin",
+        conversationId: "conv_jobs",
+        jobId: "job_compose_media",
+      }),
+      expect.any(Function),
+    );
     expect(reportProgress).toHaveBeenNthCalledWith(1, expect.objectContaining({
       activePhaseKey: "staging_assets",
       progressPercent: 5,
       progressLabel: getComposeMediaProgressLabel("staging_assets", {
         plan: {
-          id: "plan_media_1",
-          conversationId: "conv_jobs",
           visualClips: [{ assetId: "asset_visual_1", kind: "video" }],
           audioClips: [],
-          subtitlePolicy: "none",
-          waveformPolicy: "none",
-          outputFormat: "mp4",
         },
         progressPercent: 5,
       }),

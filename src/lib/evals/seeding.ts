@@ -259,6 +259,49 @@ export function resolveDeterministicSeedPack(scenarioId: string): DeterministicE
         trainingPaths: [],
         toolFixtures: [],
       };
+    case "media-workflow-video-completion-deterministic":
+      return {
+        scenarioId,
+        seedSetId: "seed-media-workflow-video-v1",
+        refs: {
+          primaryConversationId: "conv_eval_media_workflow_video",
+          authenticatedUserId: "usr_eval_media_workflow",
+        },
+        users: [
+          { id: "usr_eval_media_workflow", email: "media.workflow@example.com", name: "Media Workflow User" },
+        ],
+        conversations: [
+          buildAuthConversation({
+            id: "conv_eval_media_workflow_video",
+            userId: "usr_eval_media_workflow",
+            title: "Member requests chart audio video workflow",
+            lane: "organization",
+            confidence: 0.84,
+            recommendedNextStep: "Create the requested video as one governed media workflow.",
+            detectedNeedSummary: "User wants a chart plus generated audio composed into a final video.",
+            messages: [
+              {
+                id: "msg_eval_media_workflow_user",
+                role: "user",
+                content: "Make me a short video with a Bloom taxonomy chart and a new 30 second audio explanation.",
+                createdAt: "2026-05-01T16:47:22.584Z",
+              },
+              {
+                id: "msg_eval_media_workflow_assistant",
+                role: "assistant",
+                content: "I am generating the chart and audio, then composing the final video.",
+                createdAt: "2026-05-01T16:47:35.000Z",
+              },
+            ],
+          }),
+        ],
+        conversationEvents: [],
+        leads: [],
+        consultationRequests: [],
+        deals: [],
+        trainingPaths: [],
+        toolFixtures: [],
+      };
     case "mcp-tool-avoidance":
       return {
         scenarioId,
@@ -932,7 +975,7 @@ export function resolveDeterministicSeedPack(scenarioId: string): DeterministicE
             title: "Admin reloads after missing the final blog job event",
             lane: "organization",
             confidence: 0.92,
-            recommendedNextStep: "Recover the completed blog draft through the snapshot path.",
+            recommendedNextStep: "Recover the completed blog draft through durable reconciliation.",
             detectedNeedSummary: "Missed SSE should not hide terminal blog job results.",
             messages: [
               {

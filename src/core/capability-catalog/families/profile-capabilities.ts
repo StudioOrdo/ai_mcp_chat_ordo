@@ -117,6 +117,22 @@ export const PROFILE_CAPABILITIES = {
       cardKind: "fallback",
       executionMode: "inline",
     },
+    promptHint: {
+      roleDirectiveLines: {
+        AUTHENTICATED: [
+          "- Use job status tools for explicit inspection and diagnostics; do not repeatedly poll unchanged job status as a waiting loop. Active chat updates arrive through job events and reconciliation.",
+        ],
+        APPRENTICE: [
+          "- Use job status tools for explicit inspection and diagnostics; do not repeatedly poll unchanged job status as a waiting loop. Active chat updates arrive through job events and reconciliation.",
+        ],
+        STAFF: [
+          "- Use job status tools for explicit inspection and diagnostics; do not repeatedly poll unchanged job status as a waiting loop. Active chat updates arrive through job events and reconciliation.",
+        ],
+        ADMIN: [
+          "- Use job status tools for explicit inspection and diagnostics; do not repeatedly poll unchanged job status as a waiting loop. Active chat updates arrive through job events and reconciliation.",
+        ],
+      },
+    },
   },
 
   list_my_jobs: {
@@ -145,6 +161,22 @@ export const PROFILE_CAPABILITIES = {
       family: "system",
       cardKind: "fallback",
       executionMode: "inline",
+    },
+    promptHint: {
+      roleDirectiveLines: {
+        AUTHENTICATED: [
+          "- Use job status tools for explicit inspection and diagnostics; do not repeatedly poll unchanged job status as a waiting loop. Active chat updates arrive through job events and reconciliation.",
+        ],
+        APPRENTICE: [
+          "- Use job status tools for explicit inspection and diagnostics; do not repeatedly poll unchanged job status as a waiting loop. Active chat updates arrive through job events and reconciliation.",
+        ],
+        STAFF: [
+          "- Use job status tools for explicit inspection and diagnostics; do not repeatedly poll unchanged job status as a waiting loop. Active chat updates arrive through job events and reconciliation.",
+        ],
+        ADMIN: [
+          "- Use job status tools for explicit inspection and diagnostics; do not repeatedly poll unchanged job status as a waiting loop. Active chat updates arrive through job events and reconciliation.",
+        ],
+      },
     },
   },
 } as const satisfies Record<string, CapabilityDefinition>;

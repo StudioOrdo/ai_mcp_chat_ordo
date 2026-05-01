@@ -96,4 +96,34 @@ describe("operations MCP stdio transport", () => {
       totalCount: 0,
     });
   }, TEST_TIMEOUT_MS);
+
+  it("routes catalog-owned admin_web_search through the operations adapter registry", async () => {
+    const result = await getHarness().callTool("admin_web_search", {});
+    const payload = parseJsonTextContent<{
+      action: string;
+      error: string;
+    }>(result);
+
+    expect(payload).toMatchObject({
+      action: "admin_web_search",
+      error: "query is required and must be non-empty",
+    });
+  }, TEST_TIMEOUT_MS);
+
+  it("routes catalog-owned inspect_runtime_logs through the operations adapter registry", async () => {
+    const result = await getHarness().callTool("inspect_runtime_logs", {
+      log_file: "mcp_process",
+      limit: 1,
+    });
+    const payload = parseJsonTextContent<{
+      lines: Array<Record<string, unknown>>;
+      total_scanned: number;
+      matched: number;
+    }>(result);
+
+    expect(Array.isArray(payload.lines)).toBe(true);
+    expect(payload.total_scanned).toBeGreaterThanOrEqual(0);
+    expect(payload.matched).toBe(payload.lines.length);
+    expect(payload.matched).toBeLessThanOrEqual(1);
+  }, TEST_TIMEOUT_MS);
 });

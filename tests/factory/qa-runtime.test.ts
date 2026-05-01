@@ -149,10 +149,11 @@ describe("Phase 4 QA runtime", () => {
 
     const correctedAsset = result.supplementalOutputs[0]?.entity as FactoryAsset;
     const correctedComposition = result.supplementalOutputs[1]?.entity as Composition;
+    const correctedCompositionOutput = result.supplementalOutputs[1];
 
     expect(correctedAsset.provenance.previousAssetId).toBe(imageAsset.id);
     expect(correctedAsset.generationParams.altText).toBe("Factory launch page image");
-    expect(correctedComposition.supersedesEntityId).toBeUndefined();
+    expect(correctedCompositionOutput?.supersedesEntityId).toBe(composition.id);
     expect(correctedComposition.embeddedAssetIds).toContain(correctedAsset.id);
     expect(correctedComposition.htmlContent).toContain("<figure");
     expect(result.assetReport.assetReports.find((report) => report.assetId === correctedAsset.id)?.status).toBe("passed");

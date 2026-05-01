@@ -16,8 +16,21 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/components/shell/ShellBrand", () => ({
-  ShellBrand: ({ href, className }: { href: string; className?: string }) => (
-    <a href={href} className={className} data-testid="shell-brand">
+  ShellBrand: ({
+    href,
+    className,
+    showMark = true,
+  }: {
+    href: string;
+    className?: string;
+    showMark?: boolean;
+  }) => (
+    <a
+      href={href}
+      className={className}
+      data-testid="shell-brand"
+      data-shell-brand-mark-visible={String(showMark)}
+    >
       Studio Ordo
     </a>
   ),
@@ -36,11 +49,19 @@ vi.mock("@/components/ShellNavDrawer", () => ({
 }));
 
 vi.mock("@/components/ShellWorkspaceMenu", () => ({
-  ShellWorkspaceMenu: () => <div data-testid="workspace-menu" />,
+  ShellWorkspaceMenu: () => <div data-testid="workspace-menu" data-shell-workspace-menu="true" />,
 }));
 
-vi.mock("@/components/GlobalSearchBar", () => ({
-  GlobalSearchBar: () => <div data-testid="global-search" />,
+vi.mock("@/frameworks/ui/jobs-rail/JobsRail", () => ({
+  JobsRail: () => <div data-testid="jobs-rail" />,
+}));
+
+vi.mock("@/frameworks/ui/jobs-rail/useJobsRailController", () => ({
+  useJobsRailController: () => ({
+    model: {},
+    utilityActions: {},
+    onAction: vi.fn(),
+  }),
 }));
 
 vi.mock("@/lib/shell/shell-navigation", () => ({
@@ -98,18 +119,17 @@ describe("SiteNav", () => {
     expect(nav.querySelector('[data-shell-nav-band="true"]')).not.toBeNull();
   });
 
-  it("renders the shell-owned global search region off the home route", () => {
+  it("keeps the shell nav focused on brand and account actions off the home route", () => {
     usePathnameMock.mockReturnValue("/library");
 
     render(<SiteNav user={user} />);
 
-    expect(screen.getByTestId("global-search")).toBeInTheDocument();
     expect(screen.getByTestId("workspace-menu")).toBeInTheDocument();
     expect(screen.queryByTestId("shell-nav-drawer")).toBeNull();
     expect(screen.queryByTestId("account-menu")).toBeNull();
   });
 
-  it("keeps shell search available alongside the unified home utility cluster", () => {
+  it("keeps the unified home utility cluster without a dedicated search region", () => {
     usePathnameMock.mockReturnValue("/");
 
     render(<SiteNav user={user} />);
@@ -117,21 +137,38 @@ describe("SiteNav", () => {
     const nav = screen.getByRole("navigation", { name: "Primary" });
 
     expect(screen.getByTestId("notification-feed")).toBeInTheDocument();
+    expect(screen.getByTestId("jobs-rail")).toBeInTheDocument();
     expect(screen.getByTestId("workspace-menu")).toBeInTheDocument();
     expect(screen.queryByTestId("shell-nav-drawer")).toBeNull();
     expect(screen.queryByTestId("account-menu")).toBeNull();
-    expect(screen.getByTestId("global-search")).toBeInTheDocument();
     expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).toBeNull();
-    expect(nav.querySelector('[data-shell-nav-region="search"]')).not.toBeNull();
+    expect(nav.querySelector('[data-shell-nav-region="search"]')).toBeNull();
   });
 
-  it("replaces notifications with login and register links for anonymous users", () => {
+  it("places the workspace menu in the left brand region before account utilities", () => {
+    usePathnameMock.mockReturnValue("/");
+
+    render(<SiteNav user={user} />);
+
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+    const brandRegion = nav.querySelector('[data-shell-nav-region="brand"]');
+    const accountRegion = nav.querySelector('[data-shell-nav-region="account-access"]');
+
+    expect(brandRegion?.querySelectorAll('[data-shell-workspace-menu="true"]')).toHaveLength(1);
+    expect(brandRegion?.querySelector('[data-testid="shell-brand"]')).toHaveAttribute("data-shell-brand-mark-visible", "false");
+    expect(accountRegion?.querySelectorAll('[data-shell-workspace-menu="true"]')).toHaveLength(0);
+    expect(accountRegion?.querySelector('[data-testid="jobs-rail"]')).not.toBeNull();
+    expect(accountRegion?.querySelector('[data-testid="notification-feed"]')).not.toBeNull();
+  });
+
+  it("replaces jobs and notifications with login and register links for anonymous users", () => {
     usePathnameMock.mockReturnValue("/");
 
     render(<SiteNav user={anonymousUser} />);
 
     const nav = screen.getByRole("navigation", { name: "Primary" });
 
+  expect(screen.queryByTestId("jobs-rail")).toBeNull();
     expect(screen.queryByTestId("notification-feed")).toBeNull();
     expect(screen.getByRole("link", { name: "Login" })).toHaveAttribute("href", "/login");
     expect(screen.getByRole("link", { name: "Register" })).toHaveAttribute("href", "/register");
@@ -161,9 +198,8 @@ describe("SiteNav", () => {
 
     expect(utilitiesCss).toContain("margin-inline: auto;");
     expect(utilitiesCss).toContain("padding-inline: var(--container-padding);");
-    expect(shellCss).toContain("--shell-nav-search-max-inline");
     expect(shellCss).toContain("grid-template-areas:");
-    expect(shellCss).toContain('"brand search actions"');
+    expect(shellCss).toContain('"brand actions"');
     expect(shellCss).toContain("minmax(max-content, 1fr)");
     expect(shellCss).toContain("@media (min-width: 56rem)");
     expect(shellCss).toContain("justify-self: end;");

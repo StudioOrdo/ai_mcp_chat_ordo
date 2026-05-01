@@ -170,14 +170,14 @@ describe("Sprint 3 — Negative tests", () => {
   it("N2: createInitialChatMessages falls back to hardcoded when prompts is undefined", () => {
     const [msg] = createInitialChatMessages("ANONYMOUS");
     expect(msg.content).toContain(
-      "Bring me the messy workflow, half-finished idea, or customer task.",
+      "Bring me the next decision, messy idea, or customer problem.",
     );
   });
 
   it("N3: createInitialChatMessages falls back when firstMessage.default is undefined", () => {
     const [msg] = createInitialChatMessages("ANONYMOUS", {});
     expect(msg.content).toContain(
-      "Bring me the messy workflow, half-finished idea, or customer task.",
+      "Bring me the next decision, messy idea, or customer problem.",
     );
   });
 
@@ -279,7 +279,7 @@ describe("Sprint 3 — Edge tests", () => {
     };
     const [msg] = createInitialChatMessages("ANONYMOUS", prompts);
     expect(msg.content).toContain("Custom greeting only.");
-    expect(msg.content).toContain("Plan this workflow");
+    expect(msg.content).toContain("Plan a customer workflow");
   });
 
   it("E7: BrandHeader hero renders correctly when prompts has only heroHeading", () => {

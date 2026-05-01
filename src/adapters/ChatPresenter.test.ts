@@ -1,8 +1,94 @@
 import { describe, it, expect, vi } from "vitest";
 import { ChatPresenter } from "./ChatPresenter";
 import type { ChatMessage } from "../core/entities/chat-message";
+import type { JobStatusMessagePart, MessagePart } from "../core/entities/message-parts";
 import type { MarkdownParserService } from "./MarkdownParserService";
 import type { CommandParserService } from "./CommandParserService";
+import type { CanonicalJobSnapshot } from "@/lib/jobs/job-read-model";
+import type { CanonicalMediaWorkflowSnapshot } from "@/lib/media/workflows/media-workflow-read-model";
+import {
+  countRawStatusToolResults,
+  KEITH_BASELINE_COMPLETED_PART,
+  createKeithBaselineTranscript,
+  createKeithBaselineJobStateEntries,
+  KEITH_BASELINE_JOB_ID,
+  KEITH_BASELINE_RUNNING_PART,
+} from "../../tests/fixtures/chat-job-event-baseline";
+
+function snapshotFromPart(
+  part: JobStatusMessagePart,
+  overrides: Partial<CanonicalJobSnapshot> = {},
+): CanonicalJobSnapshot {
+  const updatedAt = part.updatedAt ?? "2026-04-30T15:00:00.000Z";
+  return {
+    jobId: part.jobId,
+    conversationId: overrides.conversationId ?? "conv_test",
+    userId: overrides.userId ?? "usr_test",
+    toolName: part.toolName,
+    label: part.label,
+    title: part.title,
+    subtitle: part.subtitle,
+    status: part.status,
+    sequence: part.sequence ?? 0,
+    progressPercent: part.progressPercent,
+    progressLabel: part.progressLabel,
+    summary: part.summary,
+    error: part.error,
+    createdAt: overrides.createdAt ?? updatedAt,
+    startedAt: part.startedAt ?? null,
+    completedAt: part.completedAt ?? (part.status === "succeeded" ? updatedAt : null),
+    updatedAt,
+    origin: overrides.origin ?? { originMessageId: "msg-job-1", fallback: "explicit_origin" },
+    inputSnapshot: overrides.inputSnapshot ?? {},
+    resultPayload: part.resultPayload,
+    resultEnvelope: part.resultEnvelope ?? null,
+    artifactRefs: part.resultEnvelope?.artifacts ?? [],
+    materializationRefs: [],
+    ownership: overrides.ownership ?? { userId: "usr_test", visibility: "owner", initiatorType: "user" },
+    failure: {
+      failureClass: part.failureClass ?? null,
+      recoveryMode: part.recoveryMode ?? null,
+      nextRetryAt: part.nextRetryAt ?? null,
+      lastCheckpointId: part.lastCheckpointId ?? null,
+      replayedFromJobId: part.replayedFromJobId ?? null,
+      supersededByJobId: part.supersededByJobId ?? null,
+    },
+    ...overrides,
+  };
+}
+
+function workflowSnapshot(overrides: Partial<CanonicalMediaWorkflowSnapshot> = {}): CanonicalMediaWorkflowSnapshot {
+  return {
+    workflowId: "mwf_1",
+    conversationId: "conv_test",
+    userId: "usr_test",
+    title: "Bloom video",
+    requestedDeliverable: "video",
+    status: "running",
+    stage: { key: "compose_media", label: "Compose video", progressPercent: 50 },
+    steps: [
+      { stepId: "step_audio", kind: "generate_audio", status: "ready", jobId: "job_audio", assetId: "uf_audio", label: "Generate audio" },
+      { stepId: "step_compose", kind: "compose_media", status: "running", jobId: "job_compose", assetId: null, label: "Compose video" },
+    ],
+    finalArtifact: null,
+    failure: { code: null, message: null },
+    linkedJobIds: ["job_audio", "job_compose"],
+    linkedJobs: [],
+    originMessageId: "msg-workflow",
+    originTurnId: null,
+    createdAt: "2026-05-01T17:00:00.000Z",
+    updatedAt: "2026-05-01T17:01:00.000Z",
+    completedAt: null,
+    ...overrides,
+  };
+}
+
+function presentWithFirstJobSnapshot(presenter: ChatPresenter, message: ChatMessage) {
+  const [part] = message.parts ?? [];
+  return presenter.present(message, [
+    snapshotFromPart(part as JobStatusMessagePart, { origin: { originMessageId: message.id, fallback: "explicit_origin" } }),
+  ]);
+}
 
 describe("ChatPresenter", () => {
   const mockMarkdownParser = {
@@ -31,6 +117,28 @@ describe("ChatPresenter", () => {
     expect(presented.timestamp).toBeDefined();
   });
 
+  it("reconstructs assistant text from text parts when persisted content is empty", () => {
+    const markdownParser = {
+      parse: vi.fn().mockReturnValue({ blocks: [] }),
+    } as unknown as MarkdownParserService;
+    const presenter = new ChatPresenter(markdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-text-parts-only",
+      role: "assistant",
+      content: "",
+      timestamp: new Date("2026-04-30T20:29:54.137Z"),
+      parts: [
+        { type: "text", text: "Generating" },
+        { type: "text", text: " now — give it a moment." },
+      ],
+    };
+
+    const presented = presenter.present(message);
+
+    expect(presented.rawContent).toBe("Generating now — give it a moment.");
+    expect(markdownParser.parse).toHaveBeenCalledWith("Generating now — give it a moment.");
+  });
+
   it("should extract actions from __actions__ tag", () => {
     const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
     const message: ChatMessage = {
@@ -46,6 +154,42 @@ describe("ChatPresenter", () => {
       label: "View",
       action: "route",
       params: { path: "/help" },
+    });
+  });
+
+  it("renders workflow snapshots on their origin message and suppresses linked dependency jobs", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const messages: ChatMessage[] = [{
+      id: "msg-workflow",
+      role: "assistant",
+      content: "Generating your video.",
+      timestamp: new Date("2026-05-01T17:00:00.000Z"),
+    }];
+    const audioJob = snapshotFromPart({
+      type: "job_status",
+      jobId: "job_audio",
+      toolName: "generate_audio",
+      label: "Generate Audio",
+      status: "succeeded",
+      sequence: 4,
+      updatedAt: "2026-05-01T17:00:30.000Z",
+    }, { origin: { originMessageId: "msg-workflow", fallback: "explicit_origin" } });
+    const composeJob = snapshotFromPart({
+      type: "job_status",
+      jobId: "job_compose",
+      toolName: "compose_media",
+      label: "Compose Media",
+      status: "running",
+      sequence: 5,
+      updatedAt: "2026-05-01T17:01:00.000Z",
+    }, { origin: { originMessageId: "msg-workflow", fallback: "explicit_origin" } });
+
+    const [presented] = presenter.presentMany(messages, [audioJob, composeJob], [workflowSnapshot()]);
+
+    expect(presented?.toolRenderEntries).toHaveLength(1);
+    expect(presented?.toolRenderEntries[0]).toMatchObject({
+      kind: "workflow-status",
+      workflow: { workflowId: "mwf_1" },
     });
   });
 
@@ -242,13 +386,13 @@ describe("ChatPresenter", () => {
     const message: ChatMessage = {
       id: "msg-tools-1",
       role: "assistant",
-      content: "Two audio generations.",
+      content: "Two chart generations.",
       timestamp: new Date("2023-01-01T12:00:00Z"),
       parts: [
-        { type: "tool_call", name: "generate_audio", args: { text: "first" }, toolInvocationId: "toolu_audio_1" },
-        { type: "tool_call", name: "generate_audio", args: { text: "second" }, toolInvocationId: "toolu_audio_2" },
-        { type: "tool_result", name: "generate_audio", result: { assetId: "uf_audio_2" }, toolInvocationId: "toolu_audio_2" },
-        { type: "tool_result", name: "generate_audio", result: { assetId: "uf_audio_1" }, toolInvocationId: "toolu_audio_1" },
+        { type: "tool_call", name: "generate_chart", args: { title: "first", code: "flowchart TD\nA-->B" }, toolInvocationId: "toolu_chart_1" },
+        { type: "tool_call", name: "generate_chart", args: { title: "second", code: "flowchart TD\nC-->D" }, toolInvocationId: "toolu_chart_2" },
+        { type: "tool_result", name: "generate_chart", result: { assetId: "uf_chart_2" }, toolInvocationId: "toolu_chart_2" },
+        { type: "tool_result", name: "generate_chart", result: { assetId: "uf_chart_1" }, toolInvocationId: "toolu_chart_1" },
       ],
     };
 
@@ -257,15 +401,15 @@ describe("ChatPresenter", () => {
     expect(presented.toolRenderEntries).toEqual([
       expect.objectContaining({
         kind: "tool-call",
-        args: { text: "first" },
-        result: { assetId: "uf_audio_1" },
-        toolInvocationId: "toolu_audio_1",
+        args: { title: "first", code: "flowchart TD\nA-->B" },
+        result: { assetId: "uf_chart_1" },
+        toolInvocationId: "toolu_chart_1",
       }),
       expect.objectContaining({
         kind: "tool-call",
-        args: { text: "second" },
-        result: { assetId: "uf_audio_2" },
-        toolInvocationId: "toolu_audio_2",
+        args: { title: "second", code: "flowchart TD\nC-->D" },
+        result: { assetId: "uf_chart_2" },
+        toolInvocationId: "toolu_chart_2",
       }),
     ]);
   });
@@ -295,7 +439,7 @@ describe("ChatPresenter", () => {
       ],
     };
 
-    const presented = presenter.present(message);
+    const presented = presentWithFirstJobSnapshot(presenter, message);
     expect(presented.toolRenderEntries).toContainEqual(
       expect.objectContaining({
         kind: "job-status",
@@ -328,7 +472,7 @@ describe("ChatPresenter", () => {
       ],
     };
 
-    const presented = presenter.present(message);
+    const presented = presentWithFirstJobSnapshot(presenter, message);
     expect(presented.toolRenderEntries).toContainEqual(
       expect.objectContaining({
         kind: "job-status",
@@ -358,7 +502,7 @@ describe("ChatPresenter", () => {
       ],
     };
 
-    const presented = presenter.present(message);
+    const presented = presentWithFirstJobSnapshot(presenter, message);
     expect(presented.toolRenderEntries).toContainEqual(
       expect.objectContaining({
         kind: "job-status",
@@ -387,7 +531,7 @@ describe("ChatPresenter", () => {
       ],
     };
 
-    const presented = presenter.present(message);
+    const presented = presentWithFirstJobSnapshot(presenter, message);
     expect(presented.toolRenderEntries).toContainEqual(
       expect.objectContaining({
         kind: "job-status",
@@ -421,7 +565,7 @@ describe("ChatPresenter", () => {
       ],
     };
 
-    const presented = presenter.present(message);
+    const presented = presentWithFirstJobSnapshot(presenter, message);
     expect(presented.toolRenderEntries).toContainEqual(
       expect.objectContaining({
         kind: "job-status",
@@ -514,7 +658,7 @@ describe("ChatPresenter", () => {
       ],
     };
 
-    const presented = presenter.present(message);
+    const presented = presentWithFirstJobSnapshot(presenter, message);
     expect(presented.toolRenderEntries).toContainEqual(
       expect.objectContaining({
         kind: "job-status",
@@ -527,7 +671,7 @@ describe("ChatPresenter", () => {
     );
   });
 
-  it("renders deferred status tool results even when the assistant text is empty", () => {
+  it("does not render deferred status tool results without canonical snapshots", () => {
     const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
     const message: ChatMessage = {
       id: "msg-job-status-tool-1",
@@ -564,16 +708,615 @@ describe("ChatPresenter", () => {
 
     const presented = presenter.present(message);
 
-    expect(presented.toolRenderEntries).toContainEqual(
+    expect(presented.toolRenderEntries).toEqual([]);
+  });
+
+  it("renders one canonical job card while ignoring repeated same-message status reads", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-repeated-status-same-message",
+      role: "assistant",
+      content: "",
+      timestamp: new Date("2026-04-30T15:02:00.000Z"),
+      parts: [
+        {
+          type: "tool_call",
+          name: "get_deferred_job_status",
+          toolInvocationId: "toolu_status_1",
+          args: { job_id: KEITH_BASELINE_JOB_ID },
+        },
+        {
+          type: "tool_result",
+          name: "get_deferred_job_status",
+          toolInvocationId: "toolu_status_1",
+          result: {
+            ok: true,
+            job: {
+              messageId: `jobmsg_${KEITH_BASELINE_JOB_ID}_1`,
+              conversationId: "conv_keith_april_30",
+              part: KEITH_BASELINE_RUNNING_PART,
+            },
+          },
+        },
+        {
+          type: "tool_call",
+          name: "get_deferred_job_status",
+          toolInvocationId: "toolu_status_2",
+          args: { job_id: KEITH_BASELINE_JOB_ID },
+        },
+        {
+          type: "tool_result",
+          name: "get_deferred_job_status",
+          toolInvocationId: "toolu_status_2",
+          result: {
+            ok: true,
+            job: {
+              messageId: `jobmsg_${KEITH_BASELINE_JOB_ID}_2`,
+              conversationId: "conv_keith_april_30",
+              part: KEITH_BASELINE_RUNNING_PART,
+            },
+          },
+        },
+      ],
+    };
+
+    const presented = presenter.present(message, [
+      snapshotFromPart(KEITH_BASELINE_RUNNING_PART, { origin: { originMessageId: message.id, fallback: "explicit_origin" } }),
+    ]);
+    const visibleJobCards = presented.toolRenderEntries.filter((entry) => entry.kind === "job-status" && entry.part.jobId === KEITH_BASELINE_JOB_ID);
+
+    expect(visibleJobCards).toHaveLength(1);
+    expect(visibleJobCards[0]).toEqual(
+      expect.objectContaining({
+        kind: "job-status",
+        part: expect.objectContaining({
+          jobId: KEITH_BASELINE_JOB_ID,
+          status: "running",
+          sequence: 2,
+        }),
+      }),
+    );
+  });
+
+  it("renders the supplied canonical snapshot instead of mining nested status reads", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-job-status-tool-freshest",
+      role: "assistant",
+      content: "",
+      timestamp: new Date("2026-04-30T15:05:00.000Z"),
+      parts: [
+        {
+          type: "tool_call",
+          name: "list_deferred_jobs",
+          args: {},
+        },
+        {
+          type: "tool_result",
+          name: "list_deferred_jobs",
+          result: {
+            ok: true,
+            jobs: [
+              {
+                messageId: "jobmsg_job_1_running",
+                part: {
+                  type: "job_status",
+                  jobId: "job_1",
+                  toolName: "admin_web_search",
+                  label: "Admin Web Search",
+                  status: "running",
+                  sequence: 2,
+                  updatedAt: "2026-04-30T15:01:00.000Z",
+                },
+              },
+              {
+                messageId: "jobmsg_job_1_succeeded",
+                part: {
+                  type: "job_status",
+                  jobId: "job_1",
+                  toolName: "admin_web_search",
+                  label: "Admin Web Search",
+                  status: "succeeded",
+                  sequence: 3,
+                  summary: "Search complete.",
+                  updatedAt: "2026-04-30T15:03:00.000Z",
+                },
+              },
+            ],
+          },
+        },
+      ],
+    };
+
+    const presented = presenter.present(message, [
+      snapshotFromPart({
+        type: "job_status",
+        jobId: "job_1",
+        toolName: "admin_web_search",
+        label: "Admin Web Search",
+        status: "succeeded",
+        sequence: 3,
+        summary: "Search complete.",
+        updatedAt: "2026-04-30T15:03:00.000Z",
+      }, { origin: { originMessageId: message.id, fallback: "explicit_origin" } }),
+    ]);
+    const jobEntries = presented.toolRenderEntries.filter((entry) => entry.kind === "job-status");
+
+    expect(jobEntries).toHaveLength(1);
+    expect(jobEntries[0]).toEqual(
       expect.objectContaining({
         kind: "job-status",
         part: expect.objectContaining({
           jobId: "job_1",
-          status: "queued",
+          status: "succeeded",
+          sequence: 3,
+          summary: "Search complete.",
         }),
-        computedActions: [expect.objectContaining({ label: "Cancel", actionType: "job", value: "job_1" })],
       }),
     );
+  });
+
+  it("prefers canonical job snapshots over transcript status parts and nested snapshots", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-explicit-beats-nested",
+      role: "assistant",
+      content: "",
+      timestamp: new Date("2026-04-30T15:05:00.000Z"),
+      parts: [
+        KEITH_BASELINE_COMPLETED_PART,
+        {
+          type: "tool_call",
+          name: "get_deferred_job_status",
+          args: { job_id: KEITH_BASELINE_JOB_ID },
+        },
+        {
+          type: "tool_result",
+          name: "get_deferred_job_status",
+          result: {
+            ok: true,
+            job: {
+              messageId: `jobmsg_${KEITH_BASELINE_JOB_ID}_nested`,
+              part: {
+                ...KEITH_BASELINE_RUNNING_PART,
+                sequence: KEITH_BASELINE_COMPLETED_PART.sequence,
+                updatedAt: KEITH_BASELINE_COMPLETED_PART.updatedAt,
+              },
+            },
+          },
+        },
+      ],
+    };
+
+    const presented = presenter.present(message, [
+      snapshotFromPart(KEITH_BASELINE_COMPLETED_PART, { origin: { originMessageId: message.id, fallback: "explicit_origin" } }),
+    ]);
+    const jobEntries = presented.toolRenderEntries.filter((entry) => entry.kind === "job-status");
+
+    expect(jobEntries).toHaveLength(1);
+    expect(jobEntries[0]).toEqual(
+      expect.objectContaining({
+        kind: "job-status",
+        part: expect.objectContaining({
+          jobId: KEITH_BASELINE_JOB_ID,
+          status: "succeeded",
+          summary: "Found current sources for the requested research.",
+        }),
+      }),
+    );
+  });
+
+  it("keeps canonical job truth over equivalent later nested snapshots across messages", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const transcript: ChatMessage[] = [
+      {
+        id: "msg-explicit-completed",
+        role: "assistant",
+        content: "",
+        timestamp: new Date("2026-04-30T15:04:00.000Z"),
+        parts: [KEITH_BASELINE_COMPLETED_PART],
+      },
+      {
+        id: "msg-later-nested-running",
+        role: "assistant",
+        content: "",
+        timestamp: new Date("2026-04-30T15:05:00.000Z"),
+        parts: [
+          {
+            type: "tool_call",
+            name: "get_deferred_job_status",
+            args: { job_id: KEITH_BASELINE_JOB_ID },
+          },
+          {
+            type: "tool_result",
+            name: "get_deferred_job_status",
+            result: {
+              ok: true,
+              job: {
+                messageId: `jobmsg_${KEITH_BASELINE_JOB_ID}_nested`,
+                part: {
+                  ...KEITH_BASELINE_RUNNING_PART,
+                  sequence: KEITH_BASELINE_COMPLETED_PART.sequence,
+                  updatedAt: KEITH_BASELINE_COMPLETED_PART.updatedAt,
+                },
+              },
+            },
+          },
+        ],
+      },
+    ];
+
+    const presentedMessages = presenter.presentMany(transcript, [
+      snapshotFromPart(KEITH_BASELINE_COMPLETED_PART, { origin: { originMessageId: "msg-explicit-completed", fallback: "explicit_origin" } }),
+    ]);
+    const visibleJobCards = presentedMessages.flatMap((message) => {
+      return message.toolRenderEntries.filter((entry) => entry.kind === "job-status" && entry.part.jobId === KEITH_BASELINE_JOB_ID);
+    });
+
+    expect(visibleJobCards).toHaveLength(1);
+    expect(visibleJobCards[0]).toEqual(
+      expect.objectContaining({
+        kind: "job-status",
+        source: "canonical",
+        part: expect.objectContaining({
+          status: "succeeded",
+          summary: "Found current sources for the requested research.",
+        }),
+      }),
+    );
+  });
+
+  it("attaches snapshots without origin metadata to the closest preceding assistant message", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const transcript: ChatMessage[] = [
+      {
+        id: "msg-user-before-job",
+        role: "user",
+        content: "Generate an image.",
+        timestamp: new Date("2026-04-30T20:00:00.000Z"),
+      },
+      {
+        id: "msg-assistant-before-job",
+        role: "assistant",
+        content: "Starting the image.",
+        timestamp: new Date("2026-04-30T20:01:00.000Z"),
+      },
+      {
+        id: "msg-assistant-after-job",
+        role: "assistant",
+        content: "Anything else?",
+        timestamp: new Date("2026-04-30T20:05:00.000Z"),
+      },
+    ];
+    const snapshot = snapshotFromPart({
+      type: "job_status",
+      jobId: "job_no_origin_image_1",
+      toolName: "generate_blog_image",
+      label: "Generate Image",
+      status: "running",
+      sequence: 2,
+      progressLabel: "Rendering",
+      updatedAt: "2026-04-30T20:02:00.000Z",
+    }, {
+      createdAt: "2026-04-30T20:02:00.000Z",
+      origin: { fallback: "job_created_at" },
+    });
+
+    const presentedMessages = presenter.presentMany(transcript, [snapshot]);
+
+    expect(presentedMessages[1]?.id).toBe("msg-assistant-before-job");
+    expect(presentedMessages[1]?.toolRenderEntries).toContainEqual(
+      expect.objectContaining({
+        kind: "job-status",
+        source: "canonical",
+        part: expect.objectContaining({ jobId: "job_no_origin_image_1", status: "running" }),
+      }),
+    );
+    expect(presentedMessages[2]?.toolRenderEntries).toEqual([]);
+  });
+
+  it("renders distinct canonical jobs from the same assistant turn once each", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-multi-job-turn",
+      role: "assistant",
+      content: "Rendering the image and writing the draft.",
+      timestamp: new Date("2026-04-30T20:10:00.000Z"),
+    };
+    const snapshots = [
+      snapshotFromPart({
+        type: "job_status",
+        jobId: "job_multi_image_1",
+        toolName: "generate_blog_image",
+        label: "Generate Image",
+        status: "succeeded",
+        sequence: 3,
+        summary: "Image ready.",
+        updatedAt: "2026-04-30T20:11:00.000Z",
+      }, { origin: { originMessageId: message.id, toolInvocationId: "toolu_image_1", fallback: "explicit_origin" } }),
+      snapshotFromPart({
+        type: "job_status",
+        jobId: "job_multi_draft_1",
+        toolName: "draft_content",
+        label: "Draft Content",
+        status: "succeeded",
+        sequence: 4,
+        summary: "Draft ready.",
+        updatedAt: "2026-04-30T20:12:00.000Z",
+      }, { origin: { originMessageId: message.id, toolInvocationId: "toolu_draft_1", fallback: "explicit_origin" } }),
+    ];
+
+    const presented = presenter.present(message, snapshots);
+    const jobEntries = presented.toolRenderEntries.filter((entry) => entry.kind === "job-status");
+
+    expect(jobEntries).toHaveLength(2);
+    expect(jobEntries.map((entry) => entry.kind === "job-status" ? entry.part.jobId : "")).toEqual([
+      "job_multi_image_1",
+      "job_multi_draft_1",
+    ]);
+  });
+
+  it("dedupes the Phase 00 Keith transcript baseline while preserving raw status history", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const transcript = createKeithBaselineTranscript();
+    const rawStatusToolResultCountBeforePresentation = countRawStatusToolResults(transcript);
+    const presentedMessages = presenter.presentMany(transcript, createKeithBaselineJobStateEntries());
+    const visibleJobCards = presentedMessages.flatMap((message) => {
+      return message.toolRenderEntries.filter((entry) => entry.kind === "job-status" && entry.part.jobId === KEITH_BASELINE_JOB_ID);
+    });
+
+    expect(rawStatusToolResultCountBeforePresentation).toBe(5);
+    expect(visibleJobCards).toHaveLength(1);
+    expect(countRawStatusToolResults(transcript)).toBe(5);
+  });
+
+  it("renders restored compose media job snapshots without also rendering the stale pending tool result", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-compose-restored",
+      role: "assistant",
+      content: "",
+      timestamp: new Date("2026-04-28T21:00:00Z"),
+      parts: [
+        {
+          type: "tool_call",
+          name: "compose_media",
+          toolInvocationId: "toolu_compose_1",
+          args: { plan: { id: "plan_1" } },
+        },
+        {
+          type: "tool_result",
+          name: "compose_media",
+          toolInvocationId: "toolu_compose_1",
+          result: {
+            job: {
+              messageId: "msg-compose-restored",
+              conversationId: "conv_1",
+              part: {
+                type: "job_status",
+                jobId: "browser:msg-compose-restored:compose_media:1",
+                toolInvocationId: "toolu_compose_1",
+                toolName: "compose_media",
+                label: "Compose Media",
+                status: "succeeded",
+                sequence: 1,
+                updatedAt: "2026-04-28T21:02:00.000Z",
+                resultPayload: { primaryAssetId: "uf_video_1" },
+                resultEnvelope: {
+                  schemaVersion: 1,
+                  toolName: "compose_media",
+                  family: "artifact",
+                  cardKind: "media_render",
+                  executionMode: "hybrid",
+                  summary: { title: "Media Composition", statusLine: "succeeded" },
+                  artifacts: [
+                    {
+                      kind: "video",
+                      label: "Composed Video",
+                      mimeType: "video/mp4",
+                      assetId: "uf_video_1",
+                      uri: "/api/user-files/uf_video_1",
+                    },
+                  ],
+                  payload: { primaryAssetId: "uf_video_1" },
+                },
+              },
+            },
+          },
+        },
+      ],
+    };
+
+    const restoredPart = ((message.parts?.[1] as Extract<MessagePart, { type: "tool_result" }>)?.result as {
+      job: { part: JobStatusMessagePart };
+    }).job.part;
+    const presented = presenter.present(message, [
+      snapshotFromPart(restoredPart, { conversationId: "conv_1", origin: { originMessageId: message.id, fallback: "explicit_origin" } }),
+    ]);
+
+    expect(presented.toolRenderEntries).toHaveLength(1);
+    expect(presented.toolRenderEntries[0]).toEqual(
+      expect.objectContaining({
+        kind: "job-status",
+        part: expect.objectContaining({
+          status: "succeeded",
+          resultEnvelope: expect.objectContaining({
+            artifacts: [expect.objectContaining({ assetId: "uf_video_1" })],
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("renders canonical deferred job status instead of duplicate generic tool cards", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const jobId = "job_generate_image_1";
+    const message: ChatMessage = {
+      id: "msg-generate-image-deferred",
+      role: "assistant",
+      content: "",
+      timestamp: new Date("2026-04-30T20:31:14.000Z"),
+      parts: [
+        {
+          type: "tool_call",
+          name: "generate_blog_image",
+          toolInvocationId: "toolu_image_1",
+          args: { prompt: "A luminous library", preset: "landscape", quality: "high" },
+        },
+        {
+          type: "tool_result",
+          name: "generate_blog_image",
+          toolInvocationId: "toolu_image_1",
+          result: {
+            deferred_job: {
+              jobId,
+              toolInvocationId: "toolu_image_1",
+              conversationId: "conv_image_1",
+              toolName: "generate_blog_image",
+              label: "Generate Image",
+              title: "A luminous library",
+              subtitle: "Generate and store an image asset for reuse in the conversation.",
+              status: "queued",
+              sequence: 1,
+              resultEnvelope: {
+                schemaVersion: 1,
+                toolName: "generate_blog_image",
+                family: "editorial",
+                cardKind: "editorial_workflow",
+                executionMode: "deferred",
+                summary: { title: "A luminous library" },
+                payload: null,
+              },
+              updatedAt: "2026-04-30T20:29:48.069Z",
+            },
+          },
+        },
+        {
+          type: "job_status",
+          jobId,
+          toolName: "generate_blog_image",
+          label: "Generate Image",
+          title: "A luminous library",
+          subtitle: "Generate and store an image asset for reuse in the conversation.",
+          status: "succeeded",
+          sequence: 3,
+          summary: "Generated draft hero image asset blogasset_1.",
+          resultPayload: {
+            assetId: "blogasset_1",
+            imageUrl: "/api/blog/assets/blogasset_1",
+            mimeType: "image/png",
+            width: 1536,
+            height: 1024,
+            visibility: "draft",
+          },
+          updatedAt: "2026-04-30T20:31:14.496Z",
+        },
+      ],
+    };
+
+    const presented = presenter.present(message, [
+      snapshotFromPart(message.parts?.[2] as JobStatusMessagePart, { conversationId: "conv_image_1", origin: { originMessageId: message.id, fallback: "explicit_origin" } }),
+    ]);
+
+    expect(presented.toolRenderEntries).toHaveLength(1);
+    expect(presented.toolRenderEntries[0]).toEqual(
+      expect.objectContaining({
+        kind: "job-status",
+        part: expect.objectContaining({
+          jobId,
+          status: "succeeded",
+          resultPayload: expect.objectContaining({ assetId: "blogasset_1" }),
+        }),
+      }),
+    );
+  });
+
+  it("dedupes a live deferred image status against the streamed acknowledgement message", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const jobId = "job_generate_image_live_1";
+    const completedPart = {
+      type: "job_status" as const,
+      jobId,
+      toolName: "generate_blog_image",
+      label: "Generate Image",
+      title: "A luminous library",
+      subtitle: "Generate and store an image asset for reuse in the conversation.",
+      status: "succeeded" as const,
+      sequence: 3,
+      summary: "Generated draft hero image asset blogasset_live_1.",
+      resultPayload: {
+        assetId: "blogasset_live_1",
+        imageUrl: "/api/blog/assets/blogasset_live_1",
+        mimeType: "image/png",
+        width: 1536,
+        height: 1024,
+        visibility: "draft",
+      },
+      updatedAt: "2026-04-30T20:31:14.496Z",
+    };
+    const transcript: ChatMessage[] = [
+      {
+        id: "msg-live-job-status",
+        role: "assistant",
+        content: "",
+        timestamp: new Date("2026-04-30T20:31:14.496Z"),
+        parts: [completedPart],
+      },
+      {
+        id: "msg-live-streamed-assistant",
+        role: "assistant",
+        content: "Generating now — give it a moment.",
+        timestamp: new Date("2026-04-30T20:29:54.137Z"),
+        parts: [
+          {
+            type: "tool_call",
+            name: "generate_blog_image",
+            toolInvocationId: "toolu_image_live_1",
+            args: { prompt: "A luminous library", preset: "landscape", quality: "high" },
+          },
+          {
+            type: "tool_result",
+            name: "generate_blog_image",
+            toolInvocationId: "toolu_image_live_1",
+            result: {
+              deferred_job: {
+                jobId,
+                toolInvocationId: "toolu_image_live_1",
+                conversationId: "conv_image_live_1",
+                toolName: "generate_blog_image",
+                label: "Generate Image",
+                title: "A luminous library",
+                subtitle: "Generate and store an image asset for reuse in the conversation.",
+                status: "queued",
+                sequence: 1,
+                updatedAt: "2026-04-30T20:29:48.069Z",
+              },
+            },
+          },
+        ],
+      },
+    ];
+
+    const presented = presenter.presentMany(transcript, [
+      snapshotFromPart(completedPart, { conversationId: "conv_image_live_1", origin: { originMessageId: "msg-live-job-status", fallback: "explicit_origin" } }),
+    ]);
+    const jobEntries = presented.flatMap((message) =>
+      message.toolRenderEntries.filter((entry) => entry.kind === "job-status" && entry.part.jobId === jobId),
+    );
+    const genericToolEntries = presented.flatMap((message) =>
+      message.toolRenderEntries.filter((entry) => entry.kind === "tool-call" && entry.name === "generate_blog_image"),
+    );
+
+    expect(jobEntries).toHaveLength(1);
+    expect(jobEntries[0]).toEqual(
+      expect.objectContaining({
+        part: expect.objectContaining({
+          status: "succeeded",
+          resultPayload: expect.objectContaining({ assetId: "blogasset_live_1" }),
+        }),
+      }),
+    );
+    expect(genericToolEntries).toHaveLength(0);
   });
 
   it("does not produce content blocks for unknown tool results (handled by plugin fallback)", () => {
@@ -838,7 +1581,7 @@ describe("ChatPresenter", () => {
       ],
     };
 
-    const presented = presenter.present(message);
+    const presented = presentWithFirstJobSnapshot(presenter, message);
     expect(presented.toolRenderEntries).toContainEqual(
       expect.objectContaining({
         kind: "job-status",
@@ -972,12 +1715,12 @@ describe("ChatPresenter", () => {
     ]);
   });
 
-  it("renders audio blocks from structured generate_audio result payloads", () => {
+  it("keeps direct generate_audio result payloads out of default product presentation", () => {
     const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
     const message: ChatMessage = {
       id: "msg-audio-1",
       role: "assistant",
-      content: "Here is the audio version.",
+      content: "The audio job is queued.",
       timestamp: new Date("2023-01-01T12:00:00Z"),
       parts: [
         {
@@ -1003,23 +1746,109 @@ describe("ChatPresenter", () => {
     };
 
     const presented = presenter.present(message);
-    expect(presented.toolRenderEntries).toContainEqual(
-      expect.objectContaining({
-        kind: "tool-call",
-        name: "generate_audio",
-        args: { title: "Founder memo", text: "Weekly review audio" },
-        result: {
+    expect(presented.toolRenderEntries).toEqual([]);
+  });
+
+  it("renders completed audio only from canonical job snapshots when direct transcript payloads are present", () => {
+    const presenter = new ChatPresenter(mockMarkdownParser, mockCommandParser);
+    const message: ChatMessage = {
+      id: "msg-audio-canonical-1",
+      role: "assistant",
+      content: "The audio job is complete.",
+      timestamp: new Date("2023-01-01T12:00:00Z"),
+      parts: [
+        {
+          type: "tool_call",
+          name: "generate_audio",
+          args: { title: "Founder memo", text: "Weekly review audio" },
+          toolInvocationId: "toolu_audio_1",
+        },
+        {
+          type: "tool_result",
+          name: "generate_audio",
+          toolInvocationId: "toolu_audio_1",
+          result: {
+            action: "generate_audio",
+            title: "Founder memo",
+            text: "Weekly review audio",
+            assetId: "uf_audio_direct_1",
+            provider: "user-file-cache",
+            generationStatus: "cached_asset",
+          },
+        },
+      ],
+    };
+    const completedPart: JobStatusMessagePart = {
+      type: "job_status",
+      jobId: "job_audio_1",
+      toolInvocationId: "toolu_audio_1",
+      toolName: "generate_audio",
+      label: "Generate Audio",
+      title: "Founder memo",
+      status: "succeeded",
+      sequence: 12,
+      summary: "Audio generated successfully.",
+      updatedAt: "2026-04-30T15:00:12.000Z",
+      resultPayload: {
+        action: "generate_audio",
+        title: "Founder memo",
+        text: "Weekly review audio",
+        assetId: "uf_audio_1",
+        provider: "openai-speech",
+        generationStatus: "completed",
+      },
+      resultEnvelope: {
+        schemaVersion: 1,
+        toolName: "generate_audio",
+        family: "artifact",
+        cardKind: "artifact_viewer",
+        executionMode: "deferred",
+        inputSnapshot: { title: "Founder memo", text: "Weekly review audio" },
+        summary: { title: "Founder memo", statusLine: "succeeded" },
+        artifacts: [
+          {
+            kind: "audio",
+            label: "Founder memo",
+            mimeType: "audio/mpeg",
+            assetId: "uf_audio_1",
+            uri: "/api/user-files/uf_audio_1",
+            source: "generated",
+            retentionClass: "conversation",
+          },
+        ],
+        payload: {
           action: "generate_audio",
           title: "Founder memo",
           text: "Weekly review audio",
           assetId: "uf_audio_1",
-          provider: "user-file-cache",
-          generationStatus: "cached_asset",
-          estimatedDurationSeconds: 12,
-          estimatedGenerationSeconds: 3,
+          provider: "openai-speech",
+          generationStatus: "completed",
+        },
+      },
+    };
+
+    const presented = presenter.present(message, [
+      snapshotFromPart(completedPart, {
+        origin: {
+          originMessageId: "msg-audio-canonical-1",
+          toolInvocationId: "toolu_audio_1",
+          fallback: "explicit_origin",
         },
       }),
-    );
+    ]);
+
+    expect(presented.toolRenderEntries).toHaveLength(1);
+    expect(presented.toolRenderEntries[0]).toEqual(expect.objectContaining({
+      kind: "job-status",
+      part: expect.objectContaining({
+        jobId: "job_audio_1",
+        status: "succeeded",
+        resultPayload: expect.objectContaining({
+          assetId: "uf_audio_1",
+          generationStatus: "completed",
+        }),
+      }),
+    }));
   });
 
   it("replaces stale assistant prose with canonical running audio status text", () => {
@@ -1032,7 +1861,7 @@ describe("ChatPresenter", () => {
       parts: [
         {
           type: "job_status",
-          jobId: "browser:msg-audio-running-1:generate_audio:1",
+          jobId: "job_audio_running_1",
           toolName: "generate_audio",
           label: "Generate Audio",
           status: "running",
@@ -1043,7 +1872,7 @@ describe("ChatPresenter", () => {
       ],
     };
 
-    const presented = presenter.present(message);
+    const presented = presentWithFirstJobSnapshot(presenter, message);
 
     expect(presented.rawContent).toBe("Generate Audio job running: Generating audio (25%).");
     expect(mockMarkdownParser.parse).toHaveBeenCalledWith(
@@ -1072,7 +1901,7 @@ describe("ChatPresenter", () => {
       ],
     };
 
-    const presented = presenter.present(message);
+    const presented = presentWithFirstJobSnapshot(presenter, message);
 
     expect(presented.rawContent).toBe("Compose Media job failed: Remote FFmpeg failed.");
     expect(mockMarkdownParser.parse).toHaveBeenCalledWith(

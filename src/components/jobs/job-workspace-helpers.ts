@@ -1,6 +1,6 @@
 import type { JobFailureClass } from "@/core/entities/job";
 import type { JobHistoryEntry } from "@/lib/jobs/job-event-history";
-import type { JobStatusSnapshot } from "@/lib/jobs/job-read-model";
+import type { CanonicalJobSnapshot } from "@/lib/jobs/job-read-model";
 import { getJobCapability } from "@/lib/jobs/job-capability-registry";
 import { getAdminJournalPreviewPath } from "@/lib/journal/admin-journal-routes";
 
@@ -20,13 +20,13 @@ export interface ExportedJobLog {
     label: string;
     title: string | null;
     subtitle: string | null;
-    status: JobStatusSnapshot["part"]["status"];
+    status: CanonicalJobSnapshot["status"];
     summary: string;
     error: string | null;
     updatedAt: string | null;
     conversationId: string | null;
     failureClass: JobFailureClass | null;
-    recoveryMode: JobStatusSnapshot["part"]["recoveryMode"];
+    recoveryMode: CanonicalJobSnapshot["failure"]["recoveryMode"];
     replayedFromJobId: string | null;
     supersededByJobId: string | null;
     resultPayload: unknown | null;
@@ -44,7 +44,7 @@ export interface ExportedJobLog {
   }>;
 }
 
-export const STATUS_LABELS: Record<JobStatusSnapshot["part"]["status"], string> = {
+export const STATUS_LABELS: Record<CanonicalJobSnapshot["status"], string> = {
   queued: "Queued",
   running: "Running",
   succeeded: "Succeeded",
@@ -53,7 +53,7 @@ export const STATUS_LABELS: Record<JobStatusSnapshot["part"]["status"], string> 
   dead_letter: "Needs recovery",
 };
 
-export function getStatusTone(status: JobStatusSnapshot["part"]["status"]): string {
+export function getStatusTone(status: CanonicalJobSnapshot["status"]): string {
   if (status === "succeeded") {
     return "jobs-status-succeeded";
   }
@@ -69,7 +69,7 @@ export function getStatusTone(status: JobStatusSnapshot["part"]["status"]): stri
   return status === "queued" || status === "running" ? "jobs-status-active" : "jobs-count-pill";
 }
 
-export function getJobAction(status: JobStatusSnapshot["part"]["status"]): { action: JobAction; label: string } | null {
+export function getJobAction(status: CanonicalJobSnapshot["status"]): { action: JobAction; label: string } | null {
   if (status === "queued" || status === "running") {
     return { action: "cancel", label: "Cancel" };
   }
@@ -99,19 +99,19 @@ export function formatJobTimestamp(value: string | undefined): string {
   });
 }
 
-export function formatJobSummary(snapshot: JobStatusSnapshot): string {
-  if (snapshot.part.error) {
-    return snapshot.part.error;
+export function formatJobSummary(snapshot: CanonicalJobSnapshot): string {
+  if (snapshot.error) {
+    return snapshot.error;
   }
 
-  if (snapshot.part.summary) {
-    return snapshot.part.summary;
+  if (snapshot.summary) {
+    return snapshot.summary;
   }
 
-  if (snapshot.part.progressLabel) {
-    return snapshot.part.progressPercent != null
-      ? `${snapshot.part.progressLabel} (${Math.round(snapshot.part.progressPercent)}%)`
-      : snapshot.part.progressLabel;
+  if (snapshot.progressLabel) {
+    return snapshot.progressPercent != null
+      ? `${snapshot.progressLabel} (${Math.round(snapshot.progressPercent)}%)`
+      : snapshot.progressLabel;
   }
 
   return "Waiting for the next job update.";
@@ -133,21 +133,21 @@ export function formatJobFailureClass(failureClass: JobFailureClass | null | und
   return labels[failureClass];
 }
 
-export function getJobArtifactLink(snapshot: JobStatusSnapshot | null): JobArtifactLink | null {
+export function getJobArtifactLink(snapshot: CanonicalJobSnapshot | null): JobArtifactLink | null {
   if (!snapshot) {
     return null;
   }
 
-  const artifactPolicy = getJobCapability(snapshot.part.toolName)?.artifactPolicy.mode;
+  const artifactPolicy = getJobCapability(snapshot.toolName)?.artifactPolicy.mode;
   if (artifactPolicy !== "open_artifact" && artifactPolicy !== "open_or_download") {
     return null;
   }
 
-  if (typeof snapshot.part.resultPayload !== "object" || snapshot.part.resultPayload === null) {
+  if (typeof snapshot.resultPayload !== "object" || snapshot.resultPayload === null) {
     return null;
   }
 
-  const payload = snapshot.part.resultPayload as Record<string, unknown>;
+  const payload = snapshot.resultPayload as Record<string, unknown>;
   const slug = typeof payload.slug === "string" && payload.slug.trim().length > 0
     ? payload.slug.trim()
     : null;
@@ -173,53 +173,53 @@ export function getJobArtifactLink(snapshot: JobStatusSnapshot | null): JobArtif
   return null;
 }
 
-export function buildJobSummaryClipboardText(snapshot: JobStatusSnapshot): string {
-  const title = snapshot.part.title ?? snapshot.part.label;
+export function buildJobSummaryClipboardText(snapshot: CanonicalJobSnapshot): string {
+  const title = snapshot.title ?? snapshot.label;
   const lines = [
     title,
-    `Job ID: ${snapshot.part.jobId}`,
-    `Status: ${STATUS_LABELS[snapshot.part.status]}`,
+    `Job ID: ${snapshot.jobId}`,
+    `Status: ${STATUS_LABELS[snapshot.status]}`,
   ];
 
-  if (snapshot.part.updatedAt) {
-    lines.push(`Updated: ${formatJobTimestamp(snapshot.part.updatedAt)}`);
+  if (snapshot.updatedAt) {
+    lines.push(`Updated: ${formatJobTimestamp(snapshot.updatedAt)}`);
   }
 
-  const failureClass = formatJobFailureClass(snapshot.part.failureClass);
+  const failureClass = formatJobFailureClass(snapshot.failure.failureClass);
   if (failureClass) {
     lines.push(`Failure class: ${failureClass}`);
   }
 
-  if (snapshot.part.replayedFromJobId) {
-    lines.push(`Replayed from: ${snapshot.part.replayedFromJobId}`);
+  if (snapshot.failure.replayedFromJobId) {
+    lines.push(`Replayed from: ${snapshot.failure.replayedFromJobId}`);
   }
 
-  if (snapshot.part.supersededByJobId) {
-    lines.push(`Superseded by: ${snapshot.part.supersededByJobId}`);
+  if (snapshot.failure.supersededByJobId) {
+    lines.push(`Superseded by: ${snapshot.failure.supersededByJobId}`);
   }
 
   lines.push(`Summary: ${formatJobSummary(snapshot)}`);
   return lines.join("\n");
 }
 
-export function buildJobFailureClipboardText(snapshot: JobStatusSnapshot): string | null {
-  if (!snapshot.part.error) {
+export function buildJobFailureClipboardText(snapshot: CanonicalJobSnapshot): string | null {
+  if (!snapshot.error) {
     return null;
   }
 
-  const title = snapshot.part.title ?? snapshot.part.label;
+  const title = snapshot.title ?? snapshot.label;
   const lines = [
     title,
-    `Job ID: ${snapshot.part.jobId}`,
-    `Status: ${STATUS_LABELS[snapshot.part.status]}`,
+    `Job ID: ${snapshot.jobId}`,
+    `Status: ${STATUS_LABELS[snapshot.status]}`,
   ];
 
-  const failureClass = formatJobFailureClass(snapshot.part.failureClass);
+  const failureClass = formatJobFailureClass(snapshot.failure.failureClass);
   if (failureClass) {
     lines.push(`Failure class: ${failureClass}`);
   }
 
-  lines.push(`Failure: ${snapshot.part.error}`);
+  lines.push(`Failure: ${snapshot.error}`);
   return lines.join("\n");
 }
 
@@ -231,31 +231,31 @@ function sanitizeFileSegment(value: string): string {
     .slice(0, 48);
 }
 
-export function getJobLogExportFileName(snapshot: JobStatusSnapshot): string {
-  const baseName = sanitizeFileSegment(snapshot.part.title ?? snapshot.part.label) || "job-log";
-  return `${baseName}-${snapshot.part.jobId}.json`;
+export function getJobLogExportFileName(snapshot: CanonicalJobSnapshot): string {
+  const baseName = sanitizeFileSegment(snapshot.title ?? snapshot.label) || "job-log";
+  return `${baseName}-${snapshot.jobId}.json`;
 }
 
-export function buildJobLogExport(snapshot: JobStatusSnapshot, history: JobHistoryEntry[]): ExportedJobLog {
+export function buildJobLogExport(snapshot: CanonicalJobSnapshot, history: JobHistoryEntry[]): ExportedJobLog {
   return {
     version: 1,
     exportedAt: new Date().toISOString(),
     job: {
-      jobId: snapshot.part.jobId,
-      toolName: snapshot.part.toolName,
-      label: snapshot.part.label,
-      title: snapshot.part.title ?? null,
-      subtitle: snapshot.part.subtitle ?? null,
-      status: snapshot.part.status,
+      jobId: snapshot.jobId,
+      toolName: snapshot.toolName,
+      label: snapshot.label,
+      title: snapshot.title ?? null,
+      subtitle: snapshot.subtitle ?? null,
+      status: snapshot.status,
       summary: formatJobSummary(snapshot),
-      error: snapshot.part.error ?? null,
-      updatedAt: snapshot.part.updatedAt ?? null,
+      error: snapshot.error ?? null,
+      updatedAt: snapshot.updatedAt ?? null,
       conversationId: snapshot.conversationId ?? null,
-      failureClass: snapshot.part.failureClass ?? null,
-      recoveryMode: snapshot.part.recoveryMode ?? null,
-      replayedFromJobId: snapshot.part.replayedFromJobId ?? null,
-      supersededByJobId: snapshot.part.supersededByJobId ?? null,
-      resultPayload: snapshot.part.resultPayload ?? null,
+      failureClass: snapshot.failure.failureClass ?? null,
+      recoveryMode: snapshot.failure.recoveryMode ?? null,
+      replayedFromJobId: snapshot.failure.replayedFromJobId ?? null,
+      supersededByJobId: snapshot.failure.supersededByJobId ?? null,
+      resultPayload: snapshot.resultPayload ?? null,
     },
     history: history.map((entry) => ({
       id: entry.id,

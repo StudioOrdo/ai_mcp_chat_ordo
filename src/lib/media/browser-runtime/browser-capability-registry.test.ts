@@ -9,9 +9,8 @@ import {
 
 describe("browser-capability-registry", () => {
   it("exposes the browser-managed media tool names including compose_media", () => {
-    expect(BROWSER_CAPABILITY_TOOL_NAMES).toHaveLength(4);
+    expect(BROWSER_CAPABILITY_TOOL_NAMES).toHaveLength(3);
     expect(new Set(BROWSER_CAPABILITY_TOOL_NAMES)).toEqual(new Set([
-      "generate_audio",
       "generate_chart",
       "generate_graph",
       "compose_media",
@@ -19,11 +18,7 @@ describe("browser-capability-registry", () => {
   });
 
   it("returns stable browser capability descriptors for supported tools", () => {
-    expect(getBrowserCapabilityDescriptor("generate_audio")).toMatchObject({
-      capabilityId: "generate_audio",
-      supportedAssetKinds: ["audio"],
-      fallbackPolicy: "server",
-    });
+    expect(getBrowserCapabilityDescriptor("generate_audio")).toBeNull();
     expect(getBrowserCapabilityDescriptor("generate_chart")).toMatchObject({
       capabilityId: "generate_chart",
       supportedAssetKinds: ["chart"],
@@ -45,7 +40,8 @@ describe("browser-capability-registry", () => {
   it("keeps browser capability admission explicit", () => {
     expect(isBrowserCapabilityToolName("generate_graph")).toBe(true);
     expect(isBrowserCapabilityToolName("compose_media")).toBe(true);
+    expect(isBrowserCapabilityToolName("generate_audio")).toBe(false);
     expect(isBrowserCapabilityToolName("search_corpus")).toBe(false);
-    expect(listBrowserCapabilityDescriptors()).toHaveLength(4);
+    expect(listBrowserCapabilityDescriptors()).toHaveLength(3);
   });
 });

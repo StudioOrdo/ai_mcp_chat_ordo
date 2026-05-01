@@ -1,16 +1,18 @@
-import { getJobQueueRepository, getJobStatusQuery } from "@/adapters/RepositoryFactory";
+import { getJobQueueRepository, getJobStatusQuery, getMediaWorkflowReadModel } from "@/adapters/RepositoryFactory";
 import type { JobHistoryEntry } from "@/lib/jobs/job-event-history";
 import { mapJobEventHistory } from "@/lib/jobs/job-event-history";
-import type { JobStatusSnapshot } from "@/lib/jobs/job-read-model";
+import type { CanonicalJobSnapshot } from "@/lib/jobs/job-read-model";
 import { sortUserJobSnapshots } from "@/lib/jobs/user-jobs-workspace";
+import type { CanonicalMediaWorkflowSnapshot } from "@/lib/media/workflows/media-workflow-read-model";
 
 const INITIAL_JOBS_LIMIT = 25;
 const JOB_HISTORY_LIMIT = 50;
 
 export interface UserJobsWorkspaceData {
-  jobs: JobStatusSnapshot[];
+  workflows?: CanonicalMediaWorkflowSnapshot[];
+  jobs: CanonicalJobSnapshot[];
   selectedJobId: string | null;
-  selectedJob: JobStatusSnapshot | null;
+  selectedJob: CanonicalJobSnapshot | null;
   selectedJobHistory: JobHistoryEntry[];
 }
 
@@ -25,14 +27,14 @@ function normalizeJobId(value: string | string[] | undefined): string | null {
 }
 
 function mergeSelectedJob(
-  jobs: JobStatusSnapshot[],
-  selectedJob: JobStatusSnapshot | null,
-): JobStatusSnapshot[] {
+  jobs: CanonicalJobSnapshot[],
+  selectedJob: CanonicalJobSnapshot | null,
+): CanonicalJobSnapshot[] {
   if (!selectedJob) {
     return jobs;
   }
 
-  const index = jobs.findIndex((candidate) => candidate.part.jobId === selectedJob.part.jobId);
+  const index = jobs.findIndex((candidate) => candidate.jobId === selectedJob.jobId);
   if (index === -1) {
     return sortUserJobSnapshots([selectedJob, ...jobs]);
   }
@@ -48,11 +50,13 @@ export async function loadUserJobsWorkspace(
 ): Promise<UserJobsWorkspaceData> {
   const jobStatusQuery = getJobStatusQuery();
   const repository = getJobQueueRepository();
+  const workflowReadModel = getMediaWorkflowReadModel();
   const requestedJobId = normalizeJobId(requestedJobIdValue);
 
-  const [listedJobs, requestedJob] = await Promise.all([
+  const [listedJobs, requestedJob, workflows] = await Promise.all([
     jobStatusQuery.listUserJobSnapshots(userId, { limit: INITIAL_JOBS_LIMIT }),
     requestedJobId ? jobStatusQuery.getUserJobSnapshot(userId, requestedJobId) : Promise.resolve(null),
+    workflowReadModel.listUserWorkflows(userId, { limit: INITIAL_JOBS_LIMIT }),
   ]);
 
   const jobs = mergeSelectedJob(sortUserJobSnapshots(listedJobs), requestedJob);
@@ -61,17 +65,19 @@ export async function loadUserJobsWorkspace(
   if (!selectedJob) {
     return {
       jobs,
+      workflows,
       selectedJobId: null,
       selectedJob: null,
       selectedJobHistory: [],
     };
   }
 
-  const selectedJobRecord = await repository.findJobById(selectedJob.part.jobId);
+  const selectedJobRecord = await repository.findJobById(selectedJob.jobId);
   if (!selectedJobRecord) {
     return {
       jobs,
-      selectedJobId: selectedJob.part.jobId,
+      workflows,
+      selectedJobId: selectedJob.jobId,
       selectedJob,
       selectedJobHistory: [],
     };
@@ -83,7 +89,8 @@ export async function loadUserJobsWorkspace(
 
   return {
     jobs,
-    selectedJobId: selectedJob.part.jobId,
+    workflows,
+    selectedJobId: selectedJob.jobId,
     selectedJob,
     selectedJobHistory: mapJobEventHistory(selectedJobRecord, selectedJobEvents),
   };

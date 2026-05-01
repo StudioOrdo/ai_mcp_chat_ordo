@@ -3,12 +3,14 @@ import type { CapabilityResultEnvelope } from "@/core/entities/capability-result
 import type { JobStatusMessagePart, GenerationStatusMessagePart, MessagePart } from "@/core/entities/message-parts";
 import type { InlineNode } from "@/core/entities/rich-content";
 import { describeJobStatus } from "@/lib/jobs/job-status";
+import { compareJobStatusPartFreshness } from "@/lib/jobs/job-status-part-merge";
 
 export type JobRenderCandidate = {
   part: JobStatusMessagePart;
   computedActions?: InlineNode[];
   descriptor?: CapabilityPresentationDescriptor;
   resultEnvelope?: CapabilityResultEnvelope | null;
+  source?: "canonical" | "explicit" | "nested";
   encounterOrder: number;
 };
 
@@ -42,27 +44,35 @@ export function getGenerationStatusPart(parts?: MessagePart[]): GenerationStatus
   return null;
 }
 
-export function parseJobUpdatedAt(updatedAt: string | undefined): number {
-  if (!updatedAt) {
-    return 0;
-  }
+function getResultWeight(candidate: JobRenderCandidate): number {
+  return candidate.part.resultPayload !== undefined || candidate.part.resultEnvelope !== undefined || candidate.resultEnvelope
+    ? 1
+    : 0;
+}
 
-  const value = Date.parse(updatedAt);
-  return Number.isNaN(value) ? 0 : value;
+function getSourceWeight(candidate: JobRenderCandidate): number {
+  if (candidate.source === "canonical") {
+    return 2;
+  }
+  return candidate.source === "explicit" ? 1 : 0;
 }
 
 export function compareJobRenderCandidateFreshness(left: JobRenderCandidate, right: JobRenderCandidate): number {
-  const leftSequence = left.part.sequence ?? Number.NEGATIVE_INFINITY;
-  const rightSequence = right.part.sequence ?? Number.NEGATIVE_INFINITY;
-
-  if (leftSequence !== rightSequence) {
-    return leftSequence - rightSequence;
+  const partFreshness = compareJobStatusPartFreshness(left.part, right.part);
+  if (partFreshness !== 0) {
+    return partFreshness;
   }
 
-  const leftUpdatedAt = parseJobUpdatedAt(left.part.updatedAt);
-  const rightUpdatedAt = parseJobUpdatedAt(right.part.updatedAt);
-  if (leftUpdatedAt !== rightUpdatedAt) {
-    return leftUpdatedAt - rightUpdatedAt;
+  const leftResultWeight = getResultWeight(left);
+  const rightResultWeight = getResultWeight(right);
+  if (leftResultWeight !== rightResultWeight) {
+    return leftResultWeight - rightResultWeight;
+  }
+
+  const leftSourceWeight = getSourceWeight(left);
+  const rightSourceWeight = getSourceWeight(right);
+  if (leftSourceWeight !== rightSourceWeight) {
+    return leftSourceWeight - rightSourceWeight;
   }
 
   return left.encounterOrder - right.encounterOrder;

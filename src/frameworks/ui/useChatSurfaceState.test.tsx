@@ -271,7 +271,7 @@ describe("handleActionClick", () => {
     expect(result.current.contentProps.onStopStream).toBe(chatState.stopStream);
   });
 
-  it("splits conversation data actions into header props and keeps strip data in content props", () => {
+  it("splits conversation data actions into header props and keeps bottom rail state out of content props", () => {
     const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
 
     expect(result.current.headerProps.canCopyTranscript).toBe(false);
@@ -281,7 +281,7 @@ describe("handleActionClick", () => {
     expect("onCopyTranscript" in result.current.contentProps).toBe(false);
     expect("onExportConversation" in result.current.contentProps).toBe(false);
     expect("onImportConversationFile" in result.current.contentProps).toBe(false);
-    expect(result.current.contentProps.progressStripItems).toEqual([]);
+    expect("progressStripItems" in result.current.contentProps).toBe(false);
   });
 
   describe("action dispatch security", () => {

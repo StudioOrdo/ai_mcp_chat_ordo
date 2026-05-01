@@ -60,6 +60,18 @@ vi.mock("@/hooks/useMockAuth", () => ({
   }),
 }));
 
+vi.mock("@/frameworks/ui/jobs-rail/JobsRail", () => ({
+  JobsRail: () => <div data-testid="jobs-rail" />,
+}));
+
+vi.mock("@/frameworks/ui/jobs-rail/useJobsRailController", () => ({
+  useJobsRailController: () => ({
+    model: { items: [] },
+    utilityActions: [],
+    onAction: vi.fn(),
+  }),
+}));
+
 beforeEach(() => {
   pathname = "/dashboard";
   pushMock.mockReset();
@@ -115,7 +127,7 @@ describe("shell visual system", () => {
       container.querySelectorAll<HTMLElement>('[data-shell-brand-mark="true"]'),
     );
 
-    expect(brandMarks).toHaveLength(2);
+    expect(brandMarks).toHaveLength(1);
     for (const mark of brandMarks) {
       expect(mark.className).toContain("shell-brand-mark");
     }
@@ -202,12 +214,6 @@ describe("shell visual system", () => {
         onMinimize={() => undefined}
         onFullScreenToggle={() => undefined}
         isFullScreen={false}
-        canCopyTranscript={false}
-        canExportConversation={false}
-        canImportConversation={false}
-        onCopyTranscript={() => undefined}
-        onExportConversation={() => undefined}
-        onImportConversationFile={() => undefined}
       />,
     );
 
@@ -235,12 +241,6 @@ describe("shell visual system", () => {
           onMinimize={() => undefined}
           onFullScreenToggle={() => undefined}
           isFullScreen={false}
-          canCopyTranscript={false}
-          canExportConversation={false}
-          canImportConversation={false}
-          onCopyTranscript={() => undefined}
-          onExportConversation={() => undefined}
-          onImportConversationFile={() => undefined}
         />
       </div>,
     );
@@ -270,12 +270,6 @@ describe("shell visual system", () => {
         onMinimize={() => undefined}
         onFullScreenToggle={() => undefined}
         isFullScreen={false}
-        canCopyTranscript={false}
-        canExportConversation={false}
-        canImportConversation={false}
-        onCopyTranscript={() => undefined}
-        onExportConversation={() => undefined}
-        onImportConversationFile={() => undefined}
       />,
     );
 

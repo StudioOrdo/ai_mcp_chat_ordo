@@ -11,6 +11,7 @@ interface ExternalTargetExecutionContext {
   userId?: string;
   role?: string;
   conversationId?: string;
+  toolInvocationId?: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -26,6 +27,7 @@ function buildExternalTargetInput(
         userId: context.userId,
         role: context.role,
         conversationId: context.conversationId,
+        toolInvocationId: context.toolInvocationId,
       }
     : undefined;
 
@@ -148,6 +150,7 @@ export function createNativeProcessExecutionTargetAdapter<TResult = unknown>(
         args: request.target.args,
         conversationId: request.context?.conversationId,
         userId: request.context?.userId,
+        toolInvocationId: request.context?.toolInvocationId,
         timeoutMs,
       });
 
@@ -165,6 +168,7 @@ export function createNativeProcessExecutionTargetAdapter<TResult = unknown>(
           command: request.target.command,
           conversationId: request.context?.conversationId,
           userId: request.context?.userId,
+          toolInvocationId: request.context?.toolInvocationId,
           timeoutMs,
           error,
         });
@@ -180,6 +184,7 @@ export function createNativeProcessExecutionTargetAdapter<TResult = unknown>(
         command: request.target.command,
         conversationId: request.context?.conversationId,
         userId: request.context?.userId,
+        toolInvocationId: request.context?.toolInvocationId,
         timeoutMs,
         result,
       });
@@ -213,6 +218,7 @@ export function createRemoteServiceExecutionTargetAdapter<TResult = unknown>(
         method: request.target.method,
         conversationId: request.context?.conversationId,
         userId: request.context?.userId,
+        toolInvocationId: request.context?.toolInvocationId,
         timeoutMs,
       });
 
@@ -247,6 +253,7 @@ export function createRemoteServiceExecutionTargetAdapter<TResult = unknown>(
           method: request.target.method,
           conversationId: request.context?.conversationId,
           userId: request.context?.userId,
+          toolInvocationId: request.context?.toolInvocationId,
           timeoutMs,
           result,
         });
@@ -259,6 +266,7 @@ export function createRemoteServiceExecutionTargetAdapter<TResult = unknown>(
           method: request.target.method,
           conversationId: request.context?.conversationId,
           userId: request.context?.userId,
+          toolInvocationId: request.context?.toolInvocationId,
           timeoutMs,
           error,
         });

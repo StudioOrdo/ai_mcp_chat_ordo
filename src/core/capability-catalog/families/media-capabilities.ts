@@ -319,12 +319,12 @@ export const MEDIA_CAPABILITIES = {
         },
         required: ["plan"],
       },
-      outputHint: "Returns the validated plan payload for browser/runtime execution.",
+      outputHint: "Returns a canonical compose job reference or exact materialization reuse result.",
     },
     executorBinding: {
       bundleId: "media",
       executorId: "compose_media",
-      executionSurface: "browser",
+      executionSurface: "internal",
     },
     validationBinding: {
       validatorId: "compose_media",
@@ -356,7 +356,7 @@ export const MEDIA_CAPABILITIES = {
       family: "media",
       label: "Compose Media",
       description:
-        "Compose visual and audio assets into a governed MP4 video via browser WASM or server FFmpeg.",
+        "Compose visual and audio assets into a governed MP4 video through canonical job execution.",
       executionPrincipal: "system_worker",
       executionAllowedRoles: SIGNED_IN_ROLES,
       retryPolicy: {
@@ -396,7 +396,7 @@ export const MEDIA_CAPABILITIES = {
           "- Use plan.profile=still_image_narration_fast for the default short still-image-plus-narration use case. Leave profile as auto if you want the system to choose based on clip shape.",
           "- CRITICAL — Asset ID rules: (1) NEVER use job_ IDs as asset IDs — job_ values are queue tracking keys, not asset handles. (2) blogasset_ IDs are full UUIDs — copy the complete value exactly; do NOT shorten or paraphrase them. (3) Only use assetId values from `list_conversation_media_assets` results or from the direct output of a generate_* tool.",
           "- If a clip must stay bound to a freshly requested or explicitly selected source asset, set clip.sourceAssetId to that original asset handle so readiness checks cannot silently swap in a different governed asset.",
-          "- The video will be rendered in the user's browser via WebAssembly FFmpeg. If their browser does not support it, the system falls back to server-side rendering automatically.",
+          "- The video is owned by one canonical compose job and appears as a governed media card when complete.",
           "- Auto defaults to a fast 720x1280 portrait output for still-image narration and 1080x1920 for multi-video work. If the user asks for landscape, square, or exact dimensions, set plan.resolution explicitly.",
           "- Use this tool when the user asks to create a video, combine clips, add audio to video, or perform any media composition task.",
         ],
@@ -421,7 +421,7 @@ export const MEDIA_CAPABILITIES = {
           "- For the common still-image narration case, set plan.profile to still_image_narration_fast or leave it as auto and provide one image plus narration audio.",
         ],
         ADMIN: [
-          "MEDIA COMPOSITION (compose_media — hybrid browser/server execution):",
+          "MEDIA COMPOSITION (compose_media — canonical job execution):",
           "- ALWAYS call `list_conversation_media_assets` first to discover the exact governed asset IDs before composing. Use the assetId values returned — copy them character-for-character.",
           "- **compose_media**: Compose, trim, and combine visual and audio assets into a new MP4 video.",
           "- You MUST provide a structured plan object with: id (unique string), conversationId, visualClips (array of {assetId, kind, sourceAssetId?}), audioClips (array of {assetId, kind, sourceAssetId?}), and optional subtitlePolicy, waveformPolicy, outputFormat.",
@@ -429,7 +429,7 @@ export const MEDIA_CAPABILITIES = {
           "- plan.profile supports auto, still_image_narration_fast, and multi_video_standard. The first is the common short narration preset; the second heavier preset is for future multi-video work.",
           "- CRITICAL — Asset ID rules: (1) NEVER use job_ IDs as asset IDs — job_ values are queue tracking keys, not asset handles. (2) blogasset_ IDs are full UUIDs — copy the complete value exactly as returned by list_conversation_media_assets; do NOT shorten or paraphrase them. (3) Only use assetId values from `list_conversation_media_assets` results or from the direct output of a generate_* tool.",
           "- Use clip.sourceAssetId when a selected governed asset must remain bound to a freshly requested or explicitly chosen source asset. Browser and deferred preflight both enforce that lineage.",
-          "- The video renders in the user's browser via WebAssembly FFmpeg first. If their browser lacks SharedArrayBuffer/COOP/COEP support, the system automatically falls back to server-side FFmpeg.",
+          "- The video is owned by one canonical compose job. Browser execution may only run when the server assigns a canonical job to that executor.",
           "- Auto uses a fast 720x1280 portrait default for still-image narration and 1080x1920 for multi-video work. If the user asks for landscape, square, or exact dimensions, set plan.resolution explicitly.",
           "- Use this tool when the user asks to create a video, combine clips, add audio to video, trim media, or perform any media composition task.",
           "- This is a deferred job — the result appears as a media card in the conversation with playback controls.",

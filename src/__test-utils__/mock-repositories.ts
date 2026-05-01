@@ -130,6 +130,7 @@ export function createMockRepositoryFactory(overrides?: FactoryOverrides): Recor
       getUserJobHistoryInteraction: vi.fn(),
       getWorkOrderInteraction: vi.fn(),
     }),
+    getFactoryRepository: emptyRepo,
 
     // --- Users & Preferences ---
     getUserDataMapper: () => ({
@@ -153,6 +154,9 @@ export function createMockRepositoryFactory(overrides?: FactoryOverrides): Recor
       create: vi.fn(),
       purge: vi.fn(),
       reapUnattachedFiles: vi.fn(),
+    }),
+    getAssetCatalogReader: () => ({
+      listConversationMediaAssets: vi.fn().mockResolvedValue([]),
     }),
 
     // --- CRM entities ---
@@ -229,6 +233,9 @@ export function createMockRepositoryFactory(overrides?: FactoryOverrides): Recor
       markNotified: vi.fn(),
     }),
     getVectorStore: () => ({
+      search: vi.fn().mockResolvedValue([]),
+    }),
+    getRelationshipMemoryRepository: () => ({
       search: vi.fn().mockResolvedValue([]),
     }),
   };

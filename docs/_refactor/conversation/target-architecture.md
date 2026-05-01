@@ -8,7 +8,7 @@ continuous memory.
 
 ## Target State
 
-The target state has five canonical surfaces:
+The target state has eight canonical surfaces:
 
 1. `WorkspaceSnapshot`
    - current customer relationship state
@@ -31,6 +31,20 @@ The target state has five canonical surfaces:
    - governed context record for prompt slot versions, effective prompt hash,
      overlays, and request context that shaped important decisions or outputs
 
+6. `BusinessWorkflowContext`
+   - durable business momentum around the conversation: task origin, related
+     leads/deals/referrals/training items, lifecycle progress, notifications,
+     interrupted work, and return-to-source context
+
+7. `OperatorTransitionProfile`
+   - first-run and return-user activation state for people translating
+     expertise, employment history, relationships, or an existing business into
+     useful AI-assisted work
+
+8. `TrustDistributionContext`
+   - QR/referral/link/script context for turning human trust into trackable
+     conversations, leads, registrations, credits, and follow-up
+
 The transcript is not one of the canonical state surfaces.
 It is a narrative and audit view over the relationship.
 
@@ -47,6 +61,9 @@ It includes:
 - asset catalog entries
 - relationship memory records
 - prompt bindings
+- business workflow context records
+- operator transition profile records
+- trust distribution context records
 - transcript messages
 - identity migration events
 
@@ -65,6 +82,9 @@ Examples:
 - active work strip model
 - reusable asset shelf model
 - relationship summary model
+- business workflow summary model
+- operator transition summary model
+- trust distribution summary model
 - job detail timeline model
 - transcript view model
 
@@ -111,15 +131,56 @@ Rule:
 
 Embeddings are access infrastructure. They are not the memory model.
 
+### Layer 4.5: Business Workflow Context
+
+This layer turns product navigation and business events into durable momentum.
+
+It owns:
+
+- task-origin persistence
+- related lead, deal, consultation, training, referral, journal, job, and asset
+  refs
+- lifecycle and coach progression refs
+- notification and interrupted-turn refs
+- current surface return context
+- setup and runtime-health blockers that affect next action
+
+Rule:
+
+Conversation should restore the user's business frame, not only the chat
+thread.
+
+### Layer 4.6: Operator Transition And Trust Distribution
+
+This layer turns first-run conversation, profile state, lifecycle progress, and
+referral events into agency.
+
+It owns:
+
+- operator mode and transition status
+- expertise, audience, and first-offer refs
+- referral link and QR readiness
+- physical-card or share-asset refs
+- intro scripts and first-ask context
+- recent trusted-introduction milestones
+- follow-up and credit-review recommendations
+
+Rule:
+
+The first product experience should help the user create economic motion, not
+only configure the system or read a transcript.
+
 ### Layer 5: Product Experience
 
 The user-facing model is simple:
 
 1. resume current workspace
-2. inspect active work
-3. reuse prior assets
-4. continue conversation
-5. search old history when needed
+2. understand the business workflow context
+3. understand their operator transition or trust-distribution next step
+4. inspect active work
+5. reuse prior assets
+6. continue conversation
+7. search old history when needed
 
 Rule:
 
@@ -133,9 +194,12 @@ Restore reads:
 1. workspace snapshot
 2. active job projections
 3. asset catalog summary
-4. relationship memory summary
-5. recent transcript slice
-6. prompt binding metadata when needed for replay or explanation
+4. business workflow context
+5. operator transition and trust distribution context when first-run or
+  referral-driven work is relevant
+6. relationship memory summary
+7. recent transcript slice
+8. prompt binding metadata when needed for replay or explanation
 
 Restore must not:
 
@@ -199,3 +263,6 @@ The target architecture is correct when:
 - relationship memory is maintained continuously
 - prompt drift is explainable through prompt binding
 - browser state can be cleared without losing continuity
+- business workflow context restores small-business momentum
+- operator transition and trust distribution restore first-run agency,
+  QR/referral sharing, and follow-up context

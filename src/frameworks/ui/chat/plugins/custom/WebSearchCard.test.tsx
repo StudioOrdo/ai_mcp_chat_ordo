@@ -143,9 +143,9 @@ describe("WebSearchCard", () => {
   it("renders plain-text search results without falling back", () => {
     render(
       <WebSearchCard
-        part={createPart({ toolName: "search_my_conversations", label: "Search My Conversations" })}
+        part={createPart({ toolName: "get_corpus_summary", label: "Get Corpus Summary" })}
         toolCall={{
-          name: "search_my_conversations",
+          name: "get_corpus_summary",
           args: { query: "pricing" },
           result: "1. [high] (turn 4)\nWe discussed pricing assumptions.",
         }}
@@ -153,7 +153,7 @@ describe("WebSearchCard", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "Search My Conversations" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Get Corpus Summary" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Result details/i }));
     expect(screen.getByText(/We discussed pricing assumptions\./)).toBeInTheDocument();
   });

@@ -58,7 +58,7 @@ describe("RevisionProjector", () => {
           resumeFromStageKey: "release",
         },
         startedAt: "2026-04-27T00:00:00.000Z",
-        completedAt: null,
+        completedAt: undefined,
         createdAt: "2026-04-27T00:00:00.000Z",
       },
       activeCheckpoint: {

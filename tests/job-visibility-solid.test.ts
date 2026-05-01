@@ -15,7 +15,7 @@ describe("TD-C — job visibility SRP", () => {
     expect(page).toContain('redirect("/login")');
     expect(page).not.toContain('redirect("/admin/jobs")');
     expect(page).not.toContain("getJobQueueRepository");
-    expect(page).not.toContain("buildJobStatusSnapshot");
+    expect(page).not.toContain("buildCanonicalJobSnapshot");
     expect(page).not.toContain("findLatestEventForJob");
   });
 
@@ -25,8 +25,12 @@ describe("TD-C — job visibility SRP", () => {
     const chatListRoute = readSource("src/app/api/chat/jobs/route.ts");
     const chatDetailRoute = readSource("src/app/api/chat/jobs/[jobId]/route.ts");
 
+    expect(userListRoute).toContain("getPlatformInteractionFacade");
+    expect(userDetailRoute).toContain("getPlatformInteractionFacade");
+    expect(chatDetailRoute).toContain("getPlatformInteractionFacade");
+    expect(chatListRoute).toContain("getJobStatusQuery");
+
     for (const source of [userListRoute, userDetailRoute, chatListRoute, chatDetailRoute]) {
-      expect(source).toContain("getJobStatusQuery");
       expect(source).not.toContain("findLatestEventForJob");
     }
   });
@@ -39,7 +43,7 @@ describe("TD-C — job visibility DIP and ISP", () => {
     expect(tools).toContain('import type { JobStatusQuery }');
     expect(tools).not.toContain('import type { JobQueueRepository }');
     expect(tools).not.toContain("findLatestEventForJob");
-    expect(tools).not.toContain("buildJobStatusSnapshot");
+    expect(tools).not.toContain("buildCanonicalJobSnapshot");
   });
 
   it("P4: repository factory exposes a read query facade for job snapshot consumers", () => {
@@ -59,7 +63,7 @@ describe("TD-C — job visibility OCP", () => {
     const shellNavigation = readSource("src/lib/shell/shell-navigation.ts");
 
     expect(shellNavigation).toContain('id: "jobs"');
-    expect(shellNavigation).toContain('ACCOUNT_MENU_ROUTE_IDS = ["jobs", "my-media", "operations-media", "profile"]');
+    expect(shellNavigation).toContain('ACCOUNT_MENU_ROUTE_IDS = ["workspace-overview", "jobs", "my-media", "referrals", "operations-media", "profile"]');
     expect(shellNavigation).not.toContain('if (route.id === "jobs")');
   });
 

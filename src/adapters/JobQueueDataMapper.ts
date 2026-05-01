@@ -37,6 +37,9 @@ type JobRequestRow = {
   last_checkpoint_id: string | null;
   replayed_from_job_id: string | null;
   superseded_by_job_id: string | null;
+  origin_message_id: string | null;
+  origin_turn_id: string | null;
+  tool_invocation_id: string | null;
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
@@ -81,6 +84,9 @@ function mapJobRequest(row: JobRequestRow): JobRequest {
     lastCheckpointId: row.last_checkpoint_id,
     replayedFromJobId: row.replayed_from_job_id,
     supersededByJobId: row.superseded_by_job_id,
+    originMessageId: row.origin_message_id,
+    originTurnId: row.origin_turn_id,
+    toolInvocationId: row.tool_invocation_id,
     createdAt: row.created_at,
     startedAt: row.started_at,
     completedAt: row.completed_at,
@@ -184,8 +190,9 @@ export class JobQueueDataMapper implements JobQueueRepository {
       `INSERT INTO job_requests (
         id, conversation_id, user_id, tool_name, status, priority, dedupe_key, initiator_type,
         request_payload_json, failure_class, next_retry_at, recovery_mode, last_checkpoint_id,
-        replayed_from_job_id, superseded_by_job_id, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        replayed_from_job_id, superseded_by_job_id, origin_message_id, origin_turn_id,
+        tool_invocation_id, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       id,
       seed.conversationId,
@@ -201,6 +208,9 @@ export class JobQueueDataMapper implements JobQueueRepository {
       seed.lastCheckpointId ?? null,
       seed.replayedFromJobId ?? null,
       seed.supersededByJobId ?? null,
+      seed.originMessageId ?? null,
+      seed.originTurnId ?? null,
+      seed.toolInvocationId ?? null,
       now,
       now,
     );

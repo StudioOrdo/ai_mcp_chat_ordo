@@ -41,6 +41,17 @@ class ReadOnlyStatusCheckStrategy implements JobStatusResponseStrategy {
   }
 }
 
+class EventDrivenStatusWaitStrategy implements JobStatusResponseStrategy {
+  readonly id = "event-driven-status-wait";
+
+  buildDirectiveLines(): string[] {
+    return [
+      "Use job status tools for explicit inspection and diagnostics; do not repeatedly poll unchanged job status as a waiting loop.",
+      "After one status read, summarize the current state once and rely on job events plus reconciliation for active chat updates unless the user explicitly asks for another status check.",
+    ];
+  }
+}
+
 class SignedInJobsPageStrategy implements JobStatusResponseStrategy {
   readonly id = "signed-in-jobs-page";
 
@@ -57,6 +68,7 @@ const SIGNED_IN_STATUS_STRATEGIES: readonly JobStatusResponseStrategy[] = [
   new PlainLanguageStatusStrategy(),
   new ExplicitListStatusStrategy(),
   new ReadOnlyStatusCheckStrategy(),
+  new EventDrivenStatusWaitStrategy(),
   new SignedInJobsPageStrategy(),
 ];
 
@@ -88,18 +100,21 @@ export function buildJobStatusToolDescription(options: {
     " IMPORTANT: The job ID (job_*) is a queue tracking key only — it is NOT an asset ID. "
     + "When a job succeeds, the resolved governed assetId is in the job's resultArtifacts array. "
     + "Use list_conversation_media_assets to obtain the canonical assetId before calling compose_media.";
+  const waitLoopNote =
+    " Use this for explicit inspection or diagnostics; active chat waits through job events and reconciliation. "
+    + "Do not repeatedly call status tools for unchanged jobId/status/sequence unless the user explicitly asks for another status check.";
 
   if (options.kind === "single") {
     if (options.audience === "admin" && options.scope === "conversation") {
-      return "Look up the current status of a deferred job by job ID. Summarize the result in plain language after reading it. Admin only." + assetIdNote;
+      return "Look up the current status of a deferred job by job ID. Summarize the result in plain language after reading it. Admin only." + waitLoopNote + assetIdNote;
     }
 
-    return "Get the current status of one of the signed-in user's jobs by job ID. Use when the user asks what a specific job is doing." + assetIdNote;
+    return "Get the current status of one of the signed-in user's jobs by job ID. Use when the user asks what a specific job is doing." + waitLoopNote + assetIdNote;
   }
 
   if (options.audience === "admin" && options.scope === "conversation") {
-    return "List deferred jobs for the current conversation. Return active jobs by default; include terminal jobs only when the admin explicitly asks for a list or all jobs. Admin only." + assetIdNote;
+    return "List deferred jobs for the current conversation. Return active jobs by default; include terminal jobs only when the admin explicitly asks for a list or all jobs. Admin only." + waitLoopNote + assetIdNote;
   }
 
-  return `List jobs for ${owner}. Use active_only=true or omit it for current work; use active_only=false only when the user explicitly asks for all jobs or a list.` + assetIdNote;
+  return `List jobs for ${owner}. Use active_only=true or omit it for current work; use active_only=false only when the user explicitly asks for all jobs or a list.` + waitLoopNote + assetIdNote;
 }

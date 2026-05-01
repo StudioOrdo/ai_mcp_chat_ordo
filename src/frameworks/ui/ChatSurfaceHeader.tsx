@@ -2,29 +2,16 @@
 
 import React from "react";
 
-import {
-  ChatConversationDataMenu,
-  type ChatConversationDataMenuProps,
-} from "./ChatConversationDataMenu";
-
-interface ChatSurfaceHeaderProps extends ChatConversationDataMenuProps {
+interface ChatSurfaceHeaderProps {
   mode: "embedded" | "floating";
   isFullScreen: boolean;
-  isConversationActionPending?: boolean;
   onMinimize?: () => void;
   onFullScreenToggle?: () => void;
 }
 
 export function ChatSurfaceHeader({
-  canCopyTranscript,
-  canExportConversation,
-  canImportConversation,
   mode,
   isFullScreen,
-  isConversationActionPending = false,
-  onCopyTranscript,
-  onExportConversation,
-  onImportConversationFile,
   onMinimize,
   onFullScreenToggle,
 }: ChatSurfaceHeaderProps) {
@@ -47,16 +34,6 @@ export function ChatSurfaceHeader({
         className="shell-action-row shrink-0 ml-auto"
         data-chat-floating-header-chrome="true"
       >
-        <ChatConversationDataMenu
-          canCopyTranscript={canCopyTranscript}
-          canExportConversation={canExportConversation}
-          canImportConversation={canImportConversation}
-          isBusy={isConversationActionPending}
-          onCopyTranscript={onCopyTranscript}
-          onExportConversation={onExportConversation}
-          onImportConversationFile={onImportConversationFile}
-        />
-
         {mode === "floating" ? (
           <>
         <button

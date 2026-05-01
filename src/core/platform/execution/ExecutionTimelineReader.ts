@@ -9,6 +9,7 @@ import type {
 } from "@/core/use-cases/FactoryRepository";
 import type { JobQueueRepository } from "@/core/use-cases/JobQueueRepository";
 import type { JobStatusQuery, JobStatusQueryOptions } from "@/core/use-cases/JobStatusQuery";
+import type { MaterializationRepository } from "@/core/use-cases/MaterializationRepository";
 import type { MessageRepository } from "@/core/use-cases/MessageRepository";
 import type {
   ExecutionTimeline,
@@ -23,7 +24,7 @@ import {
 } from "@/core/platform/execution/ExecutionTimelineProjector";
 import { projectObservabilityExecutionTimeline } from "@/core/platform/execution/ObservabilityTimelineProjector";
 import { mapJobEventHistory, type JobHistoryEntry } from "@/lib/jobs/job-event-history";
-import { buildJobStatusSnapshot, type JobStatusSnapshot } from "@/lib/jobs/job-read-model";
+import { buildCanonicalJobSnapshot, type CanonicalJobSnapshot } from "@/lib/jobs/job-read-model";
 import type { PromptTurnProvenanceRecord } from "@/lib/prompts/prompt-provenance-store";
 
 export interface PromptTurnProvenanceReader {
@@ -40,7 +41,7 @@ type JobRecord = NonNullable<Awaited<ReturnType<JobQueueRepository["findJobById"
 
 export interface JobExecutionTimelineReadResult {
   job: JobRecord;
-  snapshot: JobStatusSnapshot;
+  snapshot: CanonicalJobSnapshot;
   timeline: ExecutionTimeline;
   history: JobHistoryEntry[];
 }
@@ -74,14 +75,20 @@ export interface ExecutionTimelineReader extends JobStatusQuery {
 async function buildJobReadResult(
   repository: JobQueueRepository,
   job: JobRecord,
-  options?: { history?: Awaited<ReturnType<JobQueueRepository["listEventsForUserJob"]>> },
+  options?: {
+    history?: Awaited<ReturnType<JobQueueRepository["listEventsForUserJob"]>>;
+    materializationRepository?: MaterializationRepository;
+  },
 ): Promise<JobExecutionTimelineReadResult> {
-  const latestRenderableEvent = await repository.findLatestRenderableEventForJob(job.id);
+  const [latestRenderableEvent, materialization] = await Promise.all([
+    repository.findLatestRenderableEventForJob(job.id),
+    options?.materializationRepository?.findByProducedJobId?.(job.id) ?? Promise.resolve(null),
+  ]);
   const historyEvents = options?.history ?? [];
 
   return {
     job,
-    snapshot: buildJobStatusSnapshot(job, latestRenderableEvent),
+    snapshot: buildCanonicalJobSnapshot(job, latestRenderableEvent, { materialization }),
     timeline: projectJobExecutionTimeline({
       job,
       latestRenderableEvent,
@@ -96,6 +103,7 @@ export class RepositoryBackedExecutionTimelineReader implements ExecutionTimelin
     private readonly jobRepository: JobQueueRepository,
     private readonly factoryRepository?: FactoryRepository,
     private readonly chatTurnDeps: ChatTurnTimelineDeps = {},
+    private readonly materializationRepository?: MaterializationRepository,
   ) {}
 
   async readExecutionTimeline(request: ReadExecutionTimelineRequest): Promise<ExecutionTimeline | null> {
@@ -173,7 +181,9 @@ export class RepositoryBackedExecutionTimelineReader implements ExecutionTimelin
       return null;
     }
 
-    return buildJobReadResult(this.jobRepository, job);
+    return buildJobReadResult(this.jobRepository, job, {
+      materializationRepository: this.materializationRepository,
+    });
   }
 
   async getUserJobTimeline(userId: string, jobId: string): Promise<JobExecutionTimelineReadResult | null> {
@@ -183,7 +193,9 @@ export class RepositoryBackedExecutionTimelineReader implements ExecutionTimelin
       return null;
     }
 
-    return buildJobReadResult(this.jobRepository, job);
+    return buildJobReadResult(this.jobRepository, job, {
+      materializationRepository: this.materializationRepository,
+    });
   }
 
   async listConversationJobTimelines(
@@ -191,12 +203,16 @@ export class RepositoryBackedExecutionTimelineReader implements ExecutionTimelin
     options?: JobStatusQueryOptions,
   ): Promise<JobExecutionTimelineReadResult[]> {
     const jobs = await this.jobRepository.listJobsByConversation(conversationId, options);
-    return Promise.all(jobs.map((job) => buildJobReadResult(this.jobRepository, job)));
+    return Promise.all(jobs.map((job) => buildJobReadResult(this.jobRepository, job, {
+      materializationRepository: this.materializationRepository,
+    })));
   }
 
   async listUserJobTimelines(userId: string, options?: JobStatusQueryOptions): Promise<JobExecutionTimelineReadResult[]> {
     const jobs = await this.jobRepository.listJobsByUser(userId, options);
-    return Promise.all(jobs.map((job) => buildJobReadResult(this.jobRepository, job)));
+    return Promise.all(jobs.map((job) => buildJobReadResult(this.jobRepository, job, {
+      materializationRepository: this.materializationRepository,
+    })));
   }
 
   async getUserJobHistory(
@@ -210,7 +226,10 @@ export class RepositoryBackedExecutionTimelineReader implements ExecutionTimelin
     }
 
     const history = await this.jobRepository.listEventsForUserJob(userId, job.id, options);
-    return buildJobReadResult(this.jobRepository, job, { history });
+    return buildJobReadResult(this.jobRepository, job, {
+      history,
+      materializationRepository: this.materializationRepository,
+    });
   }
 
   async getWorkOrderTimeline(workOrderId: string): Promise<WorkOrderExecutionTimelineReadResult | null> {
@@ -246,12 +265,12 @@ export class RepositoryBackedExecutionTimelineReader implements ExecutionTimelin
     };
   }
 
-  async getJobSnapshot(jobId: string): Promise<JobStatusSnapshot | null> {
+  async getJobSnapshot(jobId: string): Promise<CanonicalJobSnapshot | null> {
     const result = await this.getJobTimeline(jobId);
     return result?.snapshot ?? null;
   }
 
-  async getUserJobSnapshot(userId: string, jobId: string): Promise<JobStatusSnapshot | null> {
+  async getUserJobSnapshot(userId: string, jobId: string): Promise<CanonicalJobSnapshot | null> {
     const result = await this.getUserJobTimeline(userId, jobId);
     return result?.snapshot ?? null;
   }
@@ -259,12 +278,12 @@ export class RepositoryBackedExecutionTimelineReader implements ExecutionTimelin
   async listConversationJobSnapshots(
     conversationId: string,
     options?: JobStatusQueryOptions,
-  ): Promise<JobStatusSnapshot[]> {
+  ): Promise<CanonicalJobSnapshot[]> {
     const results = await this.listConversationJobTimelines(conversationId, options);
     return results.map((result) => result.snapshot);
   }
 
-  async listUserJobSnapshots(userId: string, options?: JobStatusQueryOptions): Promise<JobStatusSnapshot[]> {
+  async listUserJobSnapshots(userId: string, options?: JobStatusQueryOptions): Promise<CanonicalJobSnapshot[]> {
     const results = await this.listUserJobTimelines(userId, options);
     return results.map((result) => result.snapshot);
   }
@@ -274,6 +293,12 @@ export function createExecutionTimelineReader(
   jobRepository: JobQueueRepository,
   factoryRepository?: FactoryRepository,
   chatTurnDeps: ChatTurnTimelineDeps = {},
+  materializationRepository?: MaterializationRepository,
 ): ExecutionTimelineReader {
-  return new RepositoryBackedExecutionTimelineReader(jobRepository, factoryRepository, chatTurnDeps);
+  return new RepositoryBackedExecutionTimelineReader(
+    jobRepository,
+    factoryRepository,
+    chatTurnDeps,
+    materializationRepository,
+  );
 }

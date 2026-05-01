@@ -64,11 +64,23 @@ describe("deferred job status tools", () => {
   expect(tool.roles).toEqual(getGlobalJobOperatorRoles());
     const result = await tool.command.execute({ job_id: "job_1" });
 
-    expect(result.job.part).toMatchObject({
+    expect(result.job).toMatchObject({
       jobId: "job_1",
       toolName: "produce_blog_article",
       status: "succeeded",
     });
+  });
+
+  it("describes admin status tools as explicit inspection instead of wait-loop polling", () => {
+    const query = createJobStatusQuery(repository);
+    const getTool = createGetDeferredJobStatusTool(query);
+    const listTool = createListDeferredJobsTool(query);
+
+    for (const tool of [getTool, listTool]) {
+      expect(tool.schema.description).toContain("explicit inspection or diagnostics");
+      expect(tool.schema.description).toContain("active chat waits through job events and reconciliation");
+      expect(tool.schema.description).toContain("Do not repeatedly call status tools for unchanged jobId/status/sequence");
+    }
   });
 
   it("lists active jobs for the current conversation by default", async () => {

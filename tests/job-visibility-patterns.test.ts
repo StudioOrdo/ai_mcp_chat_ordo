@@ -21,10 +21,9 @@ describe("TD-D — job visibility Repository and Facade", () => {
     const route = readSource("src/app/api/jobs/route.ts");
 
     expect(query).toContain("class RepositoryBackedJobStatusQuery");
-    expect(query).toContain("buildJobStatusSnapshot");
-    // /jobs page is now a redirect; the API route still uses the facade
-    expect(route).toContain("getJobStatusQuery().listUserJobSnapshots");
-    expect(route).not.toContain("buildJobStatusSnapshot");
+    expect(query).toContain("buildCanonicalJobSnapshot");
+    expect(route).toContain("getPlatformInteractionFacade().listUserJobInteractions");
+    expect(route).not.toContain("buildCanonicalJobSnapshot");
   });
 });
 

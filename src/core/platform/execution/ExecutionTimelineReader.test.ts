@@ -5,6 +5,7 @@ import os from "node:os";
 
 import type { JobQueueRepository } from "@/core/use-cases/JobQueueRepository";
 import type { FactoryRepository } from "@/core/use-cases/FactoryRepository";
+import type { MaterializationRepository } from "@/core/use-cases/MaterializationRepository";
 import { createExecutionTimelineReader } from "@/core/platform/execution/ExecutionTimelineReader";
 
 function createJobRepositoryMock(): JobQueueRepository {
@@ -99,8 +100,75 @@ describe("ExecutionTimelineReader", () => {
     const snapshot = await reader.getJobSnapshot("job_1");
 
     expect(result?.timeline.executionKind).toBe("job");
-    expect(result?.snapshot.part.status).toBe("running");
-    expect(snapshot?.part.progressLabel).toBe("Publishing");
+    expect(result?.snapshot.status).toBe("running");
+    expect(snapshot?.progressLabel).toBe("Publishing");
+  });
+
+  it("joins materialization records into canonical job snapshots", async () => {
+    const jobRepository = createJobRepositoryMock();
+    const materializationRepository = {
+      findByProducedJobId: vi.fn().mockResolvedValue({
+        id: "mat_job_1",
+        userId: "usr_1",
+        conversationId: "conv_1",
+        materializationKey: "publish_content:post_1",
+        toolName: "publish_content",
+        pipelineVersion: "publish_content:v1",
+        status: "ready",
+        reusePolicy: "same_user",
+        inputSourceRefs: [],
+        outputRefs: [{ kind: "asset", id: "asset_1", userId: "usr_1", conversationId: "conv_1" }],
+        evidenceRefs: [],
+        producedByJobId: "job_1",
+        supersededByRecordId: null,
+        createdAt: "2026-04-01T00:00:03.000Z",
+        updatedAt: "2026-04-01T00:00:03.000Z",
+      }),
+    } as unknown as MaterializationRepository;
+    const reader = createExecutionTimelineReader(jobRepository, undefined, {}, materializationRepository);
+
+    vi.mocked(jobRepository.findJobById).mockResolvedValue({
+      id: "job_1",
+      conversationId: "conv_1",
+      userId: "usr_1",
+      toolName: "publish_content",
+      status: "succeeded",
+      priority: 100,
+      dedupeKey: null,
+      initiatorType: "user",
+      requestPayload: { postId: "post_1" },
+      resultPayload: { assetId: "asset_1" },
+      errorMessage: null,
+      progressPercent: 100,
+      progressLabel: "Published",
+      attemptCount: 1,
+      leaseExpiresAt: null,
+      claimedBy: "worker_1",
+      failureClass: null,
+      nextRetryAt: null,
+      recoveryMode: null,
+      lastCheckpointId: null,
+      replayedFromJobId: null,
+      supersededByJobId: null,
+      createdAt: "2026-04-01T00:00:00.000Z",
+      startedAt: "2026-04-01T00:00:01.000Z",
+      completedAt: "2026-04-01T00:00:03.000Z",
+      updatedAt: "2026-04-01T00:00:03.000Z",
+    });
+    vi.mocked(jobRepository.findLatestRenderableEventForJob).mockResolvedValue({
+      id: "evt_1",
+      jobId: "job_1",
+      conversationId: "conv_1",
+      sequence: 2,
+      eventType: "result",
+      payload: { result: { assetId: "asset_1" }, progressPercent: 100, progressLabel: "Published" },
+      createdAt: "2026-04-01T00:00:03.000Z",
+    });
+
+    const snapshot = await reader.getJobSnapshot("job_1");
+
+    expect(materializationRepository.findByProducedJobId).toHaveBeenCalledWith("job_1");
+    expect(snapshot?.materializationRefs).toEqual(["mat_job_1"]);
   });
 
   it("returns explicit reduced-support timelines for chat_turn requests", async () => {
@@ -404,8 +472,12 @@ describe("ExecutionTimelineReader", () => {
         id: "dag_1",
         briefId: "brief_1",
         schemaVersion: 1,
-        stages: [{ key: "draft", label: "Draft", kind: "draft", dependsOn: [] }],
-        createdAt: "2026-04-01T00:00:00.000Z",
+        stages: [{ key: "draft", label: "Draft", kind: "draft", dependencyKeys: [], parallelizable: false }],
+        version: 1,
+        autoParallelize: false,
+        generatedAt: "2026-04-01T00:00:00.000Z",
+        generatedBy: "test",
+        generationReason: "batch_automation",
       },
       stageRuns: [],
       executionLog: [],
@@ -418,7 +490,7 @@ describe("ExecutionTimelineReader", () => {
       },
       createdAt: "2026-04-01T00:00:00.000Z",
       startedAt: "2026-04-01T00:00:01.000Z",
-      completedAt: null,
+      completedAt: undefined,
       userId: "usr_1",
       conversationId: "conv_1",
       initiatedBy: "batch_automation",

@@ -97,7 +97,7 @@ export function createProviderBoundaryHarness(options: {
     signal?: AbortSignal;
     systemPrompt: string;
     tools: Anthropic.Tool[];
-    toolExecutor: (name: string, input: Record<string, unknown>) => Promise<unknown>;
+    toolExecutor: (name: string, input: Record<string, unknown>, toolInvocationId: string) => Promise<unknown>;
   }): Promise<ClaudeAgentLoopResult> => {
     const call: ProviderBoundaryHarnessCall = {
       request: {
@@ -134,7 +134,7 @@ export function createProviderBoundaryHarness(options: {
       call.toolCalls.push({ name: step.name, args: step.args, toolInvocationId });
 
       try {
-        const result = await toolExecutor(step.name, step.args);
+        const result = await toolExecutor(step.name, step.args, toolInvocationId);
         throwIfAborted(signal);
 
         const normalizedResult = normalizeToolResult(result);

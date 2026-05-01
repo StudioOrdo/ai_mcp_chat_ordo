@@ -1,15 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { HybridSearchEngine } from "@/core/search/HybridSearchEngine";
-import { BM25Scorer } from "@/core/search/BM25Scorer";
 import { QueryProcessor } from "@/core/search/QueryProcessor";
 import { LowercaseStep } from "@/core/search/query-steps/LowercaseStep";
 import { StopwordStep } from "@/core/search/query-steps/StopwordStep";
 import { SynonymStep } from "@/core/search/query-steps/SynonymStep";
 import { InMemoryVectorStore } from "@/adapters/InMemoryVectorStore";
-import { InMemoryBM25IndexStore } from "@/adapters/InMemoryBM25IndexStore";
 import { MockEmbedder } from "@/adapters/MockEmbedder";
 import type { EmbeddingRecord } from "@/core/search/ports/VectorStore";
-import type { BM25Index } from "@/core/search/ports/BM25IndexStore";
 import type { BookChunkMetadata } from "@/core/search/ports/Chunker";
 
 function makeRecord(
@@ -50,29 +47,6 @@ function makeRecord(
   } as EmbeddingRecord;
 }
 
-function buildBM25Index(records: EmbeddingRecord[]): BM25Index {
-  const docLengths = new Map<string, number>();
-  const termDocFrequencies = new Map<string, number>();
-  let totalLength = 0;
-
-  for (const r of records) {
-    const tokens = r.content.toLowerCase().split(/\s+/).filter(Boolean);
-    docLengths.set(r.id, tokens.length);
-    totalLength += tokens.length;
-    const seen = new Set(tokens);
-    for (const t of seen) {
-      termDocFrequencies.set(t, (termDocFrequencies.get(t) ?? 0) + 1);
-    }
-  }
-
-  return {
-    avgDocLength: totalLength / records.length,
-    docCount: records.length,
-    docLengths,
-    termDocFrequencies,
-  };
-}
-
 describe("HybridSearchEngine", () => {
   const stopwords = new Set(["the", "a", "is", "are", "was", "what", "how"]);
   const synonyms = { "a11y": ["accessibility", "accessible"] };
@@ -90,7 +64,6 @@ describe("HybridSearchEngine", () => {
   async function setup() {
     const embedder = new MockEmbedder();
     const vectorStore = new InMemoryVectorStore();
-    const bm25IndexStore = new InMemoryBM25IndexStore();
 
     // Create test records with content about different topics
     const records: EmbeddingRecord[] = [
@@ -117,16 +90,13 @@ describe("HybridSearchEngine", () => {
     }
 
     vectorStore.upsert(records);
-    const bm25Index = buildBM25Index(records);
-    bm25IndexStore.saveIndex("document_chunk", bm25Index);
-
     const engine = new HybridSearchEngine(
-      embedder, vectorStore, new BM25Scorer(), bm25IndexStore,
+      embedder, vectorStore,
       vectorProcessor, bm25Processor,
       { vectorTopN: 50, bm25TopN: 50, rrfK: 60, maxResults: 10 },
     );
 
-    return { engine, embedder, vectorStore, bm25IndexStore, records };
+    return { engine, embedder, vectorStore, records };
   }
 
   // TEST-VS-01
@@ -208,14 +178,12 @@ describe("HybridSearchEngine", () => {
   });
 
   // TEST-VS-53
-  it("constructor requires all 7 dependencies", () => {
+  it("constructor requires bounded search dependencies", () => {
     const embedder = new MockEmbedder();
     const vectorStore = new InMemoryVectorStore();
-    const bm25Scorer = new BM25Scorer();
-    const bm25IndexStore = new InMemoryBM25IndexStore();
 
     const engine = new HybridSearchEngine(
-      embedder, vectorStore, bm25Scorer, bm25IndexStore,
+      embedder, vectorStore,
       vectorProcessor, bm25Processor,
       { vectorTopN: 50, bm25TopN: 50, rrfK: 60, maxResults: 10 },
     );

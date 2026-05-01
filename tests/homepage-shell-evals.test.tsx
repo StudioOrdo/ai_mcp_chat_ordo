@@ -49,10 +49,6 @@ vi.mock("@/components/NotificationFeed", () => ({
   NotificationFeed: () => <div data-testid="notification-feed" />,
 }));
 
-vi.mock("@/components/GlobalSearchBar", () => ({
-  GlobalSearchBar: () => <div data-testid="global-search" />,
-}));
-
 vi.mock("@/components/ThemeProvider", () => ({
   useTheme: () => ({
     accessibility: { density: "normal" },
@@ -121,16 +117,7 @@ describe("homepage shell eval harness", () => {
       name: "Anonymous User",
       roles: ["ANONYMOUS"],
     });
-    mockMessages = [
-      {
-        id: "hero-1",
-        role: "assistant",
-        content:
-          "Bring me the messy workflow, half-finished idea, or customer task. I can help you plan the work, search your library, turn it into assets, and keep it moving from one governed workspace.\n\n__suggestions__:[\"Plan this workflow\",\"Search my library\",\"Turn this into an asset\",\"What makes this different?\"]",
-        timestamp: new Date("2026-03-18T10:00:00.000Z"),
-        parts: [{ type: "text", text: "hero" }],
-      },
-    ];
+    mockMessages = [];
   });
 
   async function renderHome() {

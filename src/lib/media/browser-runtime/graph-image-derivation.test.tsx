@@ -1,8 +1,18 @@
 // @vitest-environment jsdom
 
+import { act } from "react";
 import { describe, expect, it } from "vitest";
 
 import { getGraphTableTruncationDiagnostic, renderGraphToPngBlob } from "./graph-image-derivation";
+
+async function expectGraphRenderFailure(
+  payload: Parameters<typeof renderGraphToPngBlob>[0],
+  message: RegExp,
+) {
+  await act(async () => {
+    await expect(renderGraphToPngBlob(payload)).rejects.toThrowError(message);
+  });
+}
 
 describe("renderGraphToPngBlob", () => {
   it("surfaces a descriptive error when the graph payload fails validation", async () => {
@@ -11,16 +21,17 @@ describe("renderGraphToPngBlob", () => {
     // previous implementation swallowed that error and surfaced a generic
     // "Graph rendering completed without an SVG output." message, which made
     // compose_media failures undiagnosable from the UI.
-    await expect(
-      renderGraphToPngBlob({
+    await expectGraphRenderFailure(
+      {
         graph: {
           kind: "bar",
           data: [{ month: "Jan", revenue: 1 }],
           x: { field: "month", type: "nominal" },
           // y intentionally missing
         },
-      }),
-    ).rejects.toThrowError(/Graph rendering failed \(kind=bar, rows=1\)/i);
+      },
+      /Graph rendering failed \(kind=bar, rows=1\)/i,
+    );
   });
 
   it("includes the graph kind and row count in the generic no-SVG error", async () => {
@@ -30,15 +41,16 @@ describe("renderGraphToPngBlob", () => {
     // using a non-default `testId`). We force that path by pointing at an
     // invalid graph kind cast through `unknown` — `GraphSvg` will throw on
     // `graph.kind` not matching any branch and we expect a descriptive wrap.
-    await expect(
-      renderGraphToPngBlob({
+    await expectGraphRenderFailure(
+      {
         graph: {
           // Cast through `unknown` to simulate a corrupt payload shape.
           kind: "definitely-not-a-real-kind",
           data: [],
         } as unknown as Parameters<typeof renderGraphToPngBlob>[0]["graph"],
-      }),
-    ).rejects.toThrowError(/rows=0/);
+      },
+      /rows=0/,
+    );
   });
 
   it("reports graph table truncation when rows exceed the render cap", () => {

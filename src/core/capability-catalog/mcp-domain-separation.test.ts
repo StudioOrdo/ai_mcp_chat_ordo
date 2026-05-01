@@ -135,8 +135,9 @@ describe("Sprint 11 — MCP Domain/Transport Separation", () => {
       expect(serverSource).toContain("getAllMcpExportableTools()");
     });
 
-    it("imports getAdminIntelligenceToolSchemas for the admin pack sidecar surface", () => {
-      expect(serverSource).toContain("getAdminIntelligenceToolSchemas");
+    it("uses the catalog MCP adapter registry for the admin pack sidecar surface", () => {
+      expect(serverSource).toContain("createCatalogMcpToolEntries");
+      expect(serverSource).not.toContain("getAdminIntelligenceToolSchemas");
     });
   });
 });

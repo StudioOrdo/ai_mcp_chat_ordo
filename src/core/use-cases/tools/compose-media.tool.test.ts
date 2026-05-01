@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parseComposeMediaInput, composeMediaTool } from "./compose-media.tool";
 
 describe("composeMediaTool descriptor", () => {
-  it("has the correct name and runs inline for browser-first hybrid execution", () => {
+  it("has the correct name and leaves ownership to planned execution", () => {
     expect(composeMediaTool.name).toBe("compose_media");
     expect(composeMediaTool.executionMode).toBeUndefined();
   });
@@ -31,7 +31,7 @@ describe("composeMediaTool descriptor", () => {
     expect(composeMediaTool.category).toBe("content");
   });
 
-  it("does not carry deferred config since execution is browser-first", () => {
+  it("does not carry descriptor-level deferred config because planned dispatch owns queuing", () => {
     expect(composeMediaTool.deferred).toBeUndefined();
   });
 });
@@ -85,7 +85,7 @@ describe("parseComposeMediaInput", () => {
 });
 
 describe("ComposeMediaCommand.execute", () => {
-  it("returns the plan shape with action and generationStatus fields", async () => {
+  it("returns a render-only canonical-job-required result for direct host execution", async () => {
     const input = {
       plan: {
         id: "p-exec-1",
@@ -99,7 +99,9 @@ describe("ComposeMediaCommand.execute", () => {
     };
     const result = await composeMediaTool.command.execute(input) as Record<string, unknown>;
     expect(result.action).toBe("compose_media");
+    expect(result.outcome).toBe("canonical_job_required");
     expect(result.planId).toBe("p-exec-1");
-    expect(result.generationStatus).toBe("client_fetch_pending");
+    expect(result.generationStatus).toBeUndefined();
+    expect(result.plan).toMatchObject({ id: "p-exec-1" });
   });
 });

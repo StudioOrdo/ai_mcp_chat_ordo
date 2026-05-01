@@ -41,15 +41,14 @@ describe("runtime integrity evidence", () => {
     expect(inventory.navigation.routesByRole.ANONYMOUS.some((route) => route.href === "/library")).toBe(true);
     expect(inventory.navigation.routesByRole.AUTHENTICATED.some((route) => route.href === "/my/media")).toBe(true);
     expect(inventory.navigation.routesByRole.STAFF.some((route) => route.href === "/operations/media")).toBe(true);
-    expect(inventory.mcp.processCount).toBe(3);
+    expect(inventory.mcp.processCount).toBe(4);
     expect(inventory.mcp.processes).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          id: "operations",
-          serverName: "operations-mcp-server",
-          entrypoint: "mcp/operations-server.ts",
-          canonicalCommand: "npm run mcp:operations",
-          compatibilityAliases: [],
+          id: "admin-web-search",
+          serverName: "admin-web-search-mcp-server",
+          entrypoint: "mcp/admin-web-search-server.ts",
+          canonicalCommand: "npm run mcp:admin-web-search",
         }),
         expect.objectContaining({
           id: "calculator",
@@ -57,10 +56,17 @@ describe("runtime integrity evidence", () => {
           canonicalCommand: "npm run mcp:calculator",
         }),
         expect.objectContaining({
-          id: "admin-web-search",
-          serverName: "admin-web-search-mcp-server",
-          entrypoint: "mcp/admin-web-search-server.ts",
-          canonicalCommand: "npm run mcp:admin-web-search",
+          id: "generate-audio",
+          serverName: "generate-audio-mcp-server",
+          entrypoint: "mcp/generate-audio-server.ts",
+          canonicalCommand: "npm run mcp:generate-audio",
+        }),
+        expect.objectContaining({
+          id: "operations",
+          serverName: "operations-mcp-server",
+          entrypoint: "mcp/operations-server.ts",
+          canonicalCommand: "npm run mcp:operations",
+          compatibilityAliases: [],
         }),
       ]),
     );
@@ -120,7 +126,7 @@ describe("runtime integrity evidence", () => {
 
     expect(fs.existsSync(artifactPath)).toBe(true);
     expect(JSON.parse(fs.readFileSync(artifactPath, "utf8"))).toEqual(evidence);
-    expect(evidence.inventory.mcp.processCount).toBe(3);
+    expect(evidence.inventory.mcp.processCount).toBe(4);
     expect(evidence.coverage.focusedTestSuites).toEqual(expect.arrayContaining([
       "src/hooks/chat/useBrowserCapabilityRuntime.test.tsx",
       "src/app/api/chat/uploads/route.test.ts",

@@ -9,7 +9,7 @@ import { isTrainingPathCustomerVisibleStatus } from "@/core/entities/training-pa
 import { executePublishContent } from "@/core/use-cases/tools/admin-content.tool";
 import { createSystemPromptBuilder } from "@/lib/chat/policy";
 import type { PromptRuntimeResult } from "@/lib/chat/prompt-runtime";
-import { buildJobStatusSnapshot, getActiveJobStatuses } from "@/lib/jobs/job-read-model";
+import { buildCanonicalJobSnapshot, getActiveJobStatuses } from "@/lib/jobs/job-read-model";
 import { compactProvenance } from "@/lib/prompts/prompt-provenance-store";
 import { getAgentPlatformFacade } from "@/lib/platform/agent-platform-facade-root";
 import type { EvalObservation, EvalRunConfig, EvalScenario, EvalTargetEnvironment } from "./domain";
@@ -276,7 +276,7 @@ function createLiveEvalToolExecutor(options: {
         });
         const snapshots = await Promise.all(jobs.map(async (job) => {
           const event = await jobRepo.findLatestEventForJob(job.id);
-          return buildJobStatusSnapshot(job, event);
+          return buildCanonicalJobSnapshot(job, event);
         }));
         return { ok: true, jobs: snapshots };
       }
@@ -288,7 +288,7 @@ function createLiveEvalToolExecutor(options: {
           throw new Error(`Deferred job not found: ${jobId}`);
         }
         const event = await jobRepo.findLatestEventForJob(job.id);
-        return { ok: true, job: buildJobStatusSnapshot(job, event) };
+        return { ok: true, job: buildCanonicalJobSnapshot(job, event) };
       }
 
       if (name === "publish_content") {
@@ -893,8 +893,8 @@ export async function runLiveEvalScenario(
           createCheckpointResult(
             scenario,
             "terminal-job-recovered",
-            calledToolIds.has("list_deferred_jobs") && calledToolIds.has("get_deferred_job_status"),
-            JSON.stringify(Array.from(calledToolIds)),
+            explainedPublishReadiness && rerunAvoided,
+            runtimeResult.assistantText || JSON.stringify(Array.from(calledToolIds)),
           ),
           createCheckpointResult(
             scenario,

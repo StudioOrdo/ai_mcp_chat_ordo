@@ -233,6 +233,41 @@ describe("resolveProgressStrip", () => {
     expect(resolveProgressStrip(messages, () => deferredDescriptor)).toEqual([]);
   });
 
+  it("does not revive stale running entries after the same job succeeds", () => {
+    const messages = [
+      makeMessage([
+        makeJobEntry("job_done", {
+          part: {
+            type: "job_status",
+            jobId: "job_done",
+            toolName: "produce_blog_article",
+            label: "Produce Blog Article",
+            status: "running",
+            sequence: 1,
+            progressLabel: "Generating article",
+            progressPercent: 55,
+            updatedAt: "2026-04-08T12:00:00.000Z",
+          },
+        }),
+      ]),
+      makeMessage([
+        makeJobEntry("job_done", {
+          part: {
+            type: "job_status",
+            jobId: "job_done",
+            toolName: "produce_blog_article",
+            label: "Produce Blog Article",
+            status: "succeeded",
+            sequence: 2,
+            updatedAt: "2026-04-08T12:01:00.000Z",
+          },
+        }),
+      ]),
+    ];
+
+    expect(resolveProgressStrip(messages, () => deferredDescriptor)).toEqual([]);
+  });
+
   it("partitions visible and overflow items with explicit desktop and mobile caps", () => {
     const items = [
       makeJobEntry("job-1"),

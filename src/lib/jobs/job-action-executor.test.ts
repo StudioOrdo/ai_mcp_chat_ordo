@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { executeJobAction } from "./job-action-executor";
-import type { DeferredJobConversationProjector } from "./deferred-job-conversation-projector";
 import { jobEventBus } from "./job-event-bus";
 
 describe("job-action-executor", () => {
@@ -20,10 +19,6 @@ describe("job-action-executor", () => {
       }),
       appendEvent: vi.fn().mockResolvedValue({ sequence: 9 }),
     } as const;
-    const projector = {
-      project: vi.fn().mockResolvedValue(undefined),
-    } as unknown as DeferredJobConversationProjector;
-
     const canceled = new Promise<{ jobId: string; canceledBy: string }>((resolve) => {
       const unsubscribe = jobEventBus.onJobCanceled("job_1", (payload) => {
         unsubscribe();
@@ -33,7 +28,6 @@ describe("job-action-executor", () => {
 
     const result = await executeJobAction({
       repository: repository as never,
-      projector,
       job: {
         id: "job_1",
         conversationId: "conv_1",

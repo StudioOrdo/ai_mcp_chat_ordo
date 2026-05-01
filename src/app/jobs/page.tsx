@@ -29,6 +29,7 @@ export default async function JobsPage({
   return (
     <JobsWorkspace
       userName={user.name}
+      workflows={workspace.workflows}
       jobs={workspace.jobs}
       selectedJobId={workspace.selectedJobId}
       selectedJob={workspace.selectedJob}

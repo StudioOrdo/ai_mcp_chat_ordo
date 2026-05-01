@@ -46,10 +46,6 @@ vi.mock("@/components/NotificationFeed", () => ({
   NotificationFeed: () => <div data-testid="notification-feed" />,
 }));
 
-vi.mock("@/components/GlobalSearchBar", () => ({
-  GlobalSearchBar: () => <div data-testid="global-search" />,
-}));
-
 vi.mock("@/components/ThemeProvider", () => ({
   useTheme: () => ({
     accessibility: { density: "normal" },

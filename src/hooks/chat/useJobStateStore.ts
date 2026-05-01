@@ -1,134 +1,113 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { ChatMessage } from "@/core/entities/chat-message";
-import type { JobStatusMessagePart } from "@/core/entities/message-parts";
+import type { CanonicalJobSnapshot } from "@/lib/jobs/job-read-model";
+import { mergeJobSnapshots } from "@/lib/jobs/job-snapshot-state";
+import type { CanonicalMediaWorkflowSnapshot } from "@/lib/media/workflows/media-workflow-read-model";
 
-export interface JobStateEntry {
-  messageId: string;
-  part: JobStatusMessagePart;
-}
+export type JobStateEntry = CanonicalJobSnapshot;
+export type WorkflowStateEntry = CanonicalMediaWorkflowSnapshot;
 
-function isJobStatusMessagePart(part: NonNullable<ChatMessage["parts"]>[number]): part is JobStatusMessagePart {
-  return part.type === "job_status";
-}
+function mergeWorkflowSnapshots(
+  current: readonly CanonicalMediaWorkflowSnapshot[],
+  incoming: readonly CanonicalMediaWorkflowSnapshot[],
+): CanonicalMediaWorkflowSnapshot[] {
+  const byId = new Map<string, CanonicalMediaWorkflowSnapshot>();
 
-function mergeNullable<T>(next: T | undefined, previous: T | undefined): T | undefined {
-  return next !== undefined ? next : previous;
-}
-
-function mergeJobStatusPart(
-  existing: JobStatusMessagePart,
-  incoming: JobStatusMessagePart,
-): JobStatusMessagePart {
-  const existingSequence = existing.sequence ?? -1;
-  const incomingSequence = incoming.sequence ?? -1;
-
-  if (incomingSequence < existingSequence) {
-    return existing;
+  for (const workflow of current) {
+    byId.set(workflow.workflowId, workflow);
   }
 
-  const newer = incomingSequence >= existingSequence ? incoming : existing;
-  const older = newer === incoming ? existing : incoming;
-
-  return {
-    ...older,
-    ...newer,
-    title: newer.title ?? older.title,
-    subtitle: newer.subtitle ?? older.subtitle,
-    progressPercent: mergeNullable(newer.progressPercent, older.progressPercent),
-    progressLabel: mergeNullable(newer.progressLabel, older.progressLabel),
-    summary: newer.summary ?? older.summary,
-    error: newer.error ?? older.error,
-    updatedAt: newer.updatedAt ?? older.updatedAt,
-    resultPayload: newer.resultPayload ?? older.resultPayload,
-    resultEnvelope: mergeNullable(newer.resultEnvelope, older.resultEnvelope),
-    attemptCount: newer.attemptCount ?? older.attemptCount,
-    maxAttempts: mergeNullable(newer.maxAttempts, older.maxAttempts),
-    nextRetryAt: mergeNullable(newer.nextRetryAt, older.nextRetryAt),
-    startedAt: mergeNullable(newer.startedAt, older.startedAt),
-    completedAt: mergeNullable(newer.completedAt, older.completedAt),
-    lastCheckpointId: mergeNullable(newer.lastCheckpointId, older.lastCheckpointId),
-    failureClass: newer.failureClass ?? older.failureClass,
-    recoveryMode: newer.recoveryMode ?? older.recoveryMode,
-    replayedFromJobId: newer.replayedFromJobId ?? older.replayedFromJobId,
-    supersededByJobId: newer.supersededByJobId ?? older.supersededByJobId,
-    actions: newer.actions ?? older.actions,
-  };
-}
-
-function mergeEntryMap(
-  current: Map<string, JobStateEntry>,
-  incomingEntries: readonly JobStateEntry[],
-): Map<string, JobStateEntry> {
-  if (incomingEntries.length === 0) {
-    return current;
+  for (const workflow of incoming) {
+    byId.set(workflow.workflowId, workflow);
   }
 
-  const next = new Map(current);
-
-  for (const entry of incomingEntries) {
-    const existing = next.get(entry.part.jobId);
-    if (!existing) {
-      next.set(entry.part.jobId, entry);
-      continue;
-    }
-
-    next.set(entry.part.jobId, {
-      messageId: entry.messageId || existing.messageId,
-      part: mergeJobStatusPart(existing.part, entry.part),
-    });
-  }
-
-  return next;
-}
-
-function extractEntriesFromMessages(messages: readonly ChatMessage[]): JobStateEntry[] {
-  const entries: JobStateEntry[] = [];
-
-  for (const message of messages) {
-    for (const part of message.parts ?? []) {
-      if (!isJobStatusMessagePart(part)) {
-        continue;
-      }
-
-      entries.push({
-        messageId: message.id,
-        part,
-      });
-    }
-  }
-
-  return entries;
+  return [...byId.values()].sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
 }
 
 export function useJobStateStore(
   conversationId: string | null,
-  messages: readonly ChatMessage[],
+  seededSnapshots: readonly CanonicalJobSnapshot[] = [],
 ) {
-  const [entriesByJobId, setEntriesByJobId] = useState<Map<string, JobStateEntry>>(new Map());
+  const [liveSnapshots, setLiveSnapshots] = useState<CanonicalJobSnapshot[]>([]);
   const previousConversationIdRef = useRef<string | null>(conversationId);
 
   useEffect(() => {
-    const extracted = extractEntriesFromMessages(messages);
     const conversationChanged = previousConversationIdRef.current !== conversationId;
     previousConversationIdRef.current = conversationId;
 
-    setEntriesByJobId((current) => {
+    setLiveSnapshots((current) => {
       if (!conversationId) {
-        return new Map();
+        return current.length === 0 ? current : [];
       }
 
       if (conversationChanged) {
-        return mergeEntryMap(new Map(), extracted);
+        return [];
       }
 
-      return mergeEntryMap(current, extracted);
+      return current;
     });
-  }, [conversationId, messages]);
+  }, [conversationId]);
 
-  const jobStateEntries = useMemo(() => [...entriesByJobId.values()], [entriesByJobId]);
+  const upsertJobStateEntries = useCallback((incomingSnapshots: readonly CanonicalJobSnapshot[]) => {
+    setLiveSnapshots((current) => {
+      if (!conversationId) {
+        return [];
+      }
+
+      return mergeJobSnapshots(current, incomingSnapshots);
+    });
+  }, [conversationId]);
+
+  const jobStateEntries = useMemo(() => {
+    return mergeJobSnapshots(seededSnapshots, liveSnapshots);
+  }, [liveSnapshots, seededSnapshots]);
 
   return {
     jobStateEntries,
+    upsertJobStateEntries,
+  };
+}
+
+export function useWorkflowStateStore(
+  conversationId: string | null,
+  seededSnapshots: readonly CanonicalMediaWorkflowSnapshot[] = [],
+) {
+  const [liveSnapshots, setLiveSnapshots] = useState<CanonicalMediaWorkflowSnapshot[]>([]);
+  const previousConversationIdRef = useRef<string | null>(conversationId);
+
+  useEffect(() => {
+    const conversationChanged = previousConversationIdRef.current !== conversationId;
+    previousConversationIdRef.current = conversationId;
+
+    setLiveSnapshots((current) => {
+      if (!conversationId) {
+        return current.length === 0 ? current : [];
+      }
+
+      if (conversationChanged) {
+        return [];
+      }
+
+      return current;
+    });
+  }, [conversationId]);
+
+  const upsertWorkflowStateEntries = useCallback((incomingSnapshots: readonly CanonicalMediaWorkflowSnapshot[]) => {
+    setLiveSnapshots((current) => {
+      if (!conversationId) {
+        return [];
+      }
+
+      return mergeWorkflowSnapshots(current, incomingSnapshots);
+    });
+  }, [conversationId]);
+
+  const workflowStateEntries = useMemo(() => {
+    return mergeWorkflowSnapshots(seededSnapshots, liveSnapshots);
+  }, [liveSnapshots, seededSnapshots]);
+
+  return {
+    workflowStateEntries,
+    upsertWorkflowStateEntries,
   };
 }

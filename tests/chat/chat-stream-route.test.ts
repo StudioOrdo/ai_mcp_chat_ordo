@@ -135,6 +135,18 @@ vi.mock("@/lib/chat/tool-composition-root", () => ({
 }));
 
 vi.mock("@/adapters/RepositoryFactory", () => ({
+  getCorpusRepository: vi.fn(() => ({
+    getAllDocuments: vi.fn(async () => []),
+    getDocument: vi.fn(async () => null),
+    getSectionsByDocument: vi.fn(async () => []),
+    getAllSections: vi.fn(async () => []),
+    getSection: vi.fn(async () => {
+      throw new Error("getSection not mocked for chat stream route tests");
+    }),
+  })),
+  getExecutionTimelineReader: vi.fn(() => ({
+    readExecutionTimeline: vi.fn(async () => null),
+  })),
   getJobQueueRepository: vi.fn(() => ({
     createJob: createJobMock,
     findActiveJobByDedupeKey: findActiveJobByDedupeKeyMock,
@@ -283,6 +295,9 @@ describe("POST /api/chat/stream", () => {
       routingAnalyzer: {
         analyze: analyzeRoutingMock,
       },
+      relationshipMemoryReader: {
+        listActiveByConversation: vi.fn().mockResolvedValue([]),
+      },
       summarizationInteractor: {
         summarizeIfNeeded: summarizeIfNeededMock,
       },
@@ -415,11 +430,9 @@ describe("POST /api/chat/stream", () => {
       getUserJobSnapshot: vi.fn().mockResolvedValue(null),
       listConversationJobSnapshots: vi.fn().mockResolvedValue([
         {
-          part: {
-            label: "Draft Content",
-            status: "queued",
-            progressLabel: "Preparing outline",
-          },
+          label: "Draft Content",
+          status: "queued",
+          progressLabel: "Preparing outline",
         },
       ]),
       listUserJobSnapshots: vi.fn().mockResolvedValue([]),
@@ -1201,13 +1214,19 @@ describe("POST /api/chat/stream", () => {
     const assistantPersistCall = appendMessageMock.mock.calls[1]?.[0] as {
       parts: Array<Record<string, unknown>>;
     };
+    expect(assistantPersistCall.parts).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: "job_status", jobId: "job_draft_1" }),
+    ]));
     expect(assistantPersistCall.parts).toEqual(expect.arrayContaining([
       expect.objectContaining({
-        type: "job_status",
-        jobId: "job_draft_1",
-        title: "Deferred Post",
-        subtitle: "Draft a structured journal article and persist the draft for editorial review.",
-        status: "queued",
+        type: "tool_result",
+        name: "draft_content",
+        result: expect.objectContaining({
+          deferred_job: expect.objectContaining({
+            jobId: "job_draft_1",
+            status: "queued",
+          }),
+        }),
       }),
     ]));
   });
@@ -1330,7 +1349,7 @@ describe("POST /api/chat/stream", () => {
     }));
   });
 
-  it("promotes explicit deferred status tool results into live job events and persisted job status parts", async () => {
+  it("does not promote explicit deferred status tool results into live events or persisted job status parts", async () => {
     looksLikeMathMock.mockReturnValue(false);
     getSessionUserMock.mockResolvedValue(
       createStreamRouteUser({
@@ -1380,13 +1399,22 @@ describe("POST /api/chat/stream", () => {
     const body = await response.text();
 
     expect(body).toContain('data: {"tool_call":{"name":"get_deferred_job_status","args":{"job_id":"job_8a1aa200-4f86-4841-b6f2-4094ad770f6f"}}}');
-    expect(body).toContain('data: {"type":"job_queued","messageId":"jobmsg_job_8a1aa200-4f86-4841-b6f2-4094ad770f6f","jobId":"job_8a1aa200-4f86-4841-b6f2-4094ad770f6f","conversationId":"conv_test","sequence":9,"toolName":"produce_blog_article","label":"Produce Blog Article","title":"AI operations backlog cleanup","subtitle":"Audience: Operations leaders · Objective: Improve delivery velocity","updatedAt":"2026-03-25T14:52:00.000Z","part":{"type":"job_status","jobId":"job_8a1aa200-4f86-4841-b6f2-4094ad770f6f","toolName":"produce_blog_article","label":"Produce Blog Article","title":"AI operations backlog cleanup","subtitle":"Audience: Operations leaders · Objective: Improve delivery velocity","status":"queued","sequence":9,"updatedAt":"2026-03-25T14:52:00.000Z"}}');
+    expect(body).not.toContain('"type":"job_queued"');
+    expect(body).toContain('"jobId":"job_8a1aa200-4f86-4841-b6f2-4094ad770f6f"');
+    expect(body).toContain('"title":"AI operations backlog cleanup"');
 
     const assistantPersistCall = appendMessageMock.mock.calls[1]?.[0] as {
       parts: Array<Record<string, unknown>>;
     };
+    expect(assistantPersistCall.parts).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: "job_status", jobId: "job_8a1aa200-4f86-4841-b6f2-4094ad770f6f" }),
+    ]));
     expect(assistantPersistCall.parts).toEqual(expect.arrayContaining([
-      expect.objectContaining({ type: "job_status", jobId: "job_8a1aa200-4f86-4841-b6f2-4094ad770f6f", title: "AI operations backlog cleanup", subtitle: "Audience: Operations leaders · Objective: Improve delivery velocity", status: "queued" }),
+      expect.objectContaining({
+        type: "tool_result",
+        name: "get_deferred_job_status",
+        result: expect.objectContaining({ ok: true }),
+      }),
     ]));
   });
 });

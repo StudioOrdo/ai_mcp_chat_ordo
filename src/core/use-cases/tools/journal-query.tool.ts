@@ -6,7 +6,7 @@ import type { BlogPostRevisionRepository } from "@/core/use-cases/BlogPostRevisi
 import type { ToolCommand } from "@/core/tool-registry/ToolCommand";
 import type { ToolDescriptor } from "@/core/tool-registry/ToolDescriptor";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
-import { getActiveJobStatuses, type JobStatusSnapshot } from "@/lib/jobs/job-read-model";
+import { getActiveJobStatuses, type CanonicalJobSnapshot } from "@/lib/jobs/job-read-model";
 import {
   getAdminJournalDetailPath,
   getAdminJournalListPath,
@@ -172,14 +172,14 @@ function summarizePostBlockers(post: BlogPost): string[] {
   return blockers;
 }
 
-function summarizeActiveJob(snapshot: JobStatusSnapshot): ActiveJobSummary {
+function summarizeActiveJob(snapshot: CanonicalJobSnapshot): ActiveJobSummary {
   return {
-    job_id: snapshot.part.jobId,
-    tool_name: snapshot.part.toolName,
-    status: snapshot.part.status,
-    title: snapshot.part.title,
-    summary: snapshot.part.summary,
-    updated_at: snapshot.part.updatedAt ?? null,
+    job_id: snapshot.jobId,
+    tool_name: snapshot.toolName,
+    status: snapshot.status,
+    title: snapshot.title,
+    summary: snapshot.summary,
+    updated_at: snapshot.updatedAt ?? null,
   };
 }
 

@@ -220,6 +220,75 @@ describe("UserFileSystem", () => {
     expect(cached?.file.id).toBe(file1.id);
   });
 
+  it("promotes an existing unattached generated asset instead of creating a duplicate row", async () => {
+    seedConversation(db);
+
+    const first = await ufs.store({
+      userId: "usr_test",
+      conversationId: null,
+      input: "Promote me",
+      fileType: "audio",
+      mimeType: "audio/mpeg",
+      extension: "mp3",
+      data: Buffer.from("first version"),
+      metadata: { source: "generated", retentionClass: "ephemeral" },
+    });
+
+    const second = await ufs.store({
+      userId: "usr_test",
+      conversationId: "conv_1",
+      input: "Promote me",
+      fileType: "audio",
+      mimeType: "audio/mpeg",
+      extension: "mp3",
+      data: Buffer.from("second version"),
+      metadata: { source: "generated", retentionClass: "conversation" },
+    });
+
+    expect(second.id).toBe(first.id);
+    expect(second.conversationId).toBe("conv_1");
+    expect(second.metadata.retentionClass).toBe("conversation");
+
+    const rowCount = db
+      .prepare(`SELECT COUNT(*) as count FROM user_files WHERE user_id = ? AND content_hash = ? AND file_type = 'audio'`)
+      .get("usr_test", contentHash("Promote me")) as { count: number };
+    expect(rowCount.count).toBe(1);
+  });
+
+  it("reuses an existing conversation-owned generated asset for later identical unattached writes", async () => {
+    seedConversation(db);
+
+    const first = await ufs.store({
+      userId: "usr_test",
+      conversationId: "conv_1",
+      input: "Conversation-owned",
+      fileType: "audio",
+      mimeType: "audio/mpeg",
+      extension: "mp3",
+      data: Buffer.from("conversation bytes"),
+      metadata: { source: "generated", retentionClass: "conversation" },
+    });
+
+    const second = await ufs.store({
+      userId: "usr_test",
+      conversationId: null,
+      input: "Conversation-owned",
+      fileType: "audio",
+      mimeType: "audio/mpeg",
+      extension: "mp3",
+      data: Buffer.from("ephemeral bytes"),
+      metadata: { source: "generated", retentionClass: "ephemeral" },
+    });
+
+    expect(second.id).toBe(first.id);
+    expect(second.conversationId).toBe("conv_1");
+
+    const rowCount = db
+      .prepare(`SELECT COUNT(*) as count FROM user_files WHERE user_id = ? AND content_hash = ? AND file_type = 'audio'`)
+      .get("usr_test", contentHash("Conversation-owned")) as { count: number };
+    expect(rowCount.count).toBe(1);
+  });
+
   it("deleteIfUnattached() removes unattached file records and disk content", async () => {
     const data = Buffer.from("temporary file");
     const stored = await ufs.storeBinary({
@@ -435,7 +504,7 @@ describe("UserFileSystem", () => {
   it("allocatePending() creates a pending DB record that store() later upserts to ready", async () => {
     seedConversation(db);
 
-    const pendingId = await ufs.allocatePending({
+    const pending = await ufs.allocatePending({
       userId: "usr_test",
       conversationId: "conv_1",
       fileType: "audio",
@@ -446,15 +515,15 @@ describe("UserFileSystem", () => {
       },
     });
 
-    expect(pendingId).toMatch(/^uf_/);
+    expect(pending.id).toMatch(/^uf_/);
     
     // DB record should be pending
-    const dbRecord = db.prepare(`SELECT status FROM user_files WHERE id = ?`).get(pendingId) as { status: string };
+    const dbRecord = db.prepare(`SELECT status FROM user_files WHERE id = ?`).get(pending.id) as { status: string };
     expect(dbRecord.status).toBe("pending");
 
     // Overwrite with store()
     const stored = await ufs.store({
-      id: pendingId,
+      id: pending.id,
       userId: "usr_test",
       conversationId: "conv_1",
       input: "test audio",
@@ -464,13 +533,13 @@ describe("UserFileSystem", () => {
       data: Buffer.from("audio bytes"),
     });
 
-    expect(stored.id).toBe(pendingId);
+    expect(stored.id).toBe(pending.id);
 
     // DB record should now be ready
-    const updatedRecord = db.prepare(`SELECT status FROM user_files WHERE id = ?`).get(pendingId) as { status: string };
+    const updatedRecord = db.prepare(`SELECT status FROM user_files WHERE id = ?`).get(pending.id) as { status: string };
     expect(updatedRecord.status).toBe("ready");
 
-    const loaded = await ufs.getById(pendingId);
+    const loaded = await ufs.getById(pending.id);
     expect(loaded?.file.status).toBe("ready");
     expect(loaded?.file.contentHash).toBe(contentHash("test audio"));
   });

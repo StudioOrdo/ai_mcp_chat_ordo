@@ -13,10 +13,10 @@ interface NotificationFeedProps {
 
 const DEFAULT_NOTIFICATIONS: FeedNotification[] = [
   {
-    id: "notif-global-search",
-    title: "Global search updated",
-    body: "Corpus results now appear in the top rail alongside shell routes and admin entities.",
-    href: "/library",
+    id: "notif-workspace-search",
+    title: "Workspace search updated",
+    body: "Search now runs through the governed chat workspace, with corpus and conversation recall surfaced in the transcript.",
+    href: "/workspace",
     scope: "user",
     unread: true,
   },

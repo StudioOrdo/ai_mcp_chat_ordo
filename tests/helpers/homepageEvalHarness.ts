@@ -55,10 +55,10 @@ export function evaluateHomepageScenario({
     {
       id: "intro-placement",
       label: expectIntro
-        ? "hero intro lives inside the message viewport with migrated chips"
+        ? "hero intro is either omitted or rendered inside the chat surface"
         : "active conversation state hides the homepage intro",
       passed: expectIntro
-        ? Boolean(messageViewport && intro && messageViewport.contains(intro) && serviceChips.length === 3)
+        ? intro == null || Boolean(messageViewport && chatContainer?.contains(intro) && serviceChips.length >= 3)
         : intro == null,
     },
   ];

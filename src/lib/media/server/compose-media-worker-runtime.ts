@@ -1,11 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { getUserFileDataMapper } from "@/adapters/RepositoryFactory";
+import { getAssetCatalogReader, getUserFileDataMapper } from "@/adapters/RepositoryFactory";
 import type {
   CapabilityArtifactRef,
   CapabilityResultEnvelope,
 } from "@/core/entities/capability-result";
+import type { WorkspaceAssetStatus } from "@/core/entities/conversation-workspace";
 import type { MediaCompositionPlan } from "@/core/entities/media-composition";
 import type { ToolProgressUpdate } from "@/core/tool-registry/ToolExecutionContext";
 import { FfmpegServerExecutor } from "@/lib/media/ffmpeg/server/ffmpeg-server-executor";
@@ -30,6 +31,8 @@ export interface ExecuteComposeMediaRemotelyParams {
   userId: string;
   conversationId: string | null;
   toolInvocationId?: string;
+  jobId?: string;
+  materializationKey?: string;
   onProgress?: (update: ToolProgressUpdate) => void;
 }
 
@@ -121,6 +124,21 @@ function summarizeStoredAssetRecord(
   };
 }
 
+function resolveCatalogReadinessStatus(
+  status: WorkspaceAssetStatus,
+): ComposeMediaAssetReadinessEntry["status"] {
+  switch (status) {
+    case "ready":
+      return "ready";
+    case "pending":
+      return "pending";
+    case "failed":
+    case "superseded":
+    case "deleted":
+      return "not_found";
+  }
+}
+
 function summarizeAssetReadinessMap(
   assetsById: Map<string, ComposeMediaAssetReadinessEntry>,
 ): Array<Record<string, unknown>> {
@@ -136,6 +154,7 @@ function summarizeAssetReadinessMap(
 export async function executeComposeMediaRemotely(
   params: ExecuteComposeMediaRemotelyParams,
 ): Promise<CapabilityResultEnvelope> {
+  const assetCatalogReader = getAssetCatalogReader();
   const repo = getUserFileDataMapper();
   const userFiles = new UserFileSystem(repo);
   const executor = new FfmpegServerExecutor();
@@ -160,7 +179,7 @@ export async function executeComposeMediaRemotely(
     plan: summarizePlan(params.plan),
     storedAssets: initialAssetIds.map((assetId) => ({
       assetId,
-      stored: summarizeStoredAssetRecord(storedAssets.get(assetId)),
+      stored: summarizeStoredAssetRecord(storedAssets.get(assetId) ?? null),
     })),
   });
 
@@ -202,10 +221,15 @@ export async function executeComposeMediaRemotely(
   const assetsById = new Map<string, ComposeMediaAssetReadinessEntry>();
 
   for (const assetId of assetIds) {
+    const catalogEntry = await assetCatalogReader.findByAssetId({
+      assetId,
+      userId: params.userId,
+    });
+
     if (assetId.startsWith("blogasset_")) {
       const blogAssetRepo = getBlogAssetRepository();
       const blogAsset = await blogAssetRepo.findById(assetId);
-      
+
       if (!blogAsset) {
         assetPaths.set(assetId, null);
         assetsById.set(assetId, {
@@ -214,16 +238,23 @@ export async function executeComposeMediaRemotely(
         });
         continue;
       }
-      
-      const isOwnedByUser = blogAsset.createdByUserId === params.userId;
-      
-      assetPaths.set(assetId, isOwnedByUser ? resolveBlogAssetDiskPath(blogAsset.storagePath) : null);
+
+      if (!catalogEntry) {
+        assetPaths.set(assetId, null);
+        assetsById.set(assetId, {
+          assetId,
+          status: "forbidden",
+        });
+        continue;
+      }
+
+      assetPaths.set(assetId, resolveBlogAssetDiskPath(blogAsset.storagePath));
       assetsById.set(assetId, {
         assetId,
-        status: isOwnedByUser ? "ready" : "forbidden",
-        assetKind: blogAsset.mimeType.startsWith("image/") ? "image" : null,
-        conversationId: null,
-        derivativeOfAssetId: null,
+        status: resolveCatalogReadinessStatus(catalogEntry.status),
+        assetKind: catalogEntry.kind === "document" ? null : catalogEntry.kind,
+        conversationId: catalogEntry.conversationId,
+        derivativeOfAssetId: catalogEntry.derivativeOfAssetId ?? null,
       });
       continue;
     }
@@ -238,13 +269,19 @@ export async function executeComposeMediaRemotely(
       continue;
     }
 
-    const projected = projectUserFileToMediaAssetDescriptor(stored.file);
-    const isOwnedByUser = stored.file.userId === params.userId;
+    if (!catalogEntry) {
+      assetPaths.set(assetId, null);
+      assetsById.set(assetId, {
+        assetId,
+        status: "forbidden",
+      });
+      continue;
+    }
 
-    let readinessStatus: ComposeMediaAssetReadinessEntry["status"] = isOwnedByUser
-      ? "ready"
-      : "forbidden";
-    if (isOwnedByUser && stored.file.status === "pending") {
+    const projected = projectUserFileToMediaAssetDescriptor(stored.file);
+
+    let readinessStatus: ComposeMediaAssetReadinessEntry["status"] = resolveCatalogReadinessStatus(catalogEntry.status);
+    if (catalogEntry.status === "ready" && stored.file.status === "pending") {
       readinessStatus = "pending";
     }
 
@@ -252,9 +289,9 @@ export async function executeComposeMediaRemotely(
     assetsById.set(assetId, {
       assetId,
       status: readinessStatus,
-      assetKind: projected?.kind ?? null,
-      conversationId: stored.file.conversationId,
-      derivativeOfAssetId: stored.file.metadata.derivativeOfAssetId ?? null,
+      assetKind: catalogEntry.kind === "document" ? projected?.kind ?? null : catalogEntry.kind,
+      conversationId: catalogEntry.conversationId,
+      derivativeOfAssetId: catalogEntry.derivativeOfAssetId ?? null,
     });
   }
 
@@ -308,6 +345,8 @@ export async function executeComposeMediaRemotely(
       retentionClass: params.conversationId ? "conversation" : "ephemeral",
       toolName: "compose_media",
       ...(params.toolInvocationId ? { toolInvocationId: params.toolInvocationId } : {}),
+      ...(params.jobId ? { jobId: params.jobId, producedByJobId: params.jobId } : {}),
+      ...(params.materializationKey ? { materializationKey: params.materializationKey } : {}),
     },
   });
 
@@ -331,6 +370,8 @@ export async function executeComposeMediaRemotely(
     replaySnapshot: {
       route: "deferred_remote",
       planId: materialized.plan.id,
+      ...(params.jobId ? { jobId: params.jobId } : {}),
+      ...(params.materializationKey ? { materializationKey: params.materializationKey } : {}),
       outputFormat: materialized.plan.outputFormat,
       outputBytes: stored.fileSize,
       resolution: materialized.plan.resolution ?? null,
@@ -351,6 +392,8 @@ export async function executeComposeMediaRemotely(
       mimeType: getMimeType(materialized.plan.outputFormat),
       resolution: materialized.plan.resolution ?? null,
       ...(params.toolInvocationId ? { toolInvocationId: params.toolInvocationId } : {}),
+      ...(params.jobId ? { jobId: params.jobId } : {}),
+      ...(params.materializationKey ? { materializationKey: params.materializationKey } : {}),
     },
   };
 }

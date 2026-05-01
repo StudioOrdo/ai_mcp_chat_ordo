@@ -967,6 +967,22 @@ export const CATALOG_INPUT_SCHEMAS = {
     },
     required: ["query"],
   },
+  search_relationship_memory: {
+    type: "object",
+    properties: {
+      query: { type: "string", description: "The memory retrieval query." },
+      max_results: { type: "number", description: "Max results (1-10)." },
+      memory_types: {
+        type: "array",
+        description: "Optional memory types to constrain the search.",
+        items: {
+          type: "string",
+          enum: ["goal", "preference", "decision", "commitment", "open_question", "milestone", "asset_context"],
+        },
+      },
+    },
+    required: ["query"],
+  },
   select_journal_hero_image: {
     type: "object",
     properties: {

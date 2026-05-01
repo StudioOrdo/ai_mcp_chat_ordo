@@ -21,7 +21,7 @@ export interface LiveEvalRuntimeRequest {
   systemPrompt?: string;
   promptRuntime?: PromptRuntimeResult | null;
   tools?: Anthropic.Tool[];
-  toolExecutor?: (name: string, input: Record<string, unknown>) => Promise<unknown>;
+  toolExecutor?: (name: string, input: Record<string, unknown>, toolInvocationId: string) => Promise<unknown>;
   invokeStream?: typeof runClaudeAgentLoopStream;
 }
 

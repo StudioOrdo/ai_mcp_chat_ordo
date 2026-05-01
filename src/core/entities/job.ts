@@ -56,6 +56,9 @@ export interface JobRequest {
   lastCheckpointId: string | null;
   replayedFromJobId: string | null;
   supersededByJobId: string | null;
+  originMessageId?: string | null;
+  originTurnId?: string | null;
+  toolInvocationId?: string | null;
   createdAt: string;
   startedAt: string | null;
   completedAt: string | null;
@@ -81,6 +84,9 @@ export interface JobRequestSeed {
   lastCheckpointId?: string | null;
   replayedFromJobId?: string | null;
   supersededByJobId?: string | null;
+  originMessageId?: string | null;
+  originTurnId?: string | null;
+  toolInvocationId?: string | null;
   requestPayload: Record<string, unknown>;
 }
 

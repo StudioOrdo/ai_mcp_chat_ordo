@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { createSearchMyConversationsTool } from "@/core/use-cases/tools/search-my-conversations.tool";
+import { InMemoryVectorStore } from "@/adapters/InMemoryVectorStore";
 import type { VectorStore, EmbeddingRecord } from "@/core/search/ports/VectorStore";
 import type { Embedder } from "@/core/search/ports/Embedder";
 import type { ConversationMetadata } from "@/core/search/ports/Chunker";
@@ -34,14 +35,9 @@ function makeRecord(
 }
 
 function makeMockVectorStore(records: EmbeddingRecord[]): VectorStore {
-  return {
-    upsert: vi.fn(),
-    delete: vi.fn(),
-    getAll: vi.fn().mockReturnValue(records),
-    getBySourceId: vi.fn(),
-    getContentHash: vi.fn(),
-    getModelVersion: vi.fn(),
-  } as unknown as VectorStore;
+  const store = new InMemoryVectorStore();
+  store.upsert(records);
+  return store;
 }
 
 function makeMockEmbedder(embedding: number[]): Embedder {

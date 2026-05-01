@@ -26,7 +26,7 @@ describe("capability-result-envelope", () => {
       toolName: "admin_web_search",
       family: "search",
       cardKind: "search_result",
-      executionMode: "inline",
+      executionMode: "deferred",
       inputSnapshot: { query: "ordo site architecture" },
     });
     expect(envelope?.summary.title).toBe("ordo site architecture");

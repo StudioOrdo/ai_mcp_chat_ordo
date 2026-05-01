@@ -30,6 +30,20 @@ const VALID_PRESETS: readonly BlogImagePreset[] = [
 
 const PORTRAIT_PROMPT_PATTERN = /\b(portrait|headshot|founder|ceo|executive|leader|person|people|woman|man|individual|speaker|consultant)\b/i;
 const LANDSCAPE_PROMPT_PATTERN = /\b(editorial|office|workspace|team|boardroom|campus|skyline|interior|exterior|scene|lobby|conference|landscape)\b/i;
+const GRAPHIC_IMAGE_PROMPT_REWRITES: ReadonlyArray<readonly [RegExp, string]> = [
+  [/\bdesire for flesh\b/gi, "desire for embodiment"],
+  [/\braw\s+organic\s+matter\b/gi, "abstract organic forms"],
+  [/\braw\s+human\s+longing\b/gi, "human longing"],
+  [/\braw\s+flesh\b/gi, "crimson organic forms"],
+  [/\bflesh\b/gi, "the physical world"],
+  [/\bbone(s)?\b/gi, "ivory sculptural forms"],
+  [/\bskin\b/gi, "warm natural texture"],
+  [/\bsinew\b/gi, "flowing fiber"],
+  [/\bvisceral\b/gi, "symbolic"],
+  [/\bprimal\s+hunger\b/gi, "primal longing"],
+];
+
+const IMAGE_SAFETY_SUFFIX = "Non-graphic, non-sexual, non-violent, no gore, no exposed anatomy.";
 
 export interface GenerateBlogImageInput {
   post_id?: string;
@@ -141,6 +155,22 @@ export function parseGenerateBlogImageInput(
   };
 }
 
+export function preflightBlogImagePrompt(prompt: string): string {
+  const trimmed = prompt.trim();
+  const rewritten = GRAPHIC_IMAGE_PROMPT_REWRITES.reduce(
+    (current, [pattern, replacement]) => current.replace(pattern, replacement),
+    trimmed,
+  ).replace(/\s+/g, " ").replace(/\.\./g, ".").trim();
+
+  if (rewritten.length === 0) {
+    return rewritten;
+  }
+
+  return rewritten.toLowerCase().includes("non-graphic")
+    ? rewritten
+    : `${rewritten}. ${IMAGE_SAFETY_SUFFIX}`;
+}
+
 export async function executeGenerateBlogImage(
   service: BlogImageGenerationService,
   input: GenerateBlogImageInput,
@@ -155,10 +185,11 @@ export async function executeGenerateBlogImage(
   }
 
   const strategy = resolveBlogImageStrategy(input);
+  const prompt = preflightBlogImagePrompt(input.prompt);
 
   return service.generate({
     postId: input.post_id,
-    prompt: input.prompt.trim(),
+    prompt,
     altText: input.alt_text.trim(),
     preset: input.preset,
     size: strategy.size,

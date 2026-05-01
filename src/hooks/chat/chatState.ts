@@ -9,7 +9,6 @@ import {
   appendPart,
   appendTextDelta,
   replaceMessageParts,
-  upsertJobStatusMessage,
   upsertGenerationStatusMessage,
   setFailedSendMetadata,
   type GenerationStatusUpdate,
@@ -38,11 +37,6 @@ export type ChatAction =
       toolInvocationId?: string;
       sourceMessageId?: string;
       contentHash?: string;
-    }
-  | {
-      type: "UPSERT_JOB_STATUS";
-      part: JobStatusMessagePart;
-      messageId?: string;
     }
   | {
       type: "UPSERT_GENERATION_STATUS";
@@ -226,8 +220,6 @@ export function chatReducer(
           ...(action.toolInvocationId ? { toolInvocationId: action.toolInvocationId } : {}),
         });
       });
-    case "UPSERT_JOB_STATUS":
-      return upsertJobStatusMessage(state, action.part, action.messageId);
     case "UPSERT_GENERATION_STATUS":
       return upsertGenerationStatusMessage(state, action.index, action.generation);
     case "SET_FAILED_SEND":

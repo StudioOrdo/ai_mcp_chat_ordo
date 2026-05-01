@@ -4,12 +4,14 @@ const {
   convFindByIdMock,
   msgListByConversationMock,
   userFindByIdMock,
+  findLatestMigrationForTargetIdentityMock,
   getTrustedReferrerContextMock,
   listPromptTurnAuditsMock,
 } = vi.hoisted(() => ({
   convFindByIdMock: vi.fn(),
   msgListByConversationMock: vi.fn(),
   userFindByIdMock: vi.fn(),
+  findLatestMigrationForTargetIdentityMock: vi.fn(),
   getTrustedReferrerContextMock: vi.fn(),
   listPromptTurnAuditsMock: vi.fn(),
 }));
@@ -26,6 +28,9 @@ vi.mock("@/adapters/RepositoryFactory", () => ({
   }),
   getConversationEventDataMapper: () => ({
     listByConversation: vi.fn().mockResolvedValue([]),
+  }),
+  getIdentityMigrationRepository: () => ({
+    findLatestForTargetIdentity: findLatestMigrationForTargetIdentityMock,
   }),
 }));
 
@@ -45,6 +50,7 @@ describe("loadAdminConversationDetail", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     userFindByIdMock.mockResolvedValue({ id: "user_1", name: "Alice", email: "alice@example.com" });
+    findLatestMigrationForTargetIdentityMock.mockResolvedValue(null);
     getTrustedReferrerContextMock.mockResolvedValue(null);
     listPromptTurnAuditsMock.mockResolvedValue([]);
   });
@@ -202,6 +208,15 @@ describe("loadAdminConversationDetail", () => {
           },
           matches: true,
         },
+        affectedTargets: [
+          {
+            id: "pb_1",
+            surface: "chat_stream",
+            targetKind: "message",
+            targetId: "msg_user_1",
+            sourcePromptBindingId: null,
+          },
+        ],
       },
     ]);
 
@@ -210,5 +225,55 @@ describe("loadAdminConversationDetail", () => {
     expect(detail.promptProvenance).toHaveLength(1);
     expect(detail.promptProvenance[0]?.record.userMessageId).toBe("msg_user_1");
     expect(detail.promptProvenance[0]?.replay.matches).toBe(true);
+  });
+
+  it("includes linked identity migration status for admin repair review", async () => {
+    convFindByIdMock.mockResolvedValue({
+      id: "conv_1",
+      userId: "user_1",
+      title: "Migrated thread",
+      status: "active",
+      createdAt: "2025-06-01T00:00:00Z",
+      updatedAt: "2025-06-01T00:05:00Z",
+      convertedFrom: "anon_seed",
+      messageCount: 0,
+      firstMessageAt: null,
+      lastToolUsed: null,
+      sessionSource: "web",
+      promptVersion: 2,
+      routingSnapshot: {
+        lane: "development",
+        confidence: 0.9,
+        recommendedNextStep: null,
+        detectedNeedSummary: null,
+        lastAnalyzedAt: null,
+      },
+      referralSource: null,
+      deletedAt: null,
+      purgeAfter: null,
+    });
+    msgListByConversationMock.mockResolvedValue([]);
+    findLatestMigrationForTargetIdentityMock.mockResolvedValue({
+      id: "idmig_1",
+      sourceUserId: "anon_seed",
+      targetUserId: "user_1",
+      migratedConversationIds: ["conv_1"],
+      migratedJobIds: ["job_1"],
+      migratedAssetIds: ["file_1"],
+      repairedMemoryRefs: ["mem_1"],
+      repairedSearchSourceIds: ["anon_seed/conv_1"],
+      objectCounts: [],
+      repairRefs: [],
+      status: "completed",
+      currentStage: "completed",
+      failureMessage: null,
+      createdAt: "2026-04-30T10:00:00.000Z",
+      completedAt: "2026-04-30T10:01:00.000Z",
+    });
+
+    const detail = await loadAdminConversationDetail("conv_1");
+
+    expect(findLatestMigrationForTargetIdentityMock).toHaveBeenCalledWith("user_1");
+    expect(detail.migration).toEqual(expect.objectContaining({ id: "idmig_1", status: "completed" }));
   });
 });

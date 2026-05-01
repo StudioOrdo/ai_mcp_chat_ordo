@@ -90,7 +90,7 @@ export function isDeferredJobResultPayload(value: unknown): value is DeferredJob
   );
 }
 
-export function deferredJobResultToMessagePart(
+function buildDeferredJobStatusPart(
   payload: DeferredJobResultPayload,
   fallbackToolInvocationId?: string,
 ): JobStatusMessagePart {
@@ -139,7 +139,7 @@ export function deferredJobResultToStreamEvent(
   { type: "job_queued" | "job_started" | "job_progress" | "job_completed" | "job_failed" | "job_canceled" }
 > {
   const deferredJob = payload.deferred_job;
-  return jobStatusPartToStreamEvent(deferredJobResultToMessagePart(payload, fallbackToolInvocationId), {
+  return jobStatusPartToStreamEvent(buildDeferredJobStatusPart(payload, fallbackToolInvocationId), {
     conversationId: deferredJob.conversationId,
     sequence: deferredJob.sequence,
   });

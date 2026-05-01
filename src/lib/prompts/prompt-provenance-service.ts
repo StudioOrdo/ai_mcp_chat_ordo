@@ -1,4 +1,4 @@
-import { getPromptProvenanceDataMapper } from "@/adapters/RepositoryFactory";
+import { getPromptBindingRepository, getPromptProvenanceDataMapper } from "@/adapters/RepositoryFactory";
 import {
   getPromptRuntime,
   replayPromptRuntime,
@@ -25,6 +25,38 @@ export interface PromptTurnReplayResult {
 export interface PromptTurnAuditEntry {
   record: PromptTurnProvenanceRecord;
   replay: PromptTurnReplayResult;
+  affectedTargets: Array<{
+    id: string;
+    surface: string;
+    targetKind: string;
+    targetId: string;
+    sourcePromptBindingId: string | null;
+  }>;
+}
+
+async function listAffectedPromptBindingTargets(
+  conversationId: string,
+  promptProvenanceRecordId: string,
+): Promise<PromptTurnAuditEntry["affectedTargets"]> {
+  const promptBindingRepository = getPromptBindingRepository();
+  const conversationBindings = await promptBindingRepository.listByConversation(conversationId, { limit: 200 });
+  const rootBinding = conversationBindings.find((binding) => binding.decisionSourceRefs.some(
+    (ref) => ref.sourceKind === "prompt_provenance" && ref.sourceId === promptProvenanceRecordId,
+  ));
+
+  if (!rootBinding) {
+    return [];
+  }
+
+  const derivedBindings = await promptBindingRepository.listBySourcePromptBinding(rootBinding.id, { limit: 200 });
+
+  return [rootBinding, ...derivedBindings].map((binding) => ({
+    id: binding.id,
+    surface: binding.surface,
+    targetKind: binding.targetKind,
+    targetId: binding.targetId,
+    sourcePromptBindingId: binding.sourcePromptBindingId,
+  }));
 }
 
 interface RecordPromptTurnProvenanceInput {
@@ -105,11 +137,16 @@ export async function listPromptTurnAudits(
 
   return Promise.all(records.map(async (record) => {
     try {
+      const affectedTargets = await listAffectedPromptBindingTargets(conversationId, record.id);
+
       return {
         record,
         replay: await replayPromptTurnProvenanceRecord(record),
+        affectedTargets,
       };
     } catch (error) {
+      const affectedTargets = await listAffectedPromptBindingTargets(conversationId, record.id);
+
       return {
         record,
         replay: {
@@ -130,6 +167,7 @@ export async function listPromptTurnAudits(
           },
           matches: false,
         },
+        affectedTargets,
       };
     }
   }));

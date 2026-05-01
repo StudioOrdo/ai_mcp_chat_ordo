@@ -5,17 +5,14 @@ import { usePathname } from "next/navigation";
 
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteNav } from "@/components/SiteNav";
-import { MigrationToast } from "@/components/MigrationToast";
 import type { User as SessionUser } from "@/core/entities/user";
-import type { GlobalSearchAction } from "@/lib/search/global-search";
 
 interface AppShellProps {
   user: SessionUser;
   children: React.ReactNode;
-  searchAction?: GlobalSearchAction;
 }
 
-export function AppShell({ user, children, searchAction }: AppShellProps) {
+export function AppShell({ user, children }: AppShellProps) {
   const pathname = usePathname();
   const isHomeRoute = pathname === "/";
   const isAdminRoute = pathname === "/admin" || pathname.startsWith("/admin/");
@@ -43,9 +40,8 @@ export function AppShell({ user, children, searchAction }: AppShellProps) {
         data-shell-route-mode="document-flow"
         data-shell-route-surface={routeSurface}
       >
-        <MigrationToast />
         <div className="flex-none">
-          <SiteNav user={user} searchAction={searchAction} />
+          <SiteNav user={user} />
         </div>
 
         <main
@@ -70,13 +66,12 @@ export function AppShell({ user, children, searchAction }: AppShellProps) {
       data-shell-route-mode="viewport-stage"
       data-shell-route-surface={routeSurface}
     >
-      <MigrationToast />
       <div
         className="relative flex h-(--viewport-block-size) min-h-(--viewport-block-size) flex-none flex-col"
         data-shell-viewport-stage="true"
       >
         <div className="flex-none">
-          <SiteNav user={user} searchAction={searchAction} />
+          <SiteNav user={user} />
         </div>
         <main
           className={homeMainClasses}

@@ -21,6 +21,8 @@ const {
   getJobQueueRepositoryMock,
   getJobStatusQueryMock,
   getUserPreferencesDataMapperMock,
+  recordPromptTurnProvenanceMock,
+  recordPromptBindingMock,
   runtimeInteractorMock,
   summarizationInteractorMock,
 } = vi.hoisted(() => ({
@@ -36,6 +38,8 @@ const {
   getJobQueueRepositoryMock: vi.fn(),
   getJobStatusQueryMock: vi.fn(),
   getUserPreferencesDataMapperMock: vi.fn(),
+  recordPromptTurnProvenanceMock: vi.fn(),
+  recordPromptBindingMock: vi.fn(),
   runtimeInteractorMock: {
     archiveActive: vi.fn(),
     ensureActive: vi.fn(),
@@ -96,6 +100,14 @@ vi.mock("@/adapters/RepositoryFactory", () => ({
   getUserPreferencesDataMapper: getUserPreferencesDataMapperMock,
 }));
 
+vi.mock("@/lib/prompts/prompt-provenance-service", () => ({
+  recordPromptTurnProvenance: recordPromptTurnProvenanceMock,
+}));
+
+vi.mock("@/lib/prompts/prompt-binding-service", () => ({
+  recordPromptBinding: recordPromptBindingMock,
+}));
+
 import { POST } from "@/app/api/chat/stream/route";
 
 function createBuilder() {
@@ -106,6 +118,10 @@ function createBuilder() {
     withConversationSummary: vi.fn(() => builder),
     withRoutingContext: vi.fn(() => builder),
     withSection: vi.fn(() => builder),
+    getReplayContext: vi.fn(() => ({
+      surface: "chat_stream",
+      role: "ANONYMOUS",
+    })),
     buildResult: vi.fn(async () => ({
       surface: "chat_stream",
       text: "system-prompt",
@@ -236,6 +252,9 @@ describe("POST /api/chat/stream", () => {
         analyze: vi.fn().mockResolvedValue(createConversationRoutingSnapshot()),
       },
       summarizationInteractor: summarizationInteractorMock,
+      relationshipMemoryReader: {
+        listActiveByConversation: vi.fn().mockResolvedValue([]),
+      },
     });
     getReferralLedgerServiceMock.mockReturnValue({
       getTrustedReferrerContext: vi.fn().mockResolvedValue(null),
@@ -254,6 +273,34 @@ describe("POST /api/chat/stream", () => {
     });
     getUserPreferencesDataMapperMock.mockReturnValue({
       getAll: vi.fn().mockResolvedValue({}),
+    });
+    recordPromptTurnProvenanceMock.mockResolvedValue({
+      id: "pprov_1",
+      conversationId: "conv_stream_1",
+      userMessageId: "msg_user_1",
+      assistantMessageId: null,
+      surface: "chat_stream",
+      effectiveHash: "hash_chat_stream",
+      slotRefs: [],
+      sections: [],
+      warnings: [],
+      replayContext: {
+        surface: "chat_stream",
+        role: "ANONYMOUS",
+      },
+      recordedAt: "2026-03-25T10:00:00.000Z",
+    });
+    recordPromptBindingMock.mockResolvedValue({
+      id: "pb_1",
+      userId: "anon_stream_owner",
+      conversationId: "conv_stream_1",
+      surface: "chat_stream",
+      effectiveHash: "hash_chat_stream",
+      slotRefs: [],
+      overlayRefs: [],
+      decisionSourceRefs: [],
+      evidenceRefs: [],
+      createdAt: "2026-03-25T10:00:00.000Z",
     });
     executeDirectChatTurnMock.mockResolvedValue("4.");
     runClaudeAgentLoopStreamMock.mockImplementation(async ({ signal }: { signal?: AbortSignal }) => {
@@ -338,6 +385,45 @@ describe("POST /api/chat/stream", () => {
     expect(getActiveStreamSnapshot(streamId as string)).toBeNull();
   });
 
+  it("records a prompt binding from the persisted prompt provenance before streaming", async () => {
+    runClaudeAgentLoopStreamMock.mockResolvedValueOnce({
+      model: "test-model",
+      assistantText: "Hello back",
+      stopReason: "end_turn",
+      toolRoundCount: 0,
+      toolCalls: [],
+      toolResults: [],
+    });
+
+    const response = await POST(
+      createRouteRequest("http://localhost:3000/api/chat/stream", "POST", {
+        messages: [{ role: "user", content: "Hello there" }],
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(recordPromptTurnProvenanceMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: "conv_stream_1",
+        userMessageId: "msg_user_1",
+      }),
+    );
+    expect(recordPromptBindingMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "anon_stream_owner",
+        conversationId: "conv_stream_1",
+        surface: "chat_stream",
+        target: {
+          targetKind: "message",
+          targetId: "msg_user_1",
+        },
+        promptRuntime: expect.objectContaining({
+          effectiveHash: "hash_chat_stream",
+        }),
+      }),
+    );
+  });
+
   it("persists partial assistant output and records generation_interrupted on unexpected stream errors", async () => {
     runClaudeAgentLoopStreamMock.mockImplementation(async ({ callbacks }: {
       callbacks: { onDelta: (text: string) => void };
@@ -387,6 +473,7 @@ describe("POST /api/chat/stream", () => {
         ],
       },
       "anon_stream_owner",
+      { sourcePromptBindingId: "pb_1" },
     );
     expect(runtimeInteractorMock.recordGenerationLifecycleEvent).toHaveBeenCalledWith(
       "conv_stream_1",

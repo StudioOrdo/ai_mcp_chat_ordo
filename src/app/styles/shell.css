@@ -13,7 +13,6 @@
     --shell-nav-frame-inline: clamp(var(--space-3), 4vw, var(--space-frame-default));
     --shell-nav-gap: clamp(var(--space-1), 1.8vw, var(--space-rail-gap));
     --shell-nav-action-gap: clamp(var(--space-1), 1.4vw, var(--space-2));
-    --shell-nav-search-max-inline: clamp(18rem, 44vw, 40rem);
     width: 100%;
     min-height: clamp(3.5rem, 7vw, 4.236rem);
     padding-block: clamp(var(--space-1), 1.2vw, var(--space-rail-item-block));
@@ -26,11 +25,9 @@
     min-width: 0;
     align-items: center;
     grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "brand actions"
-      "search search";
+    grid-template-areas: "brand actions";
     column-gap: var(--shell-nav-gap);
-    row-gap: clamp(var(--space-1), 1.4vw, var(--space-2));
+    row-gap: 0;
   }
 
   .shell-nav-brand-region {
@@ -39,21 +36,6 @@
     display: flex;
     align-items: center;
     justify-content: flex-start;
-  }
-
-  .shell-nav-search-region {
-    grid-area: search;
-    min-width: 0;
-    display: none;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .shell-nav-search-frame {
-    width: min(100%, var(--shell-nav-search-max-inline));
-    min-width: 0;
-    max-width: 100%;
-    margin-inline: auto;
   }
 
   .shell-nav-actions {
@@ -70,14 +52,8 @@
     .shell-nav-band {
       grid-template-columns:
         minmax(max-content, 1fr)
-        minmax(18rem, var(--shell-nav-search-max-inline))
         minmax(max-content, 1fr);
-      grid-template-areas: "brand search actions";
-      row-gap: 0;
-    }
-
-    .shell-nav-search-region {
-      display: flex;
+      grid-template-areas: "brand actions";
     }
   }
 
@@ -103,6 +79,19 @@
     background: color-mix(in oklab, var(--surface) 90%, var(--background));
     color: var(--foreground);
     border-color: color-mix(in oklab, var(--foreground) 18%, transparent);
+  }
+
+  .shell-workspace-menu-trigger-mark {
+    width: clamp(1.35rem, 3.4vw, 1.55rem);
+    height: clamp(1.35rem, 3.4vw, 1.55rem);
+    object-fit: contain;
+  }
+
+  .shell-workspace-menu-header-mark {
+    width: clamp(2.25rem, 7vw, 2.5rem);
+    height: clamp(2.25rem, 7vw, 2.5rem);
+    border-radius: 0.65rem;
+    object-fit: contain;
   }
 
   .shell-footer-frame {
@@ -368,53 +357,4 @@
     }
   }
 
-  .migration-toast {
-    position: fixed;
-    bottom: 1.5rem;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 9999;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    border-radius: 1rem;
-    border: 1px solid color-mix(in oklab, var(--foreground) 12%, transparent);
-    background: color-mix(in oklab, var(--surface) 96%, var(--foreground));
-    padding: 0.65rem 1rem;
-    box-shadow: 0 16px 40px -20px color-mix(in srgb, var(--shadow-base) 22%, transparent);
-    animation: migration-toast-in 320ms ease-out;
-  }
-
-  .migration-toast-text {
-    font-size: 0.88rem;
-    line-height: 1.5;
-    color: var(--foreground);
-  }
-
-  .migration-toast-dismiss {
-    flex: 0 0 auto;
-    padding: 0.2rem 0.35rem;
-    font-size: 0.72rem;
-    line-height: 1;
-    color: color-mix(in oklab, var(--foreground) 48%, transparent);
-    cursor: pointer;
-    background: transparent;
-    border: 0;
-    transition: color 160ms ease;
-  }
-
-  .migration-toast-dismiss:hover {
-    color: var(--foreground);
-  }
-
-  @keyframes migration-toast-in {
-    from {
-      opacity: 0;
-      transform: translateX(-50%) translateY(0.75rem);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
-  }
 }

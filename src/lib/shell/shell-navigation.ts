@@ -105,6 +105,16 @@ export const SHELL_ROUTES: readonly ShellRouteDefinition[] = [
   },
 
   {
+    id: "workspace-overview",
+    label: "Current Work",
+    href: "/workspace",
+    kind: "internal",
+    description: "Open the current-work workspace summary without replacing the chat transcript surface.",
+    footerVisibility: SIGNED_IN_ROLES,
+    accountVisibility: SIGNED_IN_ROLES,
+    showInCommands: true,
+  },
+  {
     id: "jobs",
     label: "Jobs",
     href: "/jobs",
@@ -119,6 +129,16 @@ export const SHELL_ROUTES: readonly ShellRouteDefinition[] = [
     href: "/my/media",
     kind: "internal",
     description: "Browse governed personal media, preview assets, and clean up unattached files.",
+    footerVisibility: SIGNED_IN_ROLES,
+    accountVisibility: SIGNED_IN_ROLES,
+    showInCommands: true,
+  },
+  {
+    id: "referrals",
+    label: "Referrals",
+    href: "/referrals",
+    kind: "internal",
+    description: "Open referral sharing, activity, and trust-distribution next actions.",
     footerVisibility: SIGNED_IN_ROLES,
     accountVisibility: SIGNED_IN_ROLES,
     showInCommands: true,
@@ -355,7 +375,7 @@ export const SHELL_FOOTER_GROUPS: readonly ShellFooterGroup[] = [
   {
     id: "workspace",
     label: "Workspace",
-    routeIds: ["operations-media", "profile"],
+    routeIds: ["workspace-overview", "referrals", "operations-media", "profile"],
     visibility: SIGNED_IN_ROLES,
   },
   {
@@ -367,7 +387,7 @@ export const SHELL_FOOTER_GROUPS: readonly ShellFooterGroup[] = [
 ] as const;
 
 export const PRIMARY_NAV_ROUTE_IDS = ["corpus", "journal"] as const;
-export const ACCOUNT_MENU_ROUTE_IDS = ["jobs", "my-media", "operations-media", "profile"] as const;
+export const ACCOUNT_MENU_ROUTE_IDS = ["workspace-overview", "jobs", "my-media", "referrals", "operations-media", "profile"] as const;
 export const RAIL_MENU_ROUTE_IDS = ["corpus", "journal"] as const;
 
 export const SHELL_NAV_DRAWER_GROUPS: readonly ShellNavDrawerGroup[] = [
@@ -382,7 +402,7 @@ export const SHELL_NAV_DRAWER_GROUPS: readonly ShellNavDrawerGroup[] = [
     id: "workspace",
     label: "Workspace",
     description: "Open signed-in work surfaces and personal context.",
-    routeIds: ["jobs", "my-media", "operations-media", "profile"],
+    routeIds: ["workspace-overview", "jobs", "my-media", "referrals", "operations-media", "profile"],
     visibility: SIGNED_IN_ROLES,
   },
 ] as const;

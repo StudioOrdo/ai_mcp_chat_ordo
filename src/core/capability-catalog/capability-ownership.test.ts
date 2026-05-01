@@ -95,12 +95,14 @@ describe("capability-ownership", () => {
       preferredTargetKinds: ["mcp_stdio", "host_ts"],
     });
     expect(getDefaultExecutionPlanningForCapability("compose_media")).toEqual({
-      enabledTargetKinds: ["browser_wasm", "native_process", "deferred_job", "host_ts"],
-      preferredTargetKinds: ["browser_wasm", "native_process", "deferred_job", "host_ts"],
+      enabledTargetKinds: ["deferred_job", "host_ts"],
+      preferredTargetKinds: ["deferred_job", "host_ts"],
+      browserRuntimeAvailable: false,
     });
     expect(getDefaultExecutionPlanningForCapability("generate_audio")).toEqual({
-      enabledTargetKinds: ["browser_wasm", "native_process", "deferred_job", "host_ts"],
-      preferredTargetKinds: ["browser_wasm", "native_process", "deferred_job", "host_ts"],
+      enabledTargetKinds: ["deferred_job"],
+      preferredTargetKinds: ["deferred_job"],
+      browserRuntimeAvailable: false,
     });
     expect(getDefaultExecutionPlanningForCapability("search_corpus")).toBeNull();
   });

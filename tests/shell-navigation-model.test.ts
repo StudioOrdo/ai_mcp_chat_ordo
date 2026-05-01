@@ -19,7 +19,11 @@ const allowedInternalRoutes = new Set([
   "/register",
   "/library",
   "/journal",
+  "/workspace",
   "/jobs",
+  "/my/media",
+  "/referrals",
+  "/operations/media",
   "/admin/journal",
   "/books",
   "/book/[chapter]",
@@ -80,13 +84,17 @@ describe("shell navigation model", () => {
       "workspace",
     ]);
     expect(resolveAccountMenuRoutes(authenticatedUser).map((route) => route.id)).toEqual([
+      "workspace-overview",
       "jobs",
       "my-media",
+      "referrals",
       "profile",
     ]);
     expect(resolveAccountMenuRoutes(apprenticeUser).map((route) => route.id)).toEqual([
+      "workspace-overview",
       "jobs",
       "my-media",
+      "referrals",
       "profile",
     ]);
     expect(resolveRailMenuRoutes(anonymousUser).map((route) => route.id)).toEqual([

@@ -21,26 +21,42 @@ describe("shell account menu routes", () => {
   it("includes Jobs for signed-in users", () => {
     const routes = resolveAccountMenuRoutes({ roles: ["AUTHENTICATED"] });
 
-    expect(routes.map((route) => route.id)).toEqual(["jobs", "my-media", "profile"]);
+    expect(routes.map((route) => route.id)).toEqual([
+      "workspace-overview",
+      "jobs",
+      "my-media",
+      "referrals",
+      "profile",
+    ]);
   });
 
   it("includes Jobs for apprentices too", () => {
     const routes = resolveAccountMenuRoutes({ roles: ["APPRENTICE"] });
 
-    expect(routes.map((route) => route.id)).toEqual(["jobs", "my-media", "profile"]);
+    expect(routes.map((route) => route.id)).toEqual([
+      "workspace-overview",
+      "jobs",
+      "my-media",
+      "referrals",
+      "profile",
+    ]);
   });
 
   it("adds the operations workspace for staff and admin users", () => {
     expect(resolveAccountMenuRoutes({ roles: ["STAFF"] }).map((route) => route.id)).toEqual([
+      "workspace-overview",
       "jobs",
       "my-media",
+      "referrals",
       "operations-media",
       "profile",
     ]);
 
     expect(resolveAccountMenuRoutes({ roles: ["ADMIN"] }).map((route) => route.id)).toEqual([
+      "workspace-overview",
       "jobs",
       "my-media",
+      "referrals",
       "operations-media",
       "profile",
     ]);
@@ -84,6 +100,19 @@ describe("shell route visibility snapshots", () => {
 
     expect(canRoleAccessShellRoute(route, "AUTHENTICATED")).toBe(true);
     expect(canRoleAccessShellRoute(route, "ANONYMOUS")).toBe(false);
+  });
+
+  it("keeps referrals visible for signed-in users but hidden for anonymous visitors", () => {
+    const route = getShellRouteById("referrals");
+
+    expect(canRoleAccessShellRoute(route, "AUTHENTICATED")).toBe(true);
+    expect(canRoleAccessShellRoute(route, "ANONYMOUS")).toBe(false);
+    expect(getShellRouteVisibilitySnapshot(route, { roles: ["AUTHENTICATED"] })).toMatchObject({
+      command: true,
+      footer: true,
+      account: true,
+      any: true,
+    });
   });
 
   it("keeps operations media visible for staff and admin but hidden from lower roles", () => {

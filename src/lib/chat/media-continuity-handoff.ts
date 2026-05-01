@@ -108,8 +108,7 @@ export function normalizeMediaContinuityHandoff(value: unknown): MediaContinuity
 export function buildMediaContinuityHandoff(
   messages: readonly ChatMessage[],
 ): MediaContinuityHandoff | null {
-  const candidates = buildMediaCompositionCanonicalizationOptionsFromChatMessages(messages)
-    .assetCandidates
+  const candidates = (buildMediaCompositionCanonicalizationOptionsFromChatMessages(messages).assetCandidates ?? [])
     .slice(-MAX_MEDIA_CONTINUITY_ASSETS)
     .map((candidate) => ({
       assetId: candidate.assetId,

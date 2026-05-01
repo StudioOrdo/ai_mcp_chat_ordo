@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -41,8 +41,8 @@ describe("TD-A — job visibility read-model encapsulation", () => {
     const route = readSource("src/app/api/jobs/route.ts");
 
     // Route now uses getJobStatusQuery (read-model query) and getActiveJobStatuses
-    // instead of the older getJobQueueRepository + buildJobStatusSnapshot pattern
-    expect(route).toContain("getJobStatusQuery");
+    // instead of the older getJobQueueRepository + buildCanonicalJobSnapshot pattern
+    expect(route).toContain("getPlatformInteractionFacade");
     expect(route).toContain("getActiveJobStatuses");
     expect(route).not.toContain("ConversationDataMapper");
     expect(route).not.toContain("MessageDataMapper");
@@ -52,10 +52,10 @@ describe("TD-A — job visibility read-model encapsulation", () => {
   it("P5: detail routes use the projector composition root instead of mapper setup", () => {
     const memberRoute = readSource("src/app/api/jobs/[jobId]/route.ts");
     const chatRoute = readSource("src/app/api/chat/jobs/[jobId]/route.ts");
-    const projectorRoot = readSource("src/lib/jobs/deferred-job-projector-root.ts");
+    const interactionFacadeRoot = readSource("src/lib/platform/agent-platform-facade-root.ts");
 
-    expect(memberRoute).toContain("createDeferredJobConversationProjector");
-    expect(chatRoute).toContain("createDeferredJobConversationProjector");
+    expect(memberRoute).toContain("getPlatformInteractionFacade");
+    expect(chatRoute).toContain("getPlatformInteractionFacade");
 
     expect(memberRoute).not.toContain("ConversationDataMapper");
     expect(memberRoute).not.toContain("MessageDataMapper");
@@ -65,10 +65,7 @@ describe("TD-A — job visibility read-model encapsulation", () => {
     expect(chatRoute).not.toContain("MessageDataMapper");
     expect(chatRoute).not.toContain("getDb(");
 
-    expect(projectorRoot).toContain("DeferredJobConversationProjector");
-    expect(projectorRoot).toContain("getConversationDataMapper()");
-    expect(projectorRoot).toContain("getMessageDataMapper()");
-    expect(projectorRoot).not.toContain("getDb(");
+    expect(interactionFacadeRoot).toContain("getAgentPlatformFacade");
   });
 });
 
@@ -95,8 +92,7 @@ describe("TD-A — event transport modularity findings", () => {
 
     expect(route).toContain("requireAuthenticatedUser");
     expect(route).toContain("ensureUserOwnsConversationJob");
-    expect(route).toContain("listEventsForUserJob");
-    expect(route).toContain("mapJobEventHistory");
+    expect(route).toContain("getUserJobHistoryInteraction");
     expect(route).not.toContain("projectJobForEvent");
     expect(route).not.toContain("buildJobStatusPartFromProjection");
 
@@ -106,14 +102,18 @@ describe("TD-A — event transport modularity findings", () => {
 });
 
 describe("TD-A — job visibility runtime preservation", () => {
-  it("P8: projector composition root exists for deferred job flows", () => {
-    expect(existsSync(join(process.cwd(), "src/lib/jobs/deferred-job-projector-root.ts"))).toBe(true);
+  it("P8: deferred job flows do not depend on the deleted transcript projector root", () => {
+    const runtime = readSource("src/lib/jobs/deferred-job-runtime.ts");
+    const worker = readSource("src/lib/jobs/deferred-job-worker.ts");
+
+    expect(runtime).not.toContain("createDeferredJobConversationProjector");
+    expect(worker).not.toContain("DeferredJobConversationProjector");
   });
 
   it("P9: job read model still exposes snapshot construction", async () => {
     const readModel = await import("@/lib/jobs/job-read-model");
 
-    expect(readModel.buildJobStatusSnapshot).toBeTypeOf("function");
+    expect(readModel.buildCanonicalJobSnapshot).toBeTypeOf("function");
     expect(readModel.getActiveJobStatuses).toBeTypeOf("function");
   });
 });

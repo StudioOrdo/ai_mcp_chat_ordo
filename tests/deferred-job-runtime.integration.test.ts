@@ -1,10 +1,8 @@
 import Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ConversationDataMapper } from "@/adapters/ConversationDataMapper";
 import { JobQueueDataMapper } from "@/adapters/JobQueueDataMapper";
 import { MessageDataMapper } from "@/adapters/MessageDataMapper";
 import { ensureSchema } from "@/lib/db/schema";
-import { DeferredJobConversationProjector } from "@/lib/jobs/deferred-job-conversation-projector";
 
 function createDb() {
   const db = new Database(":memory:");
@@ -26,7 +24,6 @@ describe("runDeferredJobRuntime", () => {
   let db: Database.Database;
   let repo: JobQueueDataMapper;
   let messageRepo: MessageDataMapper;
-  let projector: DeferredJobConversationProjector;
 
   beforeEach(() => {
     vi.resetModules();
@@ -34,10 +31,6 @@ describe("runDeferredJobRuntime", () => {
     seedConversation(db);
     repo = new JobQueueDataMapper(db);
     messageRepo = new MessageDataMapper(db);
-    projector = new DeferredJobConversationProjector(
-      new ConversationDataMapper(db),
-      messageRepo,
-    );
   });
 
   it("processes a queued job through the runtime loop in single-pass mode", async () => {
@@ -56,9 +49,6 @@ describe("runDeferredJobRuntime", () => {
         },
       }),
       getDeferredJobRepository: () => repo,
-    }));
-    vi.doMock("@/lib/jobs/deferred-job-projector-root", () => ({
-      createDeferredJobConversationProjector: () => projector,
     }));
     vi.doMock("@/lib/jobs/deferred-job-notifications", () => ({
       createDeferredJobNotificationDispatcher: () => undefined,
@@ -88,12 +78,6 @@ describe("runDeferredJobRuntime", () => {
     expect(events.map((event) => event.eventType)).toEqual(["started", "progress", "result"]);
 
     const messages = await messageRepo.listByConversation("conv_jobs");
-    expect(messages).toHaveLength(1);
-    expect(messages[0]?.parts).toEqual([
-      expect.objectContaining({
-        type: "job_status",
-        status: "succeeded",
-      }),
-    ]);
+    expect(messages).toHaveLength(0);
   });
 });

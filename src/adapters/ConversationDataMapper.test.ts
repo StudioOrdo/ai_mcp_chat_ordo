@@ -239,6 +239,80 @@ describe("ConversationDataMapper", () => {
     );
   });
 
+  it("privacy purge deletes conversation-attached files and cascades canonical continuity records", async () => {
+    await mapper.create({ id: "conv_privacy", userId: "usr_test", title: "Privacy purge", status: "archived" });
+    db.prepare(
+      `INSERT INTO messages (id, conversation_id, role, content, parts, token_estimate, created_at)
+       VALUES ('msg_privacy', 'conv_privacy', 'user', 'purge this', '[]', 2, '2026-04-30T10:00:00.000Z')`,
+    ).run();
+    db.prepare(
+      `INSERT INTO user_files (id, user_id, conversation_id, content_hash, file_type, status, file_name, mime_type, file_size, metadata_json)
+       VALUES ('uf_privacy', 'usr_test', 'conv_privacy', 'hash_privacy', 'image', 'ready', 'privacy.png', 'image/png', 100, '{}')`,
+    ).run();
+    db.prepare(
+      `INSERT INTO relationship_memory_records (id, user_id, conversation_id, memory_type, summary, evidence_refs_json, status, confidence, created_at, updated_at)
+       VALUES ('mem_privacy', 'usr_test', 'conv_privacy', 'goal', 'Private memory', '[]', 'active', 0.9, '2026-04-30T10:00:00.000Z', '2026-04-30T10:00:00.000Z')`,
+    ).run();
+    db.prepare(
+      `INSERT INTO prompt_provenance_records (
+         id, conversation_id, user_message_id, assistant_message_id, surface, effective_hash,
+         slot_refs_json, sections_json, warnings_json, replay_context_json, recorded_at
+       ) VALUES (
+         'pprov_privacy', 'conv_privacy', 'msg_privacy', NULL, 'chat_stream', 'hash_prompt',
+         '[]', '[]', '[]', '{}', '2026-04-30T10:00:00.000Z'
+       )`,
+    ).run();
+    db.prepare(
+      `INSERT INTO prompt_bindings (
+         id, user_id, conversation_id, surface, target_kind, target_id, effective_hash,
+         slot_refs_json, overlay_refs_json, decision_source_refs_json, evidence_refs_json, created_at
+       ) VALUES (
+         'pb_privacy', 'usr_test', 'conv_privacy', 'chat_stream', 'message', 'msg_privacy', 'hash_binding',
+         '[]', '[]', '[]', '[]', '2026-04-30T10:00:00.000Z'
+       )`,
+    ).run();
+    db.prepare(
+      `INSERT INTO materialization_records (
+         id, user_id, conversation_id, materialization_key, tool_name, pipeline_version, status, reuse_policy,
+         input_source_refs_json, output_refs_json, evidence_refs_json, produced_by_job_id, superseded_by_record_id,
+         created_at, updated_at
+       ) VALUES (
+         'mat_privacy', 'usr_test', 'conv_privacy', 'compose_media:key_privacy', 'compose_media', 'v1',
+         'ready', 'same_conversation', '[]', '[]', '[]', NULL, NULL,
+         '2026-04-30T10:00:00.000Z', '2026-04-30T10:00:00.000Z'
+       )`,
+    ).run();
+    db.prepare(
+      `INSERT INTO identity_migration_events (
+         id, source_user_id, target_user_id, migrated_conversation_ids_json, status, current_stage, created_at
+       ) VALUES (
+         'idmig_privacy', 'usr_test', 'usr_test', '["conv_privacy"]', 'completed', 'completed', '2026-04-30T10:00:00.000Z'
+       )`,
+    ).run();
+
+    await mapper.purge("conv_privacy", { userId: "admin_1", role: "ADMIN", reason: "privacy_request" });
+
+    expect(await mapper.findById("conv_privacy")).toBeNull();
+    expect(db.prepare(`SELECT COUNT(*) AS total FROM user_files WHERE id = 'uf_privacy'`).get()).toEqual({ total: 0 });
+    expect(db.prepare(`SELECT COUNT(*) AS total FROM messages WHERE conversation_id = 'conv_privacy'`).get()).toEqual({ total: 0 });
+    expect(db.prepare(`SELECT COUNT(*) AS total FROM relationship_memory_records WHERE conversation_id = 'conv_privacy'`).get()).toEqual({ total: 0 });
+    expect(db.prepare(`SELECT COUNT(*) AS total FROM prompt_provenance_records WHERE conversation_id = 'conv_privacy'`).get()).toEqual({ total: 0 });
+    expect(db.prepare(`SELECT COUNT(*) AS total FROM prompt_bindings WHERE conversation_id = 'conv_privacy'`).get()).toEqual({ total: 0 });
+    expect(db.prepare(`SELECT COUNT(*) AS total FROM materialization_records WHERE conversation_id = 'conv_privacy'`).get()).toEqual({ total: 0 });
+    expect(db.prepare(`SELECT COUNT(*) AS total FROM identity_migration_events WHERE id = 'idmig_privacy'`).get()).toEqual({ total: 1 });
+
+    const auditRow = db
+      .prepare(`SELECT purge_reason, metadata_json FROM conversation_purge_audits WHERE conversation_id = ?`)
+      .get("conv_privacy") as { purge_reason: string; metadata_json: string };
+    expect(auditRow.purge_reason).toBe("privacy_request");
+    expect(JSON.parse(auditRow.metadata_json)).toEqual(
+      expect.objectContaining({
+        conversationFilePolicy: "deleted",
+        conversationFileCount: 1,
+      }),
+    );
+  });
+
   it("lists purge-eligible conversations by purge_after", async () => {
     await mapper.create({ id: "conv_keep", userId: "usr_test", title: "Keep" });
     await mapper.create({ id: "conv_due", userId: "usr_test", title: "Due" });

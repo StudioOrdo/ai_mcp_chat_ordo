@@ -1,6 +1,6 @@
 import { setTimeout as delay } from "node:timers/promises";
 import { createDeferredJobNotificationDispatcher } from "@/lib/jobs/deferred-job-notifications";
-import { createDeferredJobConversationProjector } from "@/lib/jobs/deferred-job-projector-root";
+import { getMaterializationRepository } from "@/adapters/RepositoryFactory";
 import { DeferredJobWorker, type DeferredJobWorkerOptions, type DeferredJobWorkerResult } from "@/lib/jobs/deferred-job-worker";
 import { createDeferredJobHandlers, getDeferredJobRepository } from "./deferred-job-handlers";
 
@@ -41,8 +41,8 @@ export function createDeferredJobWorker(): DeferredJobWorker {
   return new DeferredJobWorker(
     getDeferredJobRepository(),
     createDeferredJobHandlers(),
-    createDeferredJobConversationProjector(),
     createDeferredJobNotificationDispatcher(),
+    getMaterializationRepository(),
   );
 }
 

@@ -33,12 +33,11 @@ const VALID_IDENTITY = {
 describe("font reduction — layout", () => {
   const layout = readSource("src/app/layout.tsx");
 
-  it("P1: layout body className contains exactly 3 font variables", () => {
-    // Should contain the 3 retained font variables
-    expect(layout).toMatch(/--font-ibm-plex-sans/);
-    expect(layout).toMatch(/--font-ibm-plex-mono/);
-    expect(layout).toMatch(/--font-fraunces/);
-    // Should NOT contain the 5 removed font variables
+  it("P1: layout delegates font variables to CSS", () => {
+    expect(layout).toContain('body className="antialiased"');
+    expect(layout).not.toMatch(/--font-ibm-plex-sans/);
+    expect(layout).not.toMatch(/--font-ibm-plex-mono/);
+    expect(layout).not.toMatch(/--font-fraunces/);
     expect(layout).not.toMatch(/--font-geist-sans/);
     expect(layout).not.toMatch(/--font-geist-mono/);
     expect(layout).not.toMatch(/--font-archivo/);
@@ -46,10 +45,10 @@ describe("font reduction — layout", () => {
     expect(layout).not.toMatch(/--font-space-mono/);
   });
 
-  it("P2: layout imports exactly 3 font families", () => {
-    expect(layout).toContain("IBM_Plex_Sans");
-    expect(layout).toContain("IBM_Plex_Mono");
-    expect(layout).toContain("Fraunces");
+  it("P2: layout no longer imports font families directly", () => {
+    expect(layout).not.toContain("IBM_Plex_Sans");
+    expect(layout).not.toContain("IBM_Plex_Mono");
+    expect(layout).not.toContain("Fraunces");
     expect(layout).not.toContain("Geist_Mono");
     expect(layout).not.toContain("Archivo");
     expect(layout).not.toContain("League_Spartan");

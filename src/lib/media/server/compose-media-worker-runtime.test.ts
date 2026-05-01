@@ -4,7 +4,8 @@ import path from "node:path";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getByIdMock, executeDeferredPlanMock, storeBinaryMock } = vi.hoisted(() => ({
+const { findByAssetIdMock, getByIdMock, executeDeferredPlanMock, storeBinaryMock } = vi.hoisted(() => ({
+  findByAssetIdMock: vi.fn(),
   getByIdMock: vi.fn(),
   executeDeferredPlanMock: vi.fn(),
   storeBinaryMock: vi.fn(),
@@ -15,6 +16,9 @@ const { materializeServerComposePlanMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/adapters/RepositoryFactory", () => ({
+  getAssetCatalogReader: vi.fn(() => ({
+    findByAssetId: findByAssetIdMock,
+  })),
   getUserFileDataMapper: vi.fn(() => ({})),
 }));
 
@@ -83,6 +87,7 @@ function createStoredFile(overrides: Partial<{
 
 describe("compose-media worker runtime", () => {
   beforeEach(() => {
+    findByAssetIdMock.mockReset();
     getByIdMock.mockReset();
     executeDeferredPlanMock.mockReset();
     storeBinaryMock.mockReset();
@@ -103,6 +108,23 @@ describe("compose-media worker runtime", () => {
 
       return createStoredFile({ id: assetId, fileType: "audio", mimeType: "audio/mpeg" });
     });
+    findByAssetIdMock.mockImplementation(async ({ assetId }: { assetId: string }) => ({
+      assetId,
+      kind: assetId === "asset_audio_1" ? "audio" : "image",
+      ownerUserId: "user_1",
+      sourceType: "user_file",
+      status: "ready",
+      label: assetId,
+      fileName: `${assetId}.bin`,
+      mimeType: assetId === "asset_audio_1" ? "audio/mpeg" : "image/png",
+      source: "generated",
+      retentionClass: "conversation",
+      createdAt: "2026-04-16T10:00:00.000Z",
+      updatedAt: "2026-04-16T10:00:00.000Z",
+      conversationId: "conv_1",
+      producedByJobId: null,
+      materializationKey: null,
+    }));
     executeDeferredPlanMock.mockImplementation(async (_plan, onProgress, options) => {
       expect(options.resolveAssetPath("asset_image_1")).toBe("/tmp/asset.bin");
       expect(options.resolveAssetPath("asset_audio_1")).toBe("/tmp/asset.bin");
@@ -200,6 +222,25 @@ describe("compose-media worker runtime", () => {
         mimeType: "audio/mpeg",
       });
     });
+    findByAssetIdMock.mockImplementation(async ({ assetId }: { assetId: string }) => assetId === "asset_image_1"
+      ? null
+      : {
+          assetId,
+          kind: "audio",
+          ownerUserId: "user_1",
+          sourceType: "user_file",
+          status: "ready",
+          label: assetId,
+          fileName: `${assetId}.bin`,
+          mimeType: "audio/mpeg",
+          source: "generated",
+          retentionClass: "conversation",
+          createdAt: "2026-04-16T10:00:00.000Z",
+          updatedAt: "2026-04-16T10:00:00.000Z",
+          conversationId: "conv_1",
+          producedByJobId: null,
+          materializationKey: null,
+        });
 
     await expect(executeComposeMediaRemotely({
       plan: createPlan(),
@@ -225,6 +266,25 @@ describe("compose-media worker runtime", () => {
         mimeType: "audio/mpeg",
       });
     });
+    findByAssetIdMock.mockImplementation(async ({ assetId }: { assetId: string }) => assetId === "asset_image_1"
+      ? null
+      : {
+          assetId,
+          kind: "audio",
+          ownerUserId: "user_1",
+          sourceType: "user_file",
+          status: "ready",
+          label: assetId,
+          fileName: `${assetId}.bin`,
+          mimeType: "audio/mpeg",
+          source: "generated",
+          retentionClass: "conversation",
+          createdAt: "2026-04-16T10:00:00.000Z",
+          updatedAt: "2026-04-16T10:00:00.000Z",
+          conversationId: "conv_1",
+          producedByJobId: null,
+          materializationKey: null,
+        });
 
     const execution = executeComposeMediaRemotely({
       plan: createPlan(),
@@ -234,6 +294,76 @@ describe("compose-media worker runtime", () => {
 
     await expect(execution).rejects.toBeInstanceOf(InvalidComposeMediaAssetReadinessError);
     await expect(execution).rejects.toMatchObject({ failureCode: "asset_forbidden" });
+
+    expect(executeDeferredPlanMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects missing generated audio assets before deferred execution starts", async () => {
+    getByIdMock.mockImplementation(async (assetId: string) => assetId === "asset_audio_1"
+      ? null
+      : createStoredFile({ id: assetId, fileType: "image", mimeType: "image/png" }));
+    findByAssetIdMock.mockImplementation(async ({ assetId }: { assetId: string }) => assetId === "asset_audio_1"
+      ? null
+      : {
+          assetId,
+          kind: "image",
+          ownerUserId: "user_1",
+          sourceType: "user_file",
+          status: "ready",
+          label: assetId,
+          fileName: `${assetId}.png`,
+          mimeType: "image/png",
+          source: "generated",
+          retentionClass: "conversation",
+          createdAt: "2026-04-16T10:00:00.000Z",
+          updatedAt: "2026-04-16T10:00:00.000Z",
+          conversationId: "conv_1",
+          producedByJobId: "job_image_1",
+          materializationKey: "generate_image:key_1",
+        });
+
+    await expect(executeComposeMediaRemotely({
+      plan: createPlan(),
+      userId: "user_1",
+      conversationId: "conv_1",
+    })).rejects.toMatchObject({
+      name: "InvalidComposeMediaAssetReadinessError",
+      failureCode: "asset_not_found",
+    });
+
+    expect(executeDeferredPlanMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects non-ready generated audio assets before deferred execution starts", async () => {
+    getByIdMock.mockImplementation(async (assetId: string) => assetId === "asset_audio_1"
+      ? createStoredFile({ id: assetId, fileType: "audio", mimeType: "audio/mpeg" })
+      : createStoredFile({ id: assetId, fileType: "image", mimeType: "image/png" }));
+    findByAssetIdMock.mockImplementation(async ({ assetId }: { assetId: string }) => ({
+      assetId,
+      kind: assetId === "asset_audio_1" ? "audio" : "image",
+      ownerUserId: "user_1",
+      sourceType: "user_file",
+      status: assetId === "asset_audio_1" ? "pending" : "ready",
+      label: assetId,
+      fileName: `${assetId}.bin`,
+      mimeType: assetId === "asset_audio_1" ? "audio/mpeg" : "image/png",
+      source: "generated",
+      retentionClass: "conversation",
+      createdAt: "2026-04-16T10:00:00.000Z",
+      updatedAt: "2026-04-16T10:00:00.000Z",
+      conversationId: "conv_1",
+      producedByJobId: assetId === "asset_audio_1" ? "job_audio_1" : "job_image_1",
+      materializationKey: assetId === "asset_audio_1" ? "generate_audio:key_1" : "generate_image:key_1",
+    }));
+
+    await expect(executeComposeMediaRemotely({
+      plan: createPlan(),
+      userId: "user_1",
+      conversationId: "conv_1",
+    })).rejects.toMatchObject({
+      name: "InvalidComposeMediaAssetReadinessError",
+      failureCode: "asset_pending",
+    });
 
     expect(executeDeferredPlanMock).not.toHaveBeenCalled();
   });
@@ -250,6 +380,27 @@ describe("compose-media worker runtime", () => {
 
       return createStoredFile({ id: assetId, fileType: "audio", mimeType: "audio/mpeg" });
     });
+    findByAssetIdMock.mockImplementation(async ({ assetId }: { assetId: string }) => ({
+      assetId,
+      kind: assetId === "asset_audio_1" ? "audio" : assetId === "asset_chart_1" ? "chart" : "image",
+      ownerUserId: "user_1",
+      sourceType: "user_file",
+      status: "ready",
+      label: assetId,
+      fileName: `${assetId}.bin`,
+      mimeType: assetId === "asset_audio_1"
+        ? "audio/mpeg"
+        : assetId === "asset_chart_1"
+          ? "text/vnd.mermaid"
+          : "image/png",
+      source: "generated",
+      retentionClass: "conversation",
+      createdAt: "2026-04-16T10:00:00.000Z",
+      updatedAt: "2026-04-16T10:00:00.000Z",
+      conversationId: "conv_1",
+      producedByJobId: null,
+      materializationKey: null,
+    }));
 
     materializeServerComposePlanMock.mockImplementation(async ({ storedAssets }) => {
       storedAssets.set("asset_chart_png_1", createStoredFile({

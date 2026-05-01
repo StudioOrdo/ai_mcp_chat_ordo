@@ -126,22 +126,25 @@ describe("plugin card ARIA roles", () => {
     expect(region?.getAttribute("aria-label")).toBe("Journal workflow result");
   });
 
-  it("AudioPlayerCard renders role=region (structured result)", () => {
-    const toolCall = {
-      name: "generate_audio",
-      args: {},
-      result: {
+  it("AudioPlayerCard renders role=region from canonical job state", () => {
+    const part = {
+      type: "job_status" as const,
+      jobId: "job_audio_a11y_1",
+      toolName: "generate_audio",
+      label: "Generate Audio",
+      status: "succeeded" as const,
+      resultPayload: {
         action: "generate_audio",
         title: "Test Audio",
         text: "Hello world",
-        assetId: null,
-        provider: "test",
-        generationStatus: "client_fetch_pending" as const,
+        assetId: "uf_audio_a11y_1",
+        provider: "user-file-cache",
+        generationStatus: "cached_asset" as const,
         estimatedDurationSeconds: 30,
         estimatedGenerationSeconds: 5,
       },
     };
-    const { container } = render(<AudioPlayerCard toolCall={toolCall} isStreaming={false} />);
+    const { container } = render(<AudioPlayerCard part={part} isStreaming={false} />);
     const region = container.querySelector("[role='region']");
     expect(region).not.toBeNull();
     expect(region?.getAttribute("aria-label")).toBe("Generate Audio result");

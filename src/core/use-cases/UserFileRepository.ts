@@ -36,6 +36,11 @@ export interface UserFileRepository {
     fileType?: UserFile["fileType"];
   }): Promise<UserFile[]>;
   assignConversation(fileIds: string[], userId: string, conversationId: string): Promise<void>;
+  transferOwnershipForConversations?(input: {
+    conversationIds: readonly string[];
+    previousUserId: string;
+    userId: string;
+  }): Promise<UserFile[]>;
   deleteIfUnattached(id: string, userId: string): Promise<UserFile | null>;
   delete(id: string): Promise<void>;
 }

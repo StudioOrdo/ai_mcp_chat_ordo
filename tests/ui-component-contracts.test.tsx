@@ -1,5 +1,6 @@
 import { act, render, screen, fireEvent } from "@testing-library/react";
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import type React from "react";
 
 // ── AdminBrowseFilters ─────────────────────────────────────────────────
 
@@ -320,10 +321,29 @@ vi.mock("next/navigation", () => ({
   usePathname: usePathnameMock,
 }));
 
+vi.mock("next/link", () => ({
+  default: ({
+    href,
+    children,
+    ...props
+  }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) => (
+    <a href={href} {...props}>{children}</a>
+  ),
+}));
+
 describe("AdminDrawer interaction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      callback(0);
+      return 0;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
     usePathnameMock.mockReturnValue("/admin");
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("closes drawer on Escape key", async () => {

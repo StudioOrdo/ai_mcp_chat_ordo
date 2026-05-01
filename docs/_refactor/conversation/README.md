@@ -18,10 +18,14 @@ still too transcript-centric. That is the root problem.
 ## Status
 
 - Research: complete
-- Completion date: 2026-04-28
-- Scope covered: conversation restore, long-thread handling, browser runtime
-  recovery, deferred jobs, media reuse, search/indexing, auth migration,
-  prompt runtime, upload and asset lifecycle, and adjacent continuity seams
+- Implementation package: complete through Phase 11 release hardening
+- Completion date: 2026-04-29
+- Scope covered: canonical workspace restore, business workflow context,
+  operator transition, trust distribution, materialization reuse,
+  relationship-memory projection, search surface split, prompt binding,
+  identity repair, product experience cutover, and release hardening
+- Next package: Phase 12 remains the explicit platform-vision and handoff
+  phase, not deferred cleanup from the completed conversation package
 
 ## Package Contents
 
@@ -39,9 +43,16 @@ still too transcript-centric. That is the root problem.
 7. `relationship-memory-and-search-spec.md`: memory projection and search split.
 8. `governance-identity-and-migration-spec.md`: prompt binding, identity
   conversion, ownership repair, privacy, and audit requirements.
-9. `validation-strategy.md`: acceptance tests and proof requirements for the
+9. `business-workflow-context-spec.md`: task-origin, lifecycle, notifications,
+  revenue objects, failed-send recovery, and cross-surface momentum.
+10. `operator-transition-and-trust-distribution-spec.md`: first-run agency,
+  displaced-worker transition, QR/referral trust distribution, and shareable
+  first economic motion.
+11. `validation-strategy.md`: acceptance tests and proof requirements for the
   greenfield design.
-10. `ROADMAP.md`: phase-shaping roadmap used to create implementation phases.
+12. `test-infrastructure-and-evidence.md`: deterministic, browser,
+   fault-induction, and release-evidence infrastructure for the refactor.
+13. `ROADMAP.md`: phase-shaping roadmap used to create implementation phases.
 
 ## Recommended Reading Order
 
@@ -53,8 +64,11 @@ still too transcript-centric. That is the root problem.
 6. `jobs-assets-materialization-spec.md`
 7. `relationship-memory-and-search-spec.md`
 8. `governance-identity-and-migration-spec.md`
-9. `validation-strategy.md`
-10. `ROADMAP.md`
+9. `business-workflow-context-spec.md`
+10. `operator-transition-and-trust-distribution-spec.md`
+11. `validation-strategy.md`
+12. `test-infrastructure-and-evidence.md`
+13. `ROADMAP.md`
 
 ## Executive Summary
 
@@ -63,6 +77,13 @@ prompt/runtime stack.
 
 What it does not have is a strong canonical model for customer relationship
 state.
+
+The later research also adds a sharper product truth: the customer is not only
+returning to a chat. They may be returning to an attempt to become economically
+effective. For solopreneurs, small businesses, and displaced office workers,
+conversation restore must preserve agency: offer formation, trusted
+introductions, QR/referral sharing, follow-up, and the first trackable business
+motion.
 
 Today too much important state is reconstructed indirectly from transcript
 messages and message parts:
@@ -231,7 +252,7 @@ and verification, not as incidental auth plumbing.
 
 ## Greenfield Advice
 
-If this were a true greenfield rebuild, I would define five canonical models
+If this were a true greenfield rebuild, I would define eight canonical surfaces
 and force the whole system to organize around them.
 
 ### 1. Workspace Snapshot
@@ -248,6 +269,21 @@ It should answer:
 - what jobs are active or blocked
 
 This is what the homepage should load first.
+
+### 1.5. Operator Transition And Trust Distribution
+
+This is the canonical activation and distribution layer.
+
+It should answer:
+
+- what kind of operator is this person becoming
+- what expertise or offer are they shaping
+- who already trusts them
+- what link, QR card, script, or first ask should they use
+- what happened after a trusted introduction
+- what next action creates agency or revenue
+
+This is what first-run should create before the product becomes a dashboard.
 
 ### 2. Job Ledger
 
@@ -430,45 +466,12 @@ They just need a better top-level model.
 
 ## What I Would Build First
 
-### Phase 1: Canonical Read Models
+Use [phases/README.md](phases/README.md) as the implementation control surface.
 
-Introduce durable read models for:
-
-- `WorkspaceSnapshot`
-- `RelationshipMemory`
-- `AssetCatalogEntry`
-- `PromptBinding`
-
-Do this before changing the transcript renderer.
-
-### Phase 2: Restore Rewrite
-
-Make restore depend on the read models above, plus active jobs.
-
-The restored transcript should become a view, not the source of restore
-decisions.
-
-### Phase 3: Historical Materialization Reuse
-
-Add explicit reuse lookup for successful media and content outputs.
-
-This is the clean way to eliminate accidental recomputation.
-
-### Phase 4: Continuous Relationship Memory
-
-Build memory as an actively maintained projection, not as something created
-only after archive.
-
-### Phase 5: Search Split
-
-Separate:
-
-- relationship memory retrieval
-- transcript recall
-- corpus grounding
-- product navigation
-
-That split will simplify both user experience and agent reasoning.
+The important sequencing principle is unchanged: introduce canonical contracts,
+baseline proof, and restore projections before changing the transcript renderer
+or redesigning the chat UI. The phase package expands this into the current
+Phase 00 through Phase 11 sequence.
 
 ## Product Advice
 

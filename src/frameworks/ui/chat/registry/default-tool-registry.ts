@@ -7,6 +7,8 @@ import { ChartRendererCard } from "../plugins/custom/ChartRendererCard";
 import { GraphRendererCard } from "../plugins/custom/GraphRendererCard";
 import { AudioPlayerCard } from "../plugins/custom/AudioPlayerCard";
 import { MediaRenderCard } from "../plugins/custom/MediaRenderCard";
+import { RelationshipMemoryCard } from "../plugins/custom/RelationshipMemoryCard";
+import { TranscriptRecallCard } from "../plugins/custom/TranscriptRecallCard";
 import { WebSearchCard } from "../plugins/custom/WebSearchCard";
 import { InspectThemeCard } from "../plugins/custom/InspectThemeCard";
 import { ProfileCard } from "../plugins/custom/ProfileCard";
@@ -35,6 +37,8 @@ const TOOL_RENDERER_OVERRIDES: Record<string, ToolComponent> = {
   generate_chart: ChartRendererCard,
   generate_graph: GraphRendererCard,
   generate_audio: AudioPlayerCard,
+  search_my_conversations: TranscriptRecallCard,
+  search_relationship_memory: RelationshipMemoryCard,
   get_my_referral_qr: ReferralQrCard,
   get_my_profile: ProfileCard,
   update_my_profile: ProfileCard,

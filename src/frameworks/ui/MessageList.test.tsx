@@ -238,7 +238,7 @@ describe("MessageList", () => {
       />,
     );
 
-      const list = screen.getByText("Run the work from one AI workspace.").closest("[data-message-list-mode]");
+    const list = screen.getByText("May I help you?").closest("[data-message-list-mode]");
     expect(list).toHaveAttribute("data-chat-fold-buffer", "true");
     expect(list).toHaveAttribute("data-message-list-state", "hero");
     expect(list?.className).toContain("ui-chat-message-stack");
@@ -264,7 +264,7 @@ describe("MessageList", () => {
     );
 
     expect(screen.queryByText("Bring me the messy workflow, half-finished idea, or customer task. I can help you plan the work, search your library, turn it into assets, and keep it moving from one governed workspace.")).not.toBeInTheDocument();
-    expect(screen.getByText("Run the work from one AI workspace.")).toBeInTheDocument();
+    expect(screen.getByText("May I help you?")).toBeInTheDocument();
   });
 
   it("falls back to conversation state when the single message is not the seeded hero", () => {
@@ -292,15 +292,21 @@ describe("MessageList", () => {
   });
 
   it("centers the initial suggestion chips as part of the hero stack", () => {
+    const workSuggestions = [
+      "Search my materials",
+      "Draft a publishable page",
+      "Plan a customer workflow",
+      "Turn notes into an offer",
+    ];
     const messages = [
-      makeMessage({ id: "assistant-1", role: "assistant", rawContent: "Ready with next steps", suggestions: ["Stress-test this AI plan"] }),
+      makeMessage({ id: "assistant-1", role: "assistant", rawContent: "Ready with next steps", suggestions: workSuggestions }),
     ];
 
     render(
       <MessageList
         messages={messages}
         isSending={false}
-        dynamicSuggestions={["Stress-test this AI plan"]}
+        dynamicSuggestions={workSuggestions}
         isHeroState
         onSuggestionClick={vi.fn()}
         onLinkClick={vi.fn()}
@@ -309,7 +315,7 @@ describe("MessageList", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Stress-test this AI plan" }).closest("div")?.className).toContain("justify-center");
+    expect(screen.getByRole("button", { name: "Search my materials" }).closest("div")?.className).toContain("justify-center");
   });
 
   it("surfaces imported attachment placeholders instead of rendering a broken link", () => {
@@ -376,15 +382,21 @@ describe("MessageList", () => {
   });
 
   it("disables suggestion chips while a send is in flight", () => {
+    const workSuggestions = [
+      "Search my materials",
+      "Draft a publishable page",
+      "Plan a customer workflow",
+      "Turn notes into an offer",
+    ];
     const messages = [
-      makeMessage({ id: "assistant-1", role: "assistant", rawContent: "Ready with next steps", suggestions: ["Stress-test this AI plan"] }),
+      makeMessage({ id: "assistant-1", role: "assistant", rawContent: "Ready with next steps", suggestions: workSuggestions }),
     ];
 
     render(
       <MessageList
         messages={messages}
         isSending
-        dynamicSuggestions={["Stress-test this AI plan"]}
+        dynamicSuggestions={workSuggestions}
         isHeroState
         isSuggestionDisabled
         onSuggestionClick={vi.fn()}
@@ -394,7 +406,7 @@ describe("MessageList", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Stress-test this AI plan" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Search my materials" })).toBeDisabled();
   });
 
   it("renders follow-up suggestions in the secondary chip group after the conversation starts", () => {
@@ -469,16 +481,22 @@ describe("MessageList", () => {
     expect(container.querySelector('[data-chat-suggestion-rank="neutral"]')).not.toBeNull();
   });
 
-  it("renders the migrated homepage service chips and path cards inside hero state", () => {
+  it("renders the compact homepage helper prompt and work chips inside hero state", () => {
+    const workSuggestions = [
+      "Search my materials",
+      "Draft a publishable page",
+      "Plan a customer workflow",
+      "Turn notes into an offer",
+    ];
     const messages = [
-      makeMessage({ id: "assistant-1", role: "assistant", rawContent: "Ready with next steps", suggestions: ["Stress-test this AI plan"] }),
+      makeMessage({ id: "assistant-1", role: "assistant", rawContent: "Ready with next steps", suggestions: workSuggestions }),
     ];
 
     const { container } = render(
       <MessageList
         messages={messages}
         isSending={false}
-        dynamicSuggestions={["Stress-test this AI plan"]}
+        dynamicSuggestions={workSuggestions}
         isHeroState
         onSuggestionClick={vi.fn()}
         onLinkClick={vi.fn()}
@@ -487,16 +505,17 @@ describe("MessageList", () => {
       />,
     );
 
-    expect(screen.getByText("All-in-One AI Workspace")).toBeInTheDocument();
-    expect(screen.getByText("Local Search + Memory")).toBeInTheDocument();
-    expect(screen.getByText("Deferred AI Workflows")).toBeInTheDocument();
-    expect(screen.getByText("Run the work from one AI workspace.")).toBeInTheDocument();
-    expect(screen.getByText(/Studio Ordo gives solopreneurs chat, workflow automation, local search, publishing, and operator control/i)).toBeInTheDocument();
-    expect(screen.getByText("One compact system")).toBeInTheDocument();
-    expect(screen.getByText("Background AI workflows")).toBeInTheDocument();
-    expect(screen.getByText("Governed by default")).toBeInTheDocument();
-    expect(container.querySelector('[data-homepage-proof-strip="true"]')).not.toBeNull();
-    expect(container.querySelectorAll('[data-homepage-proof-card="true"]')).toHaveLength(3);
+    expect(screen.getByText("Research")).toBeInTheDocument();
+    expect(screen.getByText("Workflow")).toBeInTheDocument();
+    expect(screen.getByText("Publishing")).toBeInTheDocument();
+    expect(screen.getByText("May I help you?")).toBeInTheDocument();
+    expect(screen.getByText(/I can use Ordo's research, workflow, and publishing tools/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Search my materials" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Draft a publishable page" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Plan a customer workflow" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Turn notes into an offer" })).toBeInTheDocument();
+    expect(container.querySelector('[data-homepage-proof-strip="true"]')).toBeNull();
+    expect(container.querySelectorAll('[data-homepage-proof-card="true"]')).toHaveLength(0);
     expect(screen.queryByText("Try asking")).not.toBeInTheDocument();
   });
 
@@ -519,9 +538,9 @@ describe("MessageList", () => {
       />,
     );
 
-    expect(screen.queryByText("All-in-One AI Workspace")).not.toBeInTheDocument();
-    expect(screen.queryByText("Local Search + Memory")).not.toBeInTheDocument();
-    expect(screen.queryByText("One compact system")).not.toBeInTheDocument();
+    expect(screen.queryByText("Research")).not.toBeInTheDocument();
+    expect(screen.queryByText("Workflow")).not.toBeInTheDocument();
+    expect(screen.queryByText("May I help you?")).not.toBeInTheDocument();
   });
 
   it("renders MessageActionChips when an assistant message has actions", () => {

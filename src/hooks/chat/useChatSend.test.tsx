@@ -45,6 +45,7 @@ function Harness({
   refreshConversation = vi.fn(),
   dispatchSpy = vi.fn() as unknown as React.Dispatch<ChatAction>,
   registerFailedSendSpy = vi.fn() as unknown as ((payload: FailedSendPayload) => void),
+  onSendResult,
 }: {
   conversationId?: string | null;
   failedSendPayloads?: Array<{
@@ -57,6 +58,7 @@ function Harness({
   refreshConversation?: (conversationIdOverride?: string | null) => Promise<void>;
   dispatchSpy?: React.Dispatch<ChatAction>;
   registerFailedSendSpy?: (payload: FailedSendPayload) => void;
+  onSendResult?: (result: Awaited<ReturnType<ReturnType<typeof useChatSend>["sendMessage"]>>) => void;
 }) {
   const setConversationId = vi.fn();
   const setIsSending = vi.fn();
@@ -85,7 +87,7 @@ function Harness({
 
   return (
     <div>
-      <button type="button" onClick={() => void sendMessage("Audit this workflow")}>send</button>
+      <button type="button" onClick={() => void sendMessage("Audit this workflow").then(onSendResult)}>send</button>
       <button type="button" onClick={() => void retryFailedMessage("user-1")}>retry</button>
     </div>
   );
@@ -196,7 +198,6 @@ describe("useChatSend", () => {
         messages={[
           {
             id: "msg_0",
-      mediaContinuityHandoff: null,
             role: "assistant",
             content: "Welcome",
             parts: [{ type: "text", text: "Welcome" }],
@@ -310,7 +311,7 @@ describe("useChatSend", () => {
       messageText: "Audit this workflow",
       attachments: [],
       taskOriginHandoff: undefined,
-      mediaContinuityHandoff: null,
+      mediaContinuityHandoff: undefined,
     });
     expect(dispatchRecorder).toHaveBeenCalledWith({
       type: "SET_FAILED_SEND",
@@ -321,6 +322,44 @@ describe("useChatSend", () => {
       },
     });
     expect(refreshConversation).toHaveBeenCalledWith("conv_new");
+  });
+
+  it("pauses new sends briefly after provider credit exhaustion to avoid duplicate failed turns", async () => {
+    const onSendResult = vi.fn();
+
+    render(
+      <Harness
+        onSendResult={onSendResult}
+        messages={[
+          {
+            id: "assistant-credit-failure",
+            role: "assistant",
+            content: "",
+            parts: [
+              {
+                type: "generation_status",
+                status: "interrupted",
+                actor: "system",
+                reason: "The configured Anthropic account has insufficient credits. Update the production AI key or billing, then retry.",
+                partialContentRetained: false,
+                recordedAt: new Date().toISOString(),
+              },
+            ],
+            timestamp: new Date(),
+          },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "send" }));
+
+    await waitFor(() => {
+      expect(onSendResult).toHaveBeenCalledWith(expect.objectContaining({
+        ok: false,
+        error: expect.stringContaining("New sends are paused"),
+      }));
+    });
+    expect(runStreamMock).not.toHaveBeenCalled();
   });
 
   it("refreshes the current conversation when an interrupted stream produced no live text delta", async () => {

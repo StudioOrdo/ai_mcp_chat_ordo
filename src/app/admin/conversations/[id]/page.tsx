@@ -173,6 +173,19 @@ function PromptProvenanceCard({ entry }: { entry: PromptTurnAuditEntry }) {
         )}
       </div>
 
+      {entry.affectedTargets.length > 0 ? (
+        <div className="mt-3">
+          <h3 className="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-foreground/55">Affected Targets</h3>
+          <ul className="mt-2 grid gap-1 text-xs text-foreground/60">
+            {entry.affectedTargets.map((target) => (
+              <li key={target.id}>
+                {target.surface}{" -> "}{target.targetKind} {target.targetId}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       <details className="mt-3 rounded border border-foreground/8 p-2 text-xs">
         <summary className="cursor-pointer font-medium text-foreground/60">Stored structure and diff</summary>
         <pre className="mt-2 overflow-auto text-[0.65rem] text-foreground/50 whitespace-pre-wrap">
@@ -533,6 +546,63 @@ export default async function AdminConversationDetailPage({
                     <dd>{conv.importSourceConversationId || "—"}</dd>
                   </div>
                 </dl>
+              </AdminMetaBox>
+
+              <AdminMetaBox title="Identity Migration" collapsible>
+                {detail.migration ? (
+                  <dl className="mt-(--space-2) grid gap-(--space-1) text-xs">
+                    <div className="flex justify-between gap-3 text-foreground/60">
+                      <dt>Status</dt>
+                      <dd>{detail.migration.status}</dd>
+                    </div>
+                    <div className="flex justify-between gap-3 text-foreground/60">
+                      <dt>Stage</dt>
+                      <dd>{detail.migration.currentStage ?? "—"}</dd>
+                    </div>
+                    <div className="flex justify-between gap-3 text-foreground/60">
+                      <dt>Source</dt>
+                      <dd className="font-mono text-[0.65rem]">{detail.migration.sourceUserId}</dd>
+                    </div>
+                    <div className="flex justify-between gap-3 text-foreground/60">
+                      <dt>Target</dt>
+                      <dd className="font-mono text-[0.65rem]">{detail.migration.targetUserId}</dd>
+                    </div>
+                    <div className="flex justify-between gap-3 text-foreground/60">
+                      <dt>Conversations</dt>
+                      <dd>{detail.migration.migratedConversationIds.length}</dd>
+                    </div>
+                    <div className="flex justify-between gap-3 text-foreground/60">
+                      <dt>Jobs</dt>
+                      <dd>{detail.migration.migratedJobIds.length}</dd>
+                    </div>
+                    <div className="flex justify-between gap-3 text-foreground/60">
+                      <dt>Assets</dt>
+                      <dd>{detail.migration.migratedAssetIds.length}</dd>
+                    </div>
+                    <div className="flex justify-between gap-3 text-foreground/60">
+                      <dt>Search repairs</dt>
+                      <dd>{detail.migration.repairedSearchSourceIds.length}</dd>
+                    </div>
+                    <div className="flex justify-between gap-3 text-foreground/60">
+                      <dt>Memory repairs</dt>
+                      <dd>{detail.migration.repairedMemoryRefs.length}</dd>
+                    </div>
+                    <div className="flex justify-between gap-3 text-foreground/60">
+                      <dt>Completed</dt>
+                      <dd>{formatDate(detail.migration.completedAt)}</dd>
+                    </div>
+                    {detail.migration.failureMessage ? (
+                      <div className="text-amber-700">
+                        <dt>Failure</dt>
+                        <dd className="mt-0.5">{detail.migration.failureMessage}</dd>
+                      </div>
+                    ) : null}
+                  </dl>
+                ) : (
+                  <p className="mt-(--space-2) text-xs text-foreground/40">
+                    No identity migration event is linked to this conversation.
+                  </p>
+                )}
               </AdminMetaBox>
 
               <AdminMetaBox title="Stats" collapsible>

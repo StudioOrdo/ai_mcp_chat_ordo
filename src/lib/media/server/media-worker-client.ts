@@ -14,6 +14,8 @@ export interface ExecuteComposeMediaJobRequest {
   userId: string;
   conversationId: string | null;
   toolInvocationId?: string;
+  jobId?: string;
+  materializationKey?: string;
 }
 
 async function parseNdjsonResponse(

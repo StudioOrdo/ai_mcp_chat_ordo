@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { JobHistoryEntry } from "@/lib/jobs/job-event-history";
-import type { JobStatusSnapshot } from "@/lib/jobs/job-read-model";
+import type { CanonicalJobSnapshot } from "@/lib/jobs/job-read-model";
 
 import {
   buildJobFailureClipboardText,
@@ -13,32 +13,43 @@ import {
 } from "@/components/jobs/job-workspace-helpers";
 
 function makeSnapshot(
-  overrides: Partial<JobStatusSnapshot["part"]> = {},
-): JobStatusSnapshot {
+  overrides: Partial<CanonicalJobSnapshot> = {},
+): CanonicalJobSnapshot {
   return {
-    messageId: "jobmsg_job_1",
+    jobId: "job_1",
     conversationId: "conv_jobs",
-    part: {
-      type: "job_status",
-      jobId: "job_1",
-      toolName: "publish_content",
-      label: "Publish Content",
-      status: "succeeded",
+    userId: null,
+    toolName: "publish_content",
+    label: "Publish Content",
+    status: "succeeded",
+    title: "Launch Plan",
+    subtitle: "Publish the approved article",
+    summary: 'Published journal article "Launch Plan" at /journal/launch-plan.',
+    createdAt: "2026-04-08T14:59:00.000Z",
+    startedAt: null,
+    completedAt: "2026-04-08T15:00:00.000Z",
+    updatedAt: "2026-04-08T15:00:00.000Z",
+    origin: { fallback: "job_created_at" },
+    inputSnapshot: {},
+    resultPayload: {
+      slug: "launch-plan",
       title: "Launch Plan",
-      subtitle: "Publish the approved article",
-      summary: 'Published journal article "Launch Plan" at /journal/launch-plan.',
-      updatedAt: "2026-04-08T15:00:00.000Z",
-      resultPayload: {
-        slug: "launch-plan",
-        title: "Launch Plan",
-        status: "published",
-      },
+      status: "published",
+    },
+    resultEnvelope: null,
+    artifactRefs: [],
+    materializationRefs: [],
+    ownership: { userId: null, visibility: "anonymous_session", initiatorType: "user" },
+    failure: {
       failureClass: null,
       recoveryMode: "rerun",
+      nextRetryAt: null,
+      lastCheckpointId: null,
       replayedFromJobId: null,
       supersededByJobId: null,
-      ...overrides,
     },
+    ...overrides,
+    sequence: overrides.sequence ?? 0,
   };
 }
 
@@ -85,7 +96,16 @@ describe("job workspace helpers", () => {
   });
 
   it("builds copy-safe summary and failure text", () => {
-    const summaryText = buildJobSummaryClipboardText(makeSnapshot({ replayedFromJobId: "job_0" }));
+    const summaryText = buildJobSummaryClipboardText(makeSnapshot({
+      failure: {
+        failureClass: null,
+        recoveryMode: "rerun",
+        nextRetryAt: null,
+        lastCheckpointId: null,
+        replayedFromJobId: "job_0",
+        supersededByJobId: null,
+      },
+    }));
     expect(summaryText).toContain("Launch Plan");
     expect(summaryText).toContain("Replayed from: job_0");
     expect(summaryText).toContain("Summary:");
@@ -93,7 +113,14 @@ describe("job workspace helpers", () => {
     const failureText = buildJobFailureClipboardText(makeSnapshot({
       status: "failed",
       error: "Provider offline",
-      failureClass: "transient",
+      failure: {
+        failureClass: "transient",
+        recoveryMode: "rerun",
+        nextRetryAt: null,
+        lastCheckpointId: null,
+        replayedFromJobId: null,
+        supersededByJobId: null,
+      },
     }));
     expect(failureText).toContain("Failure class: Transient failure");
     expect(failureText).toContain("Failure: Provider offline");
@@ -110,8 +137,14 @@ describe("job workspace helpers", () => {
     vi.setSystemTime(new Date("2026-04-08T16:00:00.000Z"));
 
     const snapshot = makeSnapshot({
-      replayedFromJobId: "job_0",
-      supersededByJobId: "job_2",
+      failure: {
+        failureClass: null,
+        recoveryMode: "rerun",
+        nextRetryAt: null,
+        lastCheckpointId: null,
+        replayedFromJobId: "job_0",
+        supersededByJobId: "job_2",
+      },
     });
     const exportPayload = buildJobLogExport(snapshot, [makeHistoryEntry()]);
 

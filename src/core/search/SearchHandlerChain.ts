@@ -1,10 +1,7 @@
 import type { SearchHandler } from "./ports/SearchHandler";
 import type { HybridSearchResult, VectorQuery, VectorStore } from "./types";
 import type { Embedder } from "./ports/Embedder";
-import type { BM25IndexStore } from "./ports/BM25IndexStore";
-import type { CorpusQuery, SectionQuery } from "../use-cases/CorpusRepository";
 import type { HybridSearchEngine } from "./HybridSearchEngine";
-import type { BM25Scorer } from "./BM25Scorer";
 import type { QueryProcessor } from "./QueryProcessor";
 import { toSearchChunkMetadata } from "./chunk-metadata";
 
@@ -37,14 +34,13 @@ export class HybridSearchHandler extends BaseSearchHandler {
   constructor(
     private readonly engine: HybridSearchEngine,
     private readonly embedder: Embedder,
-    private readonly bm25IndexStore: BM25IndexStore,
     private readonly sourceType: string = "document_chunk",
   ) {
     super();
   }
 
   canHandle(): boolean {
-    return this.embedder.isReady() && this.bm25IndexStore.getIndex(this.sourceType) !== null;
+    return this.embedder.isReady();
   }
 
   async search(query: string, filters?: VectorQuery): Promise<HybridSearchResult[]> {
@@ -55,8 +51,6 @@ export class HybridSearchHandler extends BaseSearchHandler {
 
 export class BM25SearchHandler extends BaseSearchHandler {
   constructor(
-    private readonly bm25Scorer: BM25Scorer,
-    private readonly bm25IndexStore: BM25IndexStore,
     private readonly vectorStore: VectorStore,
     private readonly bm25QueryProcessor: QueryProcessor,
     private readonly sourceType: string = "document_chunk",
@@ -65,31 +59,36 @@ export class BM25SearchHandler extends BaseSearchHandler {
   }
 
   canHandle(): boolean {
-    return this.bm25IndexStore.getIndex(this.sourceType) !== null;
+    return true;
   }
 
   async search(query: string, filters?: VectorQuery): Promise<HybridSearchResult[]> {
-    if (!this.canHandle()) return this.passToNext(query, filters);
-
-    const bm25Index = this.bm25IndexStore.getIndex(filters?.sourceType ?? this.sourceType);
-    if (!bm25Index) return this.passToNext(query, filters);
-
     const queryTerms = this.bm25QueryProcessor.process(query);
-    const records = this.vectorStore.getAll({ ...filters, chunkLevel: "passage" });
-
-    const scored = records.map((r) => {
-      const docTokens = r.content.toLowerCase().split(/\s+/).filter(Boolean);
-      return {
-        record: r,
-        score: this.bm25Scorer.score(queryTerms, docTokens, docTokens.length, bm25Index),
-      };
+    const candidates = this.vectorStore.searchKeyword({
+      rawQuery: query,
+      terms: queryTerms,
+      filters: {
+        ...filters,
+        sourceType: filters?.sourceType ?? this.sourceType,
+        chunkLevel: "passage",
+      },
+      limit: filters?.limit ?? 10,
     });
+    if (candidates.length === 0) return this.passToNext(query, filters);
 
-    scored.sort((a, b) => b.score - a.score);
-    const top = scored.filter((s) => s.score > 0).slice(0, 10);
+    const records = new Map(
+      this.vectorStore
+        .hydrateByIds(candidates.map((candidate) => candidate.id))
+        .map((record) => [record.id, record]),
+    );
 
-    return top.map((item, rank) => {
-      const meta = item.record.metadata as {
+    return candidates.flatMap((item, rank) => {
+      const record = records.get(item.id);
+      if (!record) {
+        return [];
+      }
+
+      const meta = record.metadata as {
         documentTitle?: string;
         documentId?: string;
         documentSlug?: string;
@@ -106,7 +105,7 @@ export class BM25SearchHandler extends BaseSearchHandler {
       const documentSlug = meta.documentSlug ?? meta.bookSlug ?? "";
       const sectionTitle = meta.sectionTitle ?? meta.chapterTitle ?? "";
       const sectionSlug = meta.sectionSlug ?? meta.chapterSlug ?? "";
-      return {
+      return [{
         documentTitle,
         documentId,
         documentSlug,
@@ -116,71 +115,18 @@ export class BM25SearchHandler extends BaseSearchHandler {
         vectorRank: null,
         bm25Rank: rank + 1,
         relevance: (rank < 3 ? "high" : rank < 7 ? "medium" : "low") as "high" | "medium" | "low",
-        matchPassage: item.record.content,
-        matchSection: item.record.heading,
-        matchHighlight: item.record.content,
-        passageOffset: { start: 0, end: item.record.content.length },
-        chunkMetadata: toSearchChunkMetadata(item.record.metadata),
+        matchPassage: record.content,
+        matchSection: record.heading,
+        matchHighlight: record.content,
+        passageOffset: { start: 0, end: record.content.length },
+        chunkMetadata: toSearchChunkMetadata(record.metadata),
         bookTitle: documentTitle,
         bookNumber: documentId,
         bookSlug: documentSlug,
         chapterTitle: sectionTitle,
         chapterSlug: sectionSlug,
-      };
+      }];
     });
-  }
-}
-
-export class LegacyKeywordHandler extends BaseSearchHandler {
-  constructor(private readonly corpusRepository: CorpusQuery & SectionQuery) {
-    super();
-  }
-
-  canHandle(): boolean {
-    return true;
-  }
-
-  async search(query: string): Promise<HybridSearchResult[]> {
-    const documents = await this.corpusRepository.getAllDocuments();
-    const sections = await this.corpusRepository.getAllSections();
-    const results: HybridSearchResult[] = [];
-
-    const queryLower = query.toLowerCase();
-    const queryTerms = queryLower.split(/\s+/).filter((t) => t.length > 2);
-
-    if (queryTerms.length === 0 && queryLower.length <= 2) return [];
-
-    for (const section of sections) {
-      const document = documents.find((item) => item.slug === section.documentSlug);
-      if (!document) continue;
-
-      const { score, matchContext } = section.calculateSearchScore(queryLower, queryTerms);
-      if (score > 0) {
-        results.push({
-          documentTitle: document.title,
-          documentId: document.id,
-          documentSlug: document.slug,
-          sectionTitle: section.title,
-          sectionSlug: section.sectionSlug,
-          rrfScore: score,
-          vectorRank: null,
-          bm25Rank: null,
-          relevance: score >= 8 ? "high" : score >= 4 ? "medium" : "low",
-          matchPassage: matchContext,
-          matchSection: null,
-          matchHighlight: matchContext,
-          passageOffset: { start: 0, end: 0 },
-          chunkMetadata: null,
-          bookTitle: document.title,
-          bookNumber: document.id,
-          bookSlug: document.slug,
-          chapterTitle: section.title,
-          chapterSlug: section.sectionSlug,
-        });
-      }
-    }
-
-    return results.sort((a, b) => b.rrfScore - a.rrfScore).slice(0, 10);
   }
 }
 

@@ -1,12 +1,19 @@
 import type { JobFailureClass, JobRequest } from "@/core/entities/job";
 import type { ToolProgressUpdate } from "@/core/tool-registry/ToolExecutionContext";
 import type { JobQueueRepository } from "@/core/use-cases/JobQueueRepository";
+import type { MaterializationRepository } from "@/core/use-cases/MaterializationRepository";
 import { isCapabilityResultEnvelope } from "@/lib/capabilities/capability-result-envelope";
 import type { DeferredJobNotificationResult } from "./deferred-job-notifications";
-import type { DeferredJobConversationProjector } from "./deferred-job-conversation-projector";
+import { getMediaWorkflowRepository } from "@/adapters/RepositoryFactory";
 import { getJobCapability, type JobRetryPolicy } from "./job-capability-registry";
 import { getJobPhaseDefinitions, normalizeJobProgressState } from "./job-progress-state";
 import { appendRuntimeAuditLog } from "@/lib/observability/runtime-audit-log";
+import { MediaWorkflowOrchestrator } from "@/lib/media/workflows/orchestrator";
+import {
+  registerComposeMediaMaterialization,
+  registerGenerateAudioMaterialization,
+} from "./materialization-registration";
+import { AudioGenerationError } from "@/lib/audio/audio-generation-errors";
 
 export type DeferredJobProgressUpdate = ToolProgressUpdate;
 
@@ -65,6 +72,24 @@ function createAbortSignalError(signal: AbortSignal, fallbackReason: string): Er
 }
 
 function classifyJobFailure(error: unknown): JobFailureClass {
+  if (error instanceof AudioGenerationError) {
+    return error.failureClass;
+  }
+
+  if (
+    typeof error === "object"
+    && error !== null
+    && "failureClass" in error
+    && (
+      error.failureClass === "transient"
+      || error.failureClass === "terminal"
+      || error.failureClass === "policy"
+      || error.failureClass === "canceled"
+    )
+  ) {
+    return error.failureClass;
+  }
+
   if (error instanceof Error && error.name === "AbortError") {
     return "canceled";
   }
@@ -286,8 +311,8 @@ export class DeferredJobWorker {
   constructor(
     private readonly repository: JobQueueRepository,
     private readonly handlers: Record<string, DeferredJobHandler>,
-    private readonly conversationProjector?: DeferredJobConversationProjector,
     private readonly notificationDispatcher?: DeferredJobNotificationDispatcher,
+    private readonly materializationRepository?: MaterializationRepository,
   ) {}
 
   private async recordNotification(job: JobRequest, eventType: "result" | "failed" | "canceled"): Promise<void> {
@@ -411,7 +436,7 @@ export class DeferredJobWorker {
         previousLeaseExpiresAt: recovery.previousLeaseExpiresAt,
         workerId: options.workerId,
       });
-      const recoveredEvent = await this.repository.appendEvent({
+      await this.repository.appendEvent({
         jobId: recovery.job.id,
         conversationId: recovery.job.conversationId,
         eventType: "lease_recovered",
@@ -421,7 +446,6 @@ export class DeferredJobWorker {
           summary: buildLeaseRecoveredSummary(recovery.previousClaimedBy),
         },
       });
-      await this.conversationProjector?.project(recovery.job, recoveredEvent);
     }
 
     const reclaimedExpiredCount = reclaimedExpiredJobs.length;
@@ -444,13 +468,12 @@ export class DeferredJobWorker {
       recoveryMode: job.recoveryMode,
     }));
 
-    const startedEvent = await this.repository.appendEvent({
+    await this.repository.appendEvent({
       jobId: job.id,
       conversationId: job.conversationId,
       eventType: "started",
       payload: { workerId: options.workerId, leaseExpiresAt },
     });
-    await this.conversationProjector?.project(job, startedEvent);
 
     const handler = this.handlers[job.toolName];
 
@@ -467,16 +490,13 @@ export class DeferredJobWorker {
         leaseExpiresAt: null,
         claimedBy: null,
       });
-      const failedEvent = await this.repository.appendEvent({
+      await this.repository.appendEvent({
         jobId: job.id,
         conversationId: job.conversationId,
         eventType: "failed",
         payload: { errorMessage },
       });
       const failedJob = await this.repository.findJobById(job.id);
-      if (failedJob) {
-        await this.conversationProjector?.project(failedJob, failedEvent);
-      }
 
       return {
         reclaimedExpiredCount,
@@ -545,16 +565,12 @@ export class DeferredJobWorker {
             leaseExpiresAt: renewedLeaseExpiresAt,
             claimedBy: options.workerId,
           });
-          const progressEvent = await this.repository.appendEvent({
+          await this.repository.appendEvent({
             jobId: job.id,
             conversationId: job.conversationId,
             eventType: "progress",
             payload: buildEventPayload(normalizedUpdate),
           });
-          const progressJob = await this.repository.findJobById(job.id);
-          if (progressJob) {
-            await this.conversationProjector?.project(progressJob, progressEvent);
-          }
         },
       });
 
@@ -582,7 +598,7 @@ export class DeferredJobWorker {
         failureClass: null,
         nextRetryAt: null,
       });
-      const resultEvent = await this.repository.appendEvent({
+      await this.repository.appendEvent({
         jobId: job.id,
         conversationId: job.conversationId,
         eventType: "result",
@@ -593,7 +609,23 @@ export class DeferredJobWorker {
       });
       const succeededJob = await this.repository.findJobById(job.id);
       if (succeededJob) {
-        await this.conversationProjector?.project(succeededJob, resultEvent);
+        if (this.materializationRepository && succeededJob.toolName === "compose_media") {
+          await registerComposeMediaMaterialization(this.materializationRepository, succeededJob, result);
+        }
+        if (this.materializationRepository && succeededJob.toolName === "generate_audio") {
+          await registerGenerateAudioMaterialization(this.materializationRepository, succeededJob, result);
+        }
+        try {
+          await new MediaWorkflowOrchestrator({
+            workflowRepository: getMediaWorkflowRepository(),
+            jobRepository: this.repository,
+            ...(this.materializationRepository ? { materializationRepository: this.materializationRepository } : {}),
+          }).advanceByJobId(succeededJob.id);
+        } catch (workflowError) {
+          await appendRuntimeAuditLog("deferred_job", "media_workflow_advance_failed", buildAuditContext(succeededJob, options.workerId, {
+            errorMessage: workflowError instanceof Error ? workflowError.message : String(workflowError),
+          }));
+        }
         await this.recordNotification(succeededJob, "result");
       }
 
@@ -642,7 +674,7 @@ export class DeferredJobWorker {
           nextRetryAt,
           recoveryMode: capability.recoveryMode,
         });
-        const scheduledEvent = await this.repository.appendEvent({
+        await this.repository.appendEvent({
           jobId: job.id,
           conversationId: job.conversationId,
           eventType: "retry_scheduled",
@@ -660,7 +692,6 @@ export class DeferredJobWorker {
             ),
           },
         });
-        await this.conversationProjector?.project(scheduledJob, scheduledEvent);
 
         await appendRuntimeAuditLog("deferred_job", "retry_scheduled", buildAuditContext(scheduledJob, options.workerId, {
           errorMessage,
@@ -691,7 +722,7 @@ export class DeferredJobWorker {
         nextRetryAt: null,
         recoveryMode: capability?.recoveryMode ?? job.recoveryMode,
       });
-      const failedEvent = await this.repository.appendEvent({
+      await this.repository.appendEvent({
         jobId: job.id,
         conversationId: job.conversationId,
         eventType: "failed",
@@ -699,10 +730,8 @@ export class DeferredJobWorker {
       });
       const failedJob = await this.repository.findJobById(job.id);
       if (failedJob) {
-        await this.conversationProjector?.project(failedJob, failedEvent);
-
         if (isAutomaticRetryExhausted(capability?.retryPolicy, failureClass, failedJob.attemptCount)) {
-          const exhaustedEvent = await this.repository.appendEvent({
+          await this.repository.appendEvent({
             jobId: failedJob.id,
             conversationId: failedJob.conversationId,
             eventType: "retry_exhausted",
@@ -720,7 +749,18 @@ export class DeferredJobWorker {
               ),
             },
           });
-          await this.conversationProjector?.project(failedJob, exhaustedEvent);
+        }
+
+        try {
+          await new MediaWorkflowOrchestrator({
+            workflowRepository: getMediaWorkflowRepository(),
+            jobRepository: this.repository,
+            ...(this.materializationRepository ? { materializationRepository: this.materializationRepository } : {}),
+          }).advanceByJobId(failedJob.id);
+        } catch (workflowError) {
+          await appendRuntimeAuditLog("deferred_job", "media_workflow_advance_failed", buildAuditContext(failedJob, options.workerId, {
+            errorMessage: workflowError instanceof Error ? workflowError.message : String(workflowError),
+          }));
         }
 
         await this.recordNotification(failedJob, "failed");

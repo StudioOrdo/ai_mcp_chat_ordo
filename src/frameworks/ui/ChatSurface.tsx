@@ -13,7 +13,7 @@ import { useViewTransitionReady } from "@/hooks/useViewTransitionReady";
 export type ChatSurfaceMode = "embedded" | "floating";
 
 const EMBEDDED_CONTAINER_CLASSES =
-  "relative grid h-full min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)_auto] bg-background";
+  "relative grid h-full min-h-0 flex-1 grid-rows-[minmax(0,1fr)] bg-background";
 
 export function ChatSurface({ mode }: { mode: ChatSurfaceMode }) {
   const pathname = usePathname();
@@ -49,11 +49,6 @@ function EmbeddedSurface() {
       data-chat-container-mode="embedded"
       data-chat-layout="message-composer"
     >
-      <ChatSurfaceHeader
-        mode="embedded"
-        isFullScreen={false}
-        {...surfaceState.headerProps}
-      />
       <ChatContentSurface
         {...surfaceState.contentProps}
         isEmbedded={true}

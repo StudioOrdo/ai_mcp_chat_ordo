@@ -7,6 +7,7 @@ import { ToolPluginPartRenderer } from "../ToolPluginPartRenderer";
 import { MessageAttachments } from "./MessageAttachments";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { MediaGalleryCard } from "../plugins/custom/MediaGalleryCard";
+import { MediaWorkflowCard } from "../plugins/custom/MediaWorkflowCard";
 import {
   getCreditExhaustionRetryLabel,
   getCreditExhaustionStatusLabel,
@@ -174,6 +175,8 @@ function groupToolRenderEntries(entries: ToolRenderEntry[]): GroupedToolRenderEn
       kind: "single",
       key: entry.kind === "job-status"
         ? `job-${entry.part.jobId}-${entry.part.sequence ?? grouped.length}`
+        : entry.kind === "workflow-status"
+          ? `workflow-${entry.workflow.workflowId}-${grouped.length}`
         : `tool-${entry.name}-${grouped.length}`,
       entry,
     });
@@ -237,6 +240,8 @@ export const AssistantBubbleContent: React.FC<AssistantBubbleSharedProps & {
         {groupedToolRenderEntries.map((group) =>
           group.kind === "media-gallery" ? (
             <MediaGalleryCard key={group.key} entries={group.entries} />
+          ) : group.entry.kind === "workflow-status" ? (
+            <MediaWorkflowCard key={group.key} workflow={group.entry.workflow} />
           ) : group.entry.kind === "job-status" ? (
             <ToolPluginPartRenderer
               key={group.key}

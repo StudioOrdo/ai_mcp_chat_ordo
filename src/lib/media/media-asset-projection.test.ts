@@ -16,6 +16,7 @@ function createUserFile(overrides: Partial<UserFile> = {}): UserFile {
     id: "uf_audio_1",
     userId: "usr_test",
     conversationId: "conv_1",
+    status: "ready",
     contentHash: "hash_1",
     fileType: "audio",
     fileName: "voiceover.mp3",

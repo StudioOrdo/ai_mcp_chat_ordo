@@ -158,6 +158,23 @@ describe("Sprint 14 — End-to-End Catalog Flow", () => {
       }
     });
 
+    it("search_relationship_memory flows for all signed-in roles", () => {
+      for (const role of [
+        "AUTHENTICATED",
+        "APPRENTICE",
+        "STAFF",
+        "ADMIN",
+      ] as RoleName[]) {
+        const directive = assembleRoleDirective(role);
+        const hints = projectCapabilityRuntimeStaticByName("search_relationship_memory")
+          ?.promptHintsByRole?.[role] ?? null;
+        expect(hints, `No hints for ${role}`).not.toBeNull();
+        for (const line of hints!) {
+          expect(directive).toContain(line);
+        }
+      }
+    });
+
     it("search_my_conversations flows for all signed-in roles", () => {
       for (const role of [
         "AUTHENTICATED",

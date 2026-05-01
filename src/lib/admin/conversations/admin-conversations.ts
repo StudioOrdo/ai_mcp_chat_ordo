@@ -5,7 +5,8 @@
  * Uses the admin extension methods added to ConversationDataMapper (D4.7).
  */
 
-import { getConversationDataMapper, getMessageDataMapper, getUserDataMapper, getConversationEventDataMapper } from "@/adapters/RepositoryFactory";
+import { getConversationDataMapper, getMessageDataMapper, getUserDataMapper, getConversationEventDataMapper, getIdentityMigrationRepository } from "@/adapters/RepositoryFactory";
+import type { IdentityMigrationEvent } from "@/core/entities/identity-migration";
 import type { Message } from "@/core/entities/conversation";
 import type { ConversationEventData } from "@/core/use-cases/ConversationEventRecorder";
 import { getAdminConversationDetailPath } from "./admin-conversations-routes";
@@ -71,6 +72,7 @@ export interface AdminConversationDetailViewModel {
   };
   events: ConversationEventData[];
   promptProvenance: PromptTurnAuditEntry[];
+  migration: IdentityMigrationEvent | null;
   totalTokens: number;
 }
 
@@ -165,6 +167,8 @@ export async function loadAdminConversationDetail(
   const transcriptEntries = buildTranscriptFromMessages(messages);
   const events = await eventMapper.listByConversation(id);
   const promptProvenance = await listPromptTurnAudits(id);
+  const latestMigration = await getIdentityMigrationRepository().findLatestForTargetIdentity(conv.userId);
+  const migration = latestMigration?.migratedConversationIds.includes(conv.id) ? latestMigration : null;
 
   const entry: AdminConversationDetailViewModel["conversation"] = {
     id: conv.id,
@@ -220,6 +224,7 @@ export async function loadAdminConversationDetail(
     },
     events,
     promptProvenance,
+    migration,
     totalTokens,
   };
 }

@@ -21,7 +21,6 @@ import {
 import { getCapabilityPresentationDescriptor } from "@/frameworks/ui/chat/registry/capability-presentation-registry";
 import { projectCapabilityResultEnvelope } from "@/lib/capabilities/capability-result-envelope";
 import { isDeferredJobResultPayload } from "@/lib/jobs/deferred-job-result";
-import { extractJobStatusSnapshots } from "@/lib/jobs/job-status-snapshots";
 import { normalizeMediaRuntimeState } from "./media-runtime-normalization";
 import {
   type BrowserRuntimeToolName,
@@ -48,21 +47,6 @@ export interface BrowserRuntimeCandidate {
   snapshot?: JobStatusMessagePart;
 }
 
-type GenerateAudioPayload = {
-  action: "generate_audio";
-  title: string;
-  text: string;
-  assetId: string | null;
-  assetKind?: "audio";
-  mimeType?: string;
-  assetSource?: MediaAssetSource;
-  retentionClass?: MediaAssetRetentionClass;
-  provider: string;
-  generationStatus: "client_fetch_pending" | "cached_asset";
-  estimatedDurationSeconds: number;
-  estimatedGenerationSeconds: number;
-};
-
 type BrowserRuntimeAssetFields = {
   assetId?: string | null;
   mimeType?: string;
@@ -75,18 +59,6 @@ type ResolvedGraphRuntimePayload = ResolvedGraphPayload & BrowserRuntimeAssetFie
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
-}
-
-function isGenerateAudioPayload(value: unknown): value is GenerateAudioPayload {
-  return isRecord(value)
-    && value.action === "generate_audio"
-    && typeof value.title === "string"
-    && typeof value.text === "string"
-    && (typeof value.assetId === "string" || value.assetId === null)
-    && typeof value.provider === "string"
-    && typeof value.generationStatus === "string"
-    && typeof value.estimatedDurationSeconds === "number"
-    && typeof value.estimatedGenerationSeconds === "number";
 }
 
 function hasDurableAsset(toolName: BrowserRuntimeToolName, payload: unknown): boolean {
@@ -135,25 +107,6 @@ function withBrowserRuntimeAssetFields<T extends object>(
   return {
     ...payload,
     ...readBrowserRuntimeAssetFields(raw),
-  };
-}
-
-function resolveAudioPayload(
-  payload: unknown,
-  conversationId: string | null,
-): GenerateAudioPayload | unknown {
-  if (!isGenerateAudioPayload(payload)) {
-    return payload;
-  }
-
-  const assetFields = readBrowserRuntimeAssetFields(payload);
-
-  return {
-    ...payload,
-    assetKind: "audio",
-    mimeType: assetFields.mimeType ?? payload.mimeType ?? "audio/mpeg",
-    assetSource: assetFields.assetSource ?? payload.assetSource ?? "generated",
-    retentionClass: assetFields.retentionClass ?? payload.retentionClass ?? (conversationId ? "conversation" : "ephemeral"),
   };
 }
 
@@ -235,20 +188,6 @@ function buildArtifacts(
   payload: unknown,
   conversationId: string | null,
 ): CapabilityArtifactRef[] | undefined {
-  if (toolName === "generate_audio" && isGenerateAudioPayload(payload)) {
-    return [
-      {
-        kind: "audio",
-        label: payload.title,
-        mimeType: payload.mimeType ?? "audio/mpeg",
-        ...(payload.assetId ? { assetId: payload.assetId, uri: `/api/user-files/${payload.assetId}` } : {}),
-        retentionClass: payload.retentionClass ?? (conversationId ? "conversation" : "ephemeral"),
-        durationSeconds: payload.estimatedDurationSeconds,
-        source: payload.assetSource ?? "generated",
-      },
-    ];
-  }
-
   if (toolName === "generate_chart") {
     const chart = resolveChartPayload(payload, {});
     const title = typeof chart.title === "string" && chart.title.trim().length > 0
@@ -316,9 +255,7 @@ function normalizePayload(
   args: Record<string, unknown>,
   conversationId: string | null,
 ): unknown {
-  if (toolName === "generate_audio") {
-    return resolveAudioPayload(payload, conversationId);
-  }
+  void conversationId;
 
   if (toolName === "generate_chart") {
     return resolveChartPayload(payload, args);
@@ -409,21 +346,6 @@ export function buildBrowserRuntimeJobStatusPart(options: {
   };
 }
 
-export function withResolvedAudioAsset(
-  payload: GenerateAudioPayload,
-  options: { assetId: string; conversationId: string | null },
-): GenerateAudioPayload {
-  return {
-    ...payload,
-    assetId: options.assetId,
-    assetKind: "audio",
-    mimeType: payload.mimeType ?? "audio/mpeg",
-    assetSource: payload.assetSource ?? "generated",
-    retentionClass: payload.retentionClass ?? (options.conversationId ? "conversation" : "ephemeral"),
-    generationStatus: "cached_asset",
-  };
-}
-
 export function getBrowserRuntimeCandidates(messages: ChatMessage[]): BrowserRuntimeCandidate[] {
   const candidates: BrowserRuntimeCandidate[] = [];
 
@@ -468,13 +390,21 @@ export function getBrowserRuntimeCandidates(messages: ChatMessage[]): BrowserRun
         continue;
       }
 
-      const snapshots = extractJobStatusSnapshots(part.result);
-      const jobId = createBrowserRuntimeJobId(message.id, match.name, partIndex);
-      const snapshot = snapshots.find((entry) => entry.part.jobId === jobId)?.part;
-      if (!snapshot && snapshots.length > 0) {
+      if (
+        match.name === "compose_media"
+        && (
+          !isRecord(part.result)
+          || (
+            part.result.action !== "compose_media"
+            && part.result.generationStatus !== "client_fetch_pending"
+            && typeof part.result.primaryAssetId !== "string"
+          )
+        )
+      ) {
         continue;
       }
-      const payload = snapshot?.resultEnvelope?.payload ?? snapshot?.resultPayload ?? part.result;
+
+      const jobId = createBrowserRuntimeJobId(message.id, match.name, partIndex);
 
       candidates.push({
         jobId,
@@ -482,9 +412,8 @@ export function getBrowserRuntimeCandidates(messages: ChatMessage[]): BrowserRun
         ...(match.toolInvocationId ? { toolInvocationId: match.toolInvocationId } : {}),
         toolName: match.name,
         args: match.args,
-        payload,
+        payload: part.result,
         resultIndex: partIndex,
-        snapshot,
       });
     }
   }

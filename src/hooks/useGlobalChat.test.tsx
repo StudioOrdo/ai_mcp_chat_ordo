@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Message } from "@/core/entities/conversation";
 import { createConversationRoutingSnapshot } from "@/core/entities/conversation-routing";
+import type { CanonicalJobSnapshot } from "@/lib/jobs/job-read-model";
 import { useState } from "react";
 
 const { fetchStreamMock, usePathnameMock } = vi.hoisted(() => ({
@@ -60,14 +62,14 @@ import { ChatProvider, useGlobalChat } from "./useGlobalChat";
 
 function ChatProbe() {
   const chat = useGlobalChat();
-  const firstJobPart = chat.messages[0]?.parts?.find((part) => part.type === "job_status");
+  const firstJobSnapshot = chat.jobStateEntries[0];
 
   return (
     <div>
       <div data-testid="message-count">{chat.messages.length}</div>
       <div data-testid="first-message">{chat.messages[0]?.content ?? ""}</div>
-      <div data-testid="first-job-status">{firstJobPart?.type === "job_status" ? firstJobPart.status : "none"}</div>
-      <div data-testid="first-job-summary">{firstJobPart?.type === "job_status" ? firstJobPart.summary ?? "" : ""}</div>
+      <div data-testid="first-job-status">{firstJobSnapshot?.status ?? "none"}</div>
+      <div data-testid="first-job-summary">{firstJobSnapshot?.summary ?? ""}</div>
       <div data-testid="conversation-id">{chat.conversationId ?? "none"}</div>
       <div data-testid="conversation-lane">{chat.routingSnapshot?.lane ?? "none"}</div>
       <div data-testid="loading-state">{String(chat.isLoadingMessages)}</div>
@@ -112,6 +114,106 @@ function createNoReferralVisitResponse() {
     status: 404,
     ok: false,
     json: async () => ({ error: "No referral visit" }),
+  };
+}
+
+function createWorkspaceRestoreResponse(options: {
+  conversation: {
+    id: string;
+    userId: string;
+    title: string;
+    status: "active" | "archived";
+    updatedAt: string;
+    routingSnapshot: {
+      detectedNeedSummary: string | null;
+      recommendedNextStep: string | null;
+    };
+    [key: string]: unknown;
+  };
+  messages: Array<{
+    id: string;
+    role: "user" | "assistant" | "system";
+    content: string;
+    parts: Message["parts"];
+    createdAt: string;
+  }>;
+  activeJobs?: CanonicalJobSnapshot[];
+  attentionNeededJobs?: CanonicalJobSnapshot[];
+}) {
+  const { conversation, messages } = options;
+
+  return {
+    workspace: {
+      id: `workspace:${conversation.id}`,
+      userId: conversation.userId,
+      conversationId: conversation.id,
+      status: conversation.status,
+      title: conversation.title,
+      currentObjective: conversation.routingSnapshot.detectedNeedSummary ?? null,
+      recommendedNextStep: conversation.routingSnapshot.recommendedNextStep ?? null,
+      openLoops: [],
+      activeJobRefs: [],
+      importantAssetRefs: [],
+      workflowContextRef: null,
+      operatorTransitionRef: null,
+      trustDistributionRef: null,
+      relatedBusinessRefs: [],
+      latestMemoryRef: null,
+      latestPromptBindingRef: null,
+      updatedAt: conversation.updatedAt,
+    },
+    activeJobs: options.activeJobs ?? [],
+    attentionNeededJobs: options.attentionNeededJobs ?? [],
+    assets: [],
+    workflow: null,
+    operatorTransition: null,
+    trustDistribution: null,
+    memory: null,
+    recentTranscript: messages.map((message) => ({
+      ...message,
+      conversationId: conversation.id,
+      tokenEstimate: 0,
+    })),
+    migration: null,
+    restoreMeta: {
+      schemaVersion: 1,
+      restoredAt: conversation.updatedAt,
+      source: "durable_read_model" as const,
+    },
+  };
+}
+
+function jobSnapshot(overrides: Partial<CanonicalJobSnapshot> = {}): CanonicalJobSnapshot {
+  const jobId = overrides.jobId ?? "job_1";
+  return {
+    jobId,
+    conversationId: overrides.conversationId ?? "conv_active",
+    userId: overrides.userId ?? "usr_123",
+    toolName: overrides.toolName ?? "draft_content",
+    label: overrides.label ?? "Draft Content",
+    status: overrides.status ?? "succeeded",
+    sequence: overrides.sequence ?? 1,
+    summary: overrides.summary,
+    createdAt: overrides.createdAt ?? "2026-03-15T10:00:00.000Z",
+    startedAt: overrides.startedAt ?? null,
+    completedAt: overrides.completedAt ?? null,
+    updatedAt: overrides.updatedAt ?? "2026-03-15T10:00:01.000Z",
+    origin: overrides.origin ?? { originMessageId: "job_job_1", fallback: "explicit_origin" },
+    inputSnapshot: overrides.inputSnapshot ?? {},
+    resultPayload: overrides.resultPayload,
+    resultEnvelope: overrides.resultEnvelope ?? null,
+    artifactRefs: overrides.artifactRefs ?? [],
+    materializationRefs: overrides.materializationRefs ?? [],
+    ownership: overrides.ownership ?? { userId: "usr_123", visibility: "owner", initiatorType: "user" },
+    failure: overrides.failure ?? {
+      failureClass: null,
+      recoveryMode: null,
+      nextRetryAt: null,
+      lastCheckpointId: null,
+      replayedFromJobId: null,
+      supersededByJobId: null,
+    },
+    ...overrides,
   };
 }
 
@@ -160,7 +262,7 @@ describe("ChatProvider active conversation restore", () => {
 
     render(<RoleSwitcher />);
 
-    expect(screen.getByTestId("first-message")).toHaveTextContent("Bring me the messy workflow, half-finished idea, or customer task");
+    expect(screen.getByTestId("first-message")).toHaveTextContent("Bring me the next decision, messy idea, or customer problem");
 
     fireEvent.click(screen.getByRole("button", { name: "switch-role" }));
 
@@ -202,7 +304,7 @@ describe("ChatProvider active conversation restore", () => {
     fetchMock.mockResolvedValue({
       status: 200,
       ok: true,
-      json: async () => ({
+      json: async () => createWorkspaceRestoreResponse({
         conversation: {
           id: "conv_active",
           userId: "anon_123",
@@ -247,16 +349,16 @@ describe("ChatProvider active conversation restore", () => {
       expect(screen.getByTestId("loading-state")).toHaveTextContent("false");
     });
 
-    expect(fetchMock).toHaveBeenCalledWith("/api/conversations/active", undefined);
+    expect(fetchMock).toHaveBeenCalledWith("/api/workspace/restore", undefined);
     expect(screen.getByTestId("message-count")).toHaveTextContent("2");
     expect(screen.getByTestId("first-message")).toHaveTextContent("Restored question");
     expect(screen.getByTestId("conversation-id")).toHaveTextContent("conv_active");
-    expect(screen.getByTestId("conversation-lane")).toHaveTextContent("organization");
+    expect(screen.getByTestId("conversation-lane")).toHaveTextContent("uncertain");
     expect(warnSpy).not.toHaveBeenCalled();
     expect(errorSpy).not.toHaveBeenCalled();
   });
 
-  it("subscribes to deferred job events and appends job status messages", async () => {
+  it("subscribes to deferred job events and updates canonical job state", async () => {
     fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes("/api/chat/jobs?")) {
@@ -270,7 +372,7 @@ describe("ChatProvider active conversation restore", () => {
       return {
         status: 200,
         ok: true,
-        json: async () => ({
+        json: async () => createWorkspaceRestoreResponse({
           conversation: {
             id: "conv_active",
             userId: "anon_123",
@@ -299,7 +401,7 @@ describe("ChatProvider active conversation restore", () => {
     });
 
     const source = MockEventSource.instances[0];
-    expect(source?.url).toBe("/api/chat/events?conversationId=conv_active");
+    expect(source?.url).toBe("/api/chat/events?conversationId=conv_active&afterSequence=0");
 
     source?.onmessage?.({
       data: JSON.stringify({
@@ -315,7 +417,7 @@ describe("ChatProvider active conversation restore", () => {
     } as MessageEvent<string>);
 
     await waitFor(() => {
-      expect(screen.getByTestId("message-count")).toHaveTextContent("1");
+      expect(screen.getByTestId("first-job-status")).toHaveTextContent("running");
     });
   });
 
@@ -326,14 +428,30 @@ describe("ChatProvider active conversation restore", () => {
         return {
           status: 200,
           ok: true,
-          json: async () => ({ jobs: [] }),
+          json: async () => ({
+            jobs: [
+              jobSnapshot({
+                jobId: "job_1",
+                toolName: "draft_content",
+                label: "Draft Content",
+                status: "succeeded",
+                summary: 'Draft "Deferred Queue Post" ready at /journal/deferred-queue-post.',
+                resultPayload: {
+                  id: "post_1",
+                  slug: "deferred-queue-post",
+                  title: "Deferred Queue Post",
+                  status: "draft",
+                },
+              }),
+            ],
+          }),
         };
       }
 
       return {
         status: 200,
         ok: true,
-        json: async () => ({
+        json: async () => createWorkspaceRestoreResponse({
           conversation: {
             id: "conv_active",
             userId: "usr_123",
@@ -369,7 +487,6 @@ describe("ChatProvider active conversation restore", () => {
                     title: "Deferred Queue Post",
                     status: "draft",
                   },
-                  createdAt: "2026-03-15T10:00:01.000Z",
                 },
               ],
               createdAt: "2026-03-15T10:00:01.000Z",
@@ -386,7 +503,9 @@ describe("ChatProvider active conversation restore", () => {
     });
 
     expect(screen.getByTestId("message-count")).toHaveTextContent("1");
-    expect(screen.getByTestId("first-job-status")).toHaveTextContent("succeeded");
+    await waitFor(() => {
+      expect(screen.getByTestId("first-job-status")).toHaveTextContent("succeeded");
+    });
     expect(screen.getByTestId("first-job-summary")).toHaveTextContent('Draft "Deferred Queue Post" ready at /journal/deferred-queue-post.');
   });
 
@@ -404,7 +523,7 @@ describe("ChatProvider active conversation restore", () => {
       return {
         status: 200,
         ok: true,
-        json: async () => ({
+        json: async () => createWorkspaceRestoreResponse({
           conversation: {
             id: "conv_active",
             userId: "anon_123",
@@ -432,8 +551,13 @@ describe("ChatProvider active conversation restore", () => {
       expect(screen.getByTestId("conversation-id")).toHaveTextContent("conv_active");
     });
 
+    await waitFor(() => {
+      expect(MockEventSource.instances.length).toBeGreaterThan(0);
+    });
+
     const source = MockEventSource.instances[0];
-    source?.onmessage?.({
+    expect(source).toBeDefined();
+    source.onmessage?.({
       data: JSON.stringify({
         type: "job_canceled",
         jobId: "job_1",
@@ -445,7 +569,7 @@ describe("ChatProvider active conversation restore", () => {
     } as MessageEvent<string>);
 
     await waitFor(() => {
-      expect(screen.getByTestId("message-count")).toHaveTextContent("1");
+      expect(screen.getByTestId("first-job-status")).toHaveTextContent("canceled");
     });
   });
 
@@ -458,24 +582,20 @@ describe("ChatProvider active conversation restore", () => {
           ok: true,
           json: async () => ({
             jobs: [
-              {
-                messageId: "jobmsg_job_1",
-                part: {
-                  type: "job_status",
-                  jobId: "job_1",
-                  toolName: "produce_blog_article",
-                  label: "Produce Blog Article",
-                  status: "succeeded",
-                  summary: 'Produced draft "Launch Plan" at /journal/launch-plan with hero asset asset_1.',
-                  resultPayload: {
-                    id: "post_1",
-                    slug: "launch-plan",
-                    title: "Launch Plan",
-                    status: "draft",
-                    imageAssetId: "asset_1",
-                  },
+              jobSnapshot({
+                jobId: "job_1",
+                toolName: "produce_blog_article",
+                label: "Produce Blog Article",
+                status: "succeeded",
+                summary: 'Produced draft "Launch Plan" at /journal/launch-plan with hero asset asset_1.',
+                resultPayload: {
+                  id: "post_1",
+                  slug: "launch-plan",
+                  title: "Launch Plan",
+                  status: "draft",
+                  imageAssetId: "asset_1",
                 },
-              },
+              }),
             ],
           }),
         };
@@ -484,7 +604,7 @@ describe("ChatProvider active conversation restore", () => {
       return {
         status: 200,
         ok: true,
-        json: async () => ({
+        json: async () => createWorkspaceRestoreResponse({
           conversation: {
             id: "conv_active",
             userId: "usr_123",
@@ -518,13 +638,88 @@ describe("ChatProvider active conversation restore", () => {
     expect(screen.getByTestId("first-job-summary")).toHaveTextContent('Produced draft "Launch Plan" at /journal/launch-plan with hero asset asset_1.');
   });
 
+  it("does not let restored transcript-only browser-runtime candidates execute on homepage restore", async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/chat/jobs?")) {
+        return {
+          status: 200,
+          ok: true,
+          json: async () => ({ jobs: [] }),
+        };
+      }
+
+      return {
+        status: 200,
+        ok: true,
+        json: async () => ({
+          workspace: {
+            id: "workspace:conv_active",
+            userId: "usr_123",
+            conversationId: "conv_active",
+            status: "active",
+            title: "Restored media history",
+            currentObjective: "Review restored media",
+            recommendedNextStep: "Inspect the asset shelf",
+            openLoops: [],
+            activeJobRefs: [],
+            importantAssetRefs: [],
+            workflowContextRef: null,
+            operatorTransitionRef: null,
+            trustDistributionRef: null,
+            relatedBusinessRefs: [],
+            latestMemoryRef: null,
+            latestPromptBindingRef: null,
+            updatedAt: "2026-03-15T10:00:01.000Z",
+          },
+          activeJobs: [],
+          attentionNeededJobs: [],
+          assets: [],
+          workflow: null,
+          operatorTransition: null,
+          trustDistribution: null,
+          memory: null,
+          migration: null,
+          restoreMeta: {
+            schemaVersion: 1,
+            restoredAt: "2026-03-15T10:00:01.000Z",
+            source: "durable_read_model",
+          },
+          recentTranscript: [
+            {
+              id: "msg_restored_browser_candidate",
+              conversationId: "conv_active",
+              role: "assistant",
+              content: "",
+              parts: [
+                { type: "tool_call", name: "compose_media", args: { plan: { id: "plan_restore" } } },
+                { type: "tool_result", name: "compose_media", result: { plan: { id: "plan_restore" } } },
+              ],
+              createdAt: "2026-03-15T10:00:01.000Z",
+              tokenEstimate: 0,
+            },
+          ],
+        }),
+      };
+    });
+
+    renderChatProvider("AUTHENTICATED");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("loading-state")).toHaveTextContent("false");
+    });
+
+    expect(screen.getByTestId("message-count")).toHaveTextContent("1");
+    expect(screen.getByTestId("first-job-status")).toHaveTextContent("none");
+  });
+
   it("restores a selected conversation when conversationId is present in the URL", async () => {
     window.history.replaceState({}, "", "/?conversationId=conv_selected");
 
     fetchMock.mockResolvedValue({
       status: 200,
       ok: true,
-      json: async () => ({
+      json: async () => createWorkspaceRestoreResponse({
         conversation: {
           id: "conv_selected",
           userId: "anon_123",
@@ -569,11 +764,11 @@ describe("ChatProvider active conversation restore", () => {
       expect(screen.getByTestId("loading-state")).toHaveTextContent("false");
     });
 
-    expect(fetchMock).toHaveBeenCalledWith("/api/conversations/conv_selected", undefined);
+    expect(fetchMock).toHaveBeenCalledWith("/api/workspace/restore?conversationId=conv_selected", undefined);
     expect(screen.getByTestId("message-count")).toHaveTextContent("2");
     expect(screen.getByTestId("first-message")).toHaveTextContent("Selected question");
     expect(screen.getByTestId("conversation-id")).toHaveTextContent("conv_selected");
-    expect(screen.getByTestId("conversation-lane")).toHaveTextContent("organization");
+    expect(screen.getByTestId("conversation-lane")).toHaveTextContent("uncertain");
     expect(window.location.search).toBe("");
     expect(warnSpy).not.toHaveBeenCalled();
     expect(errorSpy).not.toHaveBeenCalled();
@@ -586,7 +781,7 @@ describe("ChatProvider active conversation restore", () => {
       .mockResolvedValueOnce({
         status: 200,
         ok: true,
-        json: async () => ({
+        json: async () => createWorkspaceRestoreResponse({
           conversation: {
             id: "conv_selected",
             userId: "anon_123",
@@ -622,13 +817,13 @@ describe("ChatProvider active conversation restore", () => {
               createdAt: "2026-03-15T10:00:01.000Z",
             },
           ],
-        }),
+          }),
       })
       .mockResolvedValueOnce(createNoReferralVisitResponse())
       .mockResolvedValueOnce({
         status: 200,
         ok: true,
-        json: async () => ({
+          json: async () => createWorkspaceRestoreResponse({
           conversation: {
             id: "conv_selected",
             userId: "anon_123",
@@ -678,7 +873,7 @@ describe("ChatProvider active conversation restore", () => {
               createdAt: "2026-03-18T10:00:01.000Z",
             },
           ],
-        }),
+          }),
       });
 
     fetchStreamMock.mockResolvedValue({
@@ -708,7 +903,7 @@ describe("ChatProvider active conversation restore", () => {
     });
 
     await waitFor(() => {
-      expect(fetchMock.mock.calls.some((call) => call[0] === "/api/conversations/conv_selected")).toBe(true);
+      expect(fetchMock.mock.calls.some((call) => call[0] === "/api/workspace/restore?conversationId=conv_selected")).toBe(true);
       expect(screen.getByTestId("conversation-id")).toHaveTextContent("conv_selected");
       expect(screen.getByTestId("message-count")).toHaveTextContent("4");
     });
@@ -730,7 +925,7 @@ describe("ChatProvider active conversation restore", () => {
       .mockResolvedValueOnce({
         status: 200,
         ok: true,
-        json: async () => ({
+        json: async () => createWorkspaceRestoreResponse({
           conversation: {
             id: "conv_new",
             userId: "anon_123",
@@ -766,7 +961,7 @@ describe("ChatProvider active conversation restore", () => {
               createdAt: "2026-03-18T10:00:01.000Z",
             },
           ],
-        }),
+          }),
       });
 
     fetchStreamMock.mockResolvedValue({
@@ -786,8 +981,8 @@ describe("ChatProvider active conversation restore", () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/referral/visit");
-      expect(fetchMock).toHaveBeenNthCalledWith(3, "/api/conversations/conv_new", undefined);
-      expect(fetchMock).toHaveBeenNthCalledWith(4, "/api/conversations/active", undefined);
+      expect(fetchMock).toHaveBeenNthCalledWith(3, "/api/workspace/restore?conversationId=conv_new", undefined);
+      expect(fetchMock).toHaveBeenNthCalledWith(4, "/api/workspace/restore", undefined);
       expect(screen.getByTestId("conversation-id")).toHaveTextContent("conv_new");
       expect(screen.getByTestId("message-count")).toHaveTextContent("2");
     });
@@ -814,6 +1009,27 @@ describe("ChatProvider active conversation restore", () => {
     expect(errorSpy).not.toHaveBeenCalled();
   });
 
+  it("keeps the hero state when active workspace restore returns 204", async () => {
+    fetchMock.mockResolvedValue({
+      status: 204,
+      ok: true,
+      json: async () => undefined,
+    });
+
+    renderChatProvider();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("loading-state")).toHaveTextContent("false");
+    });
+
+    expect(screen.getByTestId("message-count")).toHaveTextContent("1");
+    expect(screen.getByTestId("first-message")).toHaveTextContent("Bring me the next decision, messy idea, or customer problem");
+    expect(screen.getByTestId("conversation-id")).toHaveTextContent("none");
+    expect(screen.getByTestId("conversation-lane")).toHaveTextContent("none");
+    expect(warnSpy).not.toHaveBeenCalled();
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
   it("warns and keeps the hero state when restore unexpectedly returns 401", async () => {
     fetchMock.mockResolvedValue({
       status: 401,
@@ -832,7 +1048,7 @@ describe("ChatProvider active conversation restore", () => {
     expect(screen.getByTestId("conversation-id")).toHaveTextContent("none");
     expect(screen.getByTestId("conversation-lane")).toHaveTextContent("none");
     expect(warnSpy).toHaveBeenCalledWith(
-      "Active conversation restore unexpectedly required authentication.",
+      "Active workspace restore unexpectedly required authentication.",
     );
     expect(errorSpy).not.toHaveBeenCalled();
   });
@@ -851,9 +1067,7 @@ describe("ChatProvider active conversation restore", () => {
     expect(screen.getByTestId("conversation-id")).toHaveTextContent("none");
     expect(screen.getByTestId("conversation-lane")).toHaveTextContent("none");
     expect(warnSpy).not.toHaveBeenCalled();
-    expect(errorSpy).toHaveBeenCalledWith(
-      "Unexpected failure while restoring active conversation.",
-    );
+    expect(errorSpy).not.toHaveBeenCalled();
   });
 
   it("streams an assistant reply through the public sendMessage API", async () => {
@@ -867,7 +1081,7 @@ describe("ChatProvider active conversation restore", () => {
       .mockResolvedValueOnce({
         status: 200,
         ok: true,
-        json: async () => ({
+        json: async () => createWorkspaceRestoreResponse({
           conversation: {
             id: "conv_new",
             userId: "anon_123",
@@ -899,7 +1113,7 @@ describe("ChatProvider active conversation restore", () => {
               createdAt: "2026-03-18T10:00:01.000Z",
             },
           ],
-        }),
+          }),
       });
     fetchStreamMock.mockResolvedValue({
       events: async function* () {
@@ -929,7 +1143,7 @@ describe("ChatProvider active conversation restore", () => {
       expect(screen.getByTestId("conversation-id")).toHaveTextContent("conv_new");
       expect(screen.getByTestId("message-count")).toHaveTextContent("2");
     });
-    expect(screen.getByTestId("conversation-lane")).toHaveTextContent("individual");
+    expect(screen.getByTestId("conversation-lane")).toHaveTextContent("uncertain");
   });
 
   it("forwards the current pathname when sending from the register page", async () => {
@@ -945,7 +1159,7 @@ describe("ChatProvider active conversation restore", () => {
       .mockResolvedValueOnce({
         status: 200,
         ok: true,
-        json: async () => ({
+        json: async () => createWorkspaceRestoreResponse({
           conversation: {
             id: "conv_register",
             userId: "anon_123",
@@ -977,7 +1191,7 @@ describe("ChatProvider active conversation restore", () => {
               createdAt: "2026-03-18T10:00:01.000Z",
             },
           ],
-        }),
+          }),
       });
     fetchStreamMock.mockResolvedValue({
       events: async function* () {
@@ -1024,7 +1238,7 @@ describe("ChatProvider active conversation restore", () => {
       .mockResolvedValueOnce({
         status: 200,
         ok: true,
-        json: async () => ({
+        json: async () => createWorkspaceRestoreResponse({
           conversation: {
             id: "conv_route_change",
             userId: "anon_123",
@@ -1056,7 +1270,7 @@ describe("ChatProvider active conversation restore", () => {
               createdAt: "2026-03-18T10:00:01.000Z",
             },
           ],
-        }),
+          }),
       });
     fetchStreamMock.mockResolvedValue({
       events: async function* () {
@@ -1118,7 +1332,7 @@ describe("ChatProvider active conversation restore", () => {
       .mockResolvedValueOnce({
         status: 200,
         ok: true,
-        json: async () => ({
+        json: async () => createWorkspaceRestoreResponse({
           conversation: {
             id: "conv_task_origin",
             userId: "anon_123",
@@ -1150,7 +1364,7 @@ describe("ChatProvider active conversation restore", () => {
               createdAt: "2026-03-18T10:00:01.000Z",
             },
           ],
-        }),
+          }),
       });
     fetchStreamMock.mockResolvedValue({
       events: async function* () {

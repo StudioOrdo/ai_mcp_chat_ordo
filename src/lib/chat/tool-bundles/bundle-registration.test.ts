@@ -59,12 +59,12 @@ describe("catalog-bound bundle registration", () => {
     registerCatalogBoundToolBundle(
       registry,
       "media",
-      { userFileRepository: "ufs", jobQueueRepository: "jobs" },
-      (toolName, deps) => (
-        toolName === "tool_alpha"
+      { userFileRepository: "ufs", jobQueueRepository: "jobs" } as never,
+      (toolName, deps: { userFileRepository: string; jobQueueRepository: string }) => (
+        (toolName as string) === "tool_alpha"
           ? { jobQueueRepository: deps.jobQueueRepository }
           : { userFileRepository: deps.userFileRepository }
-      ),
+      ) as never,
     );
 
     expect(registerCatalogBoundToolsForBundleWithDepsResolverMock).toHaveBeenCalledWith(

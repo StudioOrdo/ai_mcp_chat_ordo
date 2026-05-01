@@ -12,12 +12,6 @@ vi.mock("./ChatInput", () => ({
   ChatInput: () => <div data-testid="chat-input" />,
 }));
 
-vi.mock("./chat/plugins/system/ChatProgressStrip", () => ({
-  ChatProgressStrip: ({ items }: { items: Array<{ jobId: string }> }) => (
-    <div data-testid="chat-progress-strip">{items.map((item) => item.jobId).join(",")}</div>
-  ),
-}));
-
 vi.mock("./ChatMessageViewport", async () => {
   const React = await import("react");
   const { useToolPluginRegistry } = await import("./chat/registry/ToolPluginContext");
@@ -47,37 +41,6 @@ vi.mock("./ChatMessageViewport", async () => {
 });
 
 import { ChatContentSurface } from "./ChatContentSurface";
-import type { ResolvedProgressStripItem } from "./chat/plugins/system/resolve-progress-strip";
-
-function buildProgressItem(jobId: string): ResolvedProgressStripItem {
-  return {
-    jobId,
-    toolName: "produce_blog_article",
-    label: "Produce Blog Article",
-    title: "AI Governance Playbook",
-    subtitle: null,
-    summary: null,
-    status: "running",
-    bubbleStatus: "active",
-    statusText: "Running 42%",
-    phaseLabel: "Reviewing article",
-    progressPercent: 42,
-    updatedAt: "2026-04-08T12:00:00.000Z",
-    descriptor: {
-      toolName: "produce_blog_article",
-      family: "editorial",
-      label: "Produce Blog Article",
-      cardKind: "editorial_workflow",
-      executionMode: "deferred",
-      progressMode: "phased",
-      historyMode: "payload_snapshot",
-      defaultSurface: "conversation",
-      artifactKinds: [],
-      supportsRetry: "whole_job",
-    },
-    canRetryWholeJob: false,
-  };
-}
 
 function buildProps() {
   return {
@@ -99,12 +62,14 @@ function buildProps() {
     onFileSelect: vi.fn(),
     onInputChange: vi.fn(),
     onLinkClick: vi.fn(),
+    onActionClick: vi.fn(),
     onMentionIndexChange: vi.fn(),
     onSend: vi.fn(),
     onSuggestionClick: vi.fn(),
     onSuggestionSelect: vi.fn(),
     pendingFiles: [],
-    progressStripItems: [] as ResolvedProgressStripItem[],
+    productExperienceState: "conversation-history" as const,
+    productExperienceSummary: null,
     scrollDependency: 0,
     searchQuery: "",
     suggestions: [],
@@ -118,21 +83,105 @@ describe("ChatContentSurface", () => {
     expect(screen.getByTestId("tool-registry-probe")).toHaveAttribute("data-renderer", "custom");
   });
 
-  it("does not rerender the transcript when only progress strip items change", () => {
-    chatMessageViewportSpy.mockClear();
-    const props = buildProps();
-    const { rerender } = render(<ChatContentSurface {...props} />);
-
-    expect(chatMessageViewportSpy).toHaveBeenCalledTimes(1);
-
-    rerender(
+  it("renders a canonical product experience summary above the transcript", () => {
+    render(
       <ChatContentSurface
-        {...props}
-        progressStripItems={[buildProgressItem("job_running_1")]}
+        {...buildProps()}
+        productExperienceState="returning-active"
+        productExperienceSummary={{
+          headline: "Revenue follow-up workspace",
+          objective: "Review the open launch plan",
+          nextStep: "Open the jobs workspace and resolve the failed render.",
+          statPills: ["1 item needs attention", "2 assets"],
+          workflow: {
+            modeLabel: "Revenue",
+            originLabel: "Lead queue",
+            relatedLabels: ["Launch plan", "Founding consult"],
+            blockerLabel: "Setup details missing",
+            actionLabel: "Continue business workflow",
+            action: { label: "Continue business workflow", actionType: "route", value: "/jobs" },
+          },
+          transition: {
+            modeLabel: "Community Affiliate",
+            statusLabel: "Sharing",
+            shareLabel: "Referral sharing ready",
+            referralCode: "ORDO-42",
+            actionLabel: "Share your referral QR",
+            action: { label: "Share your referral QR", actionType: "route", value: "/referrals" },
+          },
+          jobs: {
+            activeCount: 1,
+            attentionCount: 1,
+            items: [
+              {
+                id: "job_1",
+                title: "Render launch plan",
+                summary: "Failed at export stage",
+                statusLabel: "Needs attention",
+                action: { label: "Open jobs", actionType: "route", value: "/jobs" },
+              },
+            ],
+            action: { label: "Open jobs", actionType: "route", value: "/jobs" },
+          },
+          assets: {
+            count: 2,
+            items: [
+              { id: "asset_1", title: "Image asset", subtitle: "Ready" },
+            ],
+            action: { label: "Open media", actionType: "route", value: "/my/media" },
+          },
+          memory: {
+            summary: "The operator wants to keep the launch offer concise.",
+            typeLabel: "Preference",
+            confidenceLabel: "88% confidence",
+          },
+        }}
       />,
     );
 
-    expect(chatMessageViewportSpy).toHaveBeenCalledTimes(1);
-    expect(screen.getByTestId("chat-progress-strip")).toHaveTextContent("job_running_1");
+    expect(screen.getByText("Review the open launch plan")).toBeInTheDocument();
+    expect(screen.getByText("Revenue")).toBeInTheDocument();
+    expect(screen.getByText("Community Affiliate")).toBeInTheDocument();
+    expect(screen.getByText("Render launch plan")).toBeInTheDocument();
+    expect(screen.getByText("Open media")).toBeInTheDocument();
+    expect(screen.getByText("The operator wants to keep the launch offer concise.")).toBeInTheDocument();
+    expect(screen.getByTestId("tool-registry-probe").closest("[data-product-experience-state='returning-active']")).not.toBeNull();
+  });
+
+  it("does not render the legacy bottom progress rail", () => {
+    render(
+      <ChatContentSurface
+        {...buildProps()}
+        productExperienceState="returning-blocked"
+        productExperienceSummary={{
+          headline: "Launch workspace",
+          objective: "Resolve the failed render",
+          nextStep: "Open the jobs workspace.",
+          statPills: ["1 item needs attention"],
+          workflow: null,
+          transition: null,
+          jobs: {
+            activeCount: 0,
+            attentionCount: 1,
+            items: [
+              {
+                id: "job_1",
+                title: "Render launch plan",
+                summary: "Export step failed",
+                statusLabel: "Needs attention",
+                action: { label: "Open jobs", actionType: "route", value: "/jobs" },
+              },
+            ],
+            action: { label: "Open jobs", actionType: "route", value: "/jobs" },
+          },
+          assets: null,
+          memory: null,
+        }}
+      />,
+    );
+
+    expect(screen.queryByTestId("chat-progress-strip")).toBeNull();
+    expect(document.querySelector("[data-chat-bottom-rail='true']")).toBeNull();
+    expect(screen.getByText("Render launch plan")).toBeInTheDocument();
   });
 });

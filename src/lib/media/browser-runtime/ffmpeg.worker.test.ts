@@ -58,6 +58,7 @@ const basePlan: MediaCompositionPlan = {
   visualClips: [{ assetId: "uf_image_1", kind: "image" }],
   audioClips: [],
   subtitlePolicy: "none",
+  waveformPolicy: "none",
   outputFormat: "mp4",
 };
 

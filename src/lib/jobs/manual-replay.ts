@@ -1,9 +1,8 @@
 import type { JobRequest, JobStatus } from "@/core/entities/job";
 import type { JobQueueRepository } from "@/core/use-cases/JobQueueRepository";
-import { getToolComposition } from "@/lib/chat/tool-composition-root";
+import { getCatalogDefinition } from "@/core/capability-catalog/catalog";
 import { buildDeferredJobDedupeKey } from "@/lib/jobs/job-dedupe";
 import { getJobCapability } from "@/lib/jobs/job-capability-registry";
-import type { DeferredJobConversationProjector } from "./deferred-job-conversation-projector";
 
 export const CANCELABLE_JOB_STATUSES = new Set<JobStatus>(["queued", "running"]);
 export const RETRIABLE_JOB_STATUSES = new Set<JobStatus>(["failed", "canceled", "dead_letter"]);
@@ -28,9 +27,9 @@ export function canManualReplayJob(job: Pick<JobRequest, "status" | "toolName">)
 export function resolveManualReplayDedupeKey(
   job: Pick<JobRequest, "conversationId" | "dedupeKey" | "requestPayload" | "toolName">,
 ): string | null {
-  const descriptor = getToolComposition().registry.getDescriptor(job.toolName);
+  const deferred = getCatalogDefinition(job.toolName)?.runtime.deferred;
 
-  if (descriptor?.deferred?.dedupeStrategy === "per-conversation-payload") {
+  if (deferred?.dedupeStrategy === "per-conversation-payload") {
     return buildDeferredJobDedupeKey(job.conversationId, job.toolName, job.requestPayload);
   }
 
@@ -46,7 +45,6 @@ export async function performManualJobReplay(
   sourceJob: JobRequest,
   options?: {
     ownerUserId?: string | null;
-    projector?: DeferredJobConversationProjector;
     requestedByUserId?: string | null;
   },
 ): Promise<ManualJobReplayResult> {
@@ -108,8 +106,6 @@ export async function performManualJobReplay(
       ...(options?.requestedByUserId ? { requestedByUserId: options.requestedByUserId } : {}),
     },
   });
-
-  await options?.projector?.project(replayedJob, queuedEvent);
 
   return {
     outcome: "queued",

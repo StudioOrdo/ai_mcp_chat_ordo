@@ -2,12 +2,10 @@ import Database from "better-sqlite3";
 import { beforeEach, describe, expect, it } from "vitest";
 import { BlogPostDataMapper } from "@/adapters/BlogPostDataMapper";
 import { BlogAssetDataMapper } from "@/adapters/BlogAssetDataMapper";
-import { ConversationDataMapper } from "@/adapters/ConversationDataMapper";
 import { JobQueueDataMapper } from "@/adapters/JobQueueDataMapper";
 import { MessageDataMapper } from "@/adapters/MessageDataMapper";
 import { executePublishContent, parsePublishContentInput } from "@/core/use-cases/tools/admin-content.tool";
 import { ensureSchema } from "@/lib/db/schema";
-import { DeferredJobConversationProjector } from "@/lib/jobs/deferred-job-conversation-projector";
 import { DeferredJobWorker } from "@/lib/jobs/deferred-job-worker";
 
 function createDb() {
@@ -58,18 +56,12 @@ describe("deferred blog publish flow", () => {
       requestPayload: { post_id: draft.id },
     });
 
-    const queuedEvent = await jobRepo.appendEvent({
+    await jobRepo.appendEvent({
       jobId: job.id,
       conversationId: "conv_publish",
       eventType: "queued",
       payload: { toolName: "publish_content" },
     });
-
-    const projector = new DeferredJobConversationProjector(
-      new ConversationDataMapper(db),
-      messageRepo,
-    );
-    await projector.project(job, queuedEvent);
 
     const worker = new DeferredJobWorker(jobRepo, {
       publish_content: async (claimedJob) => executePublishContent(
@@ -82,7 +74,7 @@ describe("deferred blog publish flow", () => {
         },
         assetRepo,
       ),
-    }, projector);
+    });
 
     const result = await worker.runNext({
       workerId: "worker_publish",
@@ -105,15 +97,10 @@ describe("deferred blog publish flow", () => {
     expect(publicLookup?.status).toBe("published");
 
     const messages = await messageRepo.listByConversation("conv_publish");
-    expect(messages).toHaveLength(1);
-    // Terminal publish completion should replace the existing live-progress state in place.
-    expect(messages[0]?.parts).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        type: "job_status",
-        jobId: job.id,
-        status: "succeeded",
-      }),
-    ]));
+    expect(messages).toHaveLength(0);
+
+    const events = await jobRepo.listConversationEvents("conv_publish");
+    expect(events.map((event) => event.eventType)).toEqual(["queued", "started", "result"]);
   });
 
   it("publishes a linked hero asset when the post is published", async () => {

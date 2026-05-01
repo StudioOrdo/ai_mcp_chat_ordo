@@ -1,97 +1,5 @@
 import type { StreamEvent } from "@/core/entities/chat-stream";
-import type { GenerationStatusMessagePart, JobStatusMessagePart } from "@/core/entities/message-parts";
-
-function toJobStatusPart(event: Extract<
-  StreamEvent,
-  { type: "job_queued" | "job_started" | "job_progress" | "job_completed" | "job_failed" | "job_canceled" }
->): JobStatusMessagePart {
-  if (event.part) {
-    return {
-      ...event.part,
-      sequence: event.sequence,
-    };
-  }
-
-  switch (event.type) {
-    case "job_queued":
-      return {
-        type: "job_status",
-        jobId: event.jobId,
-        toolName: event.toolName,
-        label: event.label,
-        title: event.title,
-        subtitle: event.subtitle,
-        status: "queued",
-        sequence: event.sequence,
-        updatedAt: event.updatedAt,
-      };
-    case "job_started":
-      return {
-        type: "job_status",
-        jobId: event.jobId,
-        toolName: event.toolName,
-        label: event.label,
-        title: event.title,
-        subtitle: event.subtitle,
-        status: "running",
-        sequence: event.sequence,
-        updatedAt: event.updatedAt,
-      };
-    case "job_progress":
-      return {
-        type: "job_status",
-        jobId: event.jobId,
-        toolName: event.toolName,
-        label: event.label,
-        title: event.title,
-        subtitle: event.subtitle,
-        status: "running",
-        sequence: event.sequence,
-        progressPercent: event.progressPercent,
-        progressLabel: event.progressLabel,
-        updatedAt: event.updatedAt,
-      };
-    case "job_completed":
-      return {
-        type: "job_status",
-        jobId: event.jobId,
-        toolName: event.toolName,
-        label: event.label,
-        title: event.title,
-        subtitle: event.subtitle,
-        status: "succeeded",
-        sequence: event.sequence,
-        summary: event.summary,
-        resultPayload: event.resultPayload,
-        updatedAt: event.updatedAt,
-      };
-    case "job_failed":
-      return {
-        type: "job_status",
-        jobId: event.jobId,
-        toolName: event.toolName,
-        label: event.label,
-        title: event.title,
-        subtitle: event.subtitle,
-        status: "failed",
-        sequence: event.sequence,
-        error: event.error,
-        updatedAt: event.updatedAt,
-      };
-    case "job_canceled":
-      return {
-        type: "job_status",
-        jobId: event.jobId,
-        toolName: event.toolName,
-        label: event.label,
-        title: event.title,
-        subtitle: event.subtitle,
-        status: "canceled",
-        sequence: event.sequence,
-        updatedAt: event.updatedAt,
-      };
-  }
-}
+import type { GenerationStatusMessagePart } from "@/core/entities/message-parts";
 
 function toGenerationStatusPart(event: Extract<
   StreamEvent,
@@ -240,10 +148,8 @@ export class JobQueuedStrategy implements StreamEventStrategy {
   canHandle(event: StreamEvent) {
     return event.type === "job_queued";
   }
-  handle(event: StreamEvent, { dispatch }: StreamProcessingContext) {
-    if (event.type === "job_queued") {
-      dispatch({ type: "UPSERT_JOB_STATUS", messageId: event.messageId, part: toJobStatusPart(event) });
-    }
+  handle() {
+    return undefined;
   }
 }
 
@@ -251,10 +157,8 @@ export class JobStartedStrategy implements StreamEventStrategy {
   canHandle(event: StreamEvent) {
     return event.type === "job_started";
   }
-  handle(event: StreamEvent, { dispatch }: StreamProcessingContext) {
-    if (event.type === "job_started") {
-      dispatch({ type: "UPSERT_JOB_STATUS", messageId: event.messageId, part: toJobStatusPart(event) });
-    }
+  handle() {
+    return undefined;
   }
 }
 
@@ -262,10 +166,8 @@ export class JobProgressStrategy implements StreamEventStrategy {
   canHandle(event: StreamEvent) {
     return event.type === "job_progress";
   }
-  handle(event: StreamEvent, { dispatch }: StreamProcessingContext) {
-    if (event.type === "job_progress") {
-      dispatch({ type: "UPSERT_JOB_STATUS", messageId: event.messageId, part: toJobStatusPart(event) });
-    }
+  handle() {
+    return undefined;
   }
 }
 
@@ -273,10 +175,8 @@ export class JobCompletedStrategy implements StreamEventStrategy {
   canHandle(event: StreamEvent) {
     return event.type === "job_completed";
   }
-  handle(event: StreamEvent, { dispatch }: StreamProcessingContext) {
-    if (event.type === "job_completed") {
-      dispatch({ type: "UPSERT_JOB_STATUS", messageId: event.messageId, part: toJobStatusPart(event) });
-    }
+  handle() {
+    return undefined;
   }
 }
 
@@ -284,10 +184,8 @@ export class JobFailedStrategy implements StreamEventStrategy {
   canHandle(event: StreamEvent) {
     return event.type === "job_failed";
   }
-  handle(event: StreamEvent, { dispatch }: StreamProcessingContext) {
-    if (event.type === "job_failed") {
-      dispatch({ type: "UPSERT_JOB_STATUS", messageId: event.messageId, part: toJobStatusPart(event) });
-    }
+  handle() {
+    return undefined;
   }
 }
 
@@ -295,10 +193,8 @@ export class JobCanceledStrategy implements StreamEventStrategy {
   canHandle(event: StreamEvent) {
     return event.type === "job_canceled";
   }
-  handle(event: StreamEvent, { dispatch }: StreamProcessingContext) {
-    if (event.type === "job_canceled") {
-      dispatch({ type: "UPSERT_JOB_STATUS", messageId: event.messageId, part: toJobStatusPart(event) });
-    }
+  handle() {
+    return undefined;
   }
 }
 

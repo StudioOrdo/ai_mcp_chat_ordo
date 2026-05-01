@@ -1,4 +1,4 @@
-import { getJobQueueRepository } from "@/adapters/RepositoryFactory";
+import { getJobQueueRepository, getMaterializationRepository } from "@/adapters/RepositoryFactory";
 import { localEmbedder } from "@/adapters/LocalEmbedder";
 import type { UserPreferencesRepository } from "@/core/ports/UserPreferencesRepository";
 import type { VectorStore } from "@/core/search/ports/VectorStore";
@@ -9,10 +9,14 @@ import type { BlogAssetRepository } from "@/core/use-cases/BlogAssetRepository";
 import type { BlogPostRepository } from "@/core/use-cases/BlogPostRepository";
 import type { BlogPostRevisionRepository } from "@/core/use-cases/BlogPostRevisionRepository";
 import type { CorpusRepository } from "@/core/use-cases/CorpusRepository";
+import type { AssetCatalogReader } from "@/core/use-cases/AssetCatalogReader";
 import type { JobStatusQuery } from "@/core/use-cases/JobStatusQuery";
 import type { JobQueueRepository } from "@/core/use-cases/JobQueueRepository";
+import type { MaterializationRepository } from "@/core/use-cases/MaterializationRepository";
 import type { JournalEditorialInteractor } from "@/core/use-cases/JournalEditorialInteractor";
+import type { RelationshipMemoryReader } from "@/core/use-cases/RelationshipMemoryRepository";
 import type { UserFileRepository } from "@/core/use-cases/UserFileRepository";
+import { RelationshipMemorySearchService } from "@/core/use-cases/RelationshipMemorySearchService";
 import { SearchCorpusCommand } from "@/core/use-cases/tools/CorpusTools";
 import {
   executeAdminSearch,
@@ -117,6 +121,10 @@ import {
 import { parseSearchCorpusInput } from "@/core/use-cases/tools/search-corpus.tool";
 import { createSearchMyConversationsTool } from "@/core/use-cases/tools/search-my-conversations.tool";
 import {
+  createSearchRelationshipMemoryTool,
+  parseSearchRelationshipMemoryInput,
+} from "@/core/use-cases/tools/search-relationship-memory.tool";
+import {
   createListConversationMediaAssetsTool,
   parseListConversationMediaAssetsInput,
 } from "@/core/use-cases/tools/list-conversation-media-assets.tool";
@@ -132,7 +140,6 @@ import {
 import { parseGenerateAudioInput } from "@/core/use-cases/tools/generate-audio.tool";
 import { parseGenerateChartInput } from "@/core/use-cases/tools/generate-chart.tool";
 import { parseGenerateGraphInput } from "@/core/use-cases/tools/generate-graph.tool";
-import { buildGenerateAudioRuntimePayload, generateStoredAudioArtifact } from "@/lib/audio/audio-generation-service";
 import { buildGenerateChartRuntimePayload, generateStoredChartArtifact } from "@/lib/media/server/chart-generation-service";
 import { buildGenerateGraphRuntimePayload, generateStoredGraphArtifact } from "@/lib/media/server/graph-generation-service";
 import {
@@ -167,6 +174,7 @@ import {
   createRemoteServiceExecutionTargetAdapter,
 } from "@/lib/capabilities/external-target-adapters";
 import { enqueueComposeMediaDeferredJob } from "@/lib/jobs/compose-media-deferred-job";
+import { enqueueGenerateAudioDeferredJob } from "@/lib/jobs/generate-audio-deferred-job";
 import { enqueueDeferredToolJob } from "@/lib/jobs/enqueue-deferred-tool-job";
 import {
   COMPOSE_MEDIA_COMPLETE_LABEL,
@@ -196,6 +204,7 @@ export interface CatalogToolBindingDeps {
   blogArticleService?: BlogArticleProductionService;
   blogImageService?: BlogImageGenerationService;
   jobQueueRepository?: JobQueueRepository;
+  materializationRepository?: MaterializationRepository;
   jobStatusQuery?: JobStatusQuery;
   journalEditorialInteractor?: JournalEditorialInteractor;
   corpusRepo?: CorpusRepository;
@@ -206,7 +215,9 @@ export interface CatalogToolBindingDeps {
   analyticsService?: ReferralAnalyticsService;
   adminAnalyticsService?: AdminReferralAnalyticsService;
   vectorStore?: VectorStore;
+  relationshipMemoryReader?: RelationshipMemoryReader;
   userFileRepository?: UserFileRepository;
+  assetCatalogReader?: AssetCatalogReader;
   adminWebSearchDepsFactory?: () => WebSearchToolDeps;
 }
 
@@ -298,6 +309,10 @@ function resolveJobQueueRepository(deps: CatalogToolBindingDeps): JobQueueReposi
   return deps.jobQueueRepository ?? getJobQueueRepository();
 }
 
+function resolveMaterializationRepository(deps: CatalogToolBindingDeps): MaterializationRepository {
+  return deps.materializationRepository ?? getMaterializationRepository();
+}
+
 function requireJobStatusQuery(deps: CatalogToolBindingDeps): JobStatusQuery {
   if (!deps.jobStatusQuery) {
     throw new Error("Catalog runtime binding for job tools requires a JobStatusQuery.");
@@ -346,12 +361,28 @@ function requireVectorStore(deps: CatalogToolBindingDeps): VectorStore {
   return deps.vectorStore;
 }
 
+function requireRelationshipMemoryReader(deps: CatalogToolBindingDeps): RelationshipMemoryReader {
+  if (!deps.relationshipMemoryReader) {
+    throw new Error("Catalog runtime binding for relationship memory tools requires a RelationshipMemoryReader.");
+  }
+
+  return deps.relationshipMemoryReader;
+}
+
 function requireUserFileRepository(deps: CatalogToolBindingDeps): UserFileRepository {
   if (!deps.userFileRepository) {
     throw new Error("Catalog runtime binding for media discovery tools requires a UserFileRepository.");
   }
 
   return deps.userFileRepository;
+}
+
+function requireAssetCatalogReader(deps: CatalogToolBindingDeps): AssetCatalogReader {
+  if (!deps.assetCatalogReader) {
+    throw new Error("Catalog runtime binding for media discovery tools requires an AssetCatalogReader.");
+  }
+
+  return deps.assetCatalogReader;
 }
 
 async function executeComposeMediaForSystemWorker(
@@ -370,6 +401,8 @@ async function executeComposeMediaForSystemWorker(
     userId: context.userId,
     conversationId,
     toolInvocationId: context.toolInvocationId,
+    jobId: context.jobId,
+    materializationKey: context.materializationKey,
   }, async (update) => {
     await context.reportProgress?.(update);
   });
@@ -422,7 +455,7 @@ const DESCRIPTOR_BACKED_RUNTIME_BINDINGS = {
   compose_blog_article: createDescriptorBackedRuntimeBinding(
     (deps) => createComposeBlogArticleTool(requireBlogArticleService(deps)),
   ),
-  // generate_audio is bound manually in RUNTIME_BINDINGS below to enable synchronous backend generation
+  // generate_audio is bound manually in RUNTIME_BINDINGS below to enqueue canonical audio jobs.
   generate_blog_image: createDescriptorBackedRuntimeBinding(
     (deps) => createGenerateBlogImageTool(requireBlogImageService(deps)),
   ),
@@ -480,7 +513,7 @@ const DESCRIPTOR_BACKED_RUNTIME_BINDINGS = {
     (deps) => createListDeferredJobsTool(requireJobStatusQuery(deps)),
   ),
   list_conversation_media_assets: createDescriptorBackedRuntimeBinding(
-    (deps) => createListConversationMediaAssetsTool(requireUserFileRepository(deps), deps.blogAssetRepo),
+    (deps) => createListConversationMediaAssetsTool(requireAssetCatalogReader(deps)),
     parseListConversationMediaAssetsInput,
   ),
   list_journal_posts: createDescriptorBackedRuntimeBinding(
@@ -545,6 +578,12 @@ const DESCRIPTOR_BACKED_RUNTIME_BINDINGS = {
   ),
   search_my_conversations: createDescriptorBackedRuntimeBinding(
     (deps) => createSearchMyConversationsTool(requireVectorStore(deps), localEmbedder),
+  ),
+  search_relationship_memory: createDescriptorBackedRuntimeBinding(
+    (deps) => createSearchRelationshipMemoryTool(
+      new RelationshipMemorySearchService(requireRelationshipMemoryReader(deps)),
+    ),
+    parseSearchRelationshipMemoryInput,
   ),
   select_journal_hero_image: createDescriptorBackedRuntimeBinding(
     (deps) => createSelectJournalHeroImageTool(
@@ -695,19 +734,52 @@ const RUNTIME_BINDINGS = {
   },
   generate_audio: {
     parse: parseGenerateAudioInput,
-    createExecutor: (): CatalogExecutor<ReturnType<typeof parseGenerateAudioInput>> => {
+    createExecutor: (deps): CatalogExecutor<ReturnType<typeof parseGenerateAudioInput>> => {
       return async (input, context) => {
-        const resolved = await generateStoredAudioArtifact({
-          userId: context?.userId ?? "anonymous",
-          text: input.text,
-          conversationId: context?.conversationId ?? null,
-          toolInvocationId: context?.toolInvocationId,
+        if (!context?.conversationId) {
+          throw new Error("generate_audio requires a conversationId to queue deferred execution.");
+        }
+        if (!context.userId) {
+          throw new Error("generate_audio requires a userId to queue deferred execution.");
+        }
+
+        const result = await enqueueGenerateAudioDeferredJob({
+          repository: resolveJobQueueRepository(deps),
+          materializationRepository: resolveMaterializationRepository(deps),
+          conversationId: context.conversationId,
+          userId: context.userId,
+          input,
+          promptBindingId: context.promptBindingId,
+          toolInvocationId: context.toolInvocationId,
+          initiatorType: context.role === "ANONYMOUS" ? "anonymous_session" : "user",
         });
 
-        return buildGenerateAudioRuntimePayload(
-          { title: input.title, text: input.text, toolInvocationId: context?.toolInvocationId },
-          resolved
-        );
+        if (result.payload) {
+          return result.payload;
+        }
+
+        if (result.outcome === "exact_reuse" && result.materialization) {
+          const primaryOutputAsset = result.materialization.outputRefs.find((ref) => ref.kind === "asset");
+          return {
+            action: "generate_audio",
+            outcome: "exact_reuse",
+            materializationId: result.materialization.id,
+            materializationKey: result.materialization.materializationKey,
+            producedByJobId: result.materialization.producedByJobId,
+            outputRefs: result.materialization.outputRefs,
+            ...(primaryOutputAsset ? {
+              primaryAssetId: primaryOutputAsset.id,
+              assetId: primaryOutputAsset.id,
+              mimeType: "audio/mpeg",
+              retentionClass: result.materialization.conversationId ? "conversation" : "ephemeral",
+            } : {}),
+          };
+        }
+
+        return {
+          action: "generate_audio",
+          outcome: result.outcome,
+        };
       };
     },
   },
@@ -930,7 +1002,7 @@ function createDeferredJobExecutionTargetAdapter(
       let preAllocatedAssetId: string | undefined = undefined;
       const requestPayload = request.input as Record<string, unknown>;
 
-      if (def.presentation.artifactKinds?.length) {
+      if (def.core.name !== "compose_media" && def.presentation.artifactKinds?.length) {
         const primaryKind = def.presentation.artifactKinds[0];
         if (primaryKind === "audio" || primaryKind === "chart" || primaryKind === "graph" || primaryKind === "video") {
           const userFileRepo = requireUserFileRepository(deps);
@@ -950,17 +1022,79 @@ function createDeferredJobExecutionTargetAdapter(
         const input = request.input as ReturnType<typeof parseComposeMediaInput>;
         const result = await enqueueComposeMediaDeferredJob({
           repository: resolveJobQueueRepository(deps),
+          materializationRepository: resolveMaterializationRepository(deps),
           conversationId,
           userId,
           plan: input.plan,
+          promptBindingId: request.context?.promptBindingId,
           initiatorType,
         });
 
-        const payload = result.payload;
-        if (preAllocatedAssetId) {
-          payload.deferred_job.assetId = preAllocatedAssetId;
+        if (result.payload) {
+          return result.payload;
         }
-        return payload;
+
+        if (result.outcome === "exact_reuse" && result.materialization) {
+          const primaryOutputAsset = result.materialization.outputRefs.find((ref) => ref.kind === "asset");
+          return {
+            action: "compose_media",
+            outcome: "exact_reuse",
+            materializationId: result.materialization.id,
+            materializationKey: result.materialization.materializationKey,
+            producedByJobId: result.materialization.producedByJobId,
+            outputRefs: result.materialization.outputRefs,
+            ...(primaryOutputAsset ? {
+              primaryAssetId: primaryOutputAsset.id,
+              mimeType: "video/mp4",
+              retentionClass: result.materialization.conversationId ? "conversation" : "ephemeral",
+            } : {}),
+          };
+        }
+
+        return {
+          action: "compose_media",
+          outcome: result.outcome,
+        };
+      }
+
+      if (def.core.name === "generate_audio") {
+        const result = await enqueueGenerateAudioDeferredJob({
+          repository: resolveJobQueueRepository(deps),
+          materializationRepository: resolveMaterializationRepository(deps),
+          conversationId,
+          userId,
+          input: request.input,
+          promptBindingId: request.context?.promptBindingId,
+          toolInvocationId: request.context?.toolInvocationId,
+          initiatorType,
+        });
+
+        if (result.payload) {
+          return result.payload;
+        }
+
+        if (result.outcome === "exact_reuse" && result.materialization) {
+          const primaryOutputAsset = result.materialization.outputRefs.find((ref) => ref.kind === "asset");
+          return {
+            action: "generate_audio",
+            outcome: "exact_reuse",
+            materializationId: result.materialization.id,
+            materializationKey: result.materialization.materializationKey,
+            producedByJobId: result.materialization.producedByJobId,
+            outputRefs: result.materialization.outputRefs,
+            ...(primaryOutputAsset ? {
+              primaryAssetId: primaryOutputAsset.id,
+              assetId: primaryOutputAsset.id,
+              mimeType: "audio/mpeg",
+              retentionClass: result.materialization.conversationId ? "conversation" : "ephemeral",
+            } : {}),
+          };
+        }
+
+        return {
+          action: "generate_audio",
+          outcome: result.outcome,
+        };
       }
 
       const result = await enqueueDeferredToolJob({
@@ -969,6 +1103,7 @@ function createDeferredJobExecutionTargetAdapter(
         userId,
         toolName: def.core.name,
         requestPayload,
+        promptBindingId: request.context?.promptBindingId,
         initiatorType,
         deferred: def.runtime.deferred,
       });
@@ -1045,7 +1180,18 @@ function resolvePlannedExecutor(
   const registry = createExecutionTargetAdapterRegistry(adapters);
 
   return async (input, context) => {
-    const planning = toExecutionPlanningContext(def, context);
+    if (def.core.name === "compose_media" && context?.executionPrincipal === "system_worker") {
+      return execute(input, context);
+    }
+
+    const planning = def.core.name === "compose_media"
+      ? {
+          ...toExecutionPlanningContext(def, context),
+          enabledTargetKinds: ["deferred_job", "host_ts"] as const,
+          preferredTargetKinds: ["deferred_job", "host_ts"] as const,
+          browserRuntimeAvailable: false,
+        }
+      : toExecutionPlanningContext(def, context);
     if (!shouldUsePlannedDispatch(def, planning)) {
       return execute(input, context);
     }

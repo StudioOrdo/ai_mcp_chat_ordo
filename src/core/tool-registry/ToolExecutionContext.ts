@@ -38,6 +38,9 @@ export interface ToolExecutionContext {
   role: RoleName;
   userId: string;
   toolInvocationId?: string;
+  jobId?: string;
+  materializationKey?: string;
+  promptBindingId?: string;
   executionPrincipal?: JobExecutionPrincipal;
   executionAllowedRoles?: readonly RoleName[];
   conversationId?: string;

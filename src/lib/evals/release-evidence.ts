@@ -10,11 +10,22 @@ import {
   getReferralOperationalDiagnostics,
   getReleaseManifestReport,
 } from "@/lib/admin/processes";
+import {
+  readConversationRefactorEvidenceFromFile,
+  type ConversationRefactorPhase00Evidence,
+} from "./conversation-refactor-evidence";
+import {
+  readPhase11ToolInvocationEvidenceFromFile,
+  validatePhase11ToolInvocationEvidence,
+  type Phase11ToolInvocationQaEvidence,
+} from "./phase-11-tool-invocation-evidence";
 import type { StagingCanarySummary } from "./staging-canary";
 import {
   readRuntimeIntegrityQaEvidenceFromFile,
   type RuntimeIntegrityQaEvidence,
 } from "./runtime-integrity-evidence";
+
+type ConversationRefactorEvidenceClassification = "missing" | "historical_baseline" | "final_closure";
 
 export interface ReleaseEvidence {
   version: 1;
@@ -27,6 +38,17 @@ export interface ReleaseEvidence {
     present: boolean;
     artifactPath: string;
     evidence: RuntimeIntegrityQaEvidence | null;
+  };
+  toolInvocation: {
+    present: boolean;
+    artifactPath: string;
+    evidence: Phase11ToolInvocationQaEvidence | null;
+  };
+  conversationRefactor: {
+    present: boolean;
+    artifactPath: string;
+    classification: ConversationRefactorEvidenceClassification;
+    evidence: ConversationRefactorPhase00Evidence | null;
   };
   eliteOps: {
     present: boolean;
@@ -56,11 +78,15 @@ interface CreateReleaseEvidenceOptions {
   health?: ReturnType<typeof getHealthSweepReport>;
   referralDiagnostics?: ReferralOperationalDiagnostics;
   runtimeIntegrityEvidence?: RuntimeIntegrityQaEvidence | null;
+  toolInvocationEvidence?: Phase11ToolInvocationQaEvidence | null;
+  conversationRefactorEvidence?: ConversationRefactorPhase00Evidence | null;
   canarySummary?: StagingCanarySummary | null;
   warnings?: string[];
   manualChecks?: string[];
   now?: Date;
   runtimeIntegrityArtifactPath?: string;
+  toolInvocationArtifactPath?: string;
+  conversationRefactorArtifactPath?: string;
   canaryArtifactPath?: string;
 }
 
@@ -76,15 +102,34 @@ function uniqueNonEmpty(values: string[] | undefined): string[] {
   return [...new Set((values ?? []).map((value) => value.trim()).filter(Boolean))];
 }
 
+function classifyConversationRefactorEvidence(
+  evidence: ConversationRefactorPhase00Evidence | null,
+): ConversationRefactorEvidenceClassification {
+  if (!evidence) {
+    return "missing";
+  }
+
+  if (evidence.phase === "00-02B" || evidence.bundleId.includes("phase-00-02b")) {
+    return "historical_baseline";
+  }
+
+  return "final_closure";
+}
+
 export function createReleaseEvidence(options: CreateReleaseEvidenceOptions = {}): ReleaseEvidence {
   const manifest = options.manifest ?? getReleaseManifestReport();
   const health = options.health ?? getHealthSweepReport();
   const referralDiagnostics = options.referralDiagnostics ?? getReferralOperationalDiagnostics();
   const runtimeIntegrityEvidence = options.runtimeIntegrityEvidence ?? null;
+  const toolInvocationEvidence = options.toolInvocationEvidence ?? null;
+  const conversationRefactorEvidence = options.conversationRefactorEvidence ?? null;
   const canarySummary = options.canarySummary ?? null;
   const warnings = uniqueNonEmpty([...(options.warnings ?? []), ...referralDiagnostics.warnings]);
   const manualChecks = uniqueNonEmpty(options.manualChecks);
   const blockingReasons: string[] = [];
+  const toolInvocationErrors = toolInvocationEvidence
+    ? validatePhase11ToolInvocationEvidence(toolInvocationEvidence)
+    : ["Phase 11 tool invocation QA evidence is missing."];
 
   if (!manifest.present) {
     blockingReasons.push(manifest.error ?? "Release manifest is missing.");
@@ -98,6 +143,12 @@ export function createReleaseEvidence(options: CreateReleaseEvidenceOptions = {}
     blockingReasons.push("Runtime integrity QA evidence is missing.");
   } else if (runtimeIntegrityEvidence.status !== "passed") {
     blockingReasons.push("Runtime integrity QA evidence contains blockers.");
+  }
+
+  if (!toolInvocationEvidence) {
+    blockingReasons.push("Phase 11 tool invocation QA evidence is missing.");
+  } else if (toolInvocationErrors.length > 0) {
+    blockingReasons.push("Phase 11 tool invocation QA evidence contains blockers.");
   }
 
   if (!runtimeIntegrityEvidence?.eliteOps) {
@@ -133,6 +184,17 @@ export function createReleaseEvidence(options: CreateReleaseEvidenceOptions = {}
       present: runtimeIntegrityEvidence !== null,
       artifactPath: options.runtimeIntegrityArtifactPath ?? "release/runtime-integrity-evidence.json",
       evidence: runtimeIntegrityEvidence,
+    },
+    toolInvocation: {
+      present: toolInvocationEvidence !== null,
+      artifactPath: options.toolInvocationArtifactPath ?? "release/phase-11-tool-invocation-evidence.json",
+      evidence: toolInvocationEvidence,
+    },
+    conversationRefactor: {
+      present: conversationRefactorEvidence !== null,
+      artifactPath: options.conversationRefactorArtifactPath ?? "release/conversation-refactor-evidence.json",
+      classification: classifyConversationRefactorEvidence(conversationRefactorEvidence),
+      evidence: conversationRefactorEvidence,
     },
     eliteOps: {
       present: Boolean(runtimeIntegrityEvidence?.eliteOps),
@@ -177,6 +239,14 @@ export function validateReleaseEvidence(evidence: ReleaseEvidence): string[] {
     errors.push("Runtime integrity QA evidence contains blockers.");
   }
 
+  if (!evidence.toolInvocation.present || !evidence.toolInvocation.evidence) {
+    errors.push("Phase 11 tool invocation QA evidence is missing.");
+  }
+
+  if (evidence.toolInvocation.evidence) {
+    errors.push(...validatePhase11ToolInvocationEvidence(evidence.toolInvocation.evidence));
+  }
+
   if (!evidence.eliteOps.present || evidence.eliteOps.status === null) {
     errors.push("Elite ops evidence summary is missing.");
   }
@@ -214,20 +284,31 @@ export function readRuntimeIntegrityEvidenceFromFile(filePath: string): RuntimeI
 
 export function writeReleaseEvidenceArtifacts(options: WriteReleaseEvidenceArtifactsOptions = {}): {
   runtimeIntegrityPath: string;
+  toolInvocationPath: string;
+  conversationRefactorPath: string;
   canarySummaryPath: string;
   qaEvidencePath: string;
   evidence: ReleaseEvidence;
 } {
   const releaseDir = options.releaseDir ?? path.join(process.cwd(), "release");
   const runtimeIntegrityPath = path.join(releaseDir, "runtime-integrity-evidence.json");
+  const toolInvocationPath = path.join(releaseDir, "phase-11-tool-invocation-evidence.json");
+  const conversationRefactorPath = path.join(releaseDir, "conversation-refactor-evidence.json");
   const canarySummaryPath = path.join(releaseDir, "canary-summary.json");
   const qaEvidencePath = path.join(releaseDir, "qa-evidence.json");
   const runtimeIntegrityEvidence = options.runtimeIntegrityEvidence ?? readRuntimeIntegrityQaEvidenceFromFile(runtimeIntegrityPath);
+  const toolInvocationEvidence = options.toolInvocationEvidence ?? readPhase11ToolInvocationEvidenceFromFile(toolInvocationPath);
+  const conversationRefactorEvidence = options.conversationRefactorEvidence
+    ?? readConversationRefactorEvidenceFromFile(conversationRefactorPath);
   const canarySummary = options.canarySummary ?? readCanarySummaryFromFile(canarySummaryPath);
   const evidence = createReleaseEvidence({
     ...options,
     runtimeIntegrityEvidence,
     runtimeIntegrityArtifactPath: path.relative(process.cwd(), runtimeIntegrityPath),
+    toolInvocationEvidence,
+    toolInvocationArtifactPath: path.relative(process.cwd(), toolInvocationPath),
+    conversationRefactorEvidence,
+    conversationRefactorArtifactPath: path.relative(process.cwd(), conversationRefactorPath),
     canarySummary,
     canaryArtifactPath: path.relative(process.cwd(), canarySummaryPath),
   });
@@ -238,6 +319,14 @@ export function writeReleaseEvidenceArtifacts(options: WriteReleaseEvidenceArtif
     fs.writeFileSync(runtimeIntegrityPath, serializeJson(runtimeIntegrityEvidence), "utf8");
   }
 
+  if (toolInvocationEvidence) {
+    fs.writeFileSync(toolInvocationPath, serializeJson(toolInvocationEvidence), "utf8");
+  }
+
+  if (conversationRefactorEvidence) {
+    fs.writeFileSync(conversationRefactorPath, serializeJson(conversationRefactorEvidence), "utf8");
+  }
+
   if (canarySummary) {
     fs.writeFileSync(canarySummaryPath, serializeJson(canarySummary), "utf8");
   }
@@ -246,6 +335,8 @@ export function writeReleaseEvidenceArtifacts(options: WriteReleaseEvidenceArtif
 
   return {
     runtimeIntegrityPath,
+    toolInvocationPath,
+    conversationRefactorPath,
     canarySummaryPath,
     qaEvidencePath,
     evidence,

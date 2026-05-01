@@ -10,8 +10,9 @@ import { MemoizedChatMessageViewport } from "./ChatMessageViewport";
 import type { ActionLinkType } from "@/core/entities/rich-content";
 import { ToolPluginRegistryProvider } from "./chat/registry/ToolPluginContext";
 import { createDefaultToolRegistry } from "./chat/registry/default-tool-registry";
-import { ChatProgressStrip } from "./chat/plugins/system/ChatProgressStrip";
-import type { ResolvedProgressStripItem } from "./chat/plugins/system/resolve-progress-strip";
+import type { ProductExperienceStateKind } from "./product-experience-facade";
+import { ProductExperienceSummary } from "./ProductExperienceSummary";
+import type { ProductExperienceSummaryModel } from "./product-experience-summary";
 
 const defaultToolRegistry = createDefaultToolRegistry();
 
@@ -42,7 +43,8 @@ interface ChatContentSurfaceProps {
   onSuggestionSelect: (item: MentionItem) => void;
   onStopStream?: () => void | Promise<unknown>;
   pendingFiles: File[];
-  progressStripItems: readonly ResolvedProgressStripItem[];
+  productExperienceState: ProductExperienceStateKind;
+  productExperienceSummary: ProductExperienceSummaryModel | null;
   sendError?: string | null;
   scrollDependency: number;
   searchQuery: string;
@@ -76,7 +78,8 @@ export function ChatContentSurface({
   onSuggestionSelect,
   onStopStream,
   pendingFiles,
-  progressStripItems,
+  productExperienceState,
+  productExperienceSummary,
   sendError,
   scrollDependency,
   searchQuery,
@@ -84,29 +87,32 @@ export function ChatContentSurface({
 }: ChatContentSurfaceProps) {
   return (
     <ToolPluginRegistryProvider registry={defaultToolRegistry}>
-      <div className="relative h-full min-h-0 overflow-hidden">
-        <MemoizedChatMessageViewport
-          dynamicSuggestions={dynamicSuggestions}
+      <div className="relative flex h-full min-h-0 flex-col overflow-hidden" data-product-experience-state={productExperienceState}>
+        <ProductExperienceSummary
+          summary={productExperienceSummary}
           isEmbedded={isEmbedded}
-          isHeroState={isHeroState}
           isFullScreen={isFullScreen}
-          isLoadingMessages={isLoadingMessages}
-          isSending={isSending}
-          messages={messages}
-          onLinkClick={onLinkClick}
           onActionClick={onActionClick}
-          onRetryClick={onRetryClick}
-          onSuggestionClick={onSuggestionClick}
-          scrollDependency={scrollDependency}
-          searchQuery={searchQuery}
         />
-      </div>
 
-      <div className="flex flex-col gap-(--space-2)" data-chat-bottom-rail="true">
-        <ChatProgressStrip
-          items={progressStripItems}
-          onActionClick={onActionClick}
-        />
+        <div className="relative min-h-0 flex-1 overflow-hidden">
+          <MemoizedChatMessageViewport
+            dynamicSuggestions={dynamicSuggestions}
+            isEmbedded={isEmbedded}
+            isHeroState={isHeroState}
+            isFullScreen={isFullScreen}
+            isLoadingMessages={isLoadingMessages}
+            isSending={isSending}
+            messages={messages}
+            onLinkClick={onLinkClick}
+            onActionClick={onActionClick}
+            onRetryClick={onRetryClick}
+            onSuggestionClick={onSuggestionClick}
+            scrollDependency={scrollDependency}
+            searchQuery={searchQuery}
+          />
+        </div>
+      </div>
 
       <div
         className={`ui-chat-composer-plane relative flex-none ${!isEmbedded && isFullScreen ? "safe-area-px safe-area-pb" : ""}`}
@@ -137,7 +143,6 @@ export function ChatContentSurface({
             sendError={sendError}
           />
         </div>
-      </div>
       </div>
 
     </ToolPluginRegistryProvider>

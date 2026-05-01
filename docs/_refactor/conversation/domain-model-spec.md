@@ -35,6 +35,10 @@ export interface WorkspaceSnapshot {
   openLoops: readonly WorkspaceOpenLoop[];
   activeJobRefs: readonly WorkspaceJobRef[];
   importantAssetRefs: readonly WorkspaceAssetRef[];
+  workflowContextRef: string | null;
+  operatorTransitionRef: string | null;
+  trustDistributionRef: string | null;
+  relatedBusinessRefs: readonly BusinessObjectRef[];
   latestMemoryRef: string | null;
   latestPromptBindingRef: string | null;
   updatedAt: string;
@@ -53,12 +57,162 @@ Inputs include:
 - job events
 - asset catalog changes
 - relationship memory changes
+- business workflow context changes
+- operator transition and trust distribution changes
 
 ### Workspace Non-Goals
 
 It must not store full transcript content.
 It must not duplicate full job payloads.
 It must not duplicate full asset metadata.
+It must not duplicate full lead, deal, referral, lifecycle, or notification
+payloads.
+
+## Business Workflow Context
+
+### Workflow Context Purpose
+
+`BusinessWorkflowContext` is the canonical business-momentum model around a
+conversation.
+
+It exists so the app can serve solopreneurs and small businesses like a compact
+enterprise operating layer: CRM context, work tracking, onboarding, assets,
+notifications, and next actions without requiring separate enterprise tools.
+
+### Workflow Context Contract
+
+```typescript
+export interface BusinessWorkflowContext {
+  id: string;
+  userId: string;
+  conversationId: string;
+  primaryMode: "revenue" | "service" | "training" | "operations" | "setup" | "general";
+  origin: WorkflowOriginContext | null;
+  relatedRefs: readonly BusinessObjectRef[];
+  lifecycleRefs: readonly LifecycleProgressRef[];
+  notificationRefs: readonly WorkflowNotificationRef[];
+  interruptedTurnRefs: readonly InterruptedTurnRef[];
+  healthRefs: readonly WorkflowHealthRef[];
+  recommendedAction: WorkflowRecommendedAction | null;
+  updatedAt: string;
+}
+```
+
+### Workflow Context Ownership
+
+Owned by a workflow context projection service.
+
+Inputs include task-origin handoffs, current-page memento, lifecycle and coach
+events, failed-send recovery, job notifications, health diagnostics, and related
+business entities such as leads, deals, consultations, referrals, training
+paths, and journal items.
+
+### Workflow Context Non-Goals
+
+It must not duplicate full business-object payloads.
+It must not become an external CRM clone.
+It must not depend on external SaaS integrations to be valuable.
+It must not use transcript scanning as its source of truth.
+
+## Operator Transition Profile
+
+### Operator Transition Purpose
+
+`OperatorTransitionProfile` is the canonical first-run and return-user
+activation model for people converting expertise, work history, relationships,
+or an existing business into useful AI-assisted operations.
+
+It exists because the product is not only for businesses that already know what
+they are doing. It is also for people who need help becoming economically
+effective.
+
+### Operator Transition Contract
+
+```typescript
+export interface OperatorTransitionProfile {
+  id: string;
+  userId: string;
+  conversationId: string | null;
+  status:
+    | "not_started"
+    | "discovering_offer"
+    | "building_first_motion"
+    | "sharing"
+    | "following_up"
+    | "operating";
+  operatorMode:
+    | "existing_business"
+    | "new_solo_offer"
+    | "career_transition"
+    | "community_affiliate"
+    | "internal_admin";
+  expertiseRefs: readonly OperatorExpertiseRef[];
+  audienceRefs: readonly OperatorAudienceRef[];
+  offerRefs: readonly OperatorOfferRef[];
+  trustDistributionRef: string | null;
+  recommendedAction: OperatorTransitionAction | null;
+  updatedAt: string;
+}
+```
+
+### Operator Transition Ownership
+
+Owned by an activation projection service.
+
+Inputs include install completion, first-run conversation, lifecycle and coach
+events, profile updates, referral enablement, first offer creation, first share
+asset creation, and trust-distribution milestones.
+
+### Operator Transition Non-Goals
+
+It must not become a personality profile.
+It must not duplicate profile, referral, lead, or deal payloads.
+It must not require a user to have an existing business before the app is
+useful.
+It must not hide setup blockers that prevent real work.
+
+## Trust Distribution Context
+
+### Trust Distribution Purpose
+
+`TrustDistributionContext` is the canonical model for turning human trust into
+trackable distribution through QR codes, referral links, intro scripts,
+physical-card assets, and downstream referral milestones.
+
+### Trust Distribution Contract
+
+```typescript
+export interface TrustDistributionContext {
+  id: string;
+  userId: string;
+  conversationId: string | null;
+  referralCode: string | null;
+  referralUrl: string | null;
+  qrCodeUrl: string | null;
+  physicalShareAssets: readonly TrustShareAssetRef[];
+  introScripts: readonly TrustIntroScript[];
+  activeCampaignRefs: readonly TrustCampaignRef[];
+  recentReferralRefs: readonly BusinessObjectRef[];
+  recommendedAction: OperatorTransitionAction | null;
+  updatedAt: string;
+}
+```
+
+### Trust Distribution Ownership
+
+Owned by a trust-distribution projection service.
+
+Inputs include user profile referral fields, affiliate enablement, QR/link
+generation, signed referral visits, referral ledger events, campaign assets,
+lead/deal/training milestones, admin credit review, and notification feed
+events.
+
+### Trust Distribution Non-Goals
+
+It must not automate spam or generic cold outreach.
+It must not replace the referral ledger.
+It must not automatically approve payouts.
+It must not store full campaign, lead, deal, or referral payloads.
 
 ## Relationship Memory
 

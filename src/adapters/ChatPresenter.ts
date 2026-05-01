@@ -22,8 +22,21 @@ import {
 } from "@/lib/blog/blog-tool-payloads";
 import { getCapabilityPresentationDescriptor } from "@/frameworks/ui/chat/registry/capability-presentation-registry";
 import { projectCapabilityResultEnvelope } from "@/lib/capabilities/capability-result-envelope";
-import { describeJobStatus } from "@/lib/jobs/job-status";
-import { extractJobStatusSnapshots } from "@/lib/jobs/job-status-snapshots";
+import {
+  compareJobRenderCandidateFreshness,
+  getGenerationStatusPart,
+  resolveTruthBoundMediaText,
+  upsertRenderedJobCandidate,
+  type JobRenderCandidate,
+} from "@/lib/chat/JobRenderCandidateMerger";
+import {
+  canonicalJobSnapshotToStatusPart,
+  type CanonicalJobSnapshot,
+} from "@/lib/jobs/job-read-model";
+import {
+  filterPrimaryJobSnapshotsForWorkflows,
+  type CanonicalMediaWorkflowSnapshot,
+} from "@/lib/media/workflows/media-workflow-read-model";
 import { getAdminJournalPreviewPath } from "@/lib/journal/admin-journal-routes";
 import { getSupportedTheme, isSupportedTheme } from "@/lib/theme/theme-manifest";
 const SUGGESTIONS_MARKER = "__suggestions__:";
@@ -38,12 +51,42 @@ const TOOL_NAMES = {
   PREPARE_JOURNAL_POST_FOR_PUBLISH: "prepare_journal_post_for_publish",
 } as const;
 
-const MEDIA_TOOL_NAMES = new Set([
-  "compose_media",
-  "generate_audio",
-  "generate_chart",
-  "generate_graph",
-]);
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isJobStatusPartLike(value: unknown): boolean {
+  return isRecord(value)
+    && value.type === "job_status"
+    && typeof value.jobId === "string"
+    && typeof value.status === "string";
+}
+
+function containsTranscriptJobPayload(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  if (isJobStatusPartLike(value)) {
+    return true;
+  }
+
+  if (isRecord(value.deferred_job) || isRecord(value.deferredJob)) {
+    return true;
+  }
+
+  const job = value.job;
+  if (isRecord(job) && (isJobStatusPartLike(job.part) || typeof job.jobId === "string")) {
+    return true;
+  }
+
+  const jobs = value.jobs;
+  if (Array.isArray(jobs) && jobs.some((entry) => isRecord(entry) && (isJobStatusPartLike(entry.part) || typeof entry.jobId === "string"))) {
+    return true;
+  }
+
+  return false;
+}
 
 type NavigateToPageResultPayload = {
   path: string;
@@ -72,6 +115,12 @@ export type ToolRenderEntry =
       computedActions?: InlineNode[];
       descriptor?: CapabilityPresentationDescriptor;
       resultEnvelope?: CapabilityResultEnvelope | null;
+  source?: JobRenderCandidate["source"];
+  snapshot?: CanonicalJobSnapshot;
+    }
+  | {
+      kind: "workflow-status";
+      workflow: CanonicalMediaWorkflowSnapshot;
     }
   | {
       kind: "tool-call";
@@ -278,6 +327,19 @@ function extractTrailingTaggedString(text: string, marker: string): TrailingStri
     text: text.slice(0, markerIndex).trimEnd(),
     payload,
   };
+}
+
+function resolveMessageTextContent(message: ChatMessage): string {
+  if ((message.content || "").trim().length > 0) {
+    return message.content;
+  }
+
+  const textParts = (message.parts ?? [])
+    .filter((part): part is Extract<MessagePart, { type: "text" }> => part.type === "text")
+    .map((part) => part.text)
+    .join("");
+
+  return textParts.trim().length > 0 ? textParts : message.content;
 }
 
 function extractControlTags(text: string): ExtractedControlTags {
@@ -629,6 +691,10 @@ function shouldPreserveToolRenderEntry(call: ToolCallWithResult): boolean {
   );
 }
 
+function shouldSuppressDefaultProductToolRenderEntry(call: ToolCallWithResult): boolean {
+  return call.name === "generate_audio";
+}
+
 type PrepareJournalPostForPublishPayload = {
   action: "prepare_journal_post_for_publish";
   ready: boolean;
@@ -658,29 +724,6 @@ function isNavigateToPageResultPayload(value: unknown): value is NavigateToPageR
     && value !== null
     && typeof (value as { path?: unknown }).path === "string"
     && Array.isArray((value as { __actions__?: unknown }).__actions__);
-}
-
-function isJobStatusMessagePart(part: MessagePart): part is JobStatusMessagePart {
-  return part.type === "job_status";
-}
-
-function isGenerationStatusMessagePart(part: MessagePart): part is GenerationStatusMessagePart {
-  return part.type === "generation_status";
-}
-
-function getGenerationStatusPart(parts?: MessagePart[]): GenerationStatusMessagePart | null {
-  if (!parts || parts.length === 0) {
-    return null;
-  }
-
-  for (let index = parts.length - 1; index >= 0; index -= 1) {
-    const part = parts[index];
-    if (isGenerationStatusMessagePart(part)) {
-      return part;
-    }
-  }
-
-  return null;
 }
 
 function actionLinkNode(label: string, value: string) {
@@ -870,31 +913,155 @@ function buildJobStatusActions(part: JobStatusMessagePart) {
   return undefined;
 }
 
-function isMediaJobStatusPart(part: JobStatusMessagePart): boolean {
-  return MEDIA_TOOL_NAMES.has(part.toolName);
+type JobStatusToolRenderEntry = Extract<ToolRenderEntry, { kind: "job-status" }>;
+
+function createJobRenderCandidate(
+  part: JobStatusMessagePart,
+  encounterOrder: number,
+  source: JobRenderCandidate["source"],
+): JobRenderCandidate {
+  const descriptor = getCapabilityPresentationDescriptor(part.toolName);
+  const resultEnvelope = projectJobStatusResultEnvelope(part);
+  const renderedPart = resultEnvelope && part.resultEnvelope !== resultEnvelope
+    ? { ...part, resultEnvelope }
+    : part;
+
+  return {
+    part: renderedPart,
+    computedActions: buildJobStatusActions(renderedPart),
+    descriptor,
+    resultEnvelope,
+    source,
+    encounterOrder,
+  };
 }
 
-function resolveTruthBoundMediaText(
-  originalText: string,
-  parts: JobStatusMessagePart[],
-): string {
-  if (originalText.trim().length === 0) {
-    return originalText;
+function jobRenderCandidateToEntry(candidate: JobRenderCandidate): JobStatusToolRenderEntry {
+  return {
+    kind: "job-status",
+    part: candidate.part,
+    computedActions: candidate.computedActions,
+    descriptor: candidate.descriptor,
+    resultEnvelope: candidate.resultEnvelope,
+    source: candidate.source,
+  };
+}
+
+function getMessageTimestampMs(message: ChatMessage): number {
+  const parsed = message.timestamp instanceof Date
+    ? message.timestamp.getTime()
+    : Date.parse(String(message.timestamp));
+  return Number.isNaN(parsed) ? Number.NEGATIVE_INFINITY : parsed;
+}
+
+function getSnapshotTimestampMs(snapshot: CanonicalJobSnapshot): number {
+  const parsed = Date.parse(snapshot.createdAt || snapshot.updatedAt);
+  return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed;
+}
+
+function getWorkflowSnapshotTimestampMs(snapshot: CanonicalMediaWorkflowSnapshot): number {
+  const parsed = Date.parse(snapshot.createdAt || snapshot.updatedAt);
+  return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed;
+}
+
+function resolveSnapshotMessageIndex(
+  messages: readonly ChatMessage[],
+  snapshot: CanonicalJobSnapshot,
+): number {
+  if (snapshot.origin.originMessageId) {
+    const explicitIndex = messages.findIndex((message) => message.id === snapshot.origin.originMessageId);
+    if (explicitIndex >= 0) {
+      return explicitIndex;
+    }
   }
 
-  const activeMediaParts = parts.filter((part) =>
-    isMediaJobStatusPart(part)
-    && (part.status === "queued"
-      || part.status === "running"
-      || part.status === "failed"
-      || part.status === "canceled"),
+  if (snapshot.origin.originTurnId) {
+    const turnIndex = messages.findIndex((message) => message.id === snapshot.origin.originTurnId);
+    if (turnIndex >= 0) {
+      return turnIndex;
+    }
+  }
+
+  const snapshotTime = getSnapshotTimestampMs(snapshot);
+  let fallbackIndex = -1;
+  let fallbackTime = Number.NEGATIVE_INFINITY;
+
+  messages.forEach((message, index) => {
+    if (message.role !== "assistant") {
+      return;
+    }
+
+    const messageTime = getMessageTimestampMs(message);
+    if (messageTime <= snapshotTime && messageTime >= fallbackTime) {
+      fallbackIndex = index;
+      fallbackTime = messageTime;
+    }
+  });
+
+  if (fallbackIndex >= 0) {
+    return fallbackIndex;
+  }
+
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    if (messages[index]?.role === "assistant") {
+      return index;
+    }
+  }
+
+  return Math.max(messages.length - 1, 0);
+}
+
+function resolveWorkflowMessageIndex(
+  messages: readonly ChatMessage[],
+  snapshot: CanonicalMediaWorkflowSnapshot,
+): number {
+  if (snapshot.originMessageId) {
+    const explicitIndex = messages.findIndex((message) => message.id === snapshot.originMessageId);
+    if (explicitIndex >= 0) {
+      return explicitIndex;
+    }
+  }
+
+  if (snapshot.originTurnId) {
+    const turnIndex = messages.findIndex((message) => message.id === snapshot.originTurnId);
+    if (turnIndex >= 0) {
+      return turnIndex;
+    }
+  }
+
+  const snapshotTime = getWorkflowSnapshotTimestampMs(snapshot);
+  let fallbackIndex = -1;
+  let fallbackTime = Number.NEGATIVE_INFINITY;
+
+  messages.forEach((message, index) => {
+    if (message.role !== "assistant") {
+      return;
+    }
+
+    const messageTime = getMessageTimestampMs(message);
+    if (messageTime <= snapshotTime && messageTime >= fallbackTime) {
+      fallbackIndex = index;
+      fallbackTime = messageTime;
+    }
+  });
+
+  if (fallbackIndex >= 0) {
+    return fallbackIndex;
+  }
+
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    if (messages[index]?.role === "assistant") {
+      return index;
+    }
+  }
+
+  return Math.max(messages.length - 1, 0);
+}
+
+function createCanonicalJobRenderEntry(snapshot: CanonicalJobSnapshot, encounterOrder: number): JobStatusToolRenderEntry {
+  return jobRenderCandidateToEntry(
+    createJobRenderCandidate(canonicalJobSnapshotToStatusPart(snapshot), encounterOrder, "canonical"),
   );
-
-  if (activeMediaParts.length === 0) {
-    return originalText;
-  }
-
-  return activeMediaParts.map((part) => describeJobStatus(part)).join("\n\n");
 }
 
 export class ChatPresenter {
@@ -903,8 +1070,12 @@ export class ChatPresenter {
     private commandParser: CommandParserService,
   ) {}
 
-  present(message: ChatMessage): PresentedMessage {
-    let textContent = message.content;
+  present(
+    message: ChatMessage,
+    jobSnapshots: readonly CanonicalJobSnapshot[] = [],
+    workflowSnapshots: readonly CanonicalMediaWorkflowSnapshot[] = [],
+  ): PresentedMessage {
+    let textContent = resolveMessageTextContent(message);
     const extractedControls = extractControlTags(textContent);
     const suggestions = normalizeSuggestions(extractedControls.suggestionsPayload);
     const actions = normalizeMessageActions(extractedControls.actionsPayload);
@@ -921,32 +1092,7 @@ export class ChatPresenter {
     const commands = [...this.commandParser.parse(textContent)];
     const attachments = getPresentedAttachments(message.parts);
     const generationStatus = getGenerationStatusPart(message.parts);
-    const renderedJobIds = new Set<string>();
     const toolRenderEntries: ToolRenderEntry[] = [];
-    const truthBoundJobParts: JobStatusMessagePart[] = [];
-
-    for (const part of message.parts ?? []) {
-      if (!isJobStatusMessagePart(part)) {
-        continue;
-      }
-
-      const descriptor = getCapabilityPresentationDescriptor(part.toolName);
-      const resultEnvelope = projectJobStatusResultEnvelope(part);
-      const renderedPart = resultEnvelope && part.resultEnvelope !== resultEnvelope
-        ? { ...part, resultEnvelope }
-        : part;
-
-      renderedJobIds.add(renderedPart.jobId);
-      truthBoundJobParts.push(renderedPart);
-
-      toolRenderEntries.push({
-        kind: "job-status",
-        part: renderedPart,
-        computedActions: buildJobStatusActions(renderedPart),
-        descriptor,
-        resultEnvelope,
-      });
-    }
 
     // Map AI tool calls to UI commands
     const toolCalls = pairToolCallsWithResults(message.parts);
@@ -959,30 +1105,11 @@ export class ChatPresenter {
         }
       }
 
-      const jobSnapshots = extractJobStatusSnapshots(call.result);
+      if (containsTranscriptJobPayload(call.result)) {
+        continue;
+      }
 
-      if (jobSnapshots.length > 0) {
-        for (const snapshot of jobSnapshots) {
-          const descriptor = getCapabilityPresentationDescriptor(snapshot.part.toolName);
-          const resultEnvelope = projectJobStatusResultEnvelope(snapshot.part);
-          const renderedPart = resultEnvelope && snapshot.part.resultEnvelope !== resultEnvelope
-            ? { ...snapshot.part, resultEnvelope }
-            : snapshot.part;
-
-          if (renderedJobIds.has(renderedPart.jobId)) {
-            continue;
-          }
-
-          renderedJobIds.add(renderedPart.jobId);
-          truthBoundJobParts.push(renderedPart);
-          toolRenderEntries.push({
-            kind: "job-status",
-            part: renderedPart,
-            computedActions: buildJobStatusActions(renderedPart),
-            descriptor,
-            resultEnvelope,
-          });
-        }
+      if (shouldSuppressDefaultProductToolRenderEntry(call)) {
         continue;
       }
 
@@ -999,14 +1126,23 @@ export class ChatPresenter {
         name: call.name,
         args: call.args,
         result: call.result,
-            toolInvocationId: call.toolInvocationId,
+        toolInvocationId: call.toolInvocationId,
         descriptor,
         resultEnvelope,
       });
     }
 
+    const selectedJobRenderEntries = jobSnapshots.map((snapshot, index) =>
+      createCanonicalJobRenderEntry(snapshot, index),
+    );
+    const selectedJobParts = selectedJobRenderEntries.map((entry) => entry.part);
+    const selectedWorkflowRenderEntries: ToolRenderEntry[] = workflowSnapshots.map((workflow) => ({
+      kind: "workflow-status",
+      workflow,
+    }));
+
     textContent = message.role === "assistant"
-      ? resolveTruthBoundMediaText(textContent, truthBoundJobParts)
+      ? resolveTruthBoundMediaText(textContent, selectedJobParts)
       : textContent;
 
     const richContent = this.markdownParser.parse(textContent);
@@ -1035,11 +1171,79 @@ export class ChatPresenter {
         hour: "2-digit",
         minute: "2-digit",
       }),
-      toolRenderEntries,
+      toolRenderEntries: [...selectedWorkflowRenderEntries, ...selectedJobRenderEntries, ...toolRenderEntries],
     };
   }
 
-  presentMany(messages: ChatMessage[]): PresentedMessage[] {
-    return messages.map((m) => this.present(m));
+  presentMany(
+    messages: ChatMessage[],
+    jobSnapshots: readonly CanonicalJobSnapshot[] = [],
+    workflowSnapshots: readonly CanonicalMediaWorkflowSnapshot[] = [],
+  ): PresentedMessage[] {
+    const snapshotsByMessageIndex = new Map<number, CanonicalJobSnapshot[]>();
+    const primaryJobSnapshots = filterPrimaryJobSnapshotsForWorkflows(jobSnapshots, workflowSnapshots);
+    primaryJobSnapshots.forEach((snapshot) => {
+      const index = resolveSnapshotMessageIndex(messages, snapshot);
+      const existing = snapshotsByMessageIndex.get(index) ?? [];
+      existing.push(snapshot);
+      snapshotsByMessageIndex.set(index, existing);
+    });
+    const workflowsByMessageIndex = new Map<number, CanonicalMediaWorkflowSnapshot[]>();
+    workflowSnapshots.forEach((snapshot) => {
+      const index = resolveWorkflowMessageIndex(messages, snapshot);
+      const existing = workflowsByMessageIndex.get(index) ?? [];
+      existing.push(snapshot);
+      workflowsByMessageIndex.set(index, existing);
+    });
+
+    const presentedMessages = messages.map((message, index) =>
+      this.present(message, snapshotsByMessageIndex.get(index) ?? [], workflowsByMessageIndex.get(index) ?? []),
+    );
+    const selectedJobsByJobId = new Map<
+      string,
+      { messageIndex: number; entryIndex: number; candidate: JobRenderCandidate }
+    >();
+    let encounterOrder = 0;
+
+    presentedMessages.forEach((message, messageIndex) => {
+      message.toolRenderEntries.forEach((entry, entryIndex) => {
+        if (entry.kind !== "job-status") {
+          return;
+        }
+
+        const candidate: JobRenderCandidate = {
+          part: entry.part,
+          computedActions: entry.computedActions,
+          descriptor: entry.descriptor,
+          resultEnvelope: entry.resultEnvelope,
+          source: entry.source,
+          encounterOrder,
+        };
+        encounterOrder += 1;
+
+        const current = selectedJobsByJobId.get(entry.part.jobId);
+        if (!current || compareJobRenderCandidateFreshness(current.candidate, candidate) < 0) {
+          selectedJobsByJobId.set(entry.part.jobId, { messageIndex, entryIndex, candidate });
+        }
+      });
+    });
+
+    if (selectedJobsByJobId.size === 0) {
+      return presentedMessages;
+    }
+
+    const selectedEntryKeys = new Set(
+      [...selectedJobsByJobId.values()].map(({ messageIndex, entryIndex }) => `${messageIndex}:${entryIndex}`),
+    );
+
+    return presentedMessages.map((message, messageIndex) => {
+      const toolRenderEntries = message.toolRenderEntries.filter((entry, entryIndex) => (
+        entry.kind !== "job-status" || selectedEntryKeys.has(`${messageIndex}:${entryIndex}`)
+      ));
+
+      return toolRenderEntries.length === message.toolRenderEntries.length
+        ? message
+        : { ...message, toolRenderEntries };
+    });
   }
 }

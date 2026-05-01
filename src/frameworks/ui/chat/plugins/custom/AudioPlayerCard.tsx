@@ -60,7 +60,7 @@ function findAudioArtifact(artifacts: CapabilityArtifactRef[] | undefined): Capa
 
 function resolveAudioData(
   result: unknown,
-  toolArgs: Record<string, unknown> | undefined,
+  inputSnapshot: Record<string, unknown> | undefined,
   artifact: CapabilityArtifactRef | undefined,
 ): GenerateAudioResultPayload | null {
   if (isGenerateAudioResultPayload(result)) {
@@ -72,21 +72,17 @@ function resolveAudioData(
   }
 
   if (
-    typeof toolArgs?.text === "string"
-    && toolArgs.text.trim().length > 0
-    && typeof toolArgs.title === "string"
-    && toolArgs.title.trim().length > 0
+    artifact?.assetId
+    && typeof inputSnapshot?.text === "string"
+    && inputSnapshot.text.trim().length > 0
+    && typeof inputSnapshot.title === "string"
+    && inputSnapshot.title.trim().length > 0
   ) {
-    // Validate assetId from args before using it
-    const validatedAssetId = typeof toolArgs.assetId === "string" 
-      ? resolveCanonicalMediaAssetId(toolArgs.assetId)
-      : null;
-    
     return {
       action: "generate_audio",
-      text: toolArgs.text,
-      title: toolArgs.title,
-      assetId: validatedAssetId ?? artifact?.assetId ?? null,
+      text: inputSnapshot.text,
+      title: inputSnapshot.title,
+      assetId: resolveCanonicalMediaAssetId(artifact.assetId) ?? artifact.assetId,
       generationStatus: artifact?.assetId ? "cached_asset" : undefined,
     };
   }
@@ -148,9 +144,13 @@ export const AudioPlayerCard: React.FC<ToolPluginProps> = (props) => {
     fallbackLabel: "Audio",
   });
 
-  const result = resultEnvelope?.payload ?? toolCall?.result;
-  const audioArtifact = findAudioArtifact(resultEnvelope?.artifacts);
-  const audio = resolveAudioData(result, toolCall?.args, audioArtifact);
+  const isCanonicalJobPart = part?.type === "job_status";
+  const canonicalEnvelope = isCanonicalJobPart ? resultEnvelope ?? part.resultEnvelope ?? null : null;
+  const result = canonicalEnvelope?.payload ?? (isCanonicalJobPart ? part.resultPayload : null);
+  const audioArtifact = findAudioArtifact(canonicalEnvelope?.artifacts);
+  const audio = isCanonicalJobPart
+    ? resolveAudioData(result, canonicalEnvelope?.inputSnapshot, audioArtifact)
+    : null;
   const hasDurableAudioAsset = Boolean(audio?.assetId ?? audioArtifact?.assetId)
     || part?.lifecyclePhase === "durable_asset_available";
   const statusLabel = resolveStatusLabel(props, audio);

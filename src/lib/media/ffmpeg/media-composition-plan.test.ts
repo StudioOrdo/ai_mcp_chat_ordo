@@ -137,7 +137,7 @@ describe("media-composition-plan — constraint validation", () => {
     expect(validatePlanConstraints(plan)).toBeNull();
   });
 
-  it("rejects explicit still image narration profiles with non-image visuals", () => {
+  it("rejects explicit still image narration profiles with non-image-compatible visuals", () => {
     const plan = makePlan({
       id: "p3b", conversationId: "c1",
       profile: "still_image_narration_fast",
@@ -146,7 +146,7 @@ describe("media-composition-plan — constraint validation", () => {
       subtitlePolicy: "none", waveformPolicy: "none", outputFormat: "mp4",
       resolution: { width: 720, height: 1280 },
     });
-    expect(validatePlanConstraints(plan)).toBe("The still_image_narration_fast profile requires exactly one image visual clip.");
+    expect(validatePlanConstraints(plan)).toBe("The still_image_narration_fast profile requires exactly one image-compatible visual clip.");
   });
 
   it("passes a sidecar subtitle plan with visual content", () => {

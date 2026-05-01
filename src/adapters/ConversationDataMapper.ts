@@ -217,6 +217,14 @@ export class ConversationDataMapper implements ConversationRepository {
     }
 
     const purgeConversation = this.db.transaction((conversationRow: ConversationRow) => {
+      const conversationFileCount = this.db
+        .prepare(`SELECT COUNT(*) AS total FROM user_files WHERE conversation_id = ?`)
+        .get(conversationRow.id) as { total: number } | undefined;
+
+      if (actor.reason === "privacy_request") {
+        this.db.prepare(`DELETE FROM user_files WHERE conversation_id = ?`).run(conversationRow.id);
+      }
+
       this.db
         .prepare(
           `INSERT INTO conversation_purge_audits (
@@ -246,6 +254,8 @@ export class ConversationDataMapper implements ConversationRepository {
             importedAt: conversationRow.imported_at,
             importSourceConversationId: conversationRow.import_source_conversation_id,
             importedFromExportedAt: conversationRow.imported_from_exported_at,
+            conversationFilePolicy: actor.reason === "privacy_request" ? "deleted" : "detached_by_fk",
+            conversationFileCount: conversationFileCount?.total ?? 0,
           }),
         );
 

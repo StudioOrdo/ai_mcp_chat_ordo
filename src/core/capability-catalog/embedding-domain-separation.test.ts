@@ -4,7 +4,7 @@
  * Validates:
  * 1. Each domain module exports a get*ToolSchemas() factory function
  * 2. No domain module imports MCP protocol types
- * 3. operations-server.ts imports all 5 schema factories
+ * 3. operations-server.ts keeps transport-only schema factories explicit
  * 4. operations-server.ts is ≤ 350 lines (slimmed from 683)
  * 5. Tool schemas are structurally valid
  */
@@ -115,8 +115,9 @@ describe("Sprint 17 — Embedding Server Domain/Transport Separation", () => {
       expect(source).toContain("getAnalyticsToolSchemas");
     });
 
-    it("imports getAdminIntelligenceToolSchemas from admin-intelligence-tool", () => {
-      expect(source).toContain("getAdminIntelligenceToolSchemas");
+    it("uses the catalog MCP adapter registry for catalog-owned admin tools", () => {
+      expect(source).toContain("createCatalogMcpToolEntries");
+      expect(source).not.toContain("getAdminIntelligenceToolSchemas");
     });
 
     it("does not contain inline tool schema definitions", () => {

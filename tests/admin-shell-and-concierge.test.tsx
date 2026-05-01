@@ -267,8 +267,10 @@ describe("admin shell and concierge", () => {
     const adminUser = { id: "admin_1", email: "admin@example.com", name: "Admin", roles: ["ADMIN"] as RoleName[] };
 
     expect(resolveAccountMenuRoutes(adminUser).map((route) => route.id)).toEqual([
+      "workspace-overview",
       "jobs",
       "my-media",
+      "referrals",
       "operations-media",
       "profile",
     ]);

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { createPortal } from "react-dom";
@@ -278,20 +279,30 @@ export function ShellWorkspaceMenu({ user, tone = "default" }: ShellWorkspaceMen
         role="dialog"
         aria-modal="true"
         aria-label="Workspace menu"
-        className="ui-shell-dropdown safe-area-pt safe-area-pb absolute inset-y-0 right-0 flex w-[min(24rem,calc(100vw-var(--space-3)))] max-w-full flex-col overflow-hidden border-l border-foreground/10"
+        className="ui-shell-dropdown safe-area-pt safe-area-pb absolute inset-y-0 left-0 flex w-[min(24rem,calc(100vw-var(--space-3)))] max-w-full flex-col overflow-hidden border-r border-foreground/10"
         data-shell-nav-tone={tone}
       >
         <div className="ui-shell-dropdown-header flex items-start justify-between gap-(--space-3) px-(--space-4) py-(--space-3)">
-          <div className="min-w-0 flex-1">
-            <p className="shell-section-heading text-foreground/42">Workspace</p>
-            <p className="shell-panel-heading mt-1 truncate">{isAuthenticated ? user.name : SHELL_BRAND.shortName}</p>
-            <div className="mt-(--space-2) flex items-start gap-(--space-2)">
-              <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${roleConfig.dot}`} aria-hidden="true" />
-              <div className="min-w-0">
-                <p className="shell-meta-text truncate opacity-50 normal-case tracking-[0.04em]">
-                  {isAuthenticated ? user.email : roleConfig.label}
-                </p>
-                <p className="shell-supporting-text text-foreground/58">{roleConfig.description}</p>
+          <div className="flex min-w-0 flex-1 items-start gap-(--space-3)">
+            <Image
+              src="/ordo_icon.png"
+              alt=""
+              width={40}
+              height={40}
+              aria-hidden="true"
+              className="shell-workspace-menu-header-mark shrink-0"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="shell-section-heading text-foreground/42">Main Menu</p>
+              <p className="shell-panel-heading mt-1 truncate">{SHELL_BRAND.shortName}</p>
+              <div className="mt-(--space-2) flex items-start gap-(--space-2)">
+                <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${roleConfig.dot}`} aria-hidden="true" />
+                <div className="min-w-0">
+                  <p className="shell-meta-text truncate opacity-50 normal-case tracking-[0.04em]">
+                    {isAuthenticated ? user.email : roleConfig.label}
+                  </p>
+                  <p className="shell-supporting-text text-foreground/58">{roleConfig.description}</p>
+                </div>
               </div>
             </div>
           </div>
@@ -614,9 +625,15 @@ export function ShellWorkspaceMenu({ user, tone = "default" }: ShellWorkspaceMen
         data-shell-nav-item-tone={itemTone}
         onClick={() => setOpen((current) => !current)}
       >
-        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-          <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
+        <Image
+          src="/ordo_icon.png"
+          alt=""
+          width={24}
+          height={24}
+          aria-hidden="true"
+          className="shell-workspace-menu-trigger-mark"
+          priority
+        />
       </button>
 
       {overlay && typeof document !== "undefined"

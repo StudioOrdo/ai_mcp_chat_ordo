@@ -55,7 +55,7 @@ describe("mcp-sidecar-inventory", () => {
         entrypoint: "mcp/generate-audio-server.ts",
         canonicalCommand: "npm run mcp:generate-audio",
         transports: ["stdio"],
-        capabilityNames: [],
+        capabilityNames: ["generate_audio"],
         containerServiceName: undefined,
         healthcheckToolName: undefined,
       },

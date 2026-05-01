@@ -34,6 +34,7 @@ export const JOB_CAPABILITIES = {
         ADMIN: [
           "- After using `list_deferred_jobs` or `get_deferred_job_status`, always summarize the current job state in plain language as queued, running, completed, failed, or canceled.",
           "- Do not rely on job cards alone for status reads. State clearly whether you reused the existing job or started a new one.",
+          "- Use job status tools for explicit inspection and diagnostics; do not repeatedly poll unchanged job status as a waiting loop. Active chat updates arrive through job events and reconciliation.",
         ],
       },
     },
@@ -70,6 +71,7 @@ export const JOB_CAPABILITIES = {
       roleDirectiveLines: {
         ADMIN: [
           "- After using `list_deferred_jobs` or `get_deferred_job_status`, always summarize the current job state in plain language as queued, running, completed, failed, or canceled.",
+          "- Use job status tools for explicit inspection and diagnostics; do not repeatedly poll unchanged job status as a waiting loop. Active chat updates arrive through job events and reconciliation.",
         ],
       },
     },

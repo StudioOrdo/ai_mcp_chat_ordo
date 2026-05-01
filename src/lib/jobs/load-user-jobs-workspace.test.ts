@@ -5,11 +5,13 @@ const {
   getUserJobSnapshotMock,
   findJobByIdMock,
   listEventsForUserJobMock,
+  listUserWorkflowsMock,
 } = vi.hoisted(() => ({
   listUserJobSnapshotsMock: vi.fn(),
   getUserJobSnapshotMock: vi.fn(),
   findJobByIdMock: vi.fn(),
   listEventsForUserJobMock: vi.fn(),
+  listUserWorkflowsMock: vi.fn(),
 }));
 
 vi.mock("@/adapters/RepositoryFactory", () => ({
@@ -21,22 +23,40 @@ vi.mock("@/adapters/RepositoryFactory", () => ({
     findJobById: findJobByIdMock,
     listEventsForUserJob: listEventsForUserJobMock,
   }),
+  getMediaWorkflowReadModel: () => ({
+    listUserWorkflows: listUserWorkflowsMock,
+  }),
 }));
 
 import { loadUserJobsWorkspace } from "@/lib/jobs/load-user-jobs-workspace";
 
 function makeSnapshot(jobId: string, status: "queued" | "running" | "succeeded" | "failed" | "canceled", updatedAt: string) {
   return {
-    messageId: `jobmsg_${jobId}`,
+    jobId,
     conversationId: "conv_jobs",
-    part: {
-      type: "job_status" as const,
-      jobId,
-      toolName: "produce_blog_article",
-      label: "Produce Blog Article",
-      status,
-      updatedAt,
-      summary: `${jobId} summary`,
+    userId: "usr_1",
+    toolName: "produce_blog_article",
+    label: "Produce Blog Article",
+    status,
+    sequence: 0,
+    createdAt: updatedAt,
+    startedAt: null,
+    completedAt: null,
+    updatedAt,
+    summary: `${jobId} summary`,
+    origin: { fallback: "job_created_at" },
+    inputSnapshot: {},
+    resultEnvelope: null,
+    artifactRefs: [],
+    materializationRefs: [],
+    ownership: { userId: "usr_1", visibility: "owner", initiatorType: "user" },
+    failure: {
+      failureClass: null,
+      recoveryMode: null,
+      nextRetryAt: null,
+      lastCheckpointId: null,
+      replayedFromJobId: null,
+      supersededByJobId: null,
     },
   };
 }
@@ -69,6 +89,7 @@ function makeJobRecord(jobId: string) {
 describe("loadUserJobsWorkspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    listUserWorkflowsMock.mockResolvedValue([]);
   });
 
   it("defaults to the first active job and loads durable history", async () => {
@@ -93,7 +114,7 @@ describe("loadUserJobsWorkspace", () => {
     const result = await loadUserJobsWorkspace("usr_1");
 
     expect(result.selectedJobId).toBe("job_active");
-    expect(result.jobs[0].part.jobId).toBe("job_active");
+    expect(result.jobs[0].jobId).toBe("job_active");
     expect(listEventsForUserJobMock).toHaveBeenCalledWith("usr_1", "job_active", { limit: 50 });
     expect(result.selectedJobHistory).toHaveLength(1);
   });
@@ -111,7 +132,7 @@ describe("loadUserJobsWorkspace", () => {
     const result = await loadUserJobsWorkspace("usr_1", "job_old");
 
     expect(result.selectedJobId).toBe("job_old");
-    expect(result.selectedJob?.part.jobId).toBe("job_old");
-    expect(result.jobs.map((job) => job.part.jobId)).toContain("job_old");
+    expect(result.selectedJob?.jobId).toBe("job_old");
+    expect(result.jobs.map((job) => job.jobId)).toContain("job_old");
   });
 });

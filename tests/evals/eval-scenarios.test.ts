@@ -24,6 +24,7 @@ describe("eval scenario catalog", () => {
         "mcp-multi-tool-synthesis",
         "integrity-canonical-corpus-reference-deterministic",
         "integrity-audio-recovery-deterministic",
+        "media-workflow-video-completion-deterministic",
         "integrity-malformed-ui-tags-deterministic",
         "blog-job-status-continuity-deterministic",
         "blog-explicit-status-check-deterministic",
@@ -62,6 +63,14 @@ describe("eval scenario catalog", () => {
     expect(getEvalScenarioById("live-runtime-self-knowledge-honesty")).toMatchObject({
       cohortId: "runtime-integrity-auditor",
       layer: "live_model",
+    });
+
+    expect(getEvalScenarioById("media-workflow-video-completion-deterministic")).toMatchObject({
+      cohortId: "signed-in-buyer",
+      layer: "deterministic",
+      expectedToolBehaviors: [
+        expect.objectContaining({ policy: "avoid" }),
+      ],
     });
   });
 

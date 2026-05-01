@@ -102,6 +102,39 @@ describe("eval deterministic runner", () => {
     expect(execution.finalState.recommendation).toContain("Retry audio generation");
   });
 
+  it("proves the media workflow package completes a video without assistant polling", async () => {
+    const execution = await runDeterministicEvalScenario("media-workflow-video-completion-deterministic");
+    const toolCallIds = execution.observations
+      .filter((observation) => observation.kind === "tool_call")
+      .map((observation) => observation.data.toolId);
+
+    expect(execution.checkpointResults).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "workflow-created", passed: true }),
+        expect.objectContaining({ id: "compose-auto-enqueued", passed: true }),
+        expect.objectContaining({ id: "workflow-final-video", passed: true }),
+        expect.objectContaining({ id: "chat-renders-workflow", passed: true }),
+        expect.objectContaining({ id: "status-polling-avoided", passed: true }),
+      ]),
+    );
+    expect(toolCallIds).toEqual(expect.arrayContaining(["generate_audio", "compose_media"]));
+    expect(toolCallIds).not.toEqual(
+      expect.arrayContaining(["list_my_jobs", "get_my_job_status", "list_deferred_jobs", "get_deferred_job_status"]),
+    );
+    expect(execution.observations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "state_transition",
+          data: expect.objectContaining({
+            transition: "media_workflow_succeeded",
+            finalAssetId: "uf_eval_bloom_video",
+          }),
+        }),
+      ]),
+    );
+    expect(execution.finalState.recommendation).toContain("final video artifact");
+  });
+
   it("suppresses malformed UI suggestion tags and repairs canonical action params", async () => {
     const execution = await runDeterministicEvalScenario("integrity-malformed-ui-tags-deterministic");
 
@@ -248,14 +281,29 @@ describe("eval deterministic runner", () => {
     );
   });
 
-  it("recovers a completed blog job from the snapshot path after missed SSE delivery", async () => {
+  it("recovers a completed blog job from durable reconciliation after missed SSE delivery", async () => {
     const execution = await runDeterministicEvalScenario("blog-missed-sse-recovery-deterministic");
+    const toolCallIds = execution.observations
+      .filter((observation) => observation.kind === "tool_call")
+      .map((observation) => observation.data.toolId);
 
     expect(execution.checkpointResults).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: "terminal-job-recovered", passed: true }),
         expect.objectContaining({ id: "summary-preserved", passed: true }),
         expect.objectContaining({ id: "post-id-available", passed: true }),
+      ]),
+    );
+    expect(toolCallIds).not.toEqual(expect.arrayContaining(["list_deferred_jobs", "get_deferred_job_status"]));
+    expect(execution.finalState.toolCalls).not.toEqual(
+      expect.arrayContaining(["list_deferred_jobs", "get_deferred_job_status"]),
+    );
+    expect(execution.observations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "state_transition",
+          data: expect.objectContaining({ source: "durable_job_reconciliation" }),
+        }),
       ]),
     );
     expect(execution.finalState.recommendation).toContain("Recovered terminal job");

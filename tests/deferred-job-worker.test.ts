@@ -1,11 +1,9 @@
 import Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ConversationDataMapper } from "@/adapters/ConversationDataMapper";
 import { ensureSchema } from "@/lib/db/schema";
 import { JobQueueDataMapper } from "@/adapters/JobQueueDataMapper";
 import { MessageDataMapper } from "@/adapters/MessageDataMapper";
 import { DeferredJobWorker } from "@/lib/jobs/deferred-job-worker";
-import { DeferredJobConversationProjector } from "@/lib/jobs/deferred-job-conversation-projector";
 
 function createDb() {
   const db = new Database(":memory:");
@@ -26,7 +24,6 @@ function seedConversation(db: Database.Database, userId = "usr_test", conversati
 describe("DeferredJobWorker", () => {
   let db: Database.Database;
   let repo: JobQueueDataMapper;
-  let projector: DeferredJobConversationProjector;
   let messageRepo: MessageDataMapper;
 
   beforeEach(() => {
@@ -34,10 +31,6 @@ describe("DeferredJobWorker", () => {
     seedConversation(db);
     repo = new JobQueueDataMapper(db);
     messageRepo = new MessageDataMapper(db);
-    projector = new DeferredJobConversationProjector(
-      new ConversationDataMapper(db),
-      messageRepo,
-    );
   });
 
   it("processes a queued job, emits started/progress/result events, and marks it succeeded", async () => {
@@ -54,7 +47,7 @@ describe("DeferredJobWorker", () => {
         await reportProgress({ progressPercent: 50, progressLabel: "Drafting" });
         return { postId: "blog_123" };
       },
-    }, projector);
+    });
 
     const result = await worker.runNext({
       workerId: "worker_1",
@@ -74,14 +67,7 @@ describe("DeferredJobWorker", () => {
     expect(events.map((event) => event.eventType)).toEqual(["started", "progress", "result"]);
 
     const messages = await messageRepo.listByConversation("conv_jobs");
-    expect(messages).toHaveLength(1);
-    expect(messages[0]?.parts).toEqual([
-      expect.objectContaining({
-        type: "job_status",
-        jobId: job.id,
-        status: "succeeded",
-      }),
-    ]);
+    expect(messages).toHaveLength(0);
   });
 
   it("renews the lease window when healthy progress is reported", async () => {
@@ -101,7 +87,7 @@ describe("DeferredJobWorker", () => {
         await reportProgress({ progressPercent: 40, progressLabel: "Drafting" });
         return { postId: "blog_lease" };
       },
-    }, projector);
+    });
 
     await worker.runNext({
       workerId: "worker_lease",
@@ -139,7 +125,7 @@ describe("DeferredJobWorker", () => {
         });
         return { postId: "blog_123" };
       },
-    }, projector);
+    });
 
     await worker.runNext({
       workerId: "worker_1",
@@ -190,7 +176,7 @@ describe("DeferredJobWorker", () => {
     const worker = new DeferredJobWorker(repo, {
       draft_content: async () => ({ ok: true }),
       generate_image: async () => ({ assetId: "asset_1" }),
-    }, projector);
+    });
 
     const result = await worker.runNext({
       workerId: "worker_new",
@@ -230,7 +216,7 @@ describe("DeferredJobWorker", () => {
         status: "published",
         publishedAt: "2026-03-25T03:00:02.000Z",
       }),
-    }, projector);
+    });
 
     const result = await worker.runNext({
       workerId: "worker_restarted",
@@ -250,14 +236,7 @@ describe("DeferredJobWorker", () => {
     expect(events.map((event) => event.eventType)).toEqual(["lease_recovered", "started", "result"]);
 
     const messages = await messageRepo.listByConversation("conv_jobs");
-    expect(messages).toHaveLength(1);
-    expect(messages[0]?.parts).toEqual([
-      expect.objectContaining({
-        type: "job_status",
-        jobId: expired.id,
-        status: "succeeded",
-      }),
-    ]);
+    expect(messages).toHaveLength(0);
   });
 
   it("marks the job failed when no handler is registered", async () => {
@@ -268,7 +247,7 @@ describe("DeferredJobWorker", () => {
       requestPayload: {},
     });
 
-    const worker = new DeferredJobWorker(repo, {}, projector);
+    const worker = new DeferredJobWorker(repo, {});
     const result = await worker.runNext({ workerId: "worker_1" });
 
     expect(result.outcome).toBe("failed");
@@ -290,7 +269,7 @@ describe("DeferredJobWorker", () => {
       produce_blog_article: vi.fn(async () => {
         throw new Error("provider offline");
       }),
-    }, projector);
+    });
 
     const result = await worker.runNext({ workerId: "worker_1" });
 
@@ -316,7 +295,7 @@ describe("DeferredJobWorker", () => {
       publish_content: vi.fn(async () => {
         throw new Error("provider timeout");
       }),
-    }, projector);
+    });
 
     const result = await worker.runNext({
       workerId: "worker_retry",
@@ -357,7 +336,7 @@ describe("DeferredJobWorker", () => {
       compose_media: vi.fn(async () => {
         throw new Error("database is locked");
       }),
-    }, projector);
+    });
 
     const result = await worker.runNext({
       workerId: "worker_lock_retry",
@@ -399,7 +378,7 @@ describe("DeferredJobWorker", () => {
       publish_content: vi.fn(async () => {
         throw new Error("temporary upstream failure");
       }),
-    }, projector);
+    });
 
     const result = await worker.runNext({
       workerId: "worker_exhausted",
@@ -444,7 +423,7 @@ describe("DeferredJobWorker", () => {
     const worker = new DeferredJobWorker(repo, {
       publish_content: async () => ({ ok: "delayed" }),
       generate_image: async () => ({ ok: "ready" }),
-    }, projector);
+    });
 
     const firstResult = await worker.runNext({
       workerId: "worker_schedule",
@@ -460,7 +439,7 @@ describe("DeferredJobWorker", () => {
   });
 
   it("returns idle when no queued jobs are available", async () => {
-    const worker = new DeferredJobWorker(repo, {}, projector);
+    const worker = new DeferredJobWorker(repo, {});
     const result = await worker.runNext({ workerId: "worker_1" });
 
     expect(result.outcome).toBe("idle");
@@ -480,7 +459,7 @@ describe("DeferredJobWorker", () => {
         await repo.cancelJob(job.id, "2026-03-25T03:00:01.000Z");
         return { postId: "blog_123" };
       },
-    }, projector);
+    });
 
     const result = await worker.runNext({ workerId: "worker_1" });
 
@@ -517,7 +496,7 @@ describe("DeferredJobWorker", () => {
 
         return { postId: "blog_123" };
       },
-    }, projector);
+    });
 
     const run = worker.runNext({ workerId: "worker_cancel" });
     await new Promise((resolve) => setTimeout(resolve, 50));
@@ -545,7 +524,6 @@ describe("DeferredJobWorker", () => {
       {
         draft_content: async () => ({ postId: "blog_123" }),
       },
-      projector,
       {
         notify: vi.fn(async () => ({
           status: "sent" as const,
@@ -582,7 +560,6 @@ describe("DeferredJobWorker", () => {
       {
         draft_content: async () => ({ postId: "blog_123" }),
       },
-      projector,
       {
         notify: vi.fn(async () => ({
           status: "failed" as const,

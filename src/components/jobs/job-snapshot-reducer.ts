@@ -1,8 +1,7 @@
 import type { StreamEvent } from "@/core/entities/chat-stream";
 import type { JobStatusMessagePart } from "@/core/entities/message-parts";
 import type { JobHistoryEntry } from "@/lib/jobs/job-event-history";
-import { getJobMessageId } from "@/lib/jobs/job-status";
-import type { JobStatusSnapshot } from "@/lib/jobs/job-read-model";
+import type { CanonicalJobSnapshot } from "@/lib/jobs/job-read-model";
 import type { UserJobsWorkspaceData } from "@/lib/jobs/load-user-jobs-workspace";
 import { sortUserJobSnapshots } from "@/lib/jobs/user-jobs-workspace";
 
@@ -30,21 +29,21 @@ function toTimestamp(value: string | undefined): number {
   return Number.isNaN(parsed) ? Number.NEGATIVE_INFINITY : parsed;
 }
 
-function compareSnapshotFreshness(left: JobStatusSnapshot, right: JobStatusSnapshot): number {
-  const leftSequence = left.part.sequence ?? -1;
-  const rightSequence = right.part.sequence ?? -1;
+function compareSnapshotFreshness(left: CanonicalJobSnapshot, right: CanonicalJobSnapshot): number {
+  const leftSequence = left.sequence ?? -1;
+  const rightSequence = right.sequence ?? -1;
 
   if (leftSequence !== rightSequence) {
     return leftSequence - rightSequence;
   }
 
-  return toTimestamp(left.part.updatedAt) - toTimestamp(right.part.updatedAt);
+  return toTimestamp(left.updatedAt) - toTimestamp(right.updatedAt);
 }
 
 function pickFresherSnapshot(
-  current: JobStatusSnapshot | null,
-  incoming: JobStatusSnapshot | null,
-): JobStatusSnapshot | null {
+  current: CanonicalJobSnapshot | null,
+  incoming: CanonicalJobSnapshot | null,
+): CanonicalJobSnapshot | null {
   if (!current) {
     return incoming;
   }
@@ -56,7 +55,7 @@ function pickFresherSnapshot(
   return compareSnapshotFreshness(current, incoming) > 0 ? current : incoming;
 }
 
-function mapStreamEventStatus(event: JobsWorkspaceStreamEvent): JobStatusSnapshot["part"]["status"] {
+function mapStreamEventStatus(event: JobsWorkspaceStreamEvent): CanonicalJobSnapshot["status"] {
   switch (event.type) {
     case "job_queued":
       return "queued";
@@ -115,11 +114,52 @@ function buildJobPartFromStreamEvent(event: JobsWorkspaceStreamEvent): JobStatus
   };
 }
 
-export function buildJobSnapshotFromStreamEvent(event: JobsWorkspaceStreamEvent): JobStatusSnapshot {
+export function buildJobSnapshotFromStreamEvent(event: JobsWorkspaceStreamEvent): CanonicalJobSnapshot {
+  const part = buildJobPartFromStreamEvent(event);
+
   return {
-    messageId: event.messageId ?? getJobMessageId(event.jobId),
+    jobId: event.jobId,
     conversationId: event.conversationId,
-    part: buildJobPartFromStreamEvent(event),
+    userId: null,
+    toolName: part.toolName,
+    label: part.label,
+    title: part.title,
+    subtitle: part.subtitle,
+    status: part.status,
+    sequence: part.sequence ?? event.sequence,
+    progressPercent: part.progressPercent,
+    progressLabel: part.progressLabel,
+    summary: part.summary,
+    error: part.error,
+    createdAt: event.updatedAt ?? new Date().toISOString(),
+    startedAt: null,
+    completedAt: part.status === "succeeded" || part.status === "failed" || part.status === "canceled"
+      ? event.updatedAt ?? null
+      : null,
+    updatedAt: event.updatedAt ?? new Date().toISOString(),
+    origin: {
+      ...(event.messageId ? { originMessageId: event.messageId } : {}),
+      ...(part.toolInvocationId ? { toolInvocationId: part.toolInvocationId } : {}),
+      fallback: event.messageId ? "explicit_origin" : part.toolInvocationId ? "tool_invocation" : "job_created_at",
+    },
+    inputSnapshot: {},
+    resultPayload: part.resultPayload,
+    resultEnvelope: part.resultEnvelope ?? null,
+    artifactRefs: part.resultEnvelope?.artifacts ?? [],
+    materializationRefs: [],
+    ownership: {
+      userId: null,
+      visibility: "anonymous_session",
+      initiatorType: "user",
+    },
+    failure: {
+      failureClass: part.failureClass ?? null,
+      recoveryMode: part.recoveryMode ?? null,
+      nextRetryAt: part.nextRetryAt ?? null,
+      lastCheckpointId: part.lastCheckpointId ?? null,
+      replayedFromJobId: part.replayedFromJobId ?? null,
+      supersededByJobId: part.supersededByJobId ?? null,
+    },
   };
 }
 
@@ -136,26 +176,45 @@ export function buildJobHistoryEntryFromStreamEvent(event: JobsWorkspaceStreamEv
 }
 
 export function buildOptimisticJobHistoryEntry(
-  snapshot: JobStatusSnapshot,
+  snapshot: CanonicalJobSnapshot,
   eventType: JobHistoryEntry["eventType"],
   sequence?: number,
 ): JobHistoryEntry {
   return {
-    id: `${snapshot.part.jobId}_${sequence ?? snapshot.part.sequence ?? "optimistic"}`,
-    jobId: snapshot.part.jobId,
+    id: `${snapshot.jobId}_${sequence ?? snapshot.sequence ?? "optimistic"}`,
+    jobId: snapshot.jobId,
     conversationId: snapshot.conversationId ?? "",
-    sequence: sequence ?? snapshot.part.sequence ?? 0,
+    sequence: sequence ?? snapshot.sequence ?? 0,
     eventType,
-    createdAt: snapshot.part.updatedAt ?? new Date().toISOString(),
+    createdAt: snapshot.updatedAt ?? new Date().toISOString(),
     part: {
-      ...snapshot.part,
-      sequence: sequence ?? snapshot.part.sequence,
+      type: "job_status",
+      jobId: snapshot.jobId,
+      toolName: snapshot.toolName,
+      label: snapshot.label,
+      title: snapshot.title,
+      subtitle: snapshot.subtitle,
+      status: snapshot.status,
+      progressPercent: snapshot.progressPercent,
+      progressLabel: snapshot.progressLabel,
+      summary: snapshot.summary,
+      error: snapshot.error,
+      updatedAt: snapshot.updatedAt,
+      resultPayload: snapshot.resultPayload,
+      resultEnvelope: snapshot.resultEnvelope ?? undefined,
+      failureClass: snapshot.failure.failureClass,
+      recoveryMode: snapshot.failure.recoveryMode,
+      nextRetryAt: snapshot.failure.nextRetryAt,
+      lastCheckpointId: snapshot.failure.lastCheckpointId,
+      replayedFromJobId: snapshot.failure.replayedFromJobId,
+      supersededByJobId: snapshot.failure.supersededByJobId,
+      sequence: sequence ?? snapshot.sequence,
     },
   };
 }
 
-function upsertJobSnapshot(jobs: JobStatusSnapshot[], nextSnapshot: JobStatusSnapshot): JobStatusSnapshot[] {
-  const index = jobs.findIndex((job) => job.part.jobId === nextSnapshot.part.jobId);
+function upsertJobSnapshot(jobs: CanonicalJobSnapshot[], nextSnapshot: CanonicalJobSnapshot): CanonicalJobSnapshot[] {
+  const index = jobs.findIndex((job) => job.jobId === nextSnapshot.jobId);
   if (index === -1) {
     return sortUserJobSnapshots([nextSnapshot, ...jobs]);
   }
@@ -185,6 +244,7 @@ function mergeJobHistoryEntry(history: JobHistoryEntry[], nextEntry: JobHistoryE
 
 export function createJobsWorkspaceState(data: UserJobsWorkspaceData): JobsWorkspaceState {
   return {
+    workflows: data.workflows ?? [],
     jobs: sortUserJobSnapshots(data.jobs),
     selectedJobId: data.selectedJobId,
     selectedJob: data.selectedJob,
@@ -218,6 +278,7 @@ export function replaceJobsWorkspaceState(
   }
 
   return {
+    workflows: nextState.workflows ?? currentState.workflows,
     jobs,
     selectedJobId,
     selectedJob,
@@ -232,12 +293,12 @@ export function selectJobsWorkspaceJob(
   jobId: string,
   selectedJobHistory: JobHistoryEntry[] = [],
 ): JobsWorkspaceState {
-  const selectedJob = state.jobs.find((job) => job.part.jobId === jobId) ?? state.selectedJob;
+  const selectedJob = state.jobs.find((job) => job.jobId === jobId) ?? state.selectedJob;
 
   return {
     ...state,
     selectedJobId: jobId,
-    selectedJob: selectedJob?.part.jobId === jobId ? selectedJob : null,
+    selectedJob: selectedJob?.jobId === jobId ? selectedJob : null,
     selectedJobHistory: [...selectedJobHistory].sort((left, right) => left.sequence - right.sequence),
   };
 }
@@ -245,7 +306,7 @@ export function selectJobsWorkspaceJob(
 export function reconcileSelectedJobsWorkspaceJob(
   state: JobsWorkspaceState,
   jobId: string,
-  selectedJob: JobStatusSnapshot | null,
+  selectedJob: CanonicalJobSnapshot | null,
   selectedJobHistory: JobHistoryEntry[],
 ): JobsWorkspaceState {
   const currentSelected = state.selectedJobId === jobId ? state.selectedJob : null;
@@ -265,6 +326,7 @@ export function reconcileSelectedJobsWorkspaceJob(
   }
 
   return {
+    ...state,
     jobs,
     selectedJobId: jobId,
     selectedJob: freshestSelected,
@@ -279,7 +341,7 @@ export function applyJobsWorkspaceEvent(
   const snapshot = buildJobSnapshotFromStreamEvent(event);
   const jobs = upsertJobSnapshot(state.jobs, snapshot);
 
-  if (state.selectedJobId !== snapshot.part.jobId) {
+  if (state.selectedJobId !== snapshot.jobId) {
     return {
       ...state,
       jobs,
@@ -287,6 +349,7 @@ export function applyJobsWorkspaceEvent(
   }
 
   return {
+    ...state,
     jobs,
     selectedJobId: state.selectedJobId,
     selectedJob: pickFresherSnapshot(state.selectedJob, snapshot),
@@ -299,14 +362,14 @@ export function applyJobsWorkspaceEvent(
 
 export function applyOptimisticJobSnapshot(
   state: JobsWorkspaceState,
-  snapshot: JobStatusSnapshot,
+  snapshot: CanonicalJobSnapshot,
   options?: {
     selectJob?: boolean;
     optimisticHistoryEntry?: JobHistoryEntry;
   },
 ): JobsWorkspaceState {
   const jobs = upsertJobSnapshot(state.jobs, snapshot);
-  const selectJob = options?.selectJob ?? state.selectedJobId === snapshot.part.jobId;
+  const selectJob = options?.selectJob ?? state.selectedJobId === snapshot.jobId;
 
   if (!selectJob) {
     return {
@@ -316,8 +379,9 @@ export function applyOptimisticJobSnapshot(
   }
 
   return {
+    ...state,
     jobs,
-    selectedJobId: snapshot.part.jobId,
+    selectedJobId: snapshot.jobId,
     selectedJob: snapshot,
     selectedJobHistory: options?.optimisticHistoryEntry
       ? mergeJobHistoryEntry(state.selectedJobHistory, options.optimisticHistoryEntry)
@@ -328,8 +392,8 @@ export function applyOptimisticJobSnapshot(
 export function getJobsWorkspaceMaxSequence(state: JobsWorkspaceState): number {
   return Math.max(
     0,
-    ...state.jobs.map((job) => job.part.sequence ?? 0),
+    ...state.jobs.map((job) => job.sequence ?? 0),
     ...state.selectedJobHistory.map((entry) => entry.sequence),
-    state.selectedJob?.part.sequence ?? 0,
+    state.selectedJob?.sequence ?? 0,
   );
 }

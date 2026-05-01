@@ -98,6 +98,7 @@ describe("AudioPlayer", () => {
   });
 
   it("handles fetch errors", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -111,6 +112,7 @@ describe("AudioPlayer", () => {
     await waitFor(() => {
       expect(screen.getByText(/Failed to stream audio/i)).toBeInTheDocument();
     });
+    consoleErrorSpy.mockRestore();
   });
 
   it("shows estimated duration in subtitle while loading", () => {

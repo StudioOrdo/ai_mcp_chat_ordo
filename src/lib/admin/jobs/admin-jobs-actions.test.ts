@@ -17,7 +17,6 @@ const {
   findActiveJobByDedupeKeyMock,
   updateJobStatusMock,
   getDescriptorMock,
-  projectMock,
 } = vi.hoisted(() => ({
   runAdminActionMock: vi.fn(async (formData: FormData, handler: (user: typeof ADMIN_USER, formData: FormData) => Promise<unknown>) =>
     handler(ADMIN_USER, formData)),
@@ -29,7 +28,6 @@ const {
   findActiveJobByDedupeKeyMock: vi.fn(),
   updateJobStatusMock: vi.fn(),
   getDescriptorMock: vi.fn(),
-  projectMock: vi.fn(),
 }));
 
 // Phase 7 Mock Density Exception: This file tests a complex composition root or integration pipeline and legitimately requires extensive boundary mocking for external services (auth, db, observability, etc.).
@@ -59,12 +57,6 @@ vi.mock("@/lib/chat/tool-composition-root", () => ({
   }),
 }));
 
-vi.mock("@/lib/jobs/deferred-job-projector-root", () => ({
-  createDeferredJobConversationProjector: () => ({
-    project: projectMock,
-  }),
-}));
-
 import {
   bulkCancelJobsAction,
   bulkRequeueJobsAction,
@@ -89,7 +81,6 @@ describe("admin job actions", () => {
     findActiveJobByDedupeKeyMock.mockResolvedValue(null);
     updateJobStatusMock.mockResolvedValue({ id: "job_failed" });
     getDescriptorMock.mockReturnValue(undefined);
-    projectMock.mockResolvedValue(undefined);
   });
 
   it("cancels a single job and revalidates the admin jobs page", async () => {
@@ -131,7 +122,7 @@ describe("admin job actions", () => {
       toolName: "produce_blog_article",
       status: "failed",
       priority: 100,
-      dedupeKey: "brief_1",
+      dedupeKey: "conv_1:produce_blog_article:{\"brief\":\"Roadmap\"}",
       initiatorType: "user",
       requestPayload: { brief: "Roadmap" },
     });
@@ -145,7 +136,7 @@ describe("admin job actions", () => {
       userId: "usr_1",
       toolName: "produce_blog_article",
       priority: 100,
-      dedupeKey: "brief_1",
+      dedupeKey: "conv_1:produce_blog_article:{\"brief\":\"Roadmap\"}",
       initiatorType: "user",
       recoveryMode: "rerun",
       replayedFromJobId: "job_failed",
@@ -171,7 +162,7 @@ describe("admin job actions", () => {
       toolName: "publish_content",
       status: "running",
       priority: 80,
-      dedupeKey: null,
+      dedupeKey: "conv_4:produce_blog_article:{\"brief\":\"One\"}",
       initiatorType: "user",
       requestPayload: { post_id: "post_1" },
     });
@@ -190,7 +181,7 @@ describe("admin job actions", () => {
       toolName: "publish_content",
       status: "running",
       priority: 80,
-      dedupeKey: null,
+      dedupeKey: "conv_4:produce_blog_article:{\"brief\":\"One\"}",
       initiatorType: "user",
       requestPayload: { post_id: "post_1" },
       claimedBy: "worker_1",
@@ -220,7 +211,6 @@ describe("admin job actions", () => {
         requestedByUserId: "admin_1",
       }),
     }));
-    expect(projectMock).toHaveBeenCalled();
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/jobs/job_running");
   });
 
@@ -282,7 +272,7 @@ describe("admin job actions", () => {
       userId: "usr_4",
       toolName: "produce_blog_article",
       priority: 50,
-      dedupeKey: null,
+      dedupeKey: "conv_4:produce_blog_article:{\"brief\":\"One\"}",
       initiatorType: "user",
       recoveryMode: "rerun",
       replayedFromJobId: "job_4",
@@ -293,7 +283,7 @@ describe("admin job actions", () => {
       userId: "usr_5",
       toolName: "publish_content",
       priority: 40,
-      dedupeKey: null,
+      dedupeKey: "conv_5:publish_content:{\"post_id\":\"post_5\"}",
       initiatorType: "user",
       recoveryMode: "rerun",
       replayedFromJobId: "job_5",

@@ -100,6 +100,67 @@ describe("SQLite stores", () => {
     expect(store.getBySourceId("ux/ch2")).toHaveLength(1);
   });
 
+  it("keeps FTS keyword rows synchronized with embedding upserts and deletes", () => {
+    const store = new SQLiteVectorStore(db);
+    store.upsert([
+      makeRecord({
+        id: "book_chunk:ux/ch1:0",
+        sourceId: "ux/ch1",
+        heading: "Principles",
+        content: "Functional design depends on clear hierarchy.",
+      }),
+      makeRecord({
+        id: "book_chunk:ux/ch2:0",
+        sourceId: "ux/ch2",
+        heading: "Research",
+        content: "Interview synthesis reveals customer language.",
+      }),
+    ]);
+
+    expect(store.searchKeyword({
+      rawQuery: "hierarchy",
+      terms: ["hierarchy"],
+      filters: { sourceType: "book_chunk", chunkLevel: "passage" },
+      limit: 5,
+    })).toEqual([
+      expect.objectContaining({ id: "book_chunk:ux/ch1:0", rank: 1 }),
+    ]);
+
+    store.delete("ux/ch1");
+
+    expect(store.searchKeyword({
+      rawQuery: "hierarchy",
+      terms: ["hierarchy"],
+      filters: { sourceType: "book_chunk", chunkLevel: "passage" },
+      limit: 5,
+    })).toEqual([]);
+  });
+
+  it("returns bounded vector candidates and hydrates only requested ids in rank order", () => {
+    const store = new SQLiteVectorStore(db);
+    store.upsert([
+      makeRecord({ id: "book_chunk:ux/ch1:0", embedding: new Float32Array([1, 0, 0]) }),
+      makeRecord({ id: "book_chunk:ux/ch1:1", chunkIndex: 1, embedding: new Float32Array([0.8, 0.2, 0]) }),
+      makeRecord({ id: "book_chunk:ux/ch1:2", chunkIndex: 2, embedding: new Float32Array([0, 1, 0]) }),
+    ]);
+
+    const candidates = store.searchSimilar({
+      embedding: new Float32Array([1, 0, 0]),
+      filters: { sourceType: "book_chunk", chunkLevel: "passage" },
+      limit: 2,
+    });
+
+    expect(candidates).toEqual([
+      expect.objectContaining({ id: "book_chunk:ux/ch1:0", rank: 1 }),
+      expect.objectContaining({ id: "book_chunk:ux/ch1:1", rank: 2 }),
+    ]);
+
+    expect(store.hydrateByIds(candidates.map((candidate) => candidate.id)).map((record) => record.id)).toEqual([
+      "book_chunk:ux/ch1:0",
+      "book_chunk:ux/ch1:1",
+    ]);
+  });
+
   // TEST-VS-21: SQLiteVectorStore.getContentHash() returns stored hash
   it("getContentHash returns stored hash", () => {
     const store = new SQLiteVectorStore(db);

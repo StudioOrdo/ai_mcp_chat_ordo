@@ -6,9 +6,10 @@ import {
   createRouteRequest,
 } from "../../../../tests/helpers/workflow-route-fixture";
 
-const { getSessionUserMock, listUserJobInteractionsMock } = vi.hoisted(() => ({
+const { getSessionUserMock, listUserJobInteractionsMock, listUserWorkflowsMock } = vi.hoisted(() => ({
   getSessionUserMock: vi.fn(),
   listUserJobInteractionsMock: vi.fn(),
+  listUserWorkflowsMock: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -16,6 +17,9 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 vi.mock("@/adapters/RepositoryFactory", () => ({
+  getMediaWorkflowReadModel: () => ({
+    listUserWorkflows: listUserWorkflowsMock,
+  }),
   getPlatformInteractionFacade: () => ({
     listUserJobInteractions: listUserJobInteractionsMock,
   }),
@@ -24,6 +28,7 @@ vi.mock("@/adapters/RepositoryFactory", () => ({
 describe("GET /api/jobs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    listUserWorkflowsMock.mockResolvedValue([]);
   });
 
   it("returns 401 for anonymous callers", async () => {
@@ -63,6 +68,7 @@ describe("GET /api/jobs", () => {
       statuses: ["queued", "running"],
       limit: 5,
     });
+    expect(payload.workflows).toEqual([]);
     expect(payload.jobs[0].part).toMatchObject({
       jobId: "job_1",
       status: "running",

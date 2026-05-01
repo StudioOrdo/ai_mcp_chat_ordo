@@ -5,7 +5,6 @@ import type {
   MediaCompositionAssetIdentityCandidate,
 } from "@/lib/media/ffmpeg/media-composition-plan";
 import { buildMediaCompositionCanonicalizationOptionsFromChatMessages } from "@/lib/media/media-composition-asset-identity";
-import { extractJobStatusSnapshots } from "@/lib/jobs/job-status-snapshots";
 import { resolveGenerateChartPayload } from "@/core/use-cases/tools/chart-payload";
 import {
   resolveGenerateGraphPayload,
@@ -30,35 +29,14 @@ export type BrowserRuntimeStoredPayloadFields = {
 export type ResolvedChartRuntimePayload = ReturnType<typeof resolveGenerateChartPayload> & BrowserRuntimeStoredPayloadFields;
 export type ResolvedGraphRuntimePayload = ResolvedGraphPayload & BrowserRuntimeStoredPayloadFields;
 
-export type GenerateAudioRuntimePayload = {
-  action: "generate_audio";
-  title: string;
-  text: string;
-  assetId: string | null;
-  provider: string;
-  generationStatus: "client_fetch_pending" | "cached_asset";
-  estimatedDurationSeconds: number;
-  estimatedGenerationSeconds: number;
-  toolInvocationId?: string;
-};
-
 export interface AssetResolutionIndex {
   getChartPayloadByAssetId(assetId: string): ResolvedChartRuntimePayload | null;
   getGraphPayloadByAssetId(assetId: string): ResolvedGraphRuntimePayload | null;
-  getAudioPayloadByAssetId(assetId: string): GenerateAudioRuntimePayload | null;
   listCandidates(): readonly MediaCompositionAssetIdentityCandidate[];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
-}
-
-export function isGenerateAudioPayload(value: unknown): value is GenerateAudioRuntimePayload {
-  return typeof value === "object"
-    && value !== null
-    && (value as { action?: unknown }).action === "generate_audio"
-    && typeof (value as { text?: unknown }).text === "string"
-    && typeof (value as { title?: unknown }).title === "string";
 }
 
 function isResolvedGraphRuntimePayload(value: unknown): value is ResolvedGraphRuntimePayload {
@@ -132,16 +110,9 @@ export function resolveGraphRuntimePayload(
   };
 }
 
-function getSnapshotPayload(result: unknown): unknown {
-  const snapshots = extractJobStatusSnapshots(result);
-  const snapshot = snapshots.at(-1)?.part;
-  return snapshot?.resultEnvelope?.payload ?? snapshot?.resultPayload ?? result;
-}
-
 export function buildAssetResolutionIndex(messages: readonly ChatMessage[]): AssetResolutionIndex {
   const charts = new Map<string, ResolvedChartRuntimePayload>();
   const graphs = new Map<string, ResolvedGraphRuntimePayload>();
-  const audios = new Map<string, GenerateAudioRuntimePayload>();
   const candidates = buildMediaCompositionCanonicalizationOptionsFromChatMessages(messages).assetCandidates ?? [];
 
   for (const message of messages) {
@@ -150,7 +121,7 @@ export function buildAssetResolutionIndex(messages: readonly ChatMessage[]): Ass
         continue;
       }
 
-      const payload = getSnapshotPayload(part.result);
+      const payload = part.result;
 
       if (part.name === "generate_chart") {
         try {
@@ -176,16 +147,15 @@ export function buildAssetResolutionIndex(messages: readonly ChatMessage[]): Ass
         continue;
       }
 
-      if (part.name === "generate_audio" && isGenerateAudioPayload(payload) && payload.assetId) {
-        audios.set(payload.assetId, payload);
-      }
+      // Audio generation is canonical job state after the hard cutover. Direct
+      // historical transcript payloads remain transcript facts, not product
+      // composition inputs.
     }
   }
 
   return {
     getChartPayloadByAssetId: (assetId) => charts.get(assetId) ?? null,
     getGraphPayloadByAssetId: (assetId) => graphs.get(assetId) ?? null,
-    getAudioPayloadByAssetId: (assetId) => audios.get(assetId) ?? null,
     listCandidates: () => candidates,
   };
 }

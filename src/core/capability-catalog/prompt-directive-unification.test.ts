@@ -45,6 +45,7 @@ describe("Sprint 13 — Prompt Directive Unification", () => {
       // Should not contain any tool-specific strings
       expect(source).not.toContain("compose_media");
       expect(source).not.toContain("admin_web_search");
+      expect(source).not.toContain("search_relationship_memory");
       expect(source).not.toContain("search_my_conversations");
       expect(source).not.toContain("admin_prioritize_leads");
       expect(source).not.toContain("corpus_list");
@@ -103,21 +104,28 @@ describe("Sprint 13 — Prompt Directive Unification", () => {
       expect(directive).toContain("list_conversation_media_assets");
     });
 
+    it("AUTHENTICATED gets search_relationship_memory directive from catalog", () => {
+      const directive = assembleRoleDirective("AUTHENTICATED");
+      expect(directive).toContain("search_relationship_memory");
+    });
+
     it("AUTHENTICATED gets search_my_conversations directive from catalog", () => {
       const directive = assembleRoleDirective("AUTHENTICATED");
       expect(directive).toContain("search_my_conversations");
     });
 
-    it("APPRENTICE gets compose_media + search_my_conversations from catalog", () => {
+    it("APPRENTICE gets compose_media + conversation retrieval directives from catalog", () => {
       const directive = assembleRoleDirective("APPRENTICE");
       expect(directive).toContain("compose_media");
+      expect(directive).toContain("search_relationship_memory");
       expect(directive).toContain("search_my_conversations");
       expect(directive).toContain("list_conversation_media_assets");
     });
 
-    it("STAFF gets compose_media + search_my_conversations from catalog", () => {
+    it("STAFF gets compose_media + conversation retrieval directives from catalog", () => {
       const directive = assembleRoleDirective("STAFF");
       expect(directive).toContain("compose_media");
+      expect(directive).toContain("search_relationship_memory");
       expect(directive).toContain("search_my_conversations");
       expect(directive).toContain("list_conversation_media_assets");
     });
@@ -154,6 +162,26 @@ describe("Sprint 13 — Prompt Directive Unification", () => {
       const directive = assembleRoleDirective("ADMIN");
       expect(directive).toContain("list_deferred_jobs");
       expect(directive).toContain("get_deferred_job_status");
+    });
+
+    it("ADMIN gets no repeated status wait-loop guidance", () => {
+      const directive = assembleRoleDirective("ADMIN");
+      expect(directive).toContain("do not repeatedly poll unchanged job status as a waiting loop");
+      expect(directive).toContain("job events and reconciliation");
+    });
+
+    it("signed-in roles get no repeated status wait-loop guidance", () => {
+      for (const role of ["AUTHENTICATED", "APPRENTICE", "STAFF"] as RoleName[]) {
+        const directive = assembleRoleDirective(role);
+        expect(directive).toContain("do not repeatedly poll unchanged job status as a waiting loop");
+        expect(directive).toContain("job events plus reconciliation");
+      }
+    });
+
+    it("anonymous job status guidance stays chat-native without /jobs routing", () => {
+      const directive = assembleRoleDirective("ANONYMOUS");
+      expect(directive).toContain("keep the answer chat-native");
+      expect(directive).toContain("Do not send them to /jobs");
     });
 
     it("every catalog promptHint line appears in at least one directive", () => {
@@ -221,25 +249,37 @@ describe("Sprint 13 — Prompt Directive Unification", () => {
   // Catalog promptHint count
   // ─────────────────────────────────────────────────────────────────────────
   describe("Catalog promptHint coverage", () => {
-    it("catalog has 19 entries with promptHint facets", () => {
+    function expectPromptHintsByRole(toolName: string) {
+      const runtimeStatic = projectCapabilityRuntimeStaticByName(toolName);
+      expect(runtimeStatic).toBeDefined();
+      expect(runtimeStatic?.promptHintsByRole).not.toBeNull();
+      return runtimeStatic?.promptHintsByRole ?? {};
+    }
+
+    it("catalog has 24 entries with promptHint facets", () => {
       const count = projectAllCapabilityRuntimeStatics().filter(
         (runtime) => runtime.promptHintsByRole !== null,
       ).length;
-      expect(count).toBe(21);
+      expect(count).toBe(24);
     });
 
     it("compose_media has promptHint for 4 roles", () => {
-      const hint = projectCapabilityRuntimeStaticByName("compose_media")!.promptHintsByRole!;
+      const hint = expectPromptHintsByRole("compose_media");
+      expect(Object.keys(hint)).toHaveLength(4);
+    });
+
+    it("search_relationship_memory has promptHint for 4 roles", () => {
+      const hint = expectPromptHintsByRole("search_relationship_memory");
       expect(Object.keys(hint)).toHaveLength(4);
     });
 
     it("search_my_conversations has promptHint for 4 roles", () => {
-      const hint = projectCapabilityRuntimeStaticByName("search_my_conversations")!.promptHintsByRole!;
+      const hint = expectPromptHintsByRole("search_my_conversations");
       expect(Object.keys(hint)).toHaveLength(4);
     });
 
     it("admin_web_search has promptHint for 1 role", () => {
-      const hint = projectCapabilityRuntimeStaticByName("admin_web_search")!.promptHintsByRole!;
+      const hint = expectPromptHintsByRole("admin_web_search");
       expect(Object.keys(hint)).toHaveLength(1);
     });
   });

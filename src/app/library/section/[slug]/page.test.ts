@@ -95,4 +95,20 @@ describe("library section resolver route", () => {
       LibrarySectionResolverPage({ params: Promise.resolve({ slug: "the-magician" }) }),
     ).rejects.toThrow("redirect:/library/archetype-atlas/ch06-the-magician");
   });
+
+  it("redirects legacy corpus action aliases to the canonical chapter route", async () => {
+    getViewerRoleMock.mockResolvedValue("AUTHENTICATED");
+    getCorpusIndexMock.mockResolvedValue([
+      {
+        bookSlug: "field-guide",
+        bookTitle: "The Field Guide",
+        chapterSlug: "ch07-the-outlaw-sage",
+        chapterTitle: "The Outlaw-Sage",
+      },
+    ]);
+
+    await expect(
+      LibrarySectionResolverPage({ params: Promise.resolve({ slug: "the-outlaw" }) }),
+    ).rejects.toThrow("redirect:/library/field-guide/ch07-the-outlaw-sage");
+  });
 });

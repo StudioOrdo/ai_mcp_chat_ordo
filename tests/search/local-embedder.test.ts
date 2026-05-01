@@ -4,14 +4,32 @@
  * LocalEmbedder requires native ONNX Runtime which needs the real Node.js
  * Float32Array (not jsdom's). This file uses node environment.
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { localEmbedder } from "@/adapters/LocalEmbedder";
 
 describe("LocalEmbedder (real ONNX model)", () => {
   const embedder = localEmbedder;
 
+  async function withSuppressedDefaultDtypeWarning<T>(operation: () => Promise<T>): Promise<T> {
+    const originalWarn = console.warn.bind(console);
+    const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation((message?: unknown, ...args: unknown[]) => {
+      if (typeof message === "string" && message.includes('dtype not specified for "model"')) {
+        return;
+      }
+      originalWarn(message, ...args);
+    });
+
+    try {
+      return await operation();
+    } finally {
+      consoleWarnSpy.mockRestore();
+    }
+  }
+
   it("embed() returns 384-dimensional Float32Array", async () => {
-    const vec = await embedder.embed("test embedding text");
+    const vec = await withSuppressedDefaultDtypeWarning(() =>
+      embedder.embed("test embedding text"),
+    );
 
     expect(vec).toBeInstanceOf(Float32Array);
     expect(vec.length).toBe(384);

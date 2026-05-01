@@ -1,6 +1,7 @@
 {
   "name": "studio-ordo",
   "version": "0.1.0",
+  "license": "AGPL-3.0-only",
   "private": true,
   "scripts": {
     "prestart": "npm run validate:env",
@@ -56,12 +57,10 @@
     "qa:unification": "tsx scripts/run-unification-qa.ts",
     "qa:session-value-baseline": "tsx scripts/run-session-value-baseline.ts",
     "qa:runtime-integrity": "tsx scripts/run-runtime-integrity-qa.ts",
-    "qa:phase-7": "tsx scripts/run-phase-7-media-evals.ts",
-    "qa:phase-11-tool-invocation": "tsx scripts/run-phase-11-tool-invocation-qa.ts",
+    "qa:conversation-refactor": "tsx scripts/run-conversation-refactor-qa.ts",
     "qa:phase-8-media": "vitest run src/core/capability-catalog/capability-ownership.test.ts src/lib/media/server/media-worker-client.test.ts src/frameworks/ui/RichContentRenderer.test.tsx src/frameworks/ui/chat/ToolPluginPartRenderer.test.tsx src/core/capability-catalog/registry-convergence.test.ts src/lib/chat/registry-sync.test.ts",
     "qa:roles": "vitest run tests/core-policy.test.ts tests/tool-registry.integration.test.ts tests/customer-workflow-evals.test.ts src/app/dashboard/page.test.tsx",
     "typecheck": "tsc --noEmit",
-    "verify": "npm run lint && npm run typecheck && npm run test",
     "lint:strict": "eslint --max-warnings 0",
     "quality": "npm run typecheck && npm run lint:strict && npm run lint:css && npm run spacing:audit && npm run test",
     "browser:verify": "npm run test:browser-ui && npm run test:homepage-shell",

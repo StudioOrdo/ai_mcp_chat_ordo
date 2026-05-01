@@ -23,6 +23,11 @@ const mockJobQueueDataMapper = vi.hoisted(() => ({
   createJob: vi.fn(),
 }));
 
+const mockPlatformInteractionFacade = vi.hoisted(() => ({
+  listJobInteractionsForAdmin: vi.fn(),
+  getJobInteraction: vi.fn(),
+}));
+
 const { notFoundMock } = vi.hoisted(() => ({
   notFoundMock: vi.fn(() => {
     throw new Error("notFound");
@@ -31,6 +36,7 @@ const { notFoundMock } = vi.hoisted(() => ({
 
 vi.mock("@/adapters/RepositoryFactory", () => ({
   getJobQueueDataMapper: () => mockJobQueueDataMapper,
+  getPlatformInteractionFacade: () => mockPlatformInteractionFacade,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -70,6 +76,11 @@ describe("JobQueueDataMapper admin methods", () => {
 describe("job list loader", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockPlatformInteractionFacade.getJobInteraction.mockImplementation(async (jobId: string) => ({
+      timeline: { state: "active", supportLevel: "full", summary: null, events: [], artifacts: [], nextActions: [] },
+      revision: { state: "unavailable", supportLevel: "none", summary: null, actions: [] },
+      snapshot: { part: { jobId } },
+    }));
     mockJobQueueDataMapper.countForAdmin.mockResolvedValue(2);
     mockJobQueueDataMapper.countByStatus.mockResolvedValue({ queued: 1, running: 1 });
     mockJobQueueDataMapper.countByToolName.mockResolvedValue({ produce_blog_article: 2 });
@@ -127,6 +138,11 @@ describe("job list loader", () => {
 describe("job detail loader", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockPlatformInteractionFacade.getJobInteraction.mockResolvedValue({
+      timeline: { state: "active", supportLevel: "full", summary: null, events: [], artifacts: [], nextActions: [] },
+      revision: { state: "unavailable", supportLevel: "none", summary: null, actions: [] },
+      snapshot: { part: { jobId: "job_1" } },
+    });
   });
 
   it("returns detail view model for existing job", async () => {

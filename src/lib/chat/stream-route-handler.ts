@@ -20,6 +20,7 @@ import { logDegradation } from "@/lib/observability/logger";
 import { REASON_CODES } from "@/lib/observability/reason-codes";
 import { getAgentPlatformFacade } from "@/lib/platform/agent-platform-facade-root";
 import { recordPromptTurnProvenance } from "@/lib/prompts/prompt-provenance-service";
+import { recordPromptBinding } from "@/lib/prompts/prompt-binding-service";
 import { getReferralLedgerService } from "@/lib/referrals/referral-ledger";
 
 import type { ChatStreamPipeline } from "@/lib/chat/stream-pipeline";
@@ -103,7 +104,7 @@ export async function executeChatStreamRoute(options: {
     await getReferralLedgerService().getTrustedReferrerContext(conversationId),
   );
 
-  const { interactor, routingAnalyzer, summarizationInteractor } = services;
+  const { interactor, routingAnalyzer, summarizationInteractor, relationshipMemoryReader } = services;
 
   const attachmentsAssigned = await options.pipeline.assignAttachments(
     userId,
@@ -146,6 +147,7 @@ export async function executeChatStreamRoute(options: {
       builder,
       interactor,
       routingAnalyzer,
+      relationshipMemoryReader,
       conversationId,
       userId,
       incomingMessages,
@@ -224,6 +226,7 @@ export async function executeChatStreamRoute(options: {
   }
   const promptReplayContext = getPromptAssemblyReplayContext(builder);
   let promptProvenanceRecord = null;
+  let rootPromptBinding = null;
 
   if (userMessagePersistence.messageId && promptReplayContext) {
     try {
@@ -243,10 +246,67 @@ export async function executeChatStreamRoute(options: {
     }
   }
 
+  if (promptProvenanceRecord && userMessagePersistence.messageId) {
+    const userMessageId = userMessagePersistence.messageId;
+    try {
+      rootPromptBinding = await recordPromptBinding({
+        userId,
+        conversationId,
+        surface: "chat_stream",
+        target: {
+          targetKind: "message",
+          targetId: userMessageId,
+        },
+        promptRuntime: finalPromptRuntimeResult,
+        decisionSourceRefs: [
+          {
+            sourceKind: "conversation",
+            sourceId: conversationId,
+            userId,
+            conversationId,
+          },
+          {
+            sourceKind: "message",
+            sourceId: userMessageId,
+            userId,
+            conversationId,
+          },
+          {
+            sourceKind: "prompt_provenance",
+            sourceId: promptProvenanceRecord.id,
+            userId,
+            conversationId,
+          },
+        ],
+        evidenceRefs: [
+          {
+            source: {
+              sourceKind: "prompt_provenance",
+              sourceId: promptProvenanceRecord.id,
+              userId,
+              conversationId,
+            },
+            observedAt: promptProvenanceRecord.recordedAt,
+            summary: "Chat stream prompt runtime captured for the triggering user turn.",
+          },
+        ],
+        createdAt: promptProvenanceRecord.recordedAt,
+      });
+    } catch (error) {
+      logDegradation(
+        REASON_CODES.UNKNOWN_ROUTE_ERROR,
+        "Prompt binding recording failed",
+        { conversationId, promptProvenanceId: promptProvenanceRecord.id },
+        error,
+      );
+    }
+  }
+
   const execContext: ToolExecutionContext = {
     role,
     userId,
     conversationId,
+    promptBindingId: rootPromptBinding?.id,
     promptRuntime: finalPromptRuntimeResult,
     allowedToolNames: toolSelection.allowedToolNames,
     conversationLane: preparation.routingSnapshot.lane,
@@ -284,5 +344,6 @@ export async function executeChatStreamRoute(options: {
     requestSignal: options.request.signal,
     latestAttachments: incomingAttachments,
     promptProvenanceRecordId: promptProvenanceRecord?.id ?? null,
+    promptBindingId: rootPromptBinding?.id ?? null,
   });
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { JobHistoryEntry } from "@/lib/jobs/job-event-history";
-import type { JobStatusSnapshot } from "@/lib/jobs/job-read-model";
+import type { CanonicalJobSnapshot } from "@/lib/jobs/job-read-model";
 
 import {
   reconcileSelectedJobsWorkspaceJob,
@@ -9,21 +9,35 @@ import {
   type JobsWorkspaceState,
 } from "@/components/jobs/job-snapshot-reducer";
 
-function makeSnapshot(overrides: Partial<JobStatusSnapshot["part"]> = {}): JobStatusSnapshot {
+function makeSnapshot(overrides: Partial<CanonicalJobSnapshot> = {}): CanonicalJobSnapshot {
   return {
-    messageId: `jobmsg_${overrides.jobId ?? "job_1"}`,
+    jobId: "job_1",
     conversationId: "conv_jobs",
-    part: {
-      type: "job_status",
-      jobId: "job_1",
-      toolName: "produce_blog_article",
-      label: "Produce Blog Article",
-      status: "running",
-      sequence: 10,
-      progressLabel: "Reviewing article",
-      updatedAt: "2026-03-30T09:10:00.000Z",
-      ...overrides,
+    userId: null,
+    toolName: "produce_blog_article",
+    label: "Produce Blog Article",
+    status: "running",
+    sequence: 10,
+    progressLabel: "Reviewing article",
+    createdAt: "2026-03-30T09:00:00.000Z",
+    startedAt: null,
+    completedAt: null,
+    updatedAt: "2026-03-30T09:10:00.000Z",
+    origin: { fallback: "job_created_at" },
+    inputSnapshot: {},
+    resultEnvelope: null,
+    artifactRefs: [],
+    materializationRefs: [],
+    ownership: { userId: null, visibility: "anonymous_session", initiatorType: "user" },
+    failure: {
+      failureClass: null,
+      recoveryMode: null,
+      nextRetryAt: null,
+      lastCheckpointId: null,
+      replayedFromJobId: null,
+      supersededByJobId: null,
     },
+    ...overrides,
   };
 }
 
@@ -67,8 +81,8 @@ describe("job-snapshot-reducer", () => {
 
     const merged = replaceJobsWorkspaceState(current, nextState);
 
-    expect(merged.jobs[0]?.part.sequence).toBe(10);
-    expect(merged.selectedJob?.part.progressLabel).toBe("Reviewing article");
+    expect(merged.jobs[0]?.sequence).toBe(10);
+    expect(merged.selectedJob?.progressLabel).toBe("Reviewing article");
     expect(merged.selectedJobHistory.map((entry) => entry.sequence)).toEqual([4, 10]);
   });
 
@@ -82,8 +96,8 @@ describe("job-snapshot-reducer", () => {
       [makeHistoryEntry(8)],
     );
 
-    expect(merged.selectedJob?.part.sequence).toBe(10);
-    expect(merged.selectedJob?.part.progressLabel).toBe("Reviewing article");
+    expect(merged.selectedJob?.sequence).toBe(10);
+    expect(merged.selectedJob?.progressLabel).toBe("Reviewing article");
     expect(merged.selectedJobHistory.map((entry) => entry.sequence)).toEqual([8, 10]);
   });
 });

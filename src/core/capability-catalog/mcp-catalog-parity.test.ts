@@ -55,6 +55,10 @@ describe("MCP catalog parity", () => {
 
   describe("shared module consumption", () => {
     const serverSource = fs.readFileSync(path.join(MCP_DIR, "operations-server.ts"), "utf-8");
+    const adapterRegistrySource = fs.readFileSync(
+      path.join(PROJECT_ROOT, "src/lib/capabilities/mcp-export-adapter-registry.ts"),
+      "utf-8",
+    );
     const adminWebSearchSource = fs.readFileSync(
       path.join(PROJECT_ROOT, "src/core/use-cases/tools/admin-web-search.tool.ts"),
       "utf-8",
@@ -65,21 +69,28 @@ describe("MCP catalog parity", () => {
         const moduleFile = `${tool.sharedModule.split("/").pop()!}.ts`;
         const sharedModulePath = path.join(SHARED_CAPABILITIES_DIR, moduleFile);
         const isImportedByServer = serverSource.includes(tool.sharedModule.replace("src/", "@/"));
+        const isImportedByAdapterRegistry = adapterRegistrySource.includes(tool.sharedModule);
         const srcToolImportsIt = adminWebSearchSource.includes("@/lib/capabilities/shared/web-search-tool");
 
         expect(
-          fs.existsSync(sharedModulePath) && (isImportedByServer || srcToolImportsIt),
-          `Shared module "${tool.sharedModule}" must be imported by the MCP server or an src/ consumer`,
+          fs.existsSync(sharedModulePath) && (isImportedByServer || isImportedByAdapterRegistry || srcToolImportsIt),
+          `Shared module "${tool.sharedModule}" must be imported by the MCP server, adapter registry, or an src/ consumer`,
         ).toBe(true);
       }
     });
 
-    it("the operations-server.ts registers operations tools via schema factories", () => {
+    it("the operations-server.ts keeps transport-only tools explicit", () => {
       expect(serverSource).toContain("getEmbeddingToolSchemas");
       expect(serverSource).toContain("getCorpusToolSchemas");
       expect(serverSource).toContain("getPromptToolSchemas");
       expect(serverSource).toContain("getAnalyticsToolSchemas");
-      expect(serverSource).toContain("getAdminIntelligenceToolSchemas");
+      expect(serverSource).not.toContain("getAdminIntelligenceToolSchemas");
+    });
+
+    it("the operations-server.ts resolves catalog-owned MCP tools through an adapter registry", () => {
+      expect(serverSource).toContain("createCatalogMcpToolEntries");
+      expect(adapterRegistrySource).toContain("CATALOG_MCP_ADAPTERS");
+      expect(adapterRegistrySource).toContain("Missing MCP adapter for catalog export");
     });
   });
 });

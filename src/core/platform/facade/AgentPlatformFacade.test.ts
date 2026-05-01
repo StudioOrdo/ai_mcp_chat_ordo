@@ -9,11 +9,11 @@ function createDeps(): AgentPlatformFacadeDeps {
     knowledgeAccess: {
       searchKnowledge: vi.fn(async () => ({
         query: "launch",
-        retrievalQuality: "strong",
+        retrievalQuality: "strong" as const,
         citations: [],
         evidence: [],
         prefetchedSections: [],
-        followUp: "cite_results",
+        followUp: "cite_results" as const,
       })),
     },
     executionTimelineReader: {
@@ -32,7 +32,7 @@ function createDeps(): AgentPlatformFacadeDeps {
     revisionRuntime: {
       reviseExecution: vi.fn(async () => ({
         accepted: true,
-        status: "queued",
+        status: "queued" as const,
         message: "queued",
         nextExecutionId: "job_2",
       })),

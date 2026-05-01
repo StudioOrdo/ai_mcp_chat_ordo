@@ -153,7 +153,6 @@ vi.mock("@/adapters/RepositoryFactory", () => ({
 
 vi.mock("@/lib/jobs/deferred-job-result", () => ({
   createDeferredJobResultPayload: vi.fn(),
-  deferredJobResultToMessagePart: vi.fn(),
   deferredJobResultToStreamEvent: vi.fn(),
   isDeferredJobResultPayload: vi.fn(() => false),
 }));
@@ -163,7 +162,6 @@ vi.mock("@/lib/jobs/job-dedupe", () => ({
 }));
 
 vi.mock("@/lib/jobs/job-status-snapshots", () => ({
-  extractJobStatusSnapshots: vi.fn(() => []),
   jobStatusSnapshotToStreamEvent: vi.fn(),
 }));
 
