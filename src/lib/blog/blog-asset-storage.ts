@@ -1,4 +1,5 @@
 import path from "node:path";
+import { getDataRootPath } from "@/lib/user-files";
 
 const BLOG_ASSET_ROOT_ENV = "STUDIO_ORDO_BLOG_ASSET_ROOT";
 
@@ -6,7 +7,7 @@ export function getBlogAssetRoot(): string {
   const configuredRoot = process.env[BLOG_ASSET_ROOT_ENV]?.trim();
 
   if (!configuredRoot) {
-    return path.resolve(process.cwd(), ".data", "blog-assets");
+    return path.join(getDataRootPath(), "blog-assets");
   }
 
   return path.resolve(process.cwd(), configuredRoot);

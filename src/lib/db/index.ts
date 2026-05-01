@@ -13,7 +13,12 @@ function resolveDbPath(): string {
       : path.resolve(process.cwd(), configuredPath);
   }
 
-  return path.join(process.cwd(), ".data", "local.db");
+  const configuredDataDir = process.env.DATA_DIR?.trim();
+  const dataDir = configuredDataDir
+    ? path.resolve(process.cwd(), configuredDataDir)
+    : path.join(process.cwd(), ".data");
+
+  return path.join(dataDir, "local.db");
 }
 
 export function getDb(): Database.Database {

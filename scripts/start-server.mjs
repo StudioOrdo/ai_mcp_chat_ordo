@@ -21,10 +21,10 @@ if (!process.env.__NEXT_PRIVATE_STANDALONE_CONFIG && existsSync(requiredServerFi
 
 // ── Instance lock ────────────────────────────────────────────────────────────
 
-const dataDir = process.env.DATA_DIR ?? ".data";
+const dataDir = resolve(process.env.DATA_DIR ?? ".data");
 const lockFile = join(dataDir, ".server.lock");
 
-mkdirSync(dataDir, { recursive: true });
+ensureWritableDirectory(dataDir, "DATA_DIR");
 
 if (existsSync(lockFile)) {
   const existing = readFileSync(lockFile, "utf-8").trim();
@@ -61,14 +61,35 @@ function isProcessRunning(pidValue) {
   }
 }
 
+function ensureWritableDirectory(dir, label) {
+  mkdirSync(dir, { recursive: true });
+
+  const probePath = join(dir, `.write-probe-${process.pid}`);
+  try {
+    writeFileSync(probePath, "ok", "utf-8");
+    unlinkSync(probePath);
+  } catch (error) {
+    console.error(`[startup] ${label} is not writable at ${dir}`, error);
+    process.exit(1);
+  }
+}
+
 const port = Number.parseInt(process.env.PORT ?? "3000", 10);
 const hostname = process.env.HOSTNAME ?? "0.0.0.0";
 const shutdownTimeoutMs = Number.parseInt(process.env.SHUTDOWN_TIMEOUT_MS ?? "10000", 10);
 const workerEnabled = process.env.DISABLE_DEFERRED_JOB_WORKER !== "1";
+const externalMediaWorkerUrl = process.env.MEDIA_WORKER_URL?.trim();
+const mediaWorkerEnabled = process.env.DISABLE_MEDIA_WORKER !== "1" && !externalMediaWorkerUrl;
+const mediaWorkerPort = Number.parseInt(process.env.MEDIA_WORKER_PORT ?? "3101", 10);
+
+if (mediaWorkerEnabled) {
+  process.env.MEDIA_WORKER_URL = `http://127.0.0.1:${mediaWorkerPort}`;
+}
 
 const app = next({ dev: false, hostname, port });
 const handle = app.getRequestHandler();
 const tsxCli = resolve("node_modules", "tsx", "dist", "cli.mjs");
+let shuttingDown = false;
 
 // ── Worker restart-with-backoff ──────────────────────────────────────────────
 
@@ -77,6 +98,10 @@ const RESTART_WINDOW_MS = 60_000;
 
 let workerRestarts = [];
 let workerHealthy = !workerEnabled;
+let mediaWorkerRestarts = [];
+let mediaWorkerHealthy = !mediaWorkerEnabled;
+let mediaWorkerProcess = null;
+let workerProcess = null;
 
 function spawnWorker() {
   const worker = spawn(process.execPath, [tsxCli, "scripts/process-deferred-jobs.ts"], {
@@ -123,17 +148,55 @@ function spawnWorker() {
   return worker;
 }
 
-let workerProcess = workerEnabled ? spawnWorker() : null;
+function spawnMediaWorker() {
+  const worker = spawn(process.execPath, [tsxCli, "scripts/media-worker-server.ts"], {
+    stdio: ["ignore", "pipe", "pipe"],
+    env: {
+      ...process.env,
+      MEDIA_WORKER_PORT: String(mediaWorkerPort),
+    },
+  });
 
-if (workerEnabled) {
-  workerHealthy = true;
+  worker.stdout.on("data", (data) => {
+    process.stdout.write(`[media-worker] ${data}`);
+  });
+  worker.stderr.on("data", (data) => {
+    process.stderr.write(`[media-worker] ${data}`);
+  });
+
+  worker.on("exit", (code, signal) => {
+    if (shuttingDown) return;
+
+    mediaWorkerHealthy = false;
+
+    const now = Date.now();
+    mediaWorkerRestarts = mediaWorkerRestarts.filter((t) => now - t < RESTART_WINDOW_MS);
+    mediaWorkerRestarts.push(now);
+
+    if (mediaWorkerRestarts.length > MAX_WORKER_RESTARTS) {
+      console.error(
+        `[media-worker] crashed ${MAX_WORKER_RESTARTS + 1} times in ${RESTART_WINDOW_MS / 1000}s — shutting down`,
+        { code, signal },
+      );
+      shutdown("SIGTERM");
+      return;
+    }
+
+    console.warn(
+      `[media-worker] exited unexpectedly — restarting (${mediaWorkerRestarts.length}/${MAX_WORKER_RESTARTS})`,
+      { code, signal },
+    );
+    mediaWorkerProcess = spawnMediaWorker();
+    mediaWorkerHealthy = true;
+  });
+
+  return worker;
 }
 
 // ── Server setup ─────────────────────────────────────────────────────────────
 
 await app.prepare();
 
-let shuttingDown = false;
 const sockets = new Set();
 
 async function waitForChildExit(child, timeoutMs = shutdownTimeoutMs) {
@@ -185,8 +248,13 @@ function shutdown(signal) {
     workerProcess.kill(signal);
   }
 
+  if (mediaWorkerProcess && !mediaWorkerProcess.killed) {
+    mediaWorkerProcess.kill(signal);
+  }
+
   server.close(async () => {
     await waitForChildExit(workerProcess);
+    await waitForChildExit(mediaWorkerProcess);
     console.info("[shutdown] server closed cleanly");
     process.exit(0);
   });
@@ -200,10 +268,21 @@ function shutdown(signal) {
   }, shutdownTimeoutMs).unref();
 }
 
+mediaWorkerProcess = mediaWorkerEnabled ? spawnMediaWorker() : null;
+workerProcess = workerEnabled ? spawnWorker() : null;
+
+if (workerEnabled) {
+  workerHealthy = true;
+}
+
+if (mediaWorkerEnabled) {
+  mediaWorkerHealthy = true;
+}
+
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));
 
-export { workerHealthy, MAX_WORKER_RESTARTS, RESTART_WINDOW_MS };
+export { workerHealthy, mediaWorkerHealthy, MAX_WORKER_RESTARTS, RESTART_WINDOW_MS };
 
 server.listen(port, hostname, () => {
   console.info(`server listening on http://${hostname}:${port}`);

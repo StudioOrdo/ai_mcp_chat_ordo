@@ -1,6 +1,7 @@
 # ── Stage 1: install dependencies ────────────────────────────────────
 FROM node:22-alpine AS deps
 WORKDIR /app
+RUN apk add --no-cache python3 make g++
 COPY package*.json ./
 RUN npm ci
 
@@ -20,11 +21,15 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
+ENV DATA_DIR=/app/.data
+ENV STUDIO_ORDO_DB_PATH=/app/.data/local.db
+ENV STUDIO_ORDO_BLOG_ASSET_ROOT=/app/.data/blog-assets
+ENV MEDIA_WORKER_PORT=3101
+
+RUN apk add --no-cache ffmpeg
 
 RUN addgroup --system --gid 1001 nodejs \
  && adduser --system --uid 1001 nextjs
-
-RUN mkdir -p /app/.data && chown -R nextjs:nodejs /app
 
 # Copy the production build, runtime scripts, and source needed by the deferred worker.
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
@@ -39,6 +44,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/config ./config
 COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
 COPY --from=builder --chown=nextjs:nodejs /app/mcp ./mcp
 COPY --from=builder --chown=nextjs:nodejs /app/src ./src
+
+RUN mkdir -p /app/.data /app/.runtime-logs /app/.next/cache/images \
+ && chown -R nextjs:nodejs /app/.data /app/.runtime-logs /app/.next/cache
+
+VOLUME ["/app/.data"]
 
 USER nextjs
 EXPOSE 3000

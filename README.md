@@ -70,7 +70,7 @@ At runtime, the default local stack is:
 - Media worker on port `3101` for server-side media execution.
 - Optional MCP server processes for selected exported capabilities.
 
-In development, `npm run dev` starts the app, deferred job worker, and media worker together. In production, `scripts/start-server.mjs` starts the Next server and supervises the deferred job worker. Docker Compose runs the app and media worker as separate services.
+In development, `npm run dev` starts the app, deferred job worker, and media worker together. In production, `scripts/start-server.mjs` starts the Next server, supervises the deferred job worker, and starts an internal media worker when `MEDIA_WORKER_URL` is not configured. Docker Compose runs the app and media worker as separate services.
 
 ### Source Layout
 
@@ -279,7 +279,38 @@ npm run build
 npm run start
 ```
 
-`npm run start` runs the production server through `scripts/start-server.mjs`, which also supervises the deferred job worker unless `DISABLE_DEFERRED_JOB_WORKER=1` is set.
+`npm run start` runs the production server through `scripts/start-server.mjs`, which also supervises the deferred job worker unless `DISABLE_DEFERRED_JOB_WORKER=1` is set. It starts the in-process container media worker unless `MEDIA_WORKER_URL` points at an external worker or `DISABLE_MEDIA_WORKER=1` is set.
+
+### Docker Quick Start
+
+The published Docker image is multi-architecture for `linux/amd64` and `linux/arm64`.
+
+```bash
+docker run -p 80:3000 kaw393939/studioordo
+```
+
+Open:
+
+```text
+http://localhost/install
+```
+
+The image declares `/app/.data` as the writable runtime volume. Docker creates an anonymous volume for the one-command run above. Use a named volume when you want durable local state across container replacements:
+
+```bash
+docker volume create studioordo-data
+docker run -p 80:3000 -v studioordo-data:/app/.data kaw393939/studioordo
+```
+
+The single-container image starts the web server, deferred job worker, and media worker. API keys can be entered through the install flow or passed as environment variables:
+
+```bash
+docker run -p 80:3000 \
+  -v studioordo-data:/app/.data \
+  -e ANTHROPIC_API_KEY=your_key_here \
+  -e OPENAI_API_KEY=your_key_here \
+  kaw393939/studioordo
+```
 
 ### Docker Compose
 
