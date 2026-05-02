@@ -6,17 +6,30 @@ function makeRequest(path: string, cookie?: string): NextRequest {
   const url = new URL(path, "http://localhost:3000");
   const headers = new Headers();
   if (cookie) {
-    headers.set("cookie", `lms_session_token=${cookie}`);
+    headers.set("cookie", cookie);
   }
   return new NextRequest(url, { headers });
 }
 
 describe("Edge proxy", () => {
   it("redirects legacy referral links to the canonical referral route", () => {
-    const res = proxy(makeRequest("/?ref=mentor-42&utm_source=qr"));
+    const res = proxy(makeRequest("/?ref=mentor-42&utm_source=qr", "ordo_installed=1"));
 
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toBe("http://localhost:3000/r/mentor-42?utm_source=qr");
+  });
+
+  it("redirects first-boot page requests to install when install cookie is missing", () => {
+    const res = proxy(makeRequest("/"));
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toBe("http://localhost:3000/install");
+  });
+
+  it("allows the install page, install APIs, and health APIs before setup", () => {
+    expect(proxy(makeRequest("/install")).status).toBe(200);
+    expect(proxy(makeRequest("/api/install/check")).status).toBe(200);
+    expect(proxy(makeRequest("/api/health/live")).status).toBe(200);
   });
 
   it("passes public auth routes without cookie", () => {
@@ -73,12 +86,12 @@ describe("Edge proxy", () => {
   });
 
   it("passes protected routes when cookie is present", () => {
-    const res = proxy(makeRequest("/api/auth/me", "some-token"));
+    const res = proxy(makeRequest("/api/auth/me", "lms_session_token=some-token"));
     expect(res.status).toBe(200);
   });
 
-  it("passes page routes without cookie", () => {
-    const res = proxy(makeRequest("/login"));
+  it("passes page routes after the browser has the install cookie", () => {
+    const res = proxy(makeRequest("/login", "ordo_installed=1"));
     expect(res.status).toBe(200);
   });
 

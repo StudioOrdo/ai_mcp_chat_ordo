@@ -6,6 +6,7 @@ import { LEGACY_REFERRAL_COOKIE_NAME } from "@/lib/referrals/referral-visit";
 import { createRequestId } from "@/lib/observability/logger";
 
 const SESSION_COOKIE = "lms_session_token";
+const INSTALL_COOKIE = "ordo_installed";
 const BASE_SECURITY_HEADERS = {
   "Content-Security-Policy": "frame-ancestors 'none'",
   "Permissions-Policy": "camera=(), geolocation=(), microphone=()",
@@ -18,6 +19,35 @@ const ANONYMOUS_CONVERSATION_ROUTES = new Set([
   "/api/conversations/active",
   "/api/conversations/active/archive",
 ]);
+
+const INSTALL_API_PREFIX = "/api/install";
+
+function isStaticAssetPath(pathname: string): boolean {
+  return pathname.startsWith("/_next/")
+    || pathname === "/favicon.ico"
+    || pathname === "/icon.png"
+    || pathname === "/apple-icon.png"
+    || pathname === "/robots.txt"
+    || pathname === "/sitemap.xml"
+    || /\.[a-zA-Z0-9]+$/.test(pathname);
+}
+
+function isInstallBypassPath(pathname: string): boolean {
+  return pathname === "/install"
+    || pathname.startsWith(INSTALL_API_PREFIX)
+    || pathname.startsWith("/api/health/")
+    || isStaticAssetPath(pathname);
+}
+
+function shouldRedirectToInstall(request: NextRequest): boolean {
+  const { pathname } = request.nextUrl;
+
+  if (pathname.startsWith("/api/") || isInstallBypassPath(pathname)) {
+    return false;
+  }
+
+  return request.cookies.get(INSTALL_COOKIE)?.value !== "1";
+}
 
 /**
  * Routes that require a session cookie to be present.
@@ -95,6 +125,10 @@ export function proxy(request: NextRequest) {
     const legacyReferralRedirect = captureReferral(request);
     if (legacyReferralRedirect) {
       return applyHeaders(legacyReferralRedirect);
+    }
+
+    if (shouldRedirectToInstall(request)) {
+      return applyHeaders(NextResponse.redirect(new URL("/install", request.url)));
     }
 
     return applyHeaders(NextResponse.next());

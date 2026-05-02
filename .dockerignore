@@ -2,9 +2,16 @@ node_modules
 .next
 coverage
 .data
+.runtime-logs
+.playwright-data
+playwright-report
+test-results
 .git
 .gitignore
 npm-debug.log*
+*.log
+*.jsonl
+*.tsbuildinfo
 .env
 .env.*
 !.env.example

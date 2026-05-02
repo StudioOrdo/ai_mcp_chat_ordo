@@ -6,7 +6,7 @@ function makeRequest(path: string, cookie?: string): NextRequest {
   const url = new URL(path, "http://localhost:3000");
   const headers = new Headers();
   if (cookie) {
-    headers.set("cookie", `lms_session_token=${cookie}`);
+    headers.set("cookie", cookie);
   }
   return new NextRequest(url, { headers });
 }
@@ -66,12 +66,19 @@ describe("Edge proxy", () => {
   });
 
   it("passes protected routes when cookie is present", () => {
-    const res = proxy(makeRequest("/api/auth/me", "some-token"));
+    const res = proxy(makeRequest("/api/auth/me", "lms_session_token=some-token"));
     expect(res.status).toBe(200);
   });
 
-  it("passes page routes without cookie", () => {
+  it("redirects first-boot page routes to install without the install cookie", () => {
     const res = proxy(makeRequest("/login"));
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toBe("http://localhost:3000/install");
+  });
+
+  it("passes page routes after the browser has the install cookie", () => {
+    const res = proxy(makeRequest("/login", "ordo_installed=1"));
     expect(res.status).toBe(200);
   });
 });

@@ -29,6 +29,11 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+tests-output.log
+
+# runtime/operational logs
+.runtime-logs/
+*.jsonl
 
 # env files
 .env
@@ -64,7 +69,7 @@ lighthouse-*.json
 lint_results.txt
 
 # Playwright artifacts
-/\.playwright-data/
+.playwright-data/
 /playwright-report/
 /test-results/
 
