@@ -1,0 +1,751 @@
+2026-05-01T19:37:03.3831650Z Current runner version: '2.334.0'
+2026-05-01T19:37:03.3859961Z ##[group]Runner Image Provisioner
+2026-05-01T19:37:03.3860746Z Hosted Compute Agent
+2026-05-01T19:37:03.3861412Z Version: 20260213.493
+2026-05-01T19:37:03.3862297Z Commit: 5c115507f6dd24b8de37d8bbe0bb4509d0cc0fa3
+2026-05-01T19:37:03.3863009Z Build Date: 2026-02-13T00:28:41Z
+2026-05-01T19:37:03.3863670Z Worker ID: {a71542a3-00c6-40cb-9341-9ecf1e6a4b7e}
+2026-05-01T19:37:03.3864384Z Azure Region: eastus2
+2026-05-01T19:37:03.3864900Z ##[endgroup]
+2026-05-01T19:37:03.3866317Z ##[group]Operating System
+2026-05-01T19:37:03.3866931Z Ubuntu
+2026-05-01T19:37:03.3867379Z 24.04.4
+2026-05-01T19:37:03.3867883Z LTS
+2026-05-01T19:37:03.3868336Z ##[endgroup]
+2026-05-01T19:37:03.3868882Z ##[group]Runner Image
+2026-05-01T19:37:03.3869372Z Image: ubuntu-24.04
+2026-05-01T19:37:03.3869966Z Version: 20260413.86.1
+2026-05-01T19:37:03.3871128Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260413.86/images/ubuntu/Ubuntu2404-Readme.md
+2026-05-01T19:37:03.3872897Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260413.86
+2026-05-01T19:37:03.3873863Z ##[endgroup]
+2026-05-01T19:37:03.3874895Z ##[group]GITHUB_TOKEN Permissions
+2026-05-01T19:37:03.3876699Z Contents: read
+2026-05-01T19:37:03.3877198Z Metadata: read
+2026-05-01T19:37:03.3877807Z ##[endgroup]
+2026-05-01T19:37:03.3879768Z Secret source: Actions
+2026-05-01T19:37:03.3880406Z Prepare workflow directory
+2026-05-01T19:37:03.4449714Z Prepare all required actions
+2026-05-01T19:37:03.4499965Z Getting action download info
+2026-05-01T19:37:03.7715092Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+2026-05-01T19:37:03.8772243Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+2026-05-01T19:37:04.1142852Z Complete job name: quality
+2026-05-01T19:37:04.1810980Z ##[group]Run actions/checkout@v4
+2026-05-01T19:37:04.1811945Z with:
+2026-05-01T19:37:04.1812348Z   repository: kaw393939/ai_mcp_chat_ordo
+2026-05-01T19:37:04.1813053Z   token: ***
+2026-05-01T19:37:04.1813441Z   ssh-strict: true
+2026-05-01T19:37:04.1813825Z   ssh-user: git
+2026-05-01T19:37:04.1814216Z   persist-credentials: true
+2026-05-01T19:37:04.1814647Z   clean: true
+2026-05-01T19:37:04.1815038Z   sparse-checkout-cone-mode: true
+2026-05-01T19:37:04.1815501Z   fetch-depth: 1
+2026-05-01T19:37:04.1815880Z   fetch-tags: false
+2026-05-01T19:37:04.1816274Z   show-progress: true
+2026-05-01T19:37:04.1816666Z   lfs: false
+2026-05-01T19:37:04.1817021Z   submodules: false
+2026-05-01T19:37:04.1817410Z   set-safe-directory: true
+2026-05-01T19:37:04.1818001Z env:
+2026-05-01T19:37:04.1818367Z   DOCKER_IMAGE: kaw393939/studioordo
+2026-05-01T19:37:04.1818842Z ##[endgroup]
+2026-05-01T19:37:04.2928194Z Syncing repository: kaw393939/ai_mcp_chat_ordo
+2026-05-01T19:37:04.2929963Z ##[group]Getting Git version info
+2026-05-01T19:37:04.2930704Z Working directory is '/home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo'
+2026-05-01T19:37:04.2932081Z [command]/usr/bin/git version
+2026-05-01T19:37:04.2969853Z git version 2.53.0
+2026-05-01T19:37:04.2993805Z ##[endgroup]
+2026-05-01T19:37:04.3007165Z Temporarily overriding HOME='/home/runner/work/_temp/292edd22-345b-43a0-a483-bc8f6217799d' before making global git config changes
+2026-05-01T19:37:04.3008494Z Adding repository directory to the temporary git global config as a safe directory
+2026-05-01T19:37:04.3019813Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo
+2026-05-01T19:37:04.3051191Z Deleting the contents of '/home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo'
+2026-05-01T19:37:04.3054905Z ##[group]Initializing the repository
+2026-05-01T19:37:04.3059075Z [command]/usr/bin/git init /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo
+2026-05-01T19:37:04.3118298Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-05-01T19:37:04.3119764Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-05-01T19:37:04.3122003Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-05-01T19:37:04.3123096Z hint: call:
+2026-05-01T19:37:04.3123643Z hint:
+2026-05-01T19:37:04.3124331Z hint: 	git config --global init.defaultBranch <name>
+2026-05-01T19:37:04.3125240Z hint:
+2026-05-01T19:37:04.3126092Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-05-01T19:37:04.3127470Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-05-01T19:37:04.3128561Z hint:
+2026-05-01T19:37:04.3129117Z hint: 	git branch -m <name>
+2026-05-01T19:37:04.3129777Z hint:
+2026-05-01T19:37:04.3130671Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-05-01T19:37:04.3132557Z Initialized empty Git repository in /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/.git/
+2026-05-01T19:37:04.3135123Z [command]/usr/bin/git remote add origin https://github.com/kaw393939/ai_mcp_chat_ordo
+2026-05-01T19:37:04.3163121Z ##[endgroup]
+2026-05-01T19:37:04.3164263Z ##[group]Disabling automatic garbage collection
+2026-05-01T19:37:04.3168405Z [command]/usr/bin/git config --local gc.auto 0
+2026-05-01T19:37:04.3197580Z ##[endgroup]
+2026-05-01T19:37:04.3198566Z ##[group]Setting up auth
+2026-05-01T19:37:04.3205097Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-05-01T19:37:04.3239331Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-05-01T19:37:04.3526384Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-05-01T19:37:04.3560925Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-05-01T19:37:04.3807349Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-05-01T19:37:04.3843283Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-05-01T19:37:04.4089885Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-05-01T19:37:04.4126915Z ##[endgroup]
+2026-05-01T19:37:04.4127983Z ##[group]Fetching the repository
+2026-05-01T19:37:04.4137451Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +a1bb4a8cbcc78eb7905eef3bdf05c68843a5bc95:refs/remotes/origin/main
+2026-05-01T19:37:10.1441281Z From https://github.com/kaw393939/ai_mcp_chat_ordo
+2026-05-01T19:37:10.1443314Z  * [new ref]         a1bb4a8cbcc78eb7905eef3bdf05c68843a5bc95 -> origin/main
+2026-05-01T19:37:10.1472300Z ##[endgroup]
+2026-05-01T19:37:10.1473414Z ##[group]Determining the checkout info
+2026-05-01T19:37:10.1475186Z ##[endgroup]
+2026-05-01T19:37:10.1480950Z [command]/usr/bin/git sparse-checkout disable
+2026-05-01T19:37:10.1520674Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-05-01T19:37:10.1550078Z ##[group]Checking out the ref
+2026-05-01T19:37:10.1554681Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-05-01T19:37:11.3102329Z Updating files:  45% (1789/3931)
+2026-05-01T19:37:11.5601265Z Updating files:  46% (1809/3931)
+2026-05-01T19:37:11.8137087Z Updating files:  47% (1848/3931)
+2026-05-01T19:37:12.1646265Z Updating files:  48% (1887/3931)
+2026-05-01T19:37:12.5705788Z Updating files:  49% (1927/3931)
+2026-05-01T19:37:12.8322741Z Updating files:  50% (1966/3931)
+2026-05-01T19:37:13.0447638Z Updating files:  51% (2005/3931)
+2026-05-01T19:37:13.2130596Z Updating files:  52% (2045/3931)
+2026-05-01T19:37:13.2165125Z Updating files:  52% (2054/3931)
+2026-05-01T19:37:13.2183530Z Updating files:  53% (2084/3931)
+2026-05-01T19:37:13.2208594Z Updating files:  54% (2123/3931)
+2026-05-01T19:37:13.2231956Z Updating files:  55% (2163/3931)
+2026-05-01T19:37:13.2264193Z Updating files:  56% (2202/3931)
+2026-05-01T19:37:13.2309930Z Updating files:  57% (2241/3931)
+2026-05-01T19:37:13.2351716Z Updating files:  58% (2280/3931)
+2026-05-01T19:37:13.2392181Z Updating files:  59% (2320/3931)
+2026-05-01T19:37:13.2433204Z Updating files:  60% (2359/3931)
+2026-05-01T19:37:13.2471005Z Updating files:  61% (2398/3931)
+2026-05-01T19:37:13.2502160Z Updating files:  62% (2438/3931)
+2026-05-01T19:37:13.2539780Z Updating files:  63% (2477/3931)
+2026-05-01T19:37:13.2574727Z Updating files:  64% (2516/3931)
+2026-05-01T19:37:13.2595861Z Updating files:  65% (2556/3931)
+2026-05-01T19:37:13.2622991Z Updating files:  66% (2595/3931)
+2026-05-01T19:37:13.2660040Z Updating files:  67% (2634/3931)
+2026-05-01T19:37:13.2685258Z Updating files:  68% (2674/3931)
+2026-05-01T19:37:13.2708983Z Updating files:  69% (2713/3931)
+2026-05-01T19:37:13.2733610Z Updating files:  70% (2752/3931)
+2026-05-01T19:37:13.2757887Z Updating files:  71% (2792/3931)
+2026-05-01T19:37:13.2790260Z Updating files:  72% (2831/3931)
+2026-05-01T19:37:13.2822862Z Updating files:  73% (2870/3931)
+2026-05-01T19:37:13.2845508Z Updating files:  74% (2909/3931)
+2026-05-01T19:37:13.2864390Z Updating files:  75% (2949/3931)
+2026-05-01T19:37:13.2886532Z Updating files:  76% (2988/3931)
+2026-05-01T19:37:13.2905731Z Updating files:  77% (3027/3931)
+2026-05-01T19:37:13.2929545Z Updating files:  78% (3067/3931)
+2026-05-01T19:37:13.2958581Z Updating files:  79% (3106/3931)
+2026-05-01T19:37:13.2988996Z Updating files:  80% (3145/3931)
+2026-05-01T19:37:13.3014787Z Updating files:  81% (3185/3931)
+2026-05-01T19:37:13.3042650Z Updating files:  82% (3224/3931)
+2026-05-01T19:37:13.3061244Z Updating files:  83% (3263/3931)
+2026-05-01T19:37:13.3088764Z Updating files:  84% (3303/3931)
+2026-05-01T19:37:13.3111388Z Updating files:  85% (3342/3931)
+2026-05-01T19:37:13.3133680Z Updating files:  86% (3381/3931)
+2026-05-01T19:37:13.3153726Z Updating files:  87% (3420/3931)
+2026-05-01T19:37:13.3173363Z Updating files:  88% (3460/3931)
+2026-05-01T19:37:13.3196200Z Updating files:  89% (3499/3931)
+2026-05-01T19:37:13.3217351Z Updating files:  90% (3538/3931)
+2026-05-01T19:37:13.3238873Z Updating files:  91% (3578/3931)
+2026-05-01T19:37:13.3283951Z Updating files:  92% (3617/3931)
+2026-05-01T19:37:13.3311348Z Updating files:  93% (3656/3931)
+2026-05-01T19:37:13.3334663Z Updating files:  94% (3696/3931)
+2026-05-01T19:37:13.3357597Z Updating files:  95% (3735/3931)
+2026-05-01T19:37:13.3382039Z Updating files:  96% (3774/3931)
+2026-05-01T19:37:13.3404095Z Updating files:  97% (3814/3931)
+2026-05-01T19:37:13.3425362Z Updating files:  98% (3853/3931)
+2026-05-01T19:37:13.3452762Z Updating files:  99% (3892/3931)
+2026-05-01T19:37:13.3453443Z Updating files: 100% (3931/3931)
+2026-05-01T19:37:13.3453937Z Updating files: 100% (3931/3931), done.
+2026-05-01T19:37:13.3506207Z Switched to a new branch 'main'
+2026-05-01T19:37:13.3509261Z branch 'main' set up to track 'origin/main'.
+2026-05-01T19:37:13.3602191Z ##[endgroup]
+2026-05-01T19:37:13.3645090Z [command]/usr/bin/git log -1 --format=%H
+2026-05-01T19:37:13.3668761Z a1bb4a8cbcc78eb7905eef3bdf05c68843a5bc95
+2026-05-01T19:37:13.3882067Z ##[group]Run actions/setup-node@v4
+2026-05-01T19:37:13.3882339Z with:
+2026-05-01T19:37:13.3882522Z   node-version: 22
+2026-05-01T19:37:13.3882702Z   cache: npm
+2026-05-01T19:37:13.3882888Z   always-auth: false
+2026-05-01T19:37:13.3883079Z   check-latest: false
+2026-05-01T19:37:13.3883409Z   token: ***
+2026-05-01T19:37:13.3883585Z env:
+2026-05-01T19:37:13.3883753Z   DOCKER_IMAGE: kaw393939/studioordo
+2026-05-01T19:37:13.3883996Z ##[endgroup]
+2026-05-01T19:37:13.5888628Z Found in cache @ /opt/hostedtoolcache/node/22.22.2/x64
+2026-05-01T19:37:13.5894884Z ##[group]Environment details
+2026-05-01T19:37:16.9952310Z node: v22.22.2
+2026-05-01T19:37:16.9952700Z npm: 10.9.7
+2026-05-01T19:37:16.9952981Z yarn: 1.22.22
+2026-05-01T19:37:16.9954532Z ##[endgroup]
+2026-05-01T19:37:16.9973396Z [command]/opt/hostedtoolcache/node/22.22.2/x64/bin/npm config get cache
+2026-05-01T19:37:17.2059901Z /home/runner/.npm
+2026-05-01T19:37:17.3059563Z npm cache is not found
+2026-05-01T19:37:17.3174806Z ##[group]Run npm ci
+2026-05-01T19:37:17.3175074Z [36;1mnpm ci[0m
+2026-05-01T19:37:17.3207239Z shell: /usr/bin/bash -e {0}
+2026-05-01T19:37:17.3207476Z env:
+2026-05-01T19:37:17.3207665Z   DOCKER_IMAGE: kaw393939/studioordo
+2026-05-01T19:37:17.3207914Z ##[endgroup]
+2026-05-01T19:37:21.1519114Z npm warn deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
+2026-05-01T19:37:21.3533067Z npm warn deprecated prebuild-install@7.1.3: No longer maintained. Please contact the author of the relevant native addon; alternatives are available.
+2026-05-01T19:37:22.7267797Z npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+2026-05-01T19:37:22.9737523Z npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-05-01T19:37:24.4266061Z npm warn deprecated boolean@3.2.0: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+2026-05-01T19:37:26.1226153Z npm warn deprecated rimraf@2.7.1: Rimraf versions prior to v4 are no longer supported
+2026-05-01T19:37:44.3903107Z 
+2026-05-01T19:37:44.3903965Z added 1239 packages, and audited 1240 packages in 27s
+2026-05-01T19:37:44.3904473Z 
+2026-05-01T19:37:44.3904931Z 325 packages are looking for funding
+2026-05-01T19:37:44.3905484Z   run `npm fund` for details
+2026-05-01T19:37:44.5035094Z 
+2026-05-01T19:37:44.5036226Z 30 vulnerabilities (7 low, 6 moderate, 16 high, 1 critical)
+2026-05-01T19:37:44.5036936Z 
+2026-05-01T19:37:44.5037632Z To address issues that do not require attention, run:
+2026-05-01T19:37:44.5038380Z   npm audit fix
+2026-05-01T19:37:44.5038736Z 
+2026-05-01T19:37:44.5039256Z To address all issues (including breaking changes), run:
+2026-05-01T19:37:44.5039958Z   npm audit fix --force
+2026-05-01T19:37:44.5040328Z 
+2026-05-01T19:37:44.5040666Z Run `npm audit` for details.
+2026-05-01T19:37:44.5904483Z ##[group]Run npm run lint
+2026-05-01T19:37:44.5904736Z [36;1mnpm run lint[0m
+2026-05-01T19:37:44.5936640Z shell: /usr/bin/bash -e {0}
+2026-05-01T19:37:44.5936870Z env:
+2026-05-01T19:37:44.5937058Z   DOCKER_IMAGE: kaw393939/studioordo
+2026-05-01T19:37:44.5937538Z ##[endgroup]
+2026-05-01T19:37:44.6920641Z 
+2026-05-01T19:37:44.6921078Z > studio-ordo@0.1.0 lint
+2026-05-01T19:37:44.6921632Z > eslint
+2026-05-01T19:37:44.6921802Z 
+2026-05-01T19:38:25.9722930Z 
+2026-05-01T19:38:25.9732924Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/scratch-test-audio.ts
+2026-05-01T19:38:25.9773341Z ##[error]  19:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+2026-05-01T19:38:25.9782568Z 
+2026-05-01T19:38:25.9783242Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/scripts/run-phase-11-tool-invocation-qa.ts
+2026-05-01T19:38:25.9785357Z ##[error]  1:8  error  'fs' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:25.9786580Z 
+2026-05-01T19:38:25.9787183Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/__test-utils__/browser-capability-helpers.ts
+2026-05-01T19:38:25.9789695Z ##[warning]  276:32  warning  `import()` type annotations are forbidden  @typescript-eslint/consistent-type-imports
+2026-05-01T19:38:25.9792118Z ##[warning]  349:35  warning  `import()` type annotations are forbidden  @typescript-eslint/consistent-type-imports
+2026-05-01T19:38:25.9794144Z ##[warning]  369:35  warning  `import()` type annotations are forbidden  @typescript-eslint/consistent-type-imports
+2026-05-01T19:38:25.9795229Z 
+2026-05-01T19:38:25.9795719Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/adapters/ChatPresenter.ts
+2026-05-01T19:38:25.9797968Z ##[error]  29:3  error  'upsertRenderedJobCandidate' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:25.9799322Z 
+2026-05-01T19:38:25.9799839Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/adapters/InMemoryVectorStore.ts
+2026-05-01T19:38:25.9801063Z ##[warning]  56:61  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9802337Z 
+2026-05-01T19:38:25.9803198Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/app/api/admin/factory/work-orders/[workOrderId]/revision/route.test.ts
+2026-05-01T19:38:25.9805392Z ##[warning]  40:47  warning  `import()` type annotations are forbidden  @typescript-eslint/consistent-type-imports
+2026-05-01T19:38:25.9806600Z 
+2026-05-01T19:38:25.9807421Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/app/api/admin/factory/work-orders/[workOrderId]/revision/route.ts
+2026-05-01T19:38:25.9809361Z ##[error]  41:10  error  'parseOptionalRecord' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:25.9810694Z 
+2026-05-01T19:38:25.9811211Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/app/api/jobs/[jobId]/route.test.ts
+2026-05-01T19:38:25.9814424Z ##[error]  11:3  error  'findJobByIdMock' is assigned a value but never used. Allowed unused vars must match /^_/u                      @typescript-eslint/no-unused-vars
+2026-05-01T19:38:25.9817450Z ##[error]  12:3  error  'findLatestRenderableEventForJobMock' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:25.9820276Z ##[error]  13:3  error  'cancelJobMock' is assigned a value but never used. Allowed unused vars must match /^_/u                        @typescript-eslint/no-unused-vars
+2026-05-01T19:38:25.9823349Z ##[error]  14:3  error  'appendEventMock' is assigned a value but never used. Allowed unused vars must match /^_/u                      @typescript-eslint/no-unused-vars
+2026-05-01T19:38:25.9826064Z ##[error]  15:3  error  'createJobMock' is assigned a value but never used. Allowed unused vars must match /^_/u                        @typescript-eslint/no-unused-vars
+2026-05-01T19:38:25.9829244Z ##[error]  16:3  error  'findActiveJobByDedupeKeyMock' is assigned a value but never used. Allowed unused vars must match /^_/u         @typescript-eslint/no-unused-vars
+2026-05-01T19:38:25.9832330Z ##[error]  17:3  error  'updateJobStatusMock' is assigned a value but never used. Allowed unused vars must match /^_/u                  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:25.9833875Z 
+2026-05-01T19:38:25.9834423Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/app/api/user-files/[id]/route.ts
+2026-05-01T19:38:25.9836369Z ##[error]  116:7  error  'fileSize' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:25.9837754Z 
+2026-05-01T19:38:25.9838283Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/app/api/web-search/route.test.ts
+2026-05-01T19:38:25.9839677Z ##[warning]  18:47  warning  `import()` type annotations are forbidden  @typescript-eslint/consistent-type-imports
+2026-05-01T19:38:25.9840889Z 
+2026-05-01T19:38:25.9841391Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/app/e2e/media-lab/MediaE2ELab.tsx
+2026-05-01T19:38:25.9845549Z ##[warning]  687:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+2026-05-01T19:38:25.9851137Z ##[warning]  702:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+2026-05-01T19:38:25.9854804Z   721:16  warning  Unused eslint-disable directive (no problems were reported from 'jsx-a11y/media-has-caption')
+2026-05-01T19:38:25.9855472Z 
+2026-05-01T19:38:25.9856113Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/components/media/MediaOperationsWorkspace.tsx
+2026-05-01T19:38:25.9857426Z   91:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+2026-05-01T19:38:25.9857997Z 
+2026-05-01T19:38:25.9859535Z Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+2026-05-01T19:38:25.9861155Z * Update external systems with the latest state from React.
+2026-05-01T19:38:25.9862409Z * Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+2026-05-01T19:38:25.9863089Z 
+2026-05-01T19:38:25.9864318Z Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+2026-05-01T19:38:25.9865374Z 
+2026-05-01T19:38:25.9866033Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/components/media/MediaOperationsWorkspace.tsx:91:5
+2026-05-01T19:38:25.9866775Z   89 |   useEffect(() => {
+2026-05-01T19:38:25.9867129Z   90 |     let cancelled = false;
+2026-05-01T19:38:25.9867494Z > 91 |     setLoading(true);
+2026-05-01T19:38:25.9867979Z      |     ^^^^^^^^^^ Avoid calling setState() directly within an effect
+2026-05-01T19:38:25.9868477Z   92 |     setContent(null);
+2026-05-01T19:38:25.9868812Z   93 |     setError(null);
+2026-05-01T19:38:25.9869201Z   94 |  react-hooks/set-state-in-effect
+2026-05-01T19:38:25.9869455Z 
+2026-05-01T19:38:25.9870006Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/components/media/UserMediaWorkspace.tsx
+2026-05-01T19:38:25.9871201Z   106:5   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+2026-05-01T19:38:25.9871924Z 
+2026-05-01T19:38:25.9873694Z Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+2026-05-01T19:38:25.9875350Z * Update external systems with the latest state from React.
+2026-05-01T19:38:25.9876406Z * Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+2026-05-01T19:38:25.9877080Z 
+2026-05-01T19:38:25.9878272Z Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+2026-05-01T19:38:25.9879308Z 
+2026-05-01T19:38:25.9879923Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/components/media/UserMediaWorkspace.tsx:106:5
+2026-05-01T19:38:25.9880630Z   104 |   useEffect(() => {
+2026-05-01T19:38:25.9880958Z   105 |     let active = true;
+2026-05-01T19:38:25.9881301Z > 106 |     setLoading(true);
+2026-05-01T19:38:25.9881999Z       |     ^^^^^^^^^^ Avoid calling setState() directly within an effect
+2026-05-01T19:38:25.9882520Z   107 |     fetch(item.previewUrl)
+2026-05-01T19:38:25.9882889Z   108 |       .then((res) => {
+2026-05-01T19:38:25.9883707Z   109 |         if (!res.ok) throw new Error("Failed to load asset data");                                       react-hooks/set-state-in-effect
+2026-05-01T19:38:25.9884751Z   151:9   error  Error: Avoid constructing JSX within try/catch
+2026-05-01T19:38:25.9885120Z 
+2026-05-01T19:38:25.9887365Z React does not immediately render components when JSX is rendered, so any errors from this component will not be caught by the try/catch. To catch errors in rendering a given component, wrap that component in an error boundary. (https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary).
+2026-05-01T19:38:25.9889367Z 
+2026-05-01T19:38:25.9889989Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/components/media/UserMediaWorkspace.tsx:151:9
+2026-05-01T19:38:25.9890954Z   149 |       const actualGraph = graphData.graph ? graphData.graph : graphData;
+2026-05-01T19:38:25.9891661Z   150 |       return (
+2026-05-01T19:38:25.9892359Z > 151 |         <div className="rounded-lg border border-border/60 bg-white dark:bg-black p-4">
+2026-05-01T19:38:25.9893182Z       |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-05-01T19:38:25.9893773Z > 152 |           <GraphRenderer graph={actualGraph} />
+2026-05-01T19:38:25.9894245Z       | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-05-01T19:38:25.9894611Z > 153 |         </div>
+2026-05-01T19:38:25.9894996Z       | ^^^^^^^^^^^^^^^ Avoid constructing JSX within try/catch
+2026-05-01T19:38:25.9895410Z   154 |       );
+2026-05-01T19:38:25.9895657Z   155 |     } catch {
+2026-05-01T19:38:25.9896624Z   156 |       return <div className="rounded-lg border border-red-500/20 p-4 text-sm text-red-700">Invalid graph JSON</div>;  react-hooks/error-boundaries
+2026-05-01T19:38:25.9897794Z   152:11  error  Error: Avoid constructing JSX within try/catch
+2026-05-01T19:38:25.9898149Z 
+2026-05-01T19:38:25.9900402Z React does not immediately render components when JSX is rendered, so any errors from this component will not be caught by the try/catch. To catch errors in rendering a given component, wrap that component in an error boundary. (https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary).
+2026-05-01T19:38:25.9902342Z 
+2026-05-01T19:38:25.9903005Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/components/media/UserMediaWorkspace.tsx:152:11
+2026-05-01T19:38:25.9903694Z   150 |       return (
+2026-05-01T19:38:25.9904310Z   151 |         <div className="rounded-lg border border-border/60 bg-white dark:bg-black p-4">
+2026-05-01T19:38:25.9905078Z > 152 |           <GraphRenderer graph={actualGraph} />
+2026-05-01T19:38:25.9905682Z       |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Avoid constructing JSX within try/catch
+2026-05-01T19:38:25.9906361Z   153 |         </div>
+2026-05-01T19:38:25.9906633Z   154 |       );
+2026-05-01T19:38:25.9907895Z   155 |     } catch {                                                                                                                                                                                                                                                                                                                                       react-hooks/error-boundaries
+2026-05-01T19:38:25.9908848Z 
+2026-05-01T19:38:25.9909402Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/core/capability-catalog/catalog.test.ts
+2026-05-01T19:38:25.9911008Z ##[warning]  124:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9913310Z ##[warning]  125:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9915293Z ##[warning]  126:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9917316Z ##[warning]  127:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9919238Z ##[warning]  128:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9921100Z ##[warning]  129:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9923069Z ##[warning]  130:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9924883Z ##[warning]  136:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9926693Z ##[warning]  137:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9928796Z ##[warning]  143:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9930653Z ##[warning]  144:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9932633Z ##[warning]  145:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9934430Z ##[warning]  151:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9936181Z ##[warning]  152:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9937962Z ##[warning]  153:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9939725Z ##[warning]  154:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9941721Z ##[warning]  155:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9943526Z ##[warning]  156:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9945330Z ##[warning]  162:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9947279Z ##[warning]  163:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9949196Z ##[warning]  164:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9951039Z ##[warning]  168:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9953071Z ##[warning]  169:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9954917Z ##[warning]  184:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9956708Z ##[warning]  185:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9958490Z ##[warning]  186:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9960506Z ##[warning]  187:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9962468Z ##[warning]  188:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9964341Z ##[warning]  189:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9966126Z ##[warning]  190:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9967949Z ##[warning]  191:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9969799Z ##[warning]  209:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9971894Z ##[warning]  210:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9973794Z ##[warning]  211:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9975645Z ##[warning]  217:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9977507Z ##[warning]  218:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9979340Z ##[warning]  228:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9981203Z ##[warning]  244:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9983222Z ##[warning]  245:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9985003Z ##[warning]  259:19  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9987084Z ##[warning]  275:21  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9988910Z ##[warning]  282:19  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9990664Z ##[warning]  290:19  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9991962Z 
+2026-05-01T19:38:25.9992614Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/core/capability-catalog/e2e-catalog-flow.test.ts
+2026-05-01T19:38:25.9993941Z ##[warning]   68:16  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9995854Z ##[warning]   69:16  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9997838Z ##[warning]   70:16  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:25.9999678Z ##[warning]  104:16  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0001708Z ##[warning]  146:26  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0003620Z ##[warning]  156:26  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0005429Z ##[warning]  172:28  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0007257Z ##[warning]  189:28  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0008427Z 
+2026-05-01T19:38:26.0009164Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/core/capability-catalog/families/calculator-capabilities.shared.ts
+2026-05-01T19:38:26.0011147Z ##[error]  2:10  error  'CATALOG_INPUT_SCHEMAS' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0012571Z 
+2026-05-01T19:38:26.0013162Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/core/capability-catalog/mcp-catalog-parity.test.ts
+2026-05-01T19:38:26.0014332Z ##[warning]  69:31  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0015389Z 
+2026-05-01T19:38:26.0016121Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/core/capability-catalog/mcp-export.test.ts
+2026-05-01T19:38:26.0017241Z ##[warning]  12:19  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0018929Z ##[warning]  16:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0020580Z ##[warning]  17:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0022473Z ##[warning]  18:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0024208Z ##[warning]  19:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0025939Z ##[warning]  20:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0027711Z ##[warning]  24:19  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0029437Z ##[warning]  28:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0031345Z ##[warning]  29:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0033703Z ##[warning]  30:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0035621Z ##[warning]  34:19  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0037405Z ##[warning]  38:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0039259Z ##[warning]  39:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0041238Z ##[warning]  40:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0043099Z ##[warning]  44:19  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0044370Z ##[warning]  51:19  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0045634Z ##[warning]  58:19  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0046876Z ##[warning]  62:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0048075Z ##[warning]  72:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0048854Z 
+2026-05-01T19:38:26.0049298Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/core/capability-catalog/registry-convergence.test.ts
+2026-05-01T19:38:26.0050618Z ##[error]   17:3   error    'projectPresentationDescriptor' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0052531Z ##[error]   18:3   error    'projectJobCapability' is defined but never used. Allowed unused vars must match /^_/u           @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0054332Z ##[error]   19:3   error    'projectBrowserCapability' is defined but never used. Allowed unused vars must match /^_/u       @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0055965Z ##[warning]  177:16  warning  Forbidden non-null assertion                                                                     @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0057521Z ##[warning]  191:22  warning  Forbidden non-null assertion                                                                     @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0058406Z 
+2026-05-01T19:38:26.0058845Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/core/capability-catalog/runtime-tool-binding.test.ts
+2026-05-01T19:38:26.0059815Z ##[warning]    26:46  warning  `import()` type annotations are forbidden  @typescript-eslint/consistent-type-imports
+2026-05-01T19:38:26.0061142Z ##[error]   579:33  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+2026-05-01T19:38:26.0062709Z ##[error]   640:33  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+2026-05-01T19:38:26.0064001Z ##[error]   700:33  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+2026-05-01T19:38:26.0065249Z ##[error]   775:33  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+2026-05-01T19:38:26.0066471Z ##[error]   810:76  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+2026-05-01T19:38:26.0067690Z ##[error]   811:73  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+2026-05-01T19:38:26.0068896Z ##[error]   839:33  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+2026-05-01T19:38:26.0070128Z ##[error]   896:33  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+2026-05-01T19:38:26.0071383Z ##[error]   969:33  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+2026-05-01T19:38:26.0072742Z ##[error]  1064:35  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+2026-05-01T19:38:26.0073975Z ##[error]  1101:78  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+2026-05-01T19:38:26.0075195Z ##[error]  1102:84  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+2026-05-01T19:38:26.0076414Z ##[error]  1138:35  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+2026-05-01T19:38:26.0077184Z 
+2026-05-01T19:38:26.0077589Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/core/capability-catalog/runtime-tool-binding.ts
+2026-05-01T19:38:26.0078600Z ##[error]  242:55  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+2026-05-01T19:38:26.0079385Z 
+2026-05-01T19:38:26.0079844Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/core/platform/asset-catalog/AssetCatalogProjector.test.ts
+2026-05-01T19:38:26.0080924Z ##[warning]  83:70  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0082300Z ##[warning]  88:37  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0083503Z ##[warning]  88:45  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0084686Z ##[warning]  89:39  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0085869Z ##[warning]  89:47  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0086644Z 
+2026-05-01T19:38:26.0087050Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/core/platform/asset-catalog/AssetCatalogReader.ts
+2026-05-01T19:38:26.0088310Z ##[error]   1:15  error  'BlogAsset' is defined but never used. Allowed unused vars must match /^_/u                                    @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0090200Z ##[error]  16:3   error  'projectAssetCatalogEntryToWorkspaceAssetRef' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0091203Z 
+2026-05-01T19:38:26.0091755Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/core/platform/capability-runtime/CapabilityRuntime.test.ts
+2026-05-01T19:38:26.0092744Z ##[warning]   62:17  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0093976Z ##[warning]   63:19  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0095176Z ##[warning]   64:25  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0096368Z ##[warning]   65:20  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0097717Z ##[warning]   66:23  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0098917Z ##[warning]   80:17  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0100112Z ##[warning]   81:19  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0101312Z ##[warning]   82:25  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0102612Z ##[warning]   83:20  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0103865Z ##[warning]   84:23  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0105091Z ##[warning]  100:17  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0106320Z ##[warning]  101:19  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0107536Z ##[warning]  102:25  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0108734Z ##[warning]  103:20  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0109935Z ##[warning]  104:23  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0110698Z 
+2026-05-01T19:38:26.0111133Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/core/platform/capability-runtime/CapabilityRuntime.ts
+2026-05-01T19:38:26.0112111Z ##[warning]  130:57  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0113331Z ##[warning]  156:5   warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0114253Z 
+2026-05-01T19:38:26.0114716Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/core/platform/conversation-restore/WorkspaceRestoreReader.ts
+2026-05-01T19:38:26.0115693Z ##[warning]   77:21  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0116910Z ##[warning]  124:19  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0118109Z ##[warning]  130:19  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0119305Z ##[warning]  136:19  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0120518Z ##[warning]  142:19  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0121848Z ##[warning]  152:19  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0123048Z ##[warning]  162:19  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0123839Z 
+2026-05-01T19:38:26.0124328Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/core/platform/conversation-workspace/WorkspaceSnapshotReader.ts
+2026-05-01T19:38:26.0125349Z ##[warning]   81:19  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0126592Z ##[warning]   87:19  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0127802Z ##[warning]   93:19  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0128996Z ##[warning]   99:19  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0130179Z ##[warning]  105:19  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0130942Z 
+2026-05-01T19:38:26.0131363Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/core/platform/execution/ExecutionTimelineReader.ts
+2026-05-01T19:38:26.0132648Z ##[error]  1:15  error  'JobStatus' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0133528Z 
+2026-05-01T19:38:26.0134219Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/core/platform/operator-transition/OperatorTransitionProjector.test.ts
+2026-05-01T19:38:26.0135326Z ##[warning]  6:41  warning  `import()` type annotations are forbidden  @typescript-eslint/consistent-type-imports
+2026-05-01T19:38:26.0136173Z 
+2026-05-01T19:38:26.0136666Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/core/platform/operator-transition/OperatorTransitionReader.test.ts
+2026-05-01T19:38:26.0137631Z ##[warning]  9:41  warning  `import()` type annotations are forbidden  @typescript-eslint/consistent-type-imports
+2026-05-01T19:38:26.0138438Z 
+2026-05-01T19:38:26.0138935Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/core/platform/operator-transition/TrustDistributionProjector.test.ts
+2026-05-01T19:38:26.0139931Z ##[warning]  6:41  warning  `import()` type annotations are forbidden  @typescript-eslint/consistent-type-imports
+2026-05-01T19:38:26.0140739Z 
+2026-05-01T19:38:26.0141222Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/core/platform/operator-transition/TrustDistributionReader.test.ts
+2026-05-01T19:38:26.0142278Z ##[warning]  7:41  warning  `import()` type annotations are forbidden  @typescript-eslint/consistent-type-imports
+2026-05-01T19:38:26.0143081Z 
+2026-05-01T19:38:26.0143447Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/core/use-cases/IdentityMigrationService.ts
+2026-05-01T19:38:26.0144716Z ##[error]  8:3  error  'IdentityMigrationStage' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0145647Z 
+2026-05-01T19:38:26.0145983Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/core/use-cases/tools/CorpusTools.ts
+2026-05-01T19:38:26.0147178Z ##[error]  9:8  error  'SearchCorpusPayload' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0148240Z 
+2026-05-01T19:38:26.0148702Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/core/use-cases/tools/list-conversation-media-assets.tool.ts
+2026-05-01T19:38:26.0149864Z ##[error]  5:15  error  'AssetCatalogEntry' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0150762Z 
+2026-05-01T19:38:26.0151204Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/core/use-cases/tools/search-relationship-memory.tool.ts
+2026-05-01T19:38:26.0152437Z ##[warning]  4:1  warning  All imports in the declaration are only used as types. Use `import type`  @typescript-eslint/consistent-type-imports
+2026-05-01T19:38:26.0153343Z 
+2026-05-01T19:38:26.0153696Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/frameworks/ui/ComposerFilePills.tsx
+2026-05-01T19:38:26.0156247Z ##[warning]  32:9  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+2026-05-01T19:38:26.0157747Z 
+2026-05-01T19:38:26.0158201Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/frameworks/ui/chat/plugins/custom/EditorialWorkflowCard.tsx
+2026-05-01T19:38:26.0160837Z ##[warning]  236:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+2026-05-01T19:38:26.0162447Z 
+2026-05-01T19:38:26.0162886Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/frameworks/ui/chat/plugins/custom/JournalWorkflowCard.tsx
+2026-05-01T19:38:26.0165426Z ##[warning]  579:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+2026-05-01T19:38:26.0166901Z 
+2026-05-01T19:38:26.0167320Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/frameworks/ui/chat/plugins/custom/MediaGalleryCard.tsx
+2026-05-01T19:38:26.0169731Z ##[warning]  105:21  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+2026-05-01T19:38:26.0171190Z 
+2026-05-01T19:38:26.0171706Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/frameworks/ui/chat/plugins/custom/MediaRenderCard.tsx
+2026-05-01T19:38:26.0172600Z   77:10  warning  Unused eslint-disable directive (no problems were reported from 'jsx-a11y/media-has-caption')
+2026-05-01T19:38:26.0173008Z 
+2026-05-01T19:38:26.0173433Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/frameworks/ui/chat/plugins/custom/ReferralQrCard.tsx
+2026-05-01T19:38:26.0175833Z ##[warning]  89:9  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+2026-05-01T19:38:26.0177279Z 
+2026-05-01T19:38:26.0177737Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/frameworks/ui/chat/plugins/custom/TranscriptRecallCard.tsx
+2026-05-01T19:38:26.0178884Z ##[error]  14:10  error  'detailValue' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0179971Z 
+2026-05-01T19:38:26.0180382Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/frameworks/ui/chat/plugins/system/SystemJobCard.tsx
+2026-05-01T19:38:26.0181247Z    1:1   warning  Unused eslint-disable directive (no problems were reported from 'react/jsx-handler-names')
+2026-05-01T19:38:26.0185924Z ##[error]  17:3   error    'summarizeSystemResult' is defined but never used. Allowed unused vars must match /^_/u                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0189397Z   75:17  error    Error: Cannot call impure function during render
+2026-05-01T19:38:26.0189800Z 
+2026-05-01T19:38:26.0191770Z `Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+2026-05-01T19:38:26.0193258Z 
+2026-05-01T19:38:26.0193953Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/frameworks/ui/chat/plugins/system/SystemJobCard.tsx:75:17
+2026-05-01T19:38:26.0194914Z   73 |   const [confirmingCancel, setConfirmingCancel] = useState(false);
+2026-05-01T19:38:26.0195414Z   74 |
+2026-05-01T19:38:26.0195734Z > 75 |   const nowMs = Date.now();
+2026-05-01T19:38:26.0196188Z      |                 ^^^^^^^^^^ Cannot call impure function
+2026-05-01T19:38:26.0196897Z   76 |   const effectiveEnvelope = resultEnvelope ?? part?.resultEnvelope ?? null;
+2026-05-01T19:38:26.0197703Z   77 |   const toolName = part?.toolName ?? toolCall?.name ?? "unknown_tool";
+2026-05-01T19:38:26.0198718Z   78 |   const label = resolveCapabilityDisplayLabel({  react-hooks/purity
+2026-05-01T19:38:26.0199110Z 
+2026-05-01T19:38:26.0199664Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/frameworks/ui/product-experience-facade.test.ts
+2026-05-01T19:38:26.0200951Z ##[warning]  121:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0203024Z ##[warning]  149:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0204168Z 
+2026-05-01T19:38:26.0204757Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/frameworks/ui/product-experience-summary.test.ts
+2026-05-01T19:38:26.0205995Z ##[warning]  155:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0207788Z ##[warning]  178:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0209603Z ##[warning]  185:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0211393Z ##[warning]  202:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0213395Z ##[warning]  208:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0214563Z 
+2026-05-01T19:38:26.0215151Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/hooks/chat/composeMediaMaterializationCore.ts
+2026-05-01T19:38:26.0217367Z ##[error]   85:3   error  'hasBrowserShortExplainerCaptionText' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0220055Z ##[error]  124:10  error  'isRecord' is defined but never used. Allowed unused vars must match /^_/u                             @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0221781Z 
+2026-05-01T19:38:26.0222338Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/hooks/chat/useFailedSendRecovery.test.tsx
+2026-05-01T19:38:26.0223579Z ##[warning]  11:19  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0225405Z ##[warning]  11:19  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0227264Z ##[warning]  12:30  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0229113Z ##[warning]  12:30  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0230280Z 
+2026-05-01T19:38:26.0230814Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/hooks/chat/useJobStateStore.test.tsx
+2026-05-01T19:38:26.0232601Z ##[error]  62:3  error  'messages' is assigned a value but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0234008Z 
+2026-05-01T19:38:26.0234587Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/audio/audio-generation-service.test.ts
+2026-05-01T19:38:26.0236437Z ##[warning]  37:1  warning  All imports in the declaration are only used as types. Use `import type`  @typescript-eslint/consistent-type-imports
+2026-05-01T19:38:26.0237837Z 
+2026-05-01T19:38:26.0238394Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/capabilities/shared/analytics-tool.ts
+2026-05-01T19:38:26.0239921Z ##[warning]   65:31  warning  `import()` type annotations are forbidden  @typescript-eslint/consistent-type-imports
+2026-05-01T19:38:26.0242104Z ##[warning]   78:31  warning  `import()` type annotations are forbidden  @typescript-eslint/consistent-type-imports
+2026-05-01T19:38:26.0244122Z ##[warning]  136:36  warning  `import()` type annotations are forbidden  @typescript-eslint/consistent-type-imports
+2026-05-01T19:38:26.0245396Z 
+2026-05-01T19:38:26.0246030Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/capabilities/shared/librarian-tool.test.ts
+2026-05-01T19:38:26.0247374Z ##[warning]  94:22  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0248807Z 
+2026-05-01T19:38:26.0249426Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/capabilities/shared/web-search-tool.test.ts
+2026-05-01T19:38:26.0250680Z ##[warning]  23:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0252724Z ##[warning]  29:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0254569Z ##[warning]  36:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0255754Z 
+2026-05-01T19:38:26.0256283Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/chat/CurrentPageMemento.test.ts
+2026-05-01T19:38:26.0257623Z ##[warning]  160:18  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0258831Z 
+2026-05-01T19:38:26.0259321Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/chat/registry-sync.test.ts
+2026-05-01T19:38:26.0260523Z ##[warning]  164:12  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0262551Z ##[warning]  165:12  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0264404Z ##[warning]  166:12  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0266235Z ##[warning]  178:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0268074Z ##[warning]  183:25  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0269873Z ##[warning]  189:24  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0271130Z 
+2026-05-01T19:38:26.0271775Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/chat/tool-bundles/admin-tools.ts
+2026-05-01T19:38:26.0273526Z ##[error]  9:11  error  'AdminToolRegistrationDeps' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0274876Z 
+2026-05-01T19:38:26.0275403Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/chat/tool-bundles/affiliate-tools.ts
+2026-05-01T19:38:26.0277170Z ##[error]  11:11  error  'AffiliateToolRegistrationDeps' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0278561Z 
+2026-05-01T19:38:26.0279033Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/chat/tool-bundles/blog-tools.ts
+2026-05-01T19:38:26.0280674Z ##[error]  19:11  error  'BlogToolRegistrationDeps' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0282202Z 
+2026-05-01T19:38:26.0282773Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/chat/tool-bundles/conversation-tools.ts
+2026-05-01T19:38:26.0284651Z ##[error]  8:11  error  'ConversationToolRegistrationDeps' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0286277Z 
+2026-05-01T19:38:26.0346572Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/chat/tool-bundles/corpus-tools.ts
+2026-05-01T19:38:26.0348904Z ##[error]  9:11  error  'CorpusToolRegistrationDeps' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0350718Z 
+2026-05-01T19:38:26.0351284Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/chat/tool-bundles/job-tools.ts
+2026-05-01T19:38:26.0353216Z ##[error]  10:11  error  'JobToolRegistrationDeps' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0354578Z 
+2026-05-01T19:38:26.0355121Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/chat/tool-bundles/media-tools.test.ts
+2026-05-01T19:38:26.0356394Z ##[warning]  14:46  warning  `import()` type annotations are forbidden  @typescript-eslint/consistent-type-imports
+2026-05-01T19:38:26.0357871Z 
+2026-05-01T19:38:26.0358375Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/chat/tool-bundles/media-tools.ts
+2026-05-01T19:38:26.0360038Z ##[error]  12:11  error  'MediaToolRegistrationDeps' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0361384Z 
+2026-05-01T19:38:26.0362080Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/chat/tool-bundles/navigation-tools.ts
+2026-05-01T19:38:26.0363826Z ##[error]  7:11  error  'NavigationToolRegistrationDeps' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0365219Z 
+2026-05-01T19:38:26.0365720Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/chat/tool-bundles/profile-tools.ts
+2026-05-01T19:38:26.0367421Z ##[error]  11:11  error  'ProfileToolRegistrationDeps' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0368806Z 
+2026-05-01T19:38:26.0369307Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/chat/tool-bundles/theme-tools.ts
+2026-05-01T19:38:26.0370954Z ##[error]  10:11  error  'ThemeToolRegistrationDeps' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0372497Z 
+2026-05-01T19:38:26.0372874Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/chat/tools.ts
+2026-05-01T19:38:26.0374340Z ##[error]  3:10  error  'getToolComposition' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0375660Z 
+2026-05-01T19:38:26.0376181Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/factory/asset-refinement-service.ts
+2026-05-01T19:38:26.0378058Z ##[warning]  8:1  warning  All imports in the declaration are only used as types. Use `import type`  @typescript-eslint/consistent-type-imports
+2026-05-01T19:38:26.0379389Z 
+2026-05-01T19:38:26.0379907Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/factory/factory-revision-root.ts
+2026-05-01T19:38:26.0381648Z ##[error]  3:15  error  'FactoryAsset' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0383068Z 
+2026-05-01T19:38:26.0383560Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/factory/qa-evaluator.ts
+2026-05-01T19:38:26.0385139Z ##[warning]  8:1  warning  All imports in the declaration are only used as types. Use `import type`  @typescript-eslint/consistent-type-imports
+2026-05-01T19:38:26.0386539Z 
+2026-05-01T19:38:26.0387006Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/factory/qa-remediation.ts
+2026-05-01T19:38:26.0388642Z ##[warning]  11:1  warning  All imports in the declaration are only used as types. Use `import type`  @typescript-eslint/consistent-type-imports
+2026-05-01T19:38:26.0390048Z 
+2026-05-01T19:38:26.0390625Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/factory/resume-work-order-service.ts
+2026-05-01T19:38:26.0392476Z ##[warning]  6:1  warning  All imports in the declaration are only used as types. Use `import type`  @typescript-eslint/consistent-type-imports
+2026-05-01T19:38:26.0395167Z ##[warning]  7:1  warning  All imports in the declaration are only used as types. Use `import type`  @typescript-eslint/consistent-type-imports
+2026-05-01T19:38:26.0396692Z 
+2026-05-01T19:38:26.0397319Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/factory/revision-control-service.ts
+2026-05-01T19:38:26.0399094Z ##[warning]   3:1  warning  All imports in the declaration are only used as types. Use `import type`  @typescript-eslint/consistent-type-imports
+2026-05-01T19:38:26.0401961Z ##[warning]   8:1  warning  All imports in the declaration are only used as types. Use `import type`  @typescript-eslint/consistent-type-imports
+2026-05-01T19:38:26.0404797Z ##[warning]  13:1  warning  All imports in the declaration are only used as types. Use `import type`  @typescript-eslint/consistent-type-imports
+2026-05-01T19:38:26.0406550Z 
+2026-05-01T19:38:26.0407112Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/factory/stage-executors/qa-executor.ts
+2026-05-01T19:38:26.0409014Z ##[error]  1:10  error    'randomUUID' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0411860Z ##[warning]  7:1   warning  All imports in the declaration are only used as types. Use `import type`      @typescript-eslint/consistent-type-imports
+2026-05-01T19:38:26.0413296Z 
+2026-05-01T19:38:26.0413973Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/factory/stage-executors/qa-resolution-executor.ts
+2026-05-01T19:38:26.0415730Z ##[warning]  4:1  warning  All imports in the declaration are only used as types. Use `import type`  @typescript-eslint/consistent-type-imports
+2026-05-01T19:38:26.0417187Z 
+2026-05-01T19:38:26.0417765Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/graphs/graph-geometry.test.tsx
+2026-05-01T19:38:26.0419220Z ##[warning]  185:42   warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0421173Z ##[warning]  185:103  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0423296Z ##[warning]  186:42   warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0425215Z ##[warning]  186:92   warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0427145Z ##[warning]  228:42   warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0429065Z ##[warning]  229:42   warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0430589Z 
+2026-05-01T19:38:26.0431199Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/jobs/compose-media-deferred-job.test.ts
+2026-05-01T19:38:26.0432802Z ##[warning]  133:63  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0434044Z 
+2026-05-01T19:38:26.0434783Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/media/browser-runtime/ffmpeg-capability-probe.test.ts
+2026-05-01T19:38:26.0436374Z ##[warning]  61:12  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0437657Z 
+2026-05-01T19:38:26.0438357Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/media/browser-runtime/mermaid-image-derivation.test.ts
+2026-05-01T19:38:26.0439866Z ##[warning]  19:47  warning  `import()` type annotations are forbidden  @typescript-eslint/consistent-type-imports
+2026-05-01T19:38:26.0441122Z 
+2026-05-01T19:38:26.0441937Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/media/media-composition-asset-identity.ts
+2026-05-01T19:38:26.0443923Z ##[error]  171:10  error  'buildToolCallAliasSeed' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0446809Z ##[error]  206:10  error  'resolveFallbackFileType' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0448391Z 
+2026-05-01T19:38:26.0449106Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/media/workflows/media-workflow-orchestrator.test.ts
+2026-05-01T19:38:26.0450688Z ##[warning]  336:13  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0452849Z ##[warning]  342:13  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0454901Z ##[warning]  348:13  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0456989Z ##[warning]  366:41  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0459053Z ##[warning]  380:57  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0460381Z 
+2026-05-01T19:38:26.0461349Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/media/workflows/media-workflow-read-model.test.ts
+2026-05-01T19:38:26.0462946Z ##[warning]   71:23  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0464585Z ##[warning]   72:25  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0466664Z ##[warning]  124:23  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0467978Z 
+2026-05-01T19:38:26.0468579Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/prompts/prompt-provenance.test.ts
+2026-05-01T19:38:26.0470036Z ##[warning]  186:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0472235Z ##[warning]  187:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0474266Z ##[warning]  188:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0476280Z ##[warning]  189:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0478347Z ##[warning]  204:14  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0480385Z ##[warning]  218:26  warning  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+2026-05-01T19:38:26.0481846Z 
+2026-05-01T19:38:26.0482423Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/src/lib/referrals/referral-ledger.ts
+2026-05-01T19:38:26.0484322Z ##[warning]  2:1  warning  All imports in the declaration are only used as types. Use `import type`  @typescript-eslint/consistent-type-imports
+2026-05-01T19:38:26.0486134Z 
+2026-05-01T19:38:26.0486709Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/tests/StreamControlTagParser.test.ts
+2026-05-01T19:38:26.0488343Z ##[warning]  4:3  warning  'normalizeSuggestions' is defined but never used  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0490635Z ##[warning]  5:3  warning  'deriveResponseState' is defined but never used   @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0492166Z 
+2026-05-01T19:38:26.0492840Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/tests/browser-ui/deferred-job-worker-live.spec.ts
+2026-05-01T19:38:26.0494558Z ##[warning]  9:7  warning  'PLAYWRIGHT_BASE_URL' is assigned a value but never used  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0496000Z 
+2026-05-01T19:38:26.0496639Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/tests/browser-ui/ffmpeg-browser-runtime.spec.ts
+2026-05-01T19:38:26.0498149Z ##[warning]  365:11  warning  'mediaCard' is assigned a value but never used  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0499554Z 
+2026-05-01T19:38:26.0500190Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/tests/factory/revision-control-service.test.ts
+2026-05-01T19:38:26.0501937Z ##[warning]  237:10  warning  'createRelease' is defined but never used  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0503439Z 
+2026-05-01T19:38:26.0504008Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/tests/factory/stage-executors.test.ts
+2026-05-01T19:38:26.0505417Z ##[warning]  8:15  warning  'ResearchPacket' is defined but never used  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0506767Z 
+2026-05-01T19:38:26.0507193Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/tests/setup-ui.ts
+2026-05-01T19:38:26.0508335Z ##[warning]  3:21  warning  'vi' is defined but never used  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0509600Z 
+2026-05-01T19:38:26.0510155Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/tests/shell-command-parity.test.tsx
+2026-05-01T19:38:26.0511696Z ##[warning]  15:7  warning  'pushMock' is assigned a value but never used  @typescript-eslint/no-unused-vars
+2026-05-01T19:38:26.0513073Z 
+2026-05-01T19:38:26.0513518Z /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo/vitest.workspace.ts
+2026-05-01T19:38:26.0515029Z ##[warning]  10:1  warning  Assign array to a variable before exporting as module default  import/no-anonymous-default-export
+2026-05-01T19:38:26.0516218Z 
+2026-05-01T19:38:26.0516723Z ✖ 260 problems (61 errors, 199 warnings)
+2026-05-01T19:38:26.0517285Z   0 errors and 16 warnings potentially fixable with the `--fix` option.
+2026-05-01T19:38:26.0517646Z 
+2026-05-01T19:38:26.3457683Z ##[error]Process completed with exit code 1.
+2026-05-01T19:38:26.3567467Z Post job cleanup.
+2026-05-01T19:38:26.4550828Z [command]/usr/bin/git version
+2026-05-01T19:38:26.4586460Z git version 2.53.0
+2026-05-01T19:38:26.4626934Z Temporarily overriding HOME='/home/runner/work/_temp/c47b3f03-f8e2-43c8-8d84-373114ac8bc6' before making global git config changes
+2026-05-01T19:38:26.4627826Z Adding repository directory to the temporary git global config as a safe directory
+2026-05-01T19:38:26.4639230Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/ai_mcp_chat_ordo/ai_mcp_chat_ordo
+2026-05-01T19:38:26.4672539Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-05-01T19:38:26.4704914Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-05-01T19:38:26.4947681Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-05-01T19:38:26.4969002Z http.https://github.com/.extraheader
+2026-05-01T19:38:26.4980598Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-05-01T19:38:26.5010743Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-05-01T19:38:26.5243700Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-05-01T19:38:26.5274382Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-05-01T19:38:26.5642772Z Cleaning up orphan processes
+2026-05-01T19:38:26.5920913Z ##[warning]Node.js 20 actions are deprecated. The following actions are running on Node.js 20 and may not work as expected: actions/checkout@v4, actions/setup-node@v4. Actions will be forced to run with Node.js 24 by default starting June 2nd, 2026. Node.js 20 will be removed from the runner on September 16th, 2026. Please check if updated versions of these actions are available that support Node.js 24. To opt into Node.js 24 now, set the FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true environment variable on the runner or in your workflow file. Once Node.js 24 becomes the default, you can temporarily opt out by setting ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
