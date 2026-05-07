@@ -1,43 +1,29 @@
-# Studio Ordo Business Canon
+# Studio Ordo Business Docs
 
-This directory defines the governing business vision for Studio Ordo.
+This folder explains why Ordo exists and how the product should be judged.
 
-The core claim is simple:
+The short version:
 
-Ordo is a continuous administrative assistant for a solopreneur business.
+Ordo is a working assistant for a one-person business. Chat is the place where
+the owner works. The system behind chat remembers context, runs work, keeps
+proof, and helps the owner decide what should happen next.
 
-Copycats are expected in an AI-native market. The durable advantage is not
-feature secrecy; it is trusted execution, taste, and a network that compounds
-operator outcomes.
+These docs are product guidance. They are not all shipped features.
 
-The conversation thread is the product surface. The assistant has memory,
-capabilities, policy, and execution paths. Heavy work is routed to the factory
-and returned to the same thread.
+## Main Essays
 
-## Strategic Pillars
+1. [Founding Thesis](01_founding_thesis.md)
+2. [The Bottega Model](02_the_bottega_model.md)
+3. [The Economic Thesis](03_the_economic_thesis.md)
+4. [The Trust Ledger](04_the_trust_ledger.md)
+5. [The Sovereignty Stack](05_the_sovereignty_stack.md)
+6. [The Production Engine](06_the_production_engine.md)
+7. [Governance and Process](07_governance_and_process.md)
+8. [Software Manufacturing Loop](08_software_manufacturing_loop.md)
 
-1. **[01 Founding Thesis](01_founding_thesis.md)**: bespoke intelligence for
-   trust-based businesses.
-2. **[02 The Bottega Model](02_the_bottega_model.md)**: craft, apprenticeship,
-   and real-world operator identity.
-3. **[03 The Economic Thesis](03_the_economic_thesis.md)**: judgment is scarce,
-   implementation is abundant.
-4. **[04 The Trust Ledger](04_the_trust_ledger.md)**: referral and relationship
-   continuity as distribution infrastructure.
-5. **[05 The Sovereignty Stack](05_the_sovereignty_stack.md)**: AGPL,
-   portability, and low-overhead hosting economics.
-6. **[06 The Production Engine](06_the_production_engine.md)**: trapped
-   expertise to durable assets through governed execution.
-7. **[07 Governance and Process](07_governance_and_process.md)**: proof-first,
-   contract-driven, reviewable delivery.
-8. **[08 Software Manufacturing Loop](08_software_manufacturing_loop.md)**:
-   GitHub issues as the visible work ledger and pull requests as
-   evidence-bearing manufacturing units.
+## Architecture
 
-## Architecture Index
-
-The architecture set translates this business canon into implementation
-contracts and sequencing.
+These docs turn the business idea into system shape:
 
 - [Architecture Index](architecture/README.md)
 - [North Star](architecture/00-north-star.md)
@@ -46,25 +32,22 @@ contracts and sequencing.
 - [Workflow and Recipe Model](architecture/03-workflow-recipe-model.md)
 - [Stage Roadmap](architecture/08-stage-roadmap.md)
 
-## UX Canon
+## UX
 
-The UX canon translates the business thesis into product language, navigation,
-object surfaces, and interaction rules.
+These docs explain the product experience:
 
 - [UX Canon](ux/README.md)
 - [UX North Star](ux/00-ux-north-star.md)
-- [Code Archaeology Functionality Map](ux/04-code-archaeology-functionality-map.md)
-- [UX Architecture Archeology](ux/architecture/README.md)
+- [Language and Vocabulary](ux/01-language-and-vocabulary.md)
+- [Message and Tone](ux/02-message-and-tone.md)
+- [Interface Principles](ux/03-interface-principles.md)
+- [Product Kernel Contract](ux/08-product-kernel-contract.md)
+- [Canonical UX Architecture](ux/09-canonical-ux-architecture.md)
 
-## Versioning Rule
+## Process
 
-These docs are not marketing copy. They are operating contracts.
+- [Ordo Process](ordo_process.md)
+- [Software Manufacturing Loop](08_software_manufacturing_loop.md)
 
-When the product thesis changes, update this set first, then update architecture
-and implementation plans.
-
-Current policy anchors to preserve across updates:
-
-- QA-report-first intake for implementation work
-- token-funded priority signals with bounded governance influence
-- affiliate and referral economics tied to measurable quality outcomes
+The current direction is simple: keep the big product ideas here, and use
+GitHub issues and pull requests for visible work.

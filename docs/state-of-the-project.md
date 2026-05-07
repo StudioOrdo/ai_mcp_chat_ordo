@@ -2,105 +2,103 @@
 
 Date: 2026-05-07
 
-Status: Active development toward a July 31, 2026 alpha.
+Ordo is in active development toward a July 31, 2026 alpha.
 
-This document is the public truth ledger behind the README. It uses four labels: Implemented, Active refactor, Alpha track, and Vision.
+This page is the status page behind the README. It separates what works today
+from what is still being shaped.
 
-## Project Shape
+## What Ordo Is
 
-Ordo is an AGPL AI business appliance and operator system for solopreneurs.
+Ordo is a local web app for one-person businesses.
 
-The product is not just chat. Chat is the operating interface. Behind it, Ordo uses governed capabilities, durable jobs, workflow state, retrieval, media execution, QA contracts, local persistence, and backup/native boundaries so work can keep moving after the assistant stops talking.
+Chat is the main work area. Behind chat, Ordo has tools for background work,
+search, media, QA, local storage, and backup foundations.
 
-The development method is software manufacturing:
+The product goal is not “more chat.” The goal is a system that can help a person
+run work, keep records, and see what needs attention.
 
-Collect -> Decide -> Spec -> QA -> Ground -> Phase -> Implement -> QA -> Functional review -> Update
+## Working Foundations
 
-The same method governs public documentation. Claims should be useful, short,
-and true.
+These parts exist in the repo today:
 
-The next operating step is to move active public work from markdown phase files
-into GitHub issues and pull requests. Markdown remains the canon for doctrine,
-architecture, and evidence. GitHub becomes the visible manufacturing ledger.
+### Chat And Tools
 
-## Implemented
+Ordo has public and signed-in chat pages. Tools are registered through a
+capability catalog instead of being loose prompt text.
 
-These claims are supported by current repo evidence.
-
-### Governed Chat And Capability Routing
-
-Ordo has authenticated and anonymous chat surfaces backed by an internal capability catalog and tool registry. Capabilities are projected into runtime surfaces with role-aware access instead of being treated as loose prompt text.
-
-Evidence anchors:
+Evidence:
 
 - [src/core/capability-catalog/catalog.ts](../src/core/capability-catalog/catalog.ts)
 - [src/core/tool-registry/ToolRegistry.ts](../src/core/tool-registry/ToolRegistry.ts)
 - [src/lib/jobs/job-capability-registry.ts](../src/lib/jobs/job-capability-registry.ts)
 
-### Deferred Jobs And Durable Events
+### Background Jobs
 
-The repo includes a deferred job runtime and worker path for background execution. Long-running work is represented as jobs and job events so product surfaces can recover state without relying on an open browser stream.
+Long-running work can be stored as jobs and job events. This lets work continue
+outside a single browser request.
 
-Evidence anchors:
+Evidence:
 
 - [src/lib/jobs/deferred-job-runtime.ts](../src/lib/jobs/deferred-job-runtime.ts)
 - [src/lib/jobs/job-capability-registry.ts](../src/lib/jobs/job-capability-registry.ts)
 - [package.json](../package.json)
 
-### Factory And Work Orders
+### Work Orders
 
-Ordo has staged production orchestration for work orders. This supports the larger product thesis: business work should move through contracts, stages, checkpoints, and QA rather than ad hoc assistant output.
+The repo has factory-style work order code for staged production work.
 
-Evidence anchors:
+Evidence:
 
 - [src/lib/factory/production-orchestrator.ts](../src/lib/factory/production-orchestrator.ts)
 - [docs/_business/06_the_production_engine.md](./_business/06_the_production_engine.md)
 
 ### QA Reports
 
-Structured QA reports exist as product artifacts. They can describe findings, criteria, asset checks, recommended fixes, and whether a user decision is required.
+QA reports exist as structured product objects.
 
-Evidence anchors:
+Evidence:
 
 - [src/core/entities/qa-report.ts](../src/core/entities/qa-report.ts)
 - [src/lib/factory/qa-evaluator.ts](../src/lib/factory/qa-evaluator.ts)
 
-### Browser/WASM Media Execution
+### Media Work
 
-The media system includes a browser/WASM FFmpeg executor that can run composition work in the browser runtime and upload governed artifacts back through the app.
+The repo includes browser/WASM FFmpeg support and controlled media paths.
 
-Evidence anchors:
+Evidence:
 
 - [src/lib/media/browser-runtime/ffmpeg-browser-executor.ts](../src/lib/media/browser-runtime/ffmpeg-browser-executor.ts)
 - [package.json](../package.json)
 
-### RAG, Vector Search, And Local Embeddings
+### Search
 
-The repo includes hybrid search with keyword retrieval, vector similarity, reciprocal rank fusion, SQLite-backed vector storage, and local embedding support.
+The repo includes local keyword search, vector search, local embeddings, and
+SQLite-backed storage.
 
-Evidence anchors:
+Evidence:
 
 - [src/core/search/HybridSearchEngine.ts](../src/core/search/HybridSearchEngine.ts)
 - [src/adapters/SQLiteVectorStore.ts](../src/adapters/SQLiteVectorStore.ts)
 - [src/adapters/LocalEmbedder.ts](../src/adapters/LocalEmbedder.ts)
 
-### Local Persistence And Appliance Runtime
+### Local Runtime
 
-The default runtime uses SQLite and local files under `.data`. The app is designed to run without a separate database server, queue broker, search cluster, or vector database for the default local footprint.
+The default local runtime uses SQLite and local files under `.data`.
 
-Evidence anchors:
+Evidence:
 
 - [package.json](../package.json)
 - [src/lib/appliance/backup/backup-command-service.ts](../src/lib/appliance/backup/backup-command-service.ts)
 - [src/lib/appliance/native/native-command-contract.ts](../src/lib/appliance/native/native-command-contract.ts)
 
-### Backup And Rust Boundary
+### Backup And Rust
 
-Backup/native command foundations exist. The TypeScript app can create governed backup commands, and the repo includes Rust crates for the native backup/executor boundary.
+Backup command foundations exist. The repo also includes Rust crates for backup
+and daemon work.
 
-This should be read as a foundation, not a claim that every end-user restore path is complete.
+This is a foundation, not a promise that every restore path is finished.
 
-Evidence anchors:
+Evidence:
 
 - [src/lib/appliance/backup/backup-command-service.ts](../src/lib/appliance/backup/backup-command-service.ts)
 - [src/lib/appliance/native/native-command-contract.ts](../src/lib/appliance/native/native-command-contract.ts)
@@ -108,83 +106,57 @@ Evidence anchors:
 - [crates/ordo-backup](../crates/ordo-backup)
 - [crates/ordo-daemon](../crates/ordo-daemon)
 
-## Active Refactor
+## In Progress
 
-These areas have real foundations but should not be described as finished end-user promises.
+These areas have real code, but should not be described as finished:
 
-- Backup and restore: command services, native contracts, Rust backup executor, capacity checks, and scheduler/runtime supervision exist; complete consumer-grade restore UX still needs careful verification before it is claimed broadly.
-- Public documentation: the README, state ledger, docs index, contribution guide, and GitHub issue-template surface are in place; final closeout remains.
-- GitHub contribution surface: runtime-integrity, alpha feedback, bug report,
-  QA report, and docs feedback templates exist locally. The Studio Ordo
-  organization repository is the target public home, with issues enabled and the
-  initial manufacturing label set configured.
-- Rust/TypeScript boundary: Rust backup and daemon foundations exist; Ordo is not being presented as a broad Rust rewrite.
-- Software manufacturing loop: GitHub issues are becoming the visible intake
-  and accepted-work ledger; pull requests will carry implementation evidence.
+- end-user backup and restore;
+- the public GitHub work process;
+- the Rust and TypeScript boundary;
+- the owner UI for Today, Studio, People, Offers, Knowledge, and System;
+- issue-driven QA and release evidence.
 
 ## Alpha Track
 
-These are intended for the July 31, 2026 alpha but are not claimable as shipped product behavior yet.
+The July 31, 2026 alpha is aiming for:
 
-- Turning QA reports into the durable intake layer for GitHub issues and
-  agent-assisted triage.
-- Continuing to refine the public path for QA volunteers, AI consultants, product engineers, and serious builders.
-- More explicit release evidence around the end-to-end appliance lifecycle.
-- Stronger archive manifests so old specs remain useful history without looking like current product truth.
-
-## Vision
-
-The larger direction is a governed intelligence layer for trust-based small businesses: a system that preserves relationship continuity, routes intent to capabilities, runs heavy execution through jobs, and returns results into the same conversation.
-
-The north star is human authority plus machine follow-through:
-
-Human decides. Assistant operates. Process governs.
+- better QA reports;
+- clearer public docs;
+- better screenshots and release evidence;
+- a cleaner local install path;
+- less confusing owner UI;
+- GitHub issues that carry real evidence.
 
 ## What Not To Claim Yet
 
-Do not claim these as current shipped behavior:
+Do not claim that:
 
-- Ordo files GitHub issues from QA reports without human review.
-- Ordo resolves GitHub issues without human review.
-- The Studio Ordo organization repository is fully cut over before branch state,
-  issues, labels, templates, and release posture are aligned.
-- The whole platform is finished for every deployment context.
-- Every idea in `docs/_business` is implemented product behavior.
-- Archived specs are current roadmap unless a current phase reactivates them.
+- Ordo creates or fixes GitHub issues without human review;
+- the Studio Ordo organization repo is fully cut over;
+- the whole app is production-ready for every deployment;
+- every idea in [docs/_business](./_business/README.md) is shipped;
+- archive docs are the current roadmap.
 
-## How To Help Now
+## How To Help
 
-The most useful contribution path is evidence-rich QA.
+The best help right now is clear feedback with proof when you have it.
 
 Good reports include:
 
-- what you tried
-- the route or surface involved
-- your role, if relevant
-- expected behavior
-- actual behavior
-- screenshots, logs, command output, or failing tests when available
-- enough detail to turn the report into a deterministic reproduction or docs correction
+- what you tried;
+- where you tried it;
+- what you expected;
+- what happened;
+- screenshots, logs, command output, or links when useful.
 
-Start with [CONTRIBUTING.md](../CONTRIBUTING.md). The current issue templates
-live in [.github/ISSUE_TEMPLATE](../.github/ISSUE_TEMPLATE).
-
-## Follow Paths
-
-The current local origin remains `kaw393939/ai_mcp_chat_ordo`. The Studio Ordo
-organization repository `StudioOrdo/ai_mcp_chat_ordo` is reachable with admin
-permission and is the target public home after cutover alignment.
-
-No YouTube follow path was verified during this phase, so none is listed here.
+Start with [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## Source Of Truth
 
 When docs disagree, use this order:
 
-1. Current source code, tests, and release evidence.
-2. This state-of-project ledger.
+1. Current source code and tests.
+2. This status page.
 3. The root README.
-4. Active business canon and current phase specs.
-5. Archive material as historical context only.
-
-Phase 00 evidence for this ledger lives in [docs/_documentation_project/evidence/00-inventory-and-editorial-map.md](./_documentation_project/evidence/00-inventory-and-editorial-map.md).
+4. Current business and UX docs.
+5. Archive material.
