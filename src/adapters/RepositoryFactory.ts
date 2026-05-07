@@ -108,6 +108,7 @@ import { TrackedLinkDataMapper } from "./TrackedLinkDataMapper";
 import type { TrackedLinkRepository } from "@/core/use-cases/TrackedLinkRepository";
 import { BriefReadModelDataMapper } from "./BriefReadModelDataMapper";
 import { BriefUpdateRequestDataMapper } from "./BriefUpdateRequestDataMapper";
+import { SystemEventDataMapper } from "./SystemEventDataMapper";
 
 /**
  * Repository Factory — Service Locator
@@ -222,6 +223,8 @@ let briefReadModelDataMapper: BriefReadModelDataMapper | null = null;
 let briefReadModelDataMapperDb: ReturnType<typeof getDb> | null = null;
 let briefUpdateRequestDataMapper: BriefUpdateRequestDataMapper | null = null;
 let briefUpdateRequestDataMapperDb: ReturnType<typeof getDb> | null = null;
+let systemEventDataMapper: SystemEventDataMapper | null = null;
+let systemEventDataMapperDb: ReturnType<typeof getDb> | null = null;
 
 /** @lifetime process-cached singleton */
 export function getBlogPostRepository(): BlogPostRepository {
@@ -277,6 +280,18 @@ export function getBriefUpdateRequestDataMapper(): BriefUpdateRequestDataMapper 
   }
 
   return briefUpdateRequestDataMapper;
+}
+
+/** @lifetime process-cached singleton (invalidated on DB handle change) */
+export function getSystemEventDataMapper(): SystemEventDataMapper {
+  const db = getDb();
+
+  if (!systemEventDataMapper || systemEventDataMapperDb !== db) {
+    systemEventDataMapper = new SystemEventDataMapper(db);
+    systemEventDataMapperDb = db;
+  }
+
+  return systemEventDataMapper;
 }
 
 /** @lifetime process-cached singleton */
@@ -1005,4 +1020,6 @@ export function _resetRepositorySingletons(): void {
   briefReadModelDataMapperDb = null;
   briefUpdateRequestDataMapper = null;
   briefUpdateRequestDataMapperDb = null;
+  systemEventDataMapper = null;
+  systemEventDataMapperDb = null;
 }
