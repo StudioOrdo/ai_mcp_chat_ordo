@@ -44,6 +44,7 @@ function storedBrief(overrides: Partial<StoredSectionBrief> = {}): StoredSection
     ...fallback,
     ownerUserId: "usr_1",
     visibilityPolicy: "owner",
+    asOfSequence: 7,
     generatedAt: "2026-05-07T10:00:00.000Z",
     generatedBy: "brief-executor:deterministic",
     manifest: {

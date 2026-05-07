@@ -174,6 +174,44 @@ describe("SystemEventDataMapper", () => {
     })).resolves.toEqual([studio]);
   });
 
+  it("finds the latest visible event for freshness checks", async () => {
+    const mapper = new SystemEventDataMapper(createDb());
+    await mapper.append({
+      id: "evt_public",
+      type: "offer.public.updated",
+      sectionIds: ["offers"],
+      visibility: "public",
+      summary: "Public offer updated.",
+    });
+    const ownerEvent = await mapper.append({
+      id: "evt_owner_latest",
+      type: "studio.work.updated",
+      ownerUserId: "usr_evt_owner",
+      objectRef: { kind: "media_workflow", id: "mwf_1" },
+      sectionIds: ["studio"],
+      visibility: "owner",
+      summary: "Owner work changed.",
+    });
+    await mapper.append({
+      id: "evt_other_hidden",
+      type: "studio.work.updated",
+      ownerUserId: "usr_evt_other",
+      objectRef: { kind: "media_workflow", id: "mwf_2" },
+      sectionIds: ["studio"],
+      visibility: "owner",
+      summary: "Other owner work changed.",
+    });
+
+    await expect(mapper.findLatestVisible({
+      viewer: { userId: "usr_evt_owner", role: "OWNER" },
+      sectionId: "studio",
+    })).resolves.toEqual(ownerEvent);
+    await expect(mapper.findLatestVisible({
+      viewer: null,
+      sectionId: "studio",
+    })).resolves.toBeNull();
+  });
+
   it("rejects invalid events before writing them", async () => {
     const db = createDb();
     const mapper = new SystemEventDataMapper(db);

@@ -1018,6 +1018,7 @@ export function createTables(db: Database.Database): void {
       version INTEGER NOT NULL,
       prior_brief_id TEXT DEFAULT NULL,
       as_of TEXT NOT NULL,
+      as_of_sequence INTEGER NOT NULL DEFAULT 0,
       generated_at TEXT NOT NULL,
       generated_by TEXT NOT NULL,
       title TEXT NOT NULL,
@@ -1060,6 +1061,11 @@ export function createTables(db: Database.Database): void {
       ON brief_events(brief_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_brief_events_scope_created
       ON brief_events(section_id, object_kind, object_id, created_at);
+  `);
+  addColumnIfMissing(db, "brief_read_models", "as_of_sequence", "INTEGER NOT NULL DEFAULT 0");
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_brief_read_models_section_sequence
+      ON brief_read_models(section_id, owner_user_id, visibility_policy, as_of_sequence);
   `);
 
   db.exec(`

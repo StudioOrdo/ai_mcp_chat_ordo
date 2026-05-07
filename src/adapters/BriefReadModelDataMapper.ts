@@ -31,6 +31,7 @@ interface BriefReadModelRow {
   version: number;
   prior_brief_id: string | null;
   as_of: string;
+  as_of_sequence: number;
   generated_at: string;
   generated_by: string;
   title: string;
@@ -70,6 +71,7 @@ export interface SaveSectionBriefInput {
   manifest: BriefEvidenceManifest;
   ownerUserId?: string | null;
   visibilityPolicy: BriefVisibilityPolicy;
+  asOfSequence?: number;
   now?: string;
 }
 
@@ -124,6 +126,7 @@ function mapBriefRow(row: BriefReadModelRow): StoredSectionBrief {
     priorBriefId: row.prior_brief_id ?? undefined,
     ownerUserId: row.owner_user_id,
     visibilityPolicy,
+    asOfSequence: normalizeSequence(row.as_of_sequence),
     generatedAt: row.generated_at,
     generatedBy: row.generated_by,
     manifest: parseJson<BriefEvidenceManifest>(row.manifest_json, {
@@ -202,6 +205,7 @@ export class BriefReadModelDataMapper {
       asOf: input.brief.asOf ?? input.manifest.generatedAt,
     };
     const visibilityPolicy = input.visibilityPolicy;
+    const asOfSequence = normalizeSequence(input.asOfSequence);
     assertValidSectionBrief(brief, { visibilityPolicy, requireDurableFields: true });
     assertValidBriefEvidenceManifest(input.manifest);
     assertManifestMatchesBrief(brief, input.manifest, ownerUserId, visibilityPolicy);
@@ -235,10 +239,10 @@ export class BriefReadModelDataMapper {
         `INSERT INTO brief_read_models (
            id, scope_key, section_id, object_kind, object_id, object_label,
            owner_user_id, visibility_policy, status, version, prior_brief_id,
-           as_of, generated_at, generated_by, title, summary, bullets_json,
+           as_of, as_of_sequence, generated_at, generated_by, title, summary, bullets_json,
            recommended_action_json, evidence_refs_json, limitations_json,
            manifest_json, is_current, created_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
            scope_key = excluded.scope_key,
            section_id = excluded.section_id,
@@ -251,6 +255,7 @@ export class BriefReadModelDataMapper {
            version = excluded.version,
            prior_brief_id = excluded.prior_brief_id,
            as_of = excluded.as_of,
+           as_of_sequence = excluded.as_of_sequence,
            generated_at = excluded.generated_at,
            generated_by = excluded.generated_by,
            title = excluded.title,
@@ -275,6 +280,7 @@ export class BriefReadModelDataMapper {
         brief.version,
         brief.priorBriefId ?? null,
         brief.asOf,
+        asOfSequence,
         input.manifest.generatedAt,
         input.manifest.generatedBy,
         brief.title,
@@ -416,4 +422,10 @@ export class BriefReadModelDataMapper {
 
 function normalizeLimit(limit: number): number {
   return Number.isSafeInteger(limit) && limit > 0 ? Math.min(limit, 100) : 20;
+}
+
+function normalizeSequence(sequence: unknown): number {
+  return typeof sequence === "number" && Number.isSafeInteger(sequence) && sequence >= 0
+    ? sequence
+    : 0;
 }

@@ -80,6 +80,7 @@ describe("BriefReadModelDataMapper", () => {
       "status",
       "version",
       "prior_brief_id",
+      "as_of_sequence",
       "manifest_json",
       "is_current",
     ]));
@@ -111,6 +112,7 @@ describe("BriefReadModelDataMapper", () => {
       asOf: "2026-05-06T12:00:00.000Z",
       status: "fresh",
       version: 1,
+      asOfSequence: 0,
       isCurrent: true,
     });
     expect(stored.evidenceRefs).toEqual([
@@ -126,6 +128,26 @@ describe("BriefReadModelDataMapper", () => {
       visibilityPolicy: "owner",
     });
     expect(current?.id).toBe("brief_today_v1");
+  });
+
+  it("stores the durable system event sequence covered by the current brief", async () => {
+    const brief = sectionBrief({ id: "brief_today_sequence" });
+    const stored = await mapper.saveSectionBrief({
+      brief,
+      manifest: manifestFor(brief),
+      ownerUserId: "usr_1",
+      visibilityPolicy: "owner",
+      asOfSequence: 42,
+      now: "2026-05-06T12:00:01.000Z",
+    });
+
+    const current = await mapper.findCurrentSectionBrief("today", {
+      ownerUserId: "usr_1",
+      visibilityPolicy: "owner",
+    });
+
+    expect(stored.asOfSequence).toBe(42);
+    expect(current?.asOfSequence).toBe(42);
   });
 
   it("updates brief history, marks prior brief superseded, and reflects changed evidence", async () => {

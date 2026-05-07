@@ -36,6 +36,8 @@ export interface ListSystemEventsInput {
   limit?: number;
 }
 
+export type FindLatestVisibleSystemEventInput = Omit<ListSystemEventsInput, "afterSequence" | "limit">;
+
 function parseJson<T>(value: string | null, fallback: T): T {
   if (!value) return fallback;
   try {
@@ -211,5 +213,41 @@ export class SystemEventDataMapper {
     ).all(...params, normalizeLimit(input.limit)) as SystemEventRow[];
 
     return rows.map(mapRow);
+  }
+
+  async findLatestVisible(input: FindLatestVisibleSystemEventInput = {}): Promise<SystemEvent | null> {
+    const clauses: string[] = [];
+    const params: unknown[] = [];
+    const viewer = input.viewer ?? null;
+
+    if (!isAdminViewer(viewer)) {
+      if (viewer?.userId) {
+        clauses.push("(visibility = 'public' OR (visibility = 'owner' AND owner_user_id = ?))");
+        params.push(viewer.userId);
+      } else {
+        clauses.push("visibility = 'public'");
+      }
+    }
+
+    if (input.sectionId?.trim()) {
+      clauses.push("EXISTS (SELECT 1 FROM json_each(system_events.section_ids_json) WHERE value = ?)");
+      params.push(input.sectionId.trim());
+    }
+
+    if (input.objectRef) {
+      clauses.push("object_kind = ? AND object_id = ?");
+      params.push(input.objectRef.kind, input.objectRef.id);
+    }
+
+    const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
+    const row = this.db.prepare(
+      `SELECT *
+       FROM system_events
+       ${where}
+       ORDER BY sequence DESC
+       LIMIT 1`,
+    ).get(...params) as SystemEventRow | undefined;
+
+    return row ? mapRow(row) : null;
   }
 }

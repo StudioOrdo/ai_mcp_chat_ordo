@@ -85,6 +85,7 @@ export interface BriefEvidenceManifest {
 export interface StoredSectionBrief extends SectionBrief {
   ownerUserId: string | null;
   visibilityPolicy: BriefVisibilityPolicy;
+  asOfSequence: number;
   generatedAt: string;
   generatedBy: string;
   manifest: BriefEvidenceManifest;
