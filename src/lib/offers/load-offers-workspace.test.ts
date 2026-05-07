@@ -358,6 +358,7 @@ describe("loadOwnerOffersWorkspace", () => {
       priorBriefId: "offers-stored-brief-v1",
       ownerUserId: owner.id,
       visibilityPolicy: "owner",
+      asOfSequence: 14,
       generatedAt: now,
       generatedBy: "brief-executor:deterministic",
       manifest: {

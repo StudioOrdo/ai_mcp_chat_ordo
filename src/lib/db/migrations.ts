@@ -64,6 +64,7 @@ export function runMigrations(db: Database.Database): void {
       version INTEGER NOT NULL,
       prior_brief_id TEXT DEFAULT NULL,
       as_of TEXT NOT NULL,
+      as_of_sequence INTEGER NOT NULL DEFAULT 0,
       generated_at TEXT NOT NULL,
       generated_by TEXT NOT NULL,
       title TEXT NOT NULL,
@@ -81,6 +82,8 @@ export function runMigrations(db: Database.Database): void {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_brief_read_models_scope_updated ON brief_read_models(scope_key, updated_at DESC)`);
   db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_brief_read_models_current_scope ON brief_read_models(scope_key) WHERE is_current = 1`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_brief_read_models_section_current ON brief_read_models(section_id, owner_user_id, visibility_policy, is_current)`);
+  addColumnIfNotExists(db, "brief_read_models", "as_of_sequence", "INTEGER NOT NULL DEFAULT 0");
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_brief_read_models_section_sequence ON brief_read_models(section_id, owner_user_id, visibility_policy, as_of_sequence)`);
   db.exec(`
     CREATE TABLE IF NOT EXISTS brief_events (
       id TEXT PRIMARY KEY,

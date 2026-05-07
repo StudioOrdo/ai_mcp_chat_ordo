@@ -110,6 +110,7 @@ import { BriefReadModelDataMapper } from "./BriefReadModelDataMapper";
 import { BriefUpdateRequestDataMapper } from "./BriefUpdateRequestDataMapper";
 import { SystemEventDataMapper } from "./SystemEventDataMapper";
 import { UserInboxDataMapper } from "./UserInboxDataMapper";
+import { BriefFreshnessService } from "@/lib/briefs/brief-freshness-service";
 
 /**
  * Repository Factory — Service Locator
@@ -228,6 +229,8 @@ let systemEventDataMapper: SystemEventDataMapper | null = null;
 let systemEventDataMapperDb: ReturnType<typeof getDb> | null = null;
 let userInboxDataMapper: UserInboxDataMapper | null = null;
 let userInboxDataMapperDb: ReturnType<typeof getDb> | null = null;
+let briefFreshnessService: BriefFreshnessService | null = null;
+let briefFreshnessServiceDb: ReturnType<typeof getDb> | null = null;
 
 /** @lifetime process-cached singleton */
 export function getBlogPostRepository(): BlogPostRepository {
@@ -307,6 +310,22 @@ export function getUserInboxDataMapper(): UserInboxDataMapper {
   }
 
   return userInboxDataMapper;
+}
+
+/** @lifetime process-cached singleton (invalidated on DB handle change) */
+export function getBriefFreshnessService(): BriefFreshnessService {
+  const db = getDb();
+
+  if (!briefFreshnessService || briefFreshnessServiceDb !== db) {
+    briefFreshnessService = new BriefFreshnessService({
+      briefs: getBriefReadModelDataMapper(),
+      events: getSystemEventDataMapper(),
+      updateRequests: getBriefUpdateRequestDataMapper(),
+    });
+    briefFreshnessServiceDb = db;
+  }
+
+  return briefFreshnessService;
 }
 
 /** @lifetime process-cached singleton */
