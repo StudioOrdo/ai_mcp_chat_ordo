@@ -100,6 +100,7 @@ describe("handleActionClick", () => {
     setComposerTextMock.mockReset();
     setConversationIdMock.mockReset();
     refreshConversationMock.mockReset();
+    chatState.sendMessage.mockReset();
     chatState.activeStreamId = null;
     chatState.conversationId = null;
     vi.stubGlobal("open", openMock);
@@ -109,12 +110,42 @@ describe("handleActionClick", () => {
     vi.unstubAllGlobals();
   });
 
-  it("dispatches route action via router.push for valid paths", () => {
+  it("dispatches route action via router.push for valid public paths", () => {
+    const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+    act(() => {
+      result.current.handleActionClick("route", "/feed");
+    });
+    expect(pushMock).toHaveBeenCalledWith("/feed");
+  });
+
+  it("dispatches legacy route params through the same guarded route path", () => {
+    const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+    act(() => {
+      result.current.handleActionClick("route", "", { path: "/offers" });
+    });
+    expect(pushMock).toHaveBeenCalledWith("/offers");
+  });
+
+  it("does not route retired public paths from rich actions", () => {
     const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
     act(() => {
       result.current.handleActionClick("route", "/library");
     });
-    expect(pushMock).toHaveBeenCalledWith("/library");
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(setComposerTextMock).toHaveBeenCalledWith(
+      "Tell me what you want to find or publish, and I will help from here.",
+    );
+  });
+
+  it("does not route retired public paths from legacy route params", () => {
+    const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+    act(() => {
+      result.current.handleActionClick("route", "", { path: "/library/section/audit-to-sprint" });
+    });
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(setComposerTextMock).toHaveBeenCalledWith(
+      "Tell me what you want to find or publish, and I will help from here.",
+    );
   });
 
   it("rejects route action for external URLs (security)", () => {
@@ -142,12 +173,28 @@ describe("handleActionClick", () => {
     expect(setComposerTextMock).toHaveBeenCalledWith("Fallback text");
   });
 
-  it("navigates to library section on corpus action", () => {
+  it("sends tool action text immediately for structured workflow buttons", async () => {
+    chatState.sendMessage.mockResolvedValue({ ok: true });
+    const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+
+    await act(async () => {
+      result.current.handleActionClick("tool", "Run structured maintenance status");
+      await Promise.resolve();
+    });
+
+    expect(chatState.sendMessage).toHaveBeenCalledWith("Run structured maintenance status");
+    expect(setComposerTextMock).not.toHaveBeenCalled();
+  });
+
+  it("turns legacy corpus action into internal-search composer text", () => {
     const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
     act(() => {
       result.current.handleActionClick("corpus", "audit-to-sprint");
     });
-    expect(pushMock).toHaveBeenCalledWith("/library/section/audit-to-sprint");
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(setComposerTextMock).toHaveBeenCalledWith(
+      "Find the internal material related to audit-to-sprint.",
+    );
   });
 
   it("opens absolute external URLs in a new tab", () => {
@@ -258,6 +305,135 @@ describe("handleActionClick", () => {
     });
 
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(refreshConversationMock).not.toHaveBeenCalled();
+  });
+
+  it("posts operation actions through the typed operation API and never sends chat text", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ operation: { conversationId: "conv_ops" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+
+    await act(async () => {
+      result.current.handleActionClick("operation", "op_1", {
+        operationId: "op_1",
+        actionId: "action_1",
+        idempotencyKey: "idem_1",
+        operationRevision: "2",
+        confirmPolicy: "single_click",
+        riskLevel: "medium",
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/operations/op_1/actions/action_1", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        idempotencyKey: "idem_1",
+        operationRevision: 2,
+        confirmation: { confirmed: true },
+      }),
+    });
+    expect(chatState.sendMessage).not.toHaveBeenCalled();
+    expect(setComposerTextMock).not.toHaveBeenCalled();
+    expect(refreshConversationMock).toHaveBeenCalledWith("conv_ops");
+  });
+
+  it("collects phrase confirmation for destructive operation actions", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ snapshot: { operation: { conversationId: "conv_ops" } } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+
+    await act(async () => {
+      result.current.handleActionClick("operation", "op_1", {
+        operationId: "op_1",
+        actionId: "action_1",
+        idempotencyKey: "idem_1",
+        operationRevision: "2",
+        confirmPolicy: "phrase",
+        confirmationText: "RESTORE restore_1",
+        riskLevel: "destructive",
+      });
+      await Promise.resolve();
+    });
+
+    expect(result.current.contentProps.operationConfirmationDialog.request?.model.confirmPolicy).toBe("phrase");
+    await act(async () => {
+      result.current.contentProps.operationConfirmationDialog.onConfirm({
+        confirmed: true,
+        phrase: "RESTORE restore_1",
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string)).toMatchObject({
+      confirmation: {
+        confirmed: true,
+        phrase: "RESTORE restore_1",
+      },
+    });
+    expect(refreshConversationMock).toHaveBeenCalledWith("conv_ops");
+  });
+
+  it("does not dispatch disabled or malformed operation actions", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+
+    await act(async () => {
+      result.current.handleActionClick("operation", "op_1", {
+        operationId: "op_1",
+        actionId: "action_1",
+        idempotencyKey: "idem_1",
+        operationRevision: "2",
+        disabledReason: "Action has expired.",
+      });
+      result.current.handleActionClick("operation", "op_2", {
+        operationId: "op_2",
+        actionId: "action_2",
+        idempotencyKey: "idem_2",
+        operationRevision: "2",
+        payloadJson: "{not-json",
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(chatState.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a local operation action error when dispatch fails before refresh", async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error("offline"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useChatSurfaceState({ isEmbedded: false }));
+
+    await act(async () => {
+      result.current.handleActionClick("operation", "op_1", {
+        operationId: "op_1",
+        actionId: "action_1",
+        idempotencyKey: "idem_1",
+        operationRevision: "2",
+        confirmPolicy: "single_click",
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(result.current.contentProps.sendError).toBe("Operation action failed.");
     expect(refreshConversationMock).not.toHaveBeenCalled();
   });
 

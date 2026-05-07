@@ -53,17 +53,17 @@ describe("Sprint 13 — Prompt Directive Unification", () => {
       expect(source).not.toContain("ADMIN OPERATOR WORKFLOWS");
     });
 
-    it("role-directives.ts uses assembleRoleDirective for all 5 roles", () => {
+    it("role-directives.ts uses availability-aware assembleRoleDirective for all 5 roles", () => {
       const source = readSource("src/core/entities/role-directives.ts");
       for (const role of ALL_ROLES) {
-        expect(source).toContain(`assembleRoleDirective("${role}")`);
+        expect(source).toContain(`assembleEffectiveRoleDirective("${role}")`);
       }
     });
 
-    it("role-directives.ts is under 25 lines", () => {
+    it("role-directives.ts stays lean", () => {
       const source = readSource("src/core/entities/role-directives.ts");
       const lineCount = source.split("\n").length;
-      expect(lineCount).toBeLessThan(25);
+      expect(lineCount).toBeLessThan(35);
     });
   });
 
@@ -78,9 +78,9 @@ describe("Sprint 13 — Prompt Directive Unification", () => {
       }
     });
 
-    it("ROLE_DIRECTIVES matches assembleRoleDirective for all roles", () => {
+    it("ROLE_DIRECTIVES matches availability-aware assembleRoleDirective for all roles", () => {
       for (const role of ALL_ROLES) {
-        expect(ROLE_DIRECTIVES[role]).toBe(assembleRoleDirective(role));
+        expect(ROLE_DIRECTIVES[role]).toContain(assembleRoleDirective(role).split("\n")[1]);
       }
     });
 

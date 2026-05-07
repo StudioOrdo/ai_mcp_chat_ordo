@@ -19,7 +19,6 @@ export type ProviderBoundaryStep =
 
 export interface ProviderBoundaryHarnessCall {
   request: {
-    apiKey: string;
     messages: Anthropic.MessageParam[];
     systemPrompt: string;
     tools: Anthropic.Tool[];
@@ -81,7 +80,6 @@ export function createProviderBoundaryHarness(options: {
   const calls: ProviderBoundaryHarnessCall[] = [];
 
   const invokeStream = vi.fn(async ({
-    apiKey,
     messages,
     callbacks,
     maxToolRounds,
@@ -90,7 +88,6 @@ export function createProviderBoundaryHarness(options: {
     tools,
     toolExecutor,
   }: {
-    apiKey: string;
     messages: Anthropic.MessageParam[];
     callbacks: StreamCallbacks;
     maxToolRounds?: number;
@@ -101,7 +98,6 @@ export function createProviderBoundaryHarness(options: {
   }): Promise<ClaudeAgentLoopResult> => {
     const call: ProviderBoundaryHarnessCall = {
       request: {
-        apiKey,
         messages: [...messages],
         systemPrompt,
         tools: [...tools],

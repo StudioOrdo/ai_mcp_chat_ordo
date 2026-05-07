@@ -70,6 +70,7 @@ export function getDeniedAudienceForRole(
 
 const ALL_AUDIENCES: readonly ContentAudience[] = [
   "public",
+  "member",
   "account",
   "premium",
   "apprentice",

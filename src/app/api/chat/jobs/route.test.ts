@@ -3,11 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NotFoundError } from "@/core/use-cases/ConversationInteractor";
 import { GET, POST } from "@/app/api/chat/jobs/route";
 import {
-  buildComposeMediaMaterializationKey,
-  buildGenerateAudioMaterializationKey,
-} from "@/lib/jobs/materialization-key";
-import { normalizeMediaCompositionPlan } from "@/lib/media/ffmpeg/media-composition-plan";
-import {
   createAuthenticatedSessionUser,
   createRouteRequest,
 } from "../../../../../tests/helpers/workflow-route-fixture";
@@ -80,6 +75,11 @@ const {
   listMaterializationsByConversationMock,
   recordPromptBindingFromSourceMock,
   upsertMaterializationMock,
+  createOperationMock,
+  replaceActionsMock,
+  findWorkflowByOperationIdMock,
+  buildWorkflowSnapshotMock,
+  dispatchOperationActionMock,
 } = vi.hoisted(() => ({
   appendEventMock: vi.fn(),
   appendRuntimeAuditLogMock: vi.fn(async () => undefined),
@@ -97,10 +97,17 @@ const {
   listMaterializationsByConversationMock: vi.fn(),
   recordPromptBindingFromSourceMock: vi.fn(async () => null),
   upsertMaterializationMock: vi.fn(),
+  createOperationMock: vi.fn(),
+  replaceActionsMock: vi.fn(),
+  findWorkflowByOperationIdMock: vi.fn(),
+  buildWorkflowSnapshotMock: vi.fn(),
+  dispatchOperationActionMock: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({
   getSessionUser: getSessionUserMock,
+  resolveSessionAuthorizationRole: (user: { roles: string[]; realRoles?: string[] }) =>
+    [...(user.realRoles ?? []), ...user.roles].includes("ADMIN") ? "ADMIN" : user.roles[0],
 }));
 
 vi.mock("@/lib/observability/runtime-audit-log", () => ({
@@ -132,6 +139,20 @@ vi.mock("@/adapters/RepositoryFactory", () => ({
   }),
   getMediaWorkflowReadModel: () => ({
     listConversationWorkflows: listConversationWorkflowsMock,
+    buildSnapshot: buildWorkflowSnapshotMock,
+  }),
+  getOperationRepository: () => ({
+    createOperation: createOperationMock,
+    replaceActions: replaceActionsMock,
+  }),
+  getMediaWorkflowRepository: () => ({
+    findWorkflowByOperationId: findWorkflowByOperationIdMock,
+  }),
+}));
+
+vi.mock("@/lib/operations/operation-action-dispatch-root", () => ({
+  createOperationActionDispatchService: () => ({
+    dispatch: dispatchOperationActionMock,
   }),
 }));
 
@@ -154,10 +175,6 @@ describe("GET /api/chat/jobs", () => {
     waveformPolicy: "none" as const,
     outputFormat: "mp4" as const,
   };
-  const normalizedBasePlan = normalizeMediaCompositionPlan(basePlan, "conv_existing");
-  if (!normalizedBasePlan) {
-    throw new Error("base compose media plan fixture must normalize");
-  }
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -172,52 +189,35 @@ describe("GET /api/chat/jobs", () => {
     listConversationWorkflowsMock.mockResolvedValue([]);
     upsertMaterializationMock.mockImplementation(async (value) => value);
     recordPromptBindingFromSourceMock.mockClear();
-    createJobMock.mockResolvedValue({
-      id: "job_media_1",
-      conversationId: "conv_existing",
-      userId: "usr_owner",
-      toolName: "compose_media",
-      status: "queued",
-      priority: 5,
-      dedupeKey: buildComposeMediaMaterializationKey(normalizedBasePlan),
-      initiatorType: "user",
-      requestPayload: {
-        plan: {
-          id: "plan_media_1",
-          conversationId: "conv_existing",
-          visualClips: [{ assetId: "asset_visual_1", kind: "video" }],
-          audioClips: [],
-          subtitlePolicy: "none",
-          waveformPolicy: "none",
-          outputFormat: "mp4",
+    findWorkflowByOperationIdMock.mockReturnValue({ workflow: { id: "workflow_media_1" } });
+    buildWorkflowSnapshotMock.mockResolvedValue({
+      workflow: {
+        id: "workflow_media_1",
+        status: "queued",
+      },
+      linkedJobIds: ["job_media_1"],
+      linkedJobs: [
+        {
+          jobId: "job_media_1",
+          toolName: "compose_media",
+          status: "queued",
+          resultEnvelope: {
+            executionMode: "deferred",
+            family: "media",
+          },
+        },
+      ],
+      finalArtifact: null,
+    });
+    dispatchOperationActionMock.mockResolvedValue({
+      snapshot: {
+        operation: {
+          id: "op_media_test",
+          kind: "media_workflow",
+          status: "running",
         },
       },
-      resultPayload: null,
-      errorMessage: null,
-      progressPercent: null,
-      progressLabel: null,
-      attemptCount: 0,
-      leaseExpiresAt: null,
-      claimedBy: null,
-      failureClass: null,
-      nextRetryAt: null,
-      recoveryMode: "rerun",
-      lastCheckpointId: null,
-      replayedFromJobId: null,
-      supersededByJobId: null,
-      createdAt: "2026-04-13T12:00:00.000Z",
-      startedAt: null,
-      completedAt: null,
-      updatedAt: "2026-04-13T12:00:00.000Z",
-    });
-    appendEventMock.mockResolvedValue({
-      id: "evt_media_1",
-      jobId: "job_media_1",
-      conversationId: "conv_existing",
-      sequence: 1,
-      eventType: "queued",
-      payload: { toolName: "compose_media" },
-      createdAt: "2026-04-13T12:00:00.000Z",
+      availableActions: [],
     });
   });
 
@@ -263,7 +263,7 @@ describe("GET /api/chat/jobs", () => {
     });
   });
 
-  it("enqueues a compose_media deferred job through the shared route surface", async () => {
+  it("creates and dispatches a media workflow operation for compose_media requests", async () => {
     const response = await POST(createRouteRequest(
       "/api/chat/jobs",
       "POST",
@@ -278,96 +278,87 @@ describe("GET /api/chat/jobs", () => {
     const payload = await response.json();
 
     expect(response.status).toBe(201);
-    expect(findActiveJobByDedupeKeyMock).toHaveBeenCalledWith(
-      "conv_existing",
-      buildComposeMediaMaterializationKey(normalizedBasePlan),
-    );
-    expect(createJobMock).toHaveBeenCalledTimes(1);
-    expect(createJobMock).toHaveBeenCalledWith(expect.objectContaining({
-      requestPayload: expect.objectContaining({
-        promptBindingId: "pb_root_1",
+    expect(createOperationMock).toHaveBeenCalledWith(expect.objectContaining({
+      kind: "media_workflow",
+      title: "Compose media",
+      conversationId: "conv_existing",
+      createdByUserId: "usr_owner",
+      input: expect.objectContaining({
+        request: expect.objectContaining({
+          toolName: "compose_media",
+          promptBindingId: "pb_root_1",
+        }),
       }),
     }));
-    expect(appendEventMock).toHaveBeenCalledTimes(1);
-    expect(appendRuntimeAuditLogMock).toHaveBeenCalledWith(
-      "deferred_job",
-      "enqueued",
-      expect.objectContaining({
-        jobId: "job_media_1",
-        planId: "plan_media_1",
-        deduplicated: false,
+    expect(replaceActionsMock).toHaveBeenCalledWith(expect.objectContaining({
+      operationId: expect.stringMatching(/^op_media_/),
+      actions: [
+        expect.objectContaining({
+          actionType: "media.workflow.create",
+          payload: expect.objectContaining({
+            template: "compose_media",
+            requestedDeliverable: "video",
+            compose: { plan: basePlan },
+          }),
+        }),
+      ],
+    }));
+    expect(dispatchOperationActionMock).toHaveBeenCalledWith(expect.objectContaining({
+      operationId: expect.stringMatching(/^op_media_/),
+      actorUserId: "usr_owner",
+      actorRole: "AUTHENTICATED",
+      confirmation: { confirmed: true },
+      payload: expect.objectContaining({
+        template: "compose_media",
       }),
-    );
+    }));
+    expect(findActiveJobByDedupeKeyMock).not.toHaveBeenCalled();
+    expect(createJobMock).not.toHaveBeenCalled();
+    expect(appendEventMock).not.toHaveBeenCalled();
     expect(payload).toMatchObject({
       ok: true,
+      operation: {
+        kind: "media_workflow",
+        status: "running",
+      },
       jobId: "job_media_1",
       deduplicated: false,
       job: {
         jobId: "job_media_1",
         toolName: "compose_media",
         status: "queued",
-        origin: expect.objectContaining({ fallback: "job_created_at" }),
         resultEnvelope: expect.objectContaining({
           executionMode: "deferred",
-          family: "artifact",
+          family: "media",
         }),
       },
     });
-    expect(recordPromptBindingFromSourceMock).toHaveBeenCalledWith(expect.objectContaining({
-      sourcePromptBindingId: "pb_root_1",
-      surface: "job_execution",
-      target: {
-        targetKind: "job",
-        targetId: "job_media_1",
-      },
-    }));
+    expect(recordPromptBindingFromSourceMock).not.toHaveBeenCalled();
   });
 
-  it("enqueues a generate_audio deferred job through the shared route surface", async () => {
+  it("creates and dispatches a media workflow operation for generate_audio requests", async () => {
     const audioInput = {
       title: "Founder memo",
       text: "This is the founder memo for the weekly review.",
     };
-    createJobMock.mockResolvedValueOnce({
-      id: "job_audio_1",
-      conversationId: "conv_existing",
-      userId: "usr_owner",
-      toolName: "generate_audio",
-      status: "queued",
-      priority: 5,
-      dedupeKey: buildGenerateAudioMaterializationKey(audioInput),
-      initiatorType: "user",
-      requestPayload: {
-        ...audioInput,
-        materializationKey: buildGenerateAudioMaterializationKey(audioInput),
-        executionTarget: "deferred_remote",
+    buildWorkflowSnapshotMock.mockResolvedValueOnce({
+      workflow: {
+        id: "workflow_audio_1",
+        status: "queued",
       },
-      resultPayload: null,
-      errorMessage: null,
-      progressPercent: null,
-      progressLabel: null,
-      attemptCount: 0,
-      leaseExpiresAt: null,
-      claimedBy: null,
-      failureClass: null,
-      nextRetryAt: null,
-      recoveryMode: "rerun",
-      lastCheckpointId: null,
-      replayedFromJobId: null,
-      supersededByJobId: null,
-      createdAt: "2026-04-13T12:00:00.000Z",
-      startedAt: null,
-      completedAt: null,
-      updatedAt: "2026-04-13T12:00:00.000Z",
-    });
-    appendEventMock.mockResolvedValueOnce({
-      id: "evt_audio_1",
-      jobId: "job_audio_1",
-      conversationId: "conv_existing",
-      sequence: 1,
-      eventType: "queued",
-      payload: { toolName: "generate_audio" },
-      createdAt: "2026-04-13T12:00:00.000Z",
+      linkedJobIds: ["job_audio_1"],
+      linkedJobs: [
+        {
+          jobId: "job_audio_1",
+          toolName: "generate_audio",
+          status: "queued",
+          resultEnvelope: {
+            executionMode: "deferred",
+            family: "media",
+          },
+        },
+      ],
+      finalArtifact: null,
     });
 
     const response = await POST(createRouteRequest(
@@ -383,17 +374,27 @@ describe("GET /api/chat/jobs", () => {
     const payload = await response.json();
 
     expect(response.status).toBe(201);
-    expect(findActiveJobByDedupeKeyMock).toHaveBeenCalledWith(
-      "conv_existing",
-      buildGenerateAudioMaterializationKey(audioInput),
-    );
-    expect(createJobMock).toHaveBeenCalledWith(expect.objectContaining({
-      toolName: "generate_audio",
-      requestPayload: expect.objectContaining({
-        title: "Founder memo",
-        text: "This is the founder memo for the weekly review.",
-        materializationKey: buildGenerateAudioMaterializationKey(audioInput),
-        executionTarget: "deferred_remote",
+    expect(createOperationMock).toHaveBeenCalledWith(expect.objectContaining({
+      kind: "media_workflow",
+      title: "Generate audio",
+      conversationId: "conv_existing",
+    }));
+    expect(replaceActionsMock).toHaveBeenCalledWith(expect.objectContaining({
+      actions: [
+        expect.objectContaining({
+          actionType: "media.workflow.create",
+          payload: expect.objectContaining({
+            template: "generated_audio",
+            requestedDeliverable: "audio",
+            audio: audioInput,
+          }),
+        }),
+      ],
+    }));
+    expect(dispatchOperationActionMock).toHaveBeenCalledWith(expect.objectContaining({
+      payload: expect.objectContaining({
+        template: "generated_audio",
+        audio: audioInput,
       }),
     }));
     expect(payload).toMatchObject({
@@ -406,151 +407,14 @@ describe("GET /api/chat/jobs", () => {
         status: "queued",
         resultEnvelope: expect.objectContaining({
           executionMode: "deferred",
-          family: "artifact",
-        }),
-      },
-    });
-  });
-
-  it("returns the existing compose_media job when the route deduplicates an active plan", async () => {
-    findActiveJobByDedupeKeyMock.mockResolvedValue({
-      id: "job_media_existing",
-      conversationId: "conv_existing",
-      userId: "usr_owner",
-      toolName: "compose_media",
-      status: "queued",
-      priority: 5,
-      dedupeKey: "compose_media:plan_media_1",
-      initiatorType: "user",
-      requestPayload: {
-        plan: {
-          id: "plan_media_1",
-          conversationId: "conv_existing",
-          visualClips: [{ assetId: "asset_visual_1", kind: "video" }],
-          audioClips: [],
-          subtitlePolicy: "none",
-          waveformPolicy: "none",
-          outputFormat: "mp4",
-        },
-      },
-      resultPayload: null,
-      errorMessage: null,
-      progressPercent: null,
-      progressLabel: null,
-      attemptCount: 0,
-      leaseExpiresAt: null,
-      claimedBy: null,
-      failureClass: null,
-      nextRetryAt: null,
-      recoveryMode: "rerun",
-      lastCheckpointId: null,
-      replayedFromJobId: null,
-      supersededByJobId: null,
-      createdAt: "2026-04-13T12:00:00.000Z",
-      startedAt: null,
-      completedAt: null,
-      updatedAt: "2026-04-13T12:00:00.000Z",
-    });
-    findLatestRenderableEventForJobMock.mockResolvedValue({
-      id: "evt_media_existing",
-      jobId: "job_media_existing",
-      conversationId: "conv_existing",
-      sequence: 3,
-      eventType: "queued",
-      payload: { toolName: "compose_media" },
-      createdAt: "2026-04-13T12:00:00.000Z",
-    });
-
-    const response = await POST(createRouteRequest(
-      "/api/chat/jobs",
-      "POST",
-      {
-        toolName: "compose_media",
-        conversationId: "conv_existing",
-        plan: basePlan,
-      },
-      { "Content-Type": "application/json" },
-    ));
-    const payload = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(createJobMock).not.toHaveBeenCalled();
-    expect(appendEventMock).not.toHaveBeenCalled();
-    expect(appendRuntimeAuditLogMock).toHaveBeenCalledWith(
-      "deferred_job",
-      "enqueue_deduplicated",
-      expect.objectContaining({
-        jobId: "job_media_existing",
-        planId: "plan_media_1",
-        deduplicated: true,
-      }),
-    );
-    expect(payload).toMatchObject({
-      ok: true,
-      jobId: "job_media_existing",
-      deduplicated: true,
-      exactReuse: false,
-      job: {
-        jobId: "job_media_existing",
-        toolName: "compose_media",
-        status: "queued",
-        origin: expect.objectContaining({ fallback: "job_created_at" }),
-        resultEnvelope: expect.objectContaining({
-          executionMode: "deferred",
-          family: "artifact",
-        }),
-      },
-    });
-  });
-
-  it("returns a succeeded snapshot when an exact compose_media reuse is available", async () => {
-    findReusableSuccessMock.mockResolvedValue({
-      id: "mat_reuse_1",
-      userId: "usr_owner",
-      conversationId: "conv_existing",
-      materializationKey: "compose_media:key",
-      toolName: "compose_media",
-      pipelineVersion: "compose_media:v1",
-      status: "ready",
-      reusePolicy: "same_user",
-      inputSourceRefs: [],
-      outputRefs: [{ kind: "asset", id: "asset_out_1", userId: "usr_owner", conversationId: "conv_existing" }],
-      evidenceRefs: [],
-      producedByJobId: "job_completed_1",
-      supersededByRecordId: null,
-      createdAt: "2026-04-13T12:00:00.000Z",
-      updatedAt: "2026-04-13T12:00:00.000Z",
-    });
-    getJobSnapshotMock.mockResolvedValue({
-      ...buildCanonicalSnapshot({
-        jobId: "job_completed_1",
-        conversationId: "conv_existing",
-        toolName: "compose_media",
-        label: "Compose Media",
-        title: "Media Composition",
-        status: "succeeded",
-        sequence: 4,
-        progressPercent: 100,
-        progressLabel: "Completed",
-        createdAt: "2026-04-13T12:00:00.000Z",
-        startedAt: "2026-04-13T12:00:01.000Z",
-        completedAt: "2026-04-13T12:00:02.000Z",
-        updatedAt: "2026-04-13T12:00:02.000Z",
-        inputSnapshot: {},
-        resultEnvelope: {
-          schemaVersion: 1,
-          toolName: "compose_media",
           family: "media",
-          cardKind: "media_output",
-          executionMode: "deferred",
-          inputSnapshot: {},
-          summary: { title: "Media Composition" },
-          payload: { primaryAssetId: "asset_out_1" },
-        },
-        materializationRefs: ["mat_reuse_1"],
-      }),
+        }),
+      },
     });
+  });
 
+  it("returns an operation snapshot even when the media workflow has no linked job yet", async () => {
+    findWorkflowByOperationIdMock.mockReturnValue(null);
     const response = await POST(createRouteRequest(
       "/api/chat/jobs",
       "POST",
@@ -558,117 +422,27 @@ describe("GET /api/chat/jobs", () => {
         toolName: "compose_media",
         conversationId: "conv_existing",
         plan: basePlan,
-        promptBindingId: "pb_root_1",
       },
       { "Content-Type": "application/json" },
     ));
     const payload = await response.json();
 
-    expect(response.status).toBe(200);
-    expect(createJobMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(201);
+    expect(dispatchOperationActionMock).toHaveBeenCalledOnce();
     expect(payload).toMatchObject({
       ok: true,
-      exactReuse: true,
+      jobId: null,
+      job: null,
+      workflow: null,
       deduplicated: false,
-      jobId: "job_completed_1",
-      materialization: {
-        id: "mat_reuse_1",
-        producedByJobId: "job_completed_1",
-      },
-      job: {
-        jobId: "job_completed_1",
-        status: "succeeded",
-        materializationRefs: ["mat_reuse_1"],
-      },
-    });
-    expect(recordPromptBindingFromSourceMock).toHaveBeenCalledWith(expect.objectContaining({
-      sourcePromptBindingId: "pb_root_1",
-      surface: "materialization_decision",
-      target: {
-        targetKind: "materialization_record",
-        targetId: "mat_reuse_1",
-      },
-    }));
-  });
-
-  it("aliases exact reuse into the requesting conversation when the reusable output originated elsewhere", async () => {
-    findReusableSuccessMock.mockResolvedValue({
-      id: "mat_reuse_source",
-      userId: "usr_owner",
-      conversationId: "conv_source",
-      materializationKey: "compose_media:key",
-      toolName: "compose_media",
-      pipelineVersion: "compose_media:v1",
-      status: "ready",
-      reusePolicy: "same_user",
-      inputSourceRefs: [],
-      outputRefs: [{ kind: "asset", id: "asset_out_1", userId: "usr_owner", conversationId: "conv_source" }],
-      evidenceRefs: [],
-      producedByJobId: "job_completed_1",
-      supersededByRecordId: null,
-      createdAt: "2026-04-13T12:00:00.000Z",
-      updatedAt: "2026-04-13T12:00:00.000Z",
-    });
-    upsertMaterializationMock.mockImplementation(async (value) => ({
-      ...value,
-      id: "mat_reuse_conv_existing_alias",
-    }));
-    getJobSnapshotMock.mockResolvedValue({
-      ...buildCanonicalSnapshot({
-        jobId: "job_completed_1",
-        conversationId: "conv_source",
-        toolName: "compose_media",
-        label: "Compose Media",
-        title: "Media Composition",
-        status: "succeeded",
-        sequence: 4,
-        progressPercent: 100,
-        progressLabel: "Completed",
-        createdAt: "2026-04-13T12:00:00.000Z",
-        startedAt: "2026-04-13T12:00:01.000Z",
-        completedAt: "2026-04-13T12:00:02.000Z",
-        updatedAt: "2026-04-13T12:00:02.000Z",
-        inputSnapshot: {},
-        resultEnvelope: {
-          schemaVersion: 1,
-          toolName: "compose_media",
-          family: "media",
-          cardKind: "media_output",
-          executionMode: "deferred",
-          inputSnapshot: {},
-          summary: { title: "Media Composition" },
-          payload: { primaryAssetId: "asset_out_1" },
-        },
-        materializationRefs: ["mat_reuse_source"],
-      }),
-    });
-
-    const response = await POST(createRouteRequest(
-      "/api/chat/jobs",
-      "POST",
-      {
-        toolName: "compose_media",
-        conversationId: "conv_existing",
-        plan: basePlan,
-      },
-      { "Content-Type": "application/json" },
-    ));
-    const payload = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(upsertMaterializationMock).toHaveBeenCalledWith(expect.objectContaining({
-      conversationId: "conv_existing",
-      producedByJobId: "job_completed_1",
-      outputRefs: [{ kind: "asset", id: "asset_out_1", userId: "usr_owner", conversationId: "conv_source" }],
-    }));
-    expect(payload.materialization).toMatchObject({
-      id: "mat_reuse_conv_existing_alias",
-      conversationId: "conv_existing",
-      producedByJobId: "job_completed_1",
     });
   });
 
-  it("returns 400 when compose_media includes non-canonical visual asset references", async () => {
+  it("returns 400 when media workflow operation validation fails", async () => {
+    dispatchOperationActionMock.mockRejectedValueOnce(
+      new Error("Invalid visual clip assetId at index 0: must reference a saved media asset"),
+    );
+
     const response = await POST(createRouteRequest(
       "/api/chat/jobs",
       "POST",

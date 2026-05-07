@@ -2,34 +2,27 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import Database from "better-sqlite3";
 
 import { FactoryDataMapper } from "@/adapters/FactoryDataMapper";
-import type { Composition } from "@/core/entities/composition";
-import type { Draft } from "@/core/entities/draft";
-import type { FactoryAsset } from "@/core/entities/factory-asset";
+import { OperationDataMapper } from "@/adapters/OperationDataMapper";
 import type { ProductBrief } from "@/core/entities/product-brief";
-import type { QAReport } from "@/core/entities/qa-report";
-import type { Release } from "@/core/entities/release";
-import type { ResearchPacket } from "@/core/entities/research-packet";
-import type { StageResultEntityKind } from "@/core/entities/stage-run-record";
-import type { UserFile } from "@/core/entities/user-file";
 import type { WorkOrder } from "@/core/entities/work-order";
+import { createFactoryWorkOrderPauseAction } from "@/core/use-cases/operations/FactoryWorkOrderOperationActions";
 import { createExecutionTimelineReader } from "@/core/platform/execution/ExecutionTimelineReader";
 import { PlatformInteractionFacade } from "@/core/platform/facade/PlatformInteractionFacade";
 import { ensureSchema } from "@/lib/db/schema";
 import { DAGPlanner } from "@/lib/factory/dag-planner";
-import { createFactoryRevisionRoot } from "@/lib/factory/factory-revision-root";
 
 const {
   getSessionUserMock,
   getFactoryRepositoryMock,
+  getOperationRepositoryMock,
   getUserFileDataMapperMock,
   getWorkOrderInteractionMock,
-  reviseExecutionMock,
 } = vi.hoisted(() => ({
   getSessionUserMock: vi.fn(),
   getFactoryRepositoryMock: vi.fn(),
+  getOperationRepositoryMock: vi.fn(),
   getUserFileDataMapperMock: vi.fn(),
   getWorkOrderInteractionMock: vi.fn(),
-  reviseExecutionMock: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -41,6 +34,7 @@ vi.mock("@/adapters/RepositoryFactory", async () => {
   return {
     ...actual,
     getFactoryRepository: getFactoryRepositoryMock,
+    getOperationRepository: getOperationRepositoryMock,
     getUserFileDataMapper: getUserFileDataMapperMock,
     getPlatformInteractionFacade: () => ({
       getWorkOrderInteraction: getWorkOrderInteractionMock,
@@ -48,19 +42,11 @@ vi.mock("@/adapters/RepositoryFactory", async () => {
   };
 });
 
-vi.mock("@/lib/platform/agent-platform-facade-root", () => ({
-  getAgentPlatformFacade: () => ({
-    reviseExecution: reviseExecutionMock,
-  }),
-}));
-
 import { GET, POST } from "@/app/api/admin/factory/work-orders/[workOrderId]/revision/route";
 
 function requireValue<T>(value: T | null | undefined): T {
   expect(value).toBeTruthy();
-  if (value == null) {
-    throw new Error("Expected value to be present.");
-  }
+  if (value == null) throw new Error("Expected value to be present.");
   return value;
 }
 
@@ -69,6 +55,15 @@ function createDb() {
   db.pragma("foreign_keys = ON");
   ensureSchema(db);
   return db;
+}
+
+function seedUser(db: Database.Database, userId = "usr_factory") {
+  db.prepare("INSERT OR IGNORE INTO users (id, email, name) VALUES (?, ?, ?)").run(userId, `${userId}@example.com`, "Factory User");
+  db.prepare("INSERT OR IGNORE INTO user_roles (user_id, role_id) VALUES (?, 'role_admin')").run(userId);
+}
+
+function seedConversation(db: Database.Database, conversationId = "conv_factory", userId = "usr_factory") {
+  db.prepare("INSERT OR IGNORE INTO conversations (id, user_id, title) VALUES (?, ?, 'Factory thread')").run(conversationId, userId);
 }
 
 function createJobRepositoryStub() {
@@ -92,21 +87,6 @@ function createJobRepositoryStub() {
   };
 }
 
-function seedUser(db: Database.Database, userId = "usr_factory") {
-  db.prepare(
-    "INSERT OR IGNORE INTO users (id, email, name) VALUES (?, ?, ?)",
-  ).run(userId, `${userId}@example.com`, "Factory User");
-  db.prepare(
-    "INSERT OR IGNORE INTO user_roles (user_id, role_id) VALUES (?, 'role_admin')",
-  ).run(userId);
-}
-
-function seedConversation(db: Database.Database, conversationId = "conv_factory", userId = "usr_factory") {
-  db.prepare(
-    "INSERT OR IGNORE INTO conversations (id, user_id, title) VALUES (?, ?, 'Factory thread')",
-  ).run(conversationId, userId);
-}
-
 function createBrief(overrides: Partial<ProductBrief> = {}): ProductBrief {
   return {
     id: "brief_1",
@@ -114,7 +94,7 @@ function createBrief(overrides: Partial<ProductBrief> = {}): ProductBrief {
     title: "Factory launch page",
     topic: "Launching a solopreneur product",
     description: "A launch campaign for a digital product.",
-    assetKinds: ["chart", "audio"],
+    assetKinds: ["chart"],
     qaCriteria: ["accuracy", "accessibility"],
     targetChannels: ["blog"],
     executionPreferences: {
@@ -122,22 +102,24 @@ function createBrief(overrides: Partial<ProductBrief> = {}): ProductBrief {
       parallelizeAssets: true,
       maxAssetCount: 3,
     },
-    createdAt: "2024-04-27T12:00:00.000Z",
+    createdAt: "2026-05-03T12:00:00.000Z",
     createdBy: "usr_factory",
     ...overrides,
   };
 }
 
 function createWorkOrder(brief: ProductBrief, overrides: Partial<WorkOrder> = {}): WorkOrder {
+  const id = overrides.id ?? "wo_1";
   const dag = new DAGPlanner().generateDAG({
     brief,
     idGenerator: () => "dag_1",
-    now: () => "2024-04-27T12:00:00.000Z",
+    now: () => "2026-05-03T12:00:00.000Z",
   });
 
   return {
-    id: "wo_1",
+    id,
     schemaVersion: 1,
+    operationId: overrides.operationId ?? `op_${id}`,
     briefId: brief.id,
     status: "planned",
     currentDag: dag,
@@ -145,7 +127,7 @@ function createWorkOrder(brief: ProductBrief, overrides: Partial<WorkOrder> = {}
     executionLog: [],
     revision: 1,
     previousWorkOrderIds: [],
-    createdAt: "2024-04-27T12:00:00.000Z",
+    createdAt: "2026-05-03T12:00:00.000Z",
     userId: "usr_factory",
     conversationId: "conv_factory",
     initiatedBy: "batch_automation",
@@ -153,378 +135,68 @@ function createWorkOrder(brief: ProductBrief, overrides: Partial<WorkOrder> = {}
   };
 }
 
-function createResearchPacket(overrides: Partial<ResearchPacket> = {}): ResearchPacket {
-  return {
-    id: "rp_1",
-    schemaVersion: 1,
-    workOrderId: "wo_1",
-    queryUsed: "solopreneur launch metrics",
-    searchTimestamp: "2024-04-27T12:00:00.000Z",
-    summary: "Sufficient evidence was found across multiple sources.",
-    confidenceScore: 0.9,
-    sources: [
-      {
-        id: "src_1",
-        title: "Launch Benchmarks",
-        url: "https://example.com/benchmarks",
-        retrievedAt: "2024-04-27T12:00:00.000Z",
-        relevanceScore: 0.8,
-      },
-    ],
-    claims: [
-      {
-        id: "claim_1",
-        text: "Email remains the highest-converting owned channel.",
-        supportingSourceIds: ["src_1"],
-        confidence: 0.7,
-      },
-    ],
-    searchEngine: "hybrid",
-    ...overrides,
-  };
-}
-
-function createDraft(overrides: Partial<Draft> = {}): Draft {
-  return {
-    id: "draft_1",
-    schemaVersion: 1,
-    workOrderId: "wo_1",
-    title: "Factory launch page",
-    sections: [
-      { id: "section_1", kind: "heading", order: 0, text: "Launch", level: 1 },
-      { id: "section_2", kind: "paragraph", order: 1, text: "Start with owned channels." },
-    ],
-    createdAt: "2024-04-27T12:01:00.000Z",
-    revision: 1,
-    sourceResearchPacketId: "rp_1",
-    ...overrides,
-  };
-}
-
-function createChartAsset(overrides: Partial<FactoryAsset> = {}): FactoryAsset {
-  return {
-    id: "asset_chart_1",
-    schemaVersion: 1,
-    workOrderId: "wo_1",
-    kind: "chart",
-    label: "Primary chart",
-    uri: "/api/user-files/asset_chart_1",
-    mimeType: "image/png",
-    fileSizeBytes: 2048,
-    generationParams: { chartType: "line" },
-    generatedAt: "2024-04-27T12:02:00.000Z",
-    generationDurationMs: 3000,
-    provenance: { stageKey: "asset_chart_primary" },
-    qaStatus: "passed",
-    qaFindings: [],
-    revision: 1,
-    ...overrides,
-  };
-}
-
-function createAudioAsset(overrides: Partial<FactoryAsset> = {}): FactoryAsset {
-  return {
-    id: "asset_audio_1",
-    schemaVersion: 1,
-    workOrderId: "wo_1",
-    kind: "audio",
-    label: "Primary audio",
-    uri: "/api/user-files/asset_audio_1",
-    mimeType: "audio/mpeg",
-    fileSizeBytes: 4096,
-    generationParams: { voice: "neutral" },
-    generatedAt: "2024-04-27T12:02:30.000Z",
-    generationDurationMs: 2200,
-    provenance: { stageKey: "asset_audio_primary" },
-    qaStatus: "passed",
-    qaFindings: [],
-    revision: 1,
-    ...overrides,
-  };
-}
-
-function createComposition(overrides: Partial<Composition> = {}): Composition {
-  return {
-    id: "composition_1",
-    schemaVersion: 1,
-    workOrderId: "wo_1",
-    title: "Factory page",
-    sections: [
-      { id: "c1", kind: "heading", order: 0, text: "Launch", level: 1 },
-      { id: "c2", kind: "chart", order: 1, assetId: "asset_chart_1", caption: "Primary chart" },
-      { id: "c3", kind: "audio", order: 2, assetId: "asset_audio_1", caption: "Primary audio" },
-    ],
-    embeddedAssetIds: ["asset_chart_1", "asset_audio_1"],
-    provenance: { draftId: "draft_1", assetIds: ["asset_chart_1", "asset_audio_1"] },
-    metadata: { targetChannel: "blog" },
-    htmlContent: "<main>launch</main>",
-    createdAt: "2024-04-27T12:03:00.000Z",
-    revision: 1,
-    ...overrides,
-  };
-}
-
-function createQAReport(id: string, overrides: Partial<QAReport> = {}): QAReport {
-  return {
-    id,
-    schemaVersion: 1,
-    workOrderId: "wo_1",
-    status: "passed",
-    totalFindings: 0,
-    passedCriteria: ["accuracy", "accessibility"],
-    failedCriteria: [],
-    assetReports: [],
-    pageFindings: [],
-    recommendedFixes: [],
-    autoResolvableCount: 0,
-    requiresUserDecision: false,
-    createdAt: "2024-04-27T12:04:00.000Z",
-    ...overrides,
-  };
-}
-
-async function persistSucceededStage<TEntity extends ResearchPacket | Draft | FactoryAsset | Composition | QAReport | Release>(
-  mapper: FactoryDataMapper,
-  options: {
-    workOrderId: string;
-    stageRunId: string;
-    stageKey: string;
-    entityKind: StageResultEntityKind;
-    entity: TEntity;
-  },
-) {
-  await mapper.upsertStageRun(options.workOrderId, {
-    id: options.stageRunId,
-    stageKey: options.stageKey,
-    status: "pending",
-    attemptCount: 0,
-  });
-
-  const output = await mapper.appendOutput({
-    entityKind: options.entityKind,
-    entity: options.entity as never,
-    workOrderId: options.workOrderId,
-    stageRunId: options.stageRunId,
-  });
-
-  await mapper.upsertStageRun(options.workOrderId, {
-    id: options.stageRunId,
-    stageKey: options.stageKey,
-    status: "succeeded",
-    startedAt: "2024-04-27T12:00:00.000Z",
-    completedAt: "2024-04-27T12:00:30.000Z",
-    attemptCount: 1,
-    resultRef: {
-      entityKind: options.entityKind,
-      entityId: output.entityId,
+async function exposePauseAction(operationMapper: OperationDataMapper, workOrder: WorkOrder) {
+  await operationMapper.createOperation({
+    id: workOrder.operationId,
+    kind: "factory_work_order",
+    title: "Factory work order",
+    status: "running",
+    riskLevel: "medium",
+    conversationId: workOrder.conversationId,
+    createdByUserId: workOrder.userId,
+    createdByRole: "ADMIN",
+    visibility: "staff",
+    input: {
+      request: { brief: createBrief() },
     },
   });
 
-  return output;
-}
-
-async function seedPausedReleaseFailure(mapper: FactoryDataMapper, brief: ProductBrief): Promise<void> {
-  const workOrder = createWorkOrder(brief);
-  await mapper.createWorkOrder(workOrder);
-  await mapper.saveProductionDAG(workOrder.id, workOrder.currentDag);
-
-  const research = await persistSucceededStage(mapper, {
-    workOrderId: workOrder.id,
-    stageRunId: "sr_research",
-    stageKey: "research",
-    entityKind: "research_packet",
-    entity: createResearchPacket(),
-  });
-  const draft = await persistSucceededStage(mapper, {
-    workOrderId: workOrder.id,
-    stageRunId: "sr_draft",
-    stageKey: "draft",
-    entityKind: "draft",
-    entity: createDraft({ sourceResearchPacketId: research.entityId }),
-  });
-  const chartAsset = await persistSucceededStage(mapper, {
-    workOrderId: workOrder.id,
-    stageRunId: "sr_asset_chart",
-    stageKey: "asset_chart_primary",
-    entityKind: "asset",
-    entity: createChartAsset(),
-  });
-  const audioAsset = await persistSucceededStage(mapper, {
-    workOrderId: workOrder.id,
-    stageRunId: "sr_asset_audio",
-    stageKey: "asset_audio_primary",
-    entityKind: "asset",
-    entity: createAudioAsset(),
-  });
-  await persistSucceededStage(mapper, {
-    workOrderId: workOrder.id,
-    stageRunId: "sr_composition",
-    stageKey: "composition",
-    entityKind: "composition",
-    entity: createComposition({
-      provenance: { draftId: draft.entityId, assetIds: [chartAsset.entityId, audioAsset.entityId] },
-      embeddedAssetIds: [chartAsset.entityId, audioAsset.entityId],
-      sections: [
-        { id: "c1", kind: "heading", order: 0, text: "Launch", level: 1 },
-        { id: "c2", kind: "chart", order: 1, assetId: chartAsset.entityId, caption: "Primary chart" },
-        { id: "c3", kind: "audio", order: 2, assetId: audioAsset.entityId, caption: "Primary audio" },
-      ],
-    }),
-  });
-  await persistSucceededStage(mapper, {
-    workOrderId: workOrder.id,
-    stageRunId: "sr_qa_asset",
-    stageKey: "qa_asset",
-    entityKind: "qa_report",
-    entity: createQAReport("qa_asset_1", {
-      assetReports: [
-        { assetId: chartAsset.entityId, assetKind: "chart", findings: [], status: "passed" },
-        { assetId: audioAsset.entityId, assetKind: "audio", findings: [], status: "passed" },
-      ],
-    }),
-  });
-  await persistSucceededStage(mapper, {
-    workOrderId: workOrder.id,
-    stageRunId: "sr_qa_page",
-    stageKey: "qa_page",
-    entityKind: "qa_report",
-    entity: createQAReport("qa_page_1"),
-  });
-  await persistSucceededStage(mapper, {
-    workOrderId: workOrder.id,
-    stageRunId: "sr_qa_resolution",
-    stageKey: "qa_resolution",
-    entityKind: "qa_report",
-    entity: createQAReport("qa_resolution_1"),
-  });
-
-  await mapper.upsertStageRun(workOrder.id, {
-    id: "sr_release",
-    stageKey: "release",
-    status: "failed",
-    startedAt: "2024-04-27T12:06:00.000Z",
-    completedAt: "2024-04-27T12:06:05.000Z",
-    attemptCount: 1,
-    errorCode: "stage_failed",
-    errorMessage: "Publishing destination returned a terminal error.",
-  });
-
-  const stageRuns = await mapper.listStageRunsForWorkOrder(workOrder.id);
-  await mapper.updateWorkOrder({
-    ...workOrder,
-    revision: 2,
-    status: "paused",
-    stageRuns,
-    startedAt: "2024-04-27T12:00:00.000Z",
-    pausedState: {
-      pausedAt: "2024-04-27T12:06:05.000Z",
-      reason: "Publishing destination returned a terminal error.",
-      resumeFromStageKey: "release",
+  const action = createFactoryWorkOrderPauseAction({
+    operationId: workOrder.operationId,
+    operationRevision: 1,
+    idFactory: (prefix) => `${prefix}_pause`,
+    payload: {
+      workOrderId: workOrder.id,
+      reason: "Review before execution",
     },
   });
 
-  await mapper.createCheckpoint({
-    checkpointId: "checkpoint_release_failure",
-    workOrderId: workOrder.id,
-    stageRunId: "sr_release",
-    pauseState: {
-      pausedAt: "2024-04-27T12:06:05.000Z",
-      reason: "Publishing destination returned a terminal error.",
-      resumeFromStageKey: "release",
-    },
-    resumeFromStageKey: "release",
-    createdAt: "2024-04-27T12:06:05.000Z",
+  await operationMapper.replaceActions({
+    operationId: workOrder.operationId,
+    actions: [action],
   });
+
+  return action;
 }
 
 describe("/api/admin/factory/work-orders/[workOrderId]/revision", () => {
   let db: Database.Database;
-  let mapper: FactoryDataMapper;
+  let factoryMapper: FactoryDataMapper;
+  let operationMapper: OperationDataMapper;
 
   beforeEach(() => {
     vi.clearAllMocks();
     db = createDb();
     seedUser(db);
     seedConversation(db);
-    mapper = new FactoryDataMapper(db);
+    factoryMapper = new FactoryDataMapper(db);
+    operationMapper = new OperationDataMapper(db);
 
-    getFactoryRepositoryMock.mockImplementation(() => mapper);
+    getFactoryRepositoryMock.mockImplementation(() => factoryMapper);
+    getOperationRepositoryMock.mockImplementation(() => operationMapper);
+    getUserFileDataMapperMock.mockImplementation(() => ({ findById: vi.fn() }));
     const executionTimelineReader = createExecutionTimelineReader(
       createJobRepositoryStub() as never,
-      mapper,
+      factoryMapper,
     );
     const interactionFacade = new PlatformInteractionFacade({ executionTimelineReader });
     getWorkOrderInteractionMock.mockImplementation((workOrderId: string) => interactionFacade.getWorkOrderInteraction(workOrderId));
-    reviseExecutionMock.mockImplementation(async (request) => {
-      const root = createFactoryRevisionRoot();
-
-      if (request.action === "pause") {
-        return {
-          payload: {
-            result: await root.revisionControl.pauseWorkOrder({
-              workOrderId: request.executionId,
-              requestedBy: request.userId,
-              reason: typeof request.payload?.reason === "string" ? request.payload.reason : undefined,
-            }),
-          },
-        };
-      }
-
-      if (request.action === "refine") {
-        return {
-          payload: {
-            result: await root.revisionControl.refineAsset({
-              workOrderId: request.executionId,
-              assetId: String(request.payload?.assetId),
-              mode: request.payload?.mode as "regenerate" | "replace_with_upload" | "metadata_fix",
-              requestedBy: request.userId,
-              ...(request.payload?.brief ? { brief: request.payload.brief as ProductBrief } : {}),
-              ...(request.payload?.parameterOverrides ? { parameterOverrides: request.payload.parameterOverrides as Record<string, unknown> } : {}),
-              ...(typeof request.payload?.requestedStageKey === "string"
-                ? { requestedStageKey: request.payload.requestedStageKey }
-                : {}),
-              ...(typeof request.payload?.userFileId === "string"
-                ? { userFileId: request.payload.userFileId }
-                : {}),
-            }),
-          },
-        };
-      }
-
-      return {
-        payload: {
-          result: await root.revisionControl.resumeWorkOrder({
-            workOrderId: request.executionId,
-            brief: request.payload?.brief as ProductBrief,
-            ...(typeof request.payload?.requestedStageKey === "string"
-              ? { requestedStageKey: request.payload.requestedStageKey }
-              : {}),
-          }),
-        },
-      };
-    });
-    getUserFileDataMapperMock.mockImplementation(() => ({
-      findById: async (id: string) => id === "uf_chart_replacement"
-        ? {
-            id,
-            userId: "usr_factory",
-            conversationId: "conv_factory",
-            status: "ready",
-            contentHash: "hash_chart",
-            fileType: "chart",
-            fileName: "replacement-chart.svg",
-            mimeType: "image/svg+xml",
-            fileSize: 8192,
-            metadata: { assetKind: "chart", source: "uploaded" },
-            createdAt: "2024-04-27T12:10:00.000Z",
-          } satisfies UserFile
-        : null,
-    }));
     getSessionUserMock.mockResolvedValue({
       id: "usr_factory",
       email: "factory@example.com",
       name: "Factory Admin",
       roles: ["ADMIN"],
+      realRoles: [],
     });
   });
 
@@ -534,6 +206,7 @@ describe("/api/admin/factory/work-orders/[workOrderId]/revision", () => {
       email: "member@example.com",
       name: "Member",
       roles: ["AUTHENTICATED"],
+      realRoles: [],
     });
 
     const response = await GET(new Request("https://studioordo.test/api/admin/factory/work-orders/wo_1/revision"), {
@@ -542,12 +215,22 @@ describe("/api/admin/factory/work-orders/[workOrderId]/revision", () => {
     const payload = await response.json();
 
     expect(response.status).toBe(403);
-    expect(payload).toMatchObject({ error: expect.stringContaining("restricted to administrators") });
+    expect(payload).toMatchObject({ ok: false, error: expect.stringContaining("restricted to administrators") });
   });
 
-  it("returns revision history for a paused work order", async () => {
+  it("returns revision history without bespoke factory mutation actions", async () => {
     const brief = createBrief();
-    await seedPausedReleaseFailure(mapper, brief);
+    const workOrder = createWorkOrder(brief, { status: "paused", pausedState: { pausedAt: "2026-05-03T12:02:00.000Z", reason: "Review", resumeFromStageKey: "research" } });
+    const pausedState = requireValue(workOrder.pausedState);
+    await factoryMapper.createWorkOrder(workOrder);
+    await factoryMapper.saveProductionDAG(workOrder.id, workOrder.currentDag);
+    await factoryMapper.createCheckpoint({
+      checkpointId: "checkpoint_1",
+      workOrderId: workOrder.id,
+      pauseState: pausedState,
+      resumeFromStageKey: "research",
+      createdAt: "2026-05-03T12:02:00.000Z",
+    });
 
     const response = await GET(new Request("https://studioordo.test/api/admin/factory/work-orders/wo_1/revision"), {
       params: Promise.resolve({ workOrderId: "wo_1" }),
@@ -555,148 +238,60 @@ describe("/api/admin/factory/work-orders/[workOrderId]/revision", () => {
     const payload = await response.json();
 
     expect(response.status).toBe(200);
-    expect(payload.workOrder).toMatchObject({ id: "wo_1", status: "paused" });
-    expect(payload.activeCheckpoint).toMatchObject({ checkpointId: "checkpoint_release_failure" });
-    expect(payload.stageRuns).toEqual(expect.arrayContaining([
-      expect.objectContaining({ stageKey: "release", status: "failed" }),
-    ]));
-    expect(payload.revision).toMatchObject({
-      executionId: "wo_1",
-      supportLevel: "advanced",
-      state: "paused",
-    });
-    expect(payload.outputs).toEqual(expect.arrayContaining([
-      expect.objectContaining({ entityKind: "asset", entityId: "asset_chart_1" }),
-      expect.objectContaining({ entityKind: "composition" }),
-    ]));
+    expect(payload.workOrder).toMatchObject({ id: "wo_1", status: "paused", operationId: "op_wo_1" });
+    expect(payload.revision.actions).toEqual([]);
+    expect(payload.timeline.nextActions).toEqual([]);
   });
 
-  it("validates POST actions", async () => {
-    const response = await POST(new Request("https://studioordo.test/api/admin/factory/work-orders/wo_1/revision", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "ship_it" }),
-    }), {
-      params: Promise.resolve({ workOrderId: "wo_1" }),
-    });
-    const payload = await response.json();
-
-    expect(response.status).toBe(400);
-    expect(payload).toMatchObject({ error: "action must be one of pause, refine, or resume." });
-  });
-
-  it("pauses a planned work order through the admin route", async () => {
+  it("requires operation action request fields for POST", async () => {
     const brief = createBrief();
     const workOrder = createWorkOrder(brief);
-    await mapper.createWorkOrder(workOrder);
-    await mapper.saveProductionDAG(workOrder.id, workOrder.currentDag);
+    await factoryMapper.createWorkOrder(workOrder);
+    await factoryMapper.saveProductionDAG(workOrder.id, workOrder.currentDag);
 
     const response = await POST(new Request("https://studioordo.test/api/admin/factory/work-orders/wo_1/revision", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "pause", reason: "Review before execution" }),
+      body: JSON.stringify({ action: "pause" }),
     }), {
       params: Promise.resolve({ workOrderId: "wo_1" }),
     });
     const payload = await response.json();
-    const paused = requireValue(await mapper.findWorkOrderById("wo_1"));
+
+    expect(response.status).toBe(422);
+    expect(payload).toMatchObject({ errorCode: "OPERATION_ACTION_REQUEST_INVALID" });
+  });
+
+  it("dispatches factory revision through operation actions", async () => {
+    const brief = createBrief();
+    const workOrder = createWorkOrder(brief);
+    await factoryMapper.createWorkOrder(workOrder);
+    await factoryMapper.saveProductionDAG(workOrder.id, workOrder.currentDag);
+    const action = await exposePauseAction(operationMapper, workOrder);
+
+    const response = await POST(new Request("https://studioordo.test/api/admin/factory/work-orders/wo_1/revision", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        actionId: action.id,
+        operationRevision: action.operationRevision,
+        idempotencyKey: action.idempotencyKey,
+        payload: action.payload,
+        confirmation: { confirmed: true },
+      }),
+    }), {
+      params: Promise.resolve({ workOrderId: "wo_1" }),
+    });
+    const payload = await response.json();
+    const paused = requireValue(await factoryMapper.findWorkOrderById("wo_1"));
 
     expect(response.status).toBe(200);
-    expect(payload.result).toMatchObject({ outcome: "paused", resumeFromStageKey: "research" });
+    expect(payload).toMatchObject({
+      ok: true,
+      accepted: true,
+      operation: { id: "op_wo_1", kind: "factory_work_order", status: "blocked" },
+    });
     expect(paused.status).toBe("paused");
     expect(paused.pausedState?.resumeFromStageKey).toBe("research");
-  });
-
-  it("refines a paused asset with a replacement upload", async () => {
-    const brief = createBrief();
-    await seedPausedReleaseFailure(mapper, brief);
-
-    const response = await POST(new Request("https://studioordo.test/api/admin/factory/work-orders/wo_1/revision", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "refine",
-        mode: "replace_with_upload",
-        assetId: "asset_chart_1",
-        userFileId: "uf_chart_replacement",
-      }),
-    }), {
-      params: Promise.resolve({ workOrderId: "wo_1" }),
-    });
-    const payload = await response.json();
-    const outputs = await mapper.listOutputsForWorkOrder("wo_1", "asset");
-    const replacement = requireValue(outputs.find((output) => output.entityId === payload.result.newAssetId));
-
-    expect(response.status).toBe(200);
-    expect(payload.result).toMatchObject({ previousAssetId: "asset_chart_1", resumeFromStageKey: "composition" });
-    expect(replacement.supersedesEntityId).toBe("asset_chart_1");
-    expect((replacement.payload as FactoryAsset).uri).toBe("/api/user-files/uf_chart_replacement");
-  });
-
-  it("requires a valid brief for regenerate requests", async () => {
-    const brief = createBrief();
-    await seedPausedReleaseFailure(mapper, brief);
-
-    const response = await POST(new Request("https://studioordo.test/api/admin/factory/work-orders/wo_1/revision", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "refine",
-        mode: "regenerate",
-        assetId: "asset_chart_1",
-      }),
-    }), {
-      params: Promise.resolve({ workOrderId: "wo_1" }),
-    });
-    const payload = await response.json();
-
-    expect(response.status).toBe(400);
-    expect(payload.error).toContain("Invalid brief for regenerate");
-  });
-
-  it("regenerates an asset and resumes the work order through the admin route", async () => {
-    const brief = createBrief();
-    await seedPausedReleaseFailure(mapper, brief);
-
-    const refineResponse = await POST(new Request("https://studioordo.test/api/admin/factory/work-orders/wo_1/revision", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "refine",
-        mode: "regenerate",
-        assetId: "asset_chart_1",
-        brief,
-        parameterOverrides: { palette: "warm" },
-      }),
-    }), {
-      params: Promise.resolve({ workOrderId: "wo_1" }),
-    });
-    const refinePayload = await refineResponse.json();
-
-    expect(refineResponse.status).toBe(200);
-    expect(refinePayload.result.resumeFromStageKey).toBe("composition");
-
-    const resumeResponse = await POST(new Request("https://studioordo.test/api/admin/factory/work-orders/wo_1/revision", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "resume",
-        brief,
-      }),
-    }), {
-      params: Promise.resolve({ workOrderId: "wo_1" }),
-    });
-    const resumePayload = await resumeResponse.json();
-    const outputs = await mapper.listOutputsForWorkOrder("wo_1");
-    const latestComposition = requireValue(outputs.filter((output) => output.entityKind === "composition").at(-1));
-    const regeneratedAsset = requireValue(outputs.find((output) => output.entityId === refinePayload.result.newAssetId));
-
-    expect(resumeResponse.status).toBe(200);
-    expect(resumePayload.result).toMatchObject({ status: "succeeded" });
-    expect((regeneratedAsset.payload as FactoryAsset).generationParams).toMatchObject({
-      chartType: "flowchart",
-      palette: "warm",
-    });
-    expect((latestComposition.payload as Composition).embeddedAssetIds).toContain(refinePayload.result.newAssetId);
   });
 });

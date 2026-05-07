@@ -1,6 +1,6 @@
 import { getStageByKey } from "@/core/entities/production-dag";
 import type { Draft } from "@/core/entities/draft";
-import type { FactoryOutputRecord } from "@/core/use-cases/FactoryRepository";
+import type { FactoryOutputRecord, FactoryRepository } from "@/core/use-cases/FactoryRepository";
 import { getUserFileDataMapper } from "@/adapters/RepositoryFactory";
 
 import { createFactoryProductionRoot } from "./factory-production-root";
@@ -20,8 +20,12 @@ function findLatestActiveOutput(
   return records.filter((record) => !supersededIds.has(record.entityId)).at(-1) ?? null;
 }
 
-export function createFactoryRevisionRoot() {
-  const productionRoot = createFactoryProductionRoot();
+export interface FactoryRevisionRootOptions {
+  repository?: FactoryRepository;
+}
+
+export function createFactoryRevisionRoot(options: FactoryRevisionRootOptions = {}) {
+  const productionRoot = createFactoryProductionRoot({ repository: options.repository });
   const frontierPlanner = new FactoryResumeFrontierPlanner();
   const pauseWorkOrderService = new PauseWorkOrderService({
     repository: productionRoot.repository,

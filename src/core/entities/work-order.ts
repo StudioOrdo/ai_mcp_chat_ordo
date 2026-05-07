@@ -37,6 +37,7 @@ export interface ExecutionLogEntry {
 export interface WorkOrder {
   id: string;
   schemaVersion: 1;
+  operationId: string;
   briefId: string;
   status: WorkOrderStatus;
   currentDag: ProductionDAG;
@@ -96,6 +97,7 @@ export function listWorkOrderValidationErrors(workOrder: WorkOrder): string[] {
 
   pushError(errors, workOrder.schemaVersion !== 1, "WorkOrder.schemaVersion must be 1.");
   pushError(errors, !isNonEmptyTrimmedString(workOrder.id), "WorkOrder.id must be a non-empty string.");
+  pushError(errors, !isNonEmptyTrimmedString(workOrder.operationId), "WorkOrder.operationId must be a non-empty string.");
   pushError(errors, !isNonEmptyTrimmedString(workOrder.briefId), "WorkOrder.briefId must be a non-empty string.");
   pushError(errors, !isNonEmptyTrimmedString(workOrder.userId), "WorkOrder.userId must be a non-empty string.");
   pushError(errors, !isValidTimestamp(workOrder.createdAt), "WorkOrder.createdAt must be a valid timestamp.");

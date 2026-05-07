@@ -19,17 +19,20 @@ describe("runtime supervision contracts", () => {
   it("waits for the production deferred worker to exit during shutdown", () => {
     const source = readWorkspaceFile("scripts/start-server.mjs");
 
+    expect(source).toContain('from "./worker-restart-policy.mjs"');
+    expect(source).toContain("getWorkerRestartPolicyFromEnv(process.env)");
     expect(source).toContain("async function waitForChildExit");
     expect(source).toContain("await waitForChildExit(workerProcess);");
     expect(source).toContain('child.kill("SIGKILL")');
   });
 
-  it("requires a healthy media-worker service in docker compose", () => {
+  it("keeps docker compose on the single-image appliance path", () => {
     const source = readWorkspaceFile("compose.yaml");
 
-    expect(source).toContain("depends_on:");
-    expect(source).toContain("condition: service_healthy");
-    expect(source).toContain("http://127.0.0.1:3101/health");
+    expect(source).not.toContain("depends_on:");
+    expect(source).not.toContain("media-worker:");
+    expect(source).not.toContain("Dockerfile.media");
+    expect(source).not.toContain("MEDIA_WORKER_URL");
     expect(source).toContain("stop_grace_period: 15s");
   });
 });

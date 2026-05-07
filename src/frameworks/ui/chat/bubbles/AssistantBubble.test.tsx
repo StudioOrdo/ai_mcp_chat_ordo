@@ -2,13 +2,13 @@
 
 import "@testing-library/jest-dom/vitest";
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { PresentedMessage, ToolRenderEntry } from "@/adapters/ChatPresenter";
 import type { CapabilityPresentationDescriptor } from "@/core/entities/capability-presentation";
 import type { CapabilityResultEnvelope } from "@/core/entities/capability-result";
-import { AssistantBubbleContent } from "./AssistantBubble";
+import { AssistantBubbleContent, MessageActionChips } from "./AssistantBubble";
 
 vi.mock("@/components/ErrorBoundary", () => ({
   ErrorBoundary: ({ children }: { children: React.ReactNode }) => React.createElement(React.Fragment, null, children),
@@ -143,5 +143,61 @@ describe("AssistantBubbleContent", () => {
 
     expect(screen.queryByRole("region", { name: "Media Composition gallery" })).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Compose Media status" })).toHaveAttribute("data-capability-kind", "media_render");
+  });
+});
+
+describe("MessageActionChips", () => {
+  it("renders operation actions as explicit buttons and dispatches by operationId", () => {
+    const onActionClick = vi.fn();
+    const params = {
+      operationId: "op_1",
+      actionId: "action_1",
+      idempotencyKey: "idem_1",
+      operationRevision: "2",
+      riskLevel: "high",
+    };
+
+    render(
+      <MessageActionChips
+        actions={[{ label: "Execute restore", action: "operation", params }]}
+        onActionClick={onActionClick}
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: "Execute restore" });
+    expect(button).toHaveAttribute("data-chat-action-chip", "operation");
+    expect(button).toHaveAttribute("data-operation-action", "true");
+    expect(button).toHaveAttribute("data-action-intent", "danger");
+    fireEvent.click(button);
+    expect(onActionClick).toHaveBeenCalledWith("operation", "op_1", params);
+  });
+
+  it("keeps disabled operation actions visible but non-dispatching", () => {
+    const onActionClick = vi.fn();
+
+    render(
+      <MessageActionChips
+        actions={[
+          {
+            label: "Execute restore",
+            action: "operation",
+            params: {
+              operationId: "op_1",
+              actionId: "action_1",
+              idempotencyKey: "idem_1",
+              operationRevision: "2",
+              disabledReason: "Action has expired.",
+            },
+          },
+        ]}
+        onActionClick={onActionClick}
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: "Execute restore" });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute("title", "Action has expired.");
+    fireEvent.click(button);
+    expect(onActionClick).not.toHaveBeenCalled();
   });
 });

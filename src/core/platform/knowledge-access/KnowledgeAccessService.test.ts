@@ -231,4 +231,42 @@ describe("KnowledgeAccessService", () => {
       bm25Rank: 2,
     });
   });
+
+  it("keeps role-gated system-doc sections out of anonymous search", async () => {
+    const documents: Document[] = [
+      { slug: "system-docs", title: "Studio Ordo System Handbook", number: "00", audience: "public" },
+    ];
+    const sections = [
+      new Section(
+        "system-docs",
+        "00-public-chief-of-staff",
+        "Public Chief of Staff",
+        "Public visitors can ask bounded product questions.",
+        [],
+        [],
+        [],
+        "public",
+      ),
+      new Section(
+        "system-docs",
+        "06-admin-appliance-operations",
+        "Admin Appliance Operations",
+        "Admin restore safety, provider controls, backups, and tools.",
+        [],
+        [],
+        [],
+        "admin",
+      ),
+    ];
+    const service = new KnowledgeAccessService(createRepository(sections, documents));
+
+    const anonymous = await service.searchKnowledge({ query: "restore provider controls" }, { role: "ANONYMOUS" });
+    const admin = await service.searchKnowledge({ query: "restore provider controls" }, { role: "ADMIN" });
+
+    expect(anonymous.evidence).toEqual([]);
+    expect(admin.evidence[0]).toMatchObject({
+      documentSlug: "system-docs",
+      sectionSlug: "06-admin-appliance-operations",
+    });
+  });
 });

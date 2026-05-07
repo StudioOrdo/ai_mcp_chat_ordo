@@ -3,6 +3,7 @@ import type {
   JobInitiatorType,
   JobRequest,
 } from "@/core/entities/job";
+import type { MediaWorkflowJobOperationMetadata } from "@/core/use-cases/operations/MediaWorkflowOperationActions";
 import type { JobQueueRepository } from "@/core/use-cases/JobQueueRepository";
 import type { MaterializationRecord } from "@/core/entities/materialization";
 import type { MaterializationRepository } from "@/core/use-cases/MaterializationRepository";
@@ -39,6 +40,7 @@ export interface EnqueueComposeMediaDeferredJobOptions {
   initiatorType?: JobInitiatorType;
   priority?: number;
   promptBindingId?: string | null;
+  operation?: MediaWorkflowJobOperationMetadata;
 }
 
 export interface EnqueueComposeMediaDeferredJobResult {
@@ -171,6 +173,7 @@ export async function enqueueComposeMediaDeferredJob(
       materializationKey,
       executionTarget: "deferred_remote",
       ...(options.promptBindingId ? { promptBindingId: options.promptBindingId } : {}),
+      ...(options.operation ? { operation: options.operation } : {}),
     },
     promptBindingId: options.promptBindingId,
     dedupeKey,

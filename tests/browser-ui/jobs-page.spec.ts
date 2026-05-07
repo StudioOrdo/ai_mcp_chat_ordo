@@ -304,7 +304,7 @@ test.describe("Jobs page", () => {
     const recentJobCard = page.getByTestId(`job-card-${seededJobs.completedJobId}`);
 
     await expect(page).toHaveURL(/\/jobs$/);
-    await expect(page.getByRole("heading", { name: "Your Jobs", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Work Index", exact: true })).toBeVisible();
     await expect(page.getByText("Live updates connected.")).toBeVisible();
     await expect(activeJobCard).toBeVisible();
     await expect(recentJobCard).toBeVisible();
@@ -313,7 +313,7 @@ test.describe("Jobs page", () => {
     await expect(activeJobCard).toContainText("Generating outline");
     await expect(activeJobCard).toContainText("18%");
     await expect(page.getByText("Sequence 2")).toBeVisible();
-    await expect(page.getByRole("link", { name: "Open conversation" })).toHaveAttribute(
+    await expect(page.getByTestId("job-detail-panel").getByRole("link", { name: "Open conversation" })).toHaveAttribute(
       "href",
       `/?conversationId=${seededJobs.runningConversationId}`,
     );
@@ -341,7 +341,7 @@ test.describe("Jobs page", () => {
     await expect(activeJobCard).toContainText("42%", { timeout: 5000 });
     await expect(page.getByText("Sequence 8")).toBeVisible();
 
-    await recentJobCard.click();
+    await recentJobCard.getByRole("button", { name: "Open details for Publish journal draft post_1" }).click();
     await expect(page).toHaveURL(new RegExp(`/jobs\\?jobId=${seededJobs.completedJobId}$`));
     await expect(page.getByRole("link", { name: "Open artifact" })).toHaveAttribute(
       "href",
@@ -353,10 +353,10 @@ test.describe("Jobs page", () => {
     await page.reload();
 
     await expect(page).toHaveURL(new RegExp(`/jobs\\?jobId=${seededJobs.completedJobId}$`));
-    await expect(page.getByRole("heading", { name: "Your Jobs", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Work Index", exact: true })).toBeVisible();
     await expect(activeJobCard).toBeVisible();
     await expect(page.getByRole("link", { name: "Open artifact" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Open conversation" })).toHaveAttribute(
+    await expect(page.getByTestId("job-detail-panel").getByRole("link", { name: "Open conversation" })).toHaveAttribute(
       "href",
       `/?conversationId=${seededJobs.completedConversationId}`,
     );
@@ -435,13 +435,13 @@ test.describe("Jobs page", () => {
     const migratedJobCard = page.getByTestId(`job-card-${migratedJob.jobId}`);
 
     await expect(page).toHaveURL(/\/jobs$/);
-    await expect(page.getByRole("heading", { name: "Your Jobs", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Work Index", exact: true })).toBeVisible();
     await expect(page.getByText("Live updates connected.")).toBeVisible();
     await expect(migratedJobCard).toBeVisible();
     await expect(migratedJobCard).toContainText("Inherited migration brief");
     await expect(migratedJobCard).toContainText("Awaiting sign-in recovery");
     await expect(migratedJobCard).toContainText("12%");
-    await expect(page.getByRole("link", { name: "Open conversation" })).toHaveAttribute(
+    await expect(page.getByTestId("job-detail-panel").getByRole("link", { name: "Open conversation" })).toHaveAttribute(
       "href",
       `/?conversationId=${migratedJob.conversationId}`,
     );

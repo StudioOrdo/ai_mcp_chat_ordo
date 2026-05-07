@@ -185,46 +185,6 @@ function buildWorkOrderRevisionSummary(input: WorkOrderRevisionProjectionInput, 
 
 export function projectWorkOrderRevision(input: WorkOrderRevisionProjectionInput): RevisionInspection {
   const state = mapWorkOrderStatusToRevisionState(input.workOrder.status);
-  const actions: RevisionAction[] = [];
-
-  if (input.workOrder.status === "running") {
-    actions.push({
-      key: "pause",
-      label: "Pause",
-      operation: "pause",
-      transportKind: "factory",
-      value: input.workOrder.id,
-      available: true,
-      params: { operation: "pause" },
-    });
-  }
-
-  if (input.workOrder.status === "paused") {
-    actions.push({
-      key: "refine",
-      label: "Refine",
-      operation: "refine",
-      transportKind: "factory",
-      value: input.workOrder.id,
-      available: true,
-      params: { operation: "refine" },
-    });
-
-    if (input.activeCheckpoint) {
-      actions.push({
-        key: "resume",
-        label: "Resume",
-        operation: "resume",
-        transportKind: "factory",
-        value: input.workOrder.id,
-        available: true,
-        params: {
-          operation: "resume",
-          checkpointId: input.activeCheckpoint.checkpointId,
-        },
-      });
-    }
-  }
 
   return {
     executionId: input.workOrder.id,
@@ -235,7 +195,7 @@ export function projectWorkOrderRevision(input: WorkOrderRevisionProjectionInput
     summary: buildWorkOrderRevisionSummary(input, state),
     conversationId: input.workOrder.conversationId,
     userId: input.workOrder.userId,
-    actions,
+    actions: [],
     checkpoints: input.activeCheckpoint
       ? [{
           checkpointId: input.activeCheckpoint.checkpointId,

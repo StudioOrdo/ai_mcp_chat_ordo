@@ -16,13 +16,16 @@ import {
   resolveAdminWorkspaceContext,
 } from "@/lib/admin/admin-navigation";
 import {
+  DEFAULT_SHELL_NAVIGATION_CONTEXT,
   isShellRouteActive,
   resolveShellNavDrawerGroups,
   SHELL_BRAND,
+  type ShellNavigationContext,
 } from "@/lib/shell/shell-navigation";
 
 interface ShellWorkspaceMenuProps {
   user: SessionUser;
+  navigationContext?: ShellNavigationContext;
   tone?: "default" | "quiet";
 }
 
@@ -112,7 +115,11 @@ function ControlButton({
   );
 }
 
-export function ShellWorkspaceMenu({ user, tone = "default" }: ShellWorkspaceMenuProps) {
+export function ShellWorkspaceMenu({
+  user,
+  navigationContext = DEFAULT_SHELL_NAVIGATION_CONTEXT,
+  tone = "default",
+}: ShellWorkspaceMenuProps) {
   const [open, setOpen] = useState(false);
   const [showAccessibility, setShowAccessibility] = useState(false);
   const [showSimulation, setShowSimulation] = useState(false);
@@ -129,7 +136,7 @@ export function ShellWorkspaceMenu({ user, tone = "default" }: ShellWorkspaceMen
     setAccessibility,
   } = useTheme();
 
-  const drawerGroups = resolveShellNavDrawerGroups(user);
+  const drawerGroups = resolveShellNavDrawerGroups(user, navigationContext);
   const adminGroups = user.roles.includes("ADMIN") ? resolveAdminNavigationGroups() : [];
   const adminWorkspaceContext = user.roles.includes("ADMIN")
     ? resolveAdminWorkspaceContext(pathname, searchParams)
@@ -285,7 +292,7 @@ export function ShellWorkspaceMenu({ user, tone = "default" }: ShellWorkspaceMen
         <div className="ui-shell-dropdown-header flex items-start justify-between gap-(--space-3) px-(--space-4) py-(--space-3)">
           <div className="flex min-w-0 flex-1 items-start gap-(--space-3)">
             <Image
-              src="/ordo_icon.png"
+              src="/ordo-mark.png"
               alt=""
               width={40}
               height={40}
@@ -625,15 +632,21 @@ export function ShellWorkspaceMenu({ user, tone = "default" }: ShellWorkspaceMen
         data-shell-nav-item-tone={itemTone}
         onClick={() => setOpen((current) => !current)}
       >
-        <Image
-          src="/ordo_icon.png"
-          alt=""
-          width={24}
-          height={24}
+        <svg
+          className="shell-workspace-menu-trigger-glyph"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.1"
+          strokeLinecap="round"
           aria-hidden="true"
-          className="shell-workspace-menu-trigger-mark"
-          priority
-        />
+          focusable="false"
+          data-shell-workspace-menu-trigger-glyph="true"
+        >
+          <path d="M5 7h14" />
+          <path d="M5 12h14" />
+          <path d="M5 17h14" />
+        </svg>
       </button>
 
       {overlay && typeof document !== "undefined"

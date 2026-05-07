@@ -17,6 +17,12 @@ import { estimateAudioDurationSeconds } from "@/lib/audio/audio-estimates";
 import {
   emitProviderEvent,
 } from "@/lib/chat/provider-policy";
+import {
+  isProviderCapabilityUnavailableError,
+} from "@/lib/ai/providers/provider-capability-availability";
+import {
+  assertProviderBackedToolAvailable,
+} from "@/lib/tools/tool-provider-capability-policy";
 
 const TTS_FETCH_TIMEOUT_MS = 30_000;
 const TTS_MAX_RESPONSE_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -104,6 +110,20 @@ export async function POST(req: Request) {
     }
 
     // --- OpenAI TTS (default) — generate, cache, and return ---
+    try {
+      assertProviderBackedToolAvailable("generate_audio");
+    } catch (error) {
+      if (isProviderCapabilityUnavailableError(error)) {
+        finalizeRequest(requestId, startedAt, 503, {
+          outcome: error.availability.state,
+          capabilitySlot: error.availability.slot,
+          capabilityProvider: error.availability.provider,
+        });
+        return jsonError(requestId, error.message, 503);
+      }
+      throw error;
+    }
+
     let openaiApiKey: string;
     try {
       openaiApiKey = getOpenaiApiKey();
@@ -119,6 +139,7 @@ export async function POST(req: Request) {
     const providerStartedAt = Date.now();
     emitProviderEvent({
       kind: "attempt_start",
+      provider: "openai",
       surface: "tts",
       model: ttsModel,
       attempt: 1,
@@ -148,6 +169,7 @@ export async function POST(req: Request) {
       const _oaError = await oaResponse.text();
       emitProviderEvent({
         kind: "attempt_failure",
+        provider: "openai",
         surface: "tts",
         model: ttsModel,
         attempt: 1,
@@ -169,6 +191,7 @@ export async function POST(req: Request) {
 
     emitProviderEvent({
       kind: "attempt_success",
+      provider: "openai",
       surface: "tts",
       model: ttsModel,
       attempt: 1,

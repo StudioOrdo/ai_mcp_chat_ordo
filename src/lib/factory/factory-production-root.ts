@@ -2,6 +2,7 @@ import { getFactoryRepository } from "@/adapters/RepositoryFactory";
 import type { DraftSection } from "@/core/entities/draft";
 import type { FactoryAssetKind } from "@/core/entities/factory-constants";
 import type { Claim, SourceReference } from "@/core/entities/research-packet";
+import type { FactoryRepository } from "@/core/use-cases/FactoryRepository";
 
 import { DAGPlanner } from "./dag-planner";
 import { ProduceProductDeferredJobHandler } from "./produce-product-deferred-job";
@@ -192,8 +193,12 @@ const releaseService: ReleaseExecutorService = {
   },
 };
 
-export function createFactoryProductionRoot() {
-  const repository = getFactoryRepository();
+export interface FactoryProductionRootOptions {
+  repository?: FactoryRepository;
+}
+
+export function createFactoryProductionRoot(options: FactoryProductionRootOptions = {}) {
+  const repository = options.repository ?? getFactoryRepository();
   const planner = new DAGPlanner();
   const qaRegistry = createFactoryQACheckRegistry();
   const assetHandlers = createDefaultAssetHandlers();

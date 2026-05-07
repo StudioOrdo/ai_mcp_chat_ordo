@@ -1,5 +1,7 @@
 import type { JobStatus } from "@/core/entities/job";
+import type { OperationAction, OperationStatus } from "@/core/entities/operation";
 import type { JobStatusQuery } from "@/core/use-cases/JobStatusQuery";
+import type { OperationRepository } from "@/core/use-cases/operations/OperationRepository";
 import type { CanonicalJobSnapshot } from "@/lib/jobs/job-read-model";
 
 import type { SqliteMediaWorkflowRepository } from "./sqlite-media-workflow-repository";
@@ -44,6 +46,12 @@ export interface CanonicalMediaWorkflowSnapshot {
   };
   linkedJobIds: string[];
   linkedJobs: CanonicalJobSnapshot[];
+  operation?: {
+    operationId: string;
+    status: OperationStatus;
+    revision: number;
+    availableActions: OperationAction[];
+  } | null;
   originMessageId: string | null;
   originTurnId: string | null;
   createdAt: string;
@@ -54,6 +62,7 @@ export interface CanonicalMediaWorkflowSnapshot {
 export interface MediaWorkflowReadModelOptions {
   workflowRepository: SqliteMediaWorkflowRepository;
   jobStatusQuery?: JobStatusQuery;
+  operationRepository?: OperationRepository;
 }
 
 const STEP_LABELS: Record<MediaWorkflowStepKind, string> = {
@@ -192,6 +201,7 @@ function getLinkedJobIds(snapshot: MediaWorkflowSnapshot): string[] {
 function toWorkflowSnapshot(
   snapshot: MediaWorkflowSnapshot,
   linkedJobs: CanonicalJobSnapshot[],
+  operation: CanonicalMediaWorkflowSnapshot["operation"],
 ): CanonicalMediaWorkflowSnapshot {
   const finalArtifact = resolveFinalArtifact(snapshot);
 
@@ -218,6 +228,7 @@ function toWorkflowSnapshot(
     },
     linkedJobIds: getLinkedJobIds(snapshot),
     linkedJobs,
+    operation,
     originMessageId: snapshot.workflow.originMessageId,
     originTurnId: snapshot.workflow.originTurnId,
     createdAt: snapshot.workflow.createdAt,
@@ -254,7 +265,8 @@ export class MediaWorkflowReadModel {
 
   async buildSnapshot(snapshot: MediaWorkflowSnapshot): Promise<CanonicalMediaWorkflowSnapshot> {
     const linkedJobs = await this.loadLinkedJobs(snapshot);
-    return toWorkflowSnapshot(snapshot, linkedJobs);
+    const operation = await this.loadOperation(snapshot);
+    return toWorkflowSnapshot(snapshot, linkedJobs, operation);
   }
 
   async listConversationWorkflows(conversationId: string): Promise<CanonicalMediaWorkflowSnapshot[]> {
@@ -278,6 +290,34 @@ export class MediaWorkflowReadModel {
 
     return jobs.filter((job): job is CanonicalJobSnapshot => Boolean(job));
   }
+
+  private async loadOperation(snapshot: MediaWorkflowSnapshot): Promise<CanonicalMediaWorkflowSnapshot["operation"]> {
+    const operationId = readOperationId(snapshot);
+    if (!operationId || !this.options.operationRepository) {
+      return null;
+    }
+
+    const operation = await this.options.operationRepository.findOperationById(operationId);
+    if (!operation) {
+      return null;
+    }
+
+    return {
+      operationId,
+      status: operation.operation.status,
+      revision: operation.operation.revision,
+      availableActions: await this.options.operationRepository.listAvailableActions(operationId),
+    };
+  }
+}
+
+function readOperationId(snapshot: MediaWorkflowSnapshot): string | null {
+  const operation = snapshot.workflow.request["operation"];
+  if (!operation || typeof operation !== "object" || Array.isArray(operation)) {
+    return null;
+  }
+  const raw = operation as Record<string, unknown>;
+  return typeof raw.operationId === "string" && raw.operationId.trim() ? raw.operationId.trim() : null;
 }
 
 export function getWorkflowLinkedJobIdSet(workflows: readonly CanonicalMediaWorkflowSnapshot[]): Set<string> {

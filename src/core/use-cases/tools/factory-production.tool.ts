@@ -9,6 +9,11 @@ import type {
   ProduceProductRequestPayload,
 } from "@/lib/factory/produce-product-deferred-job";
 
+export interface ProduceProductOperationRequestPayload {
+  brief: ProductBrief;
+  previousWorkOrderIds?: readonly string[];
+}
+
 function requireRecord(value: unknown, label: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null) {
     throw new Error(`${label} is required.`);
@@ -26,6 +31,20 @@ function requireExecutionContext(context?: ToolExecutionContext): ToolExecutionC
 }
 
 export function parseProduceProductInput(value: unknown): ProduceProductRequestPayload {
+  const parsed = parseProduceProductOperationInput(value);
+  const record = requireRecord(value, "input");
+  const operationId = typeof record.operationId === "string" ? record.operationId.trim() : "";
+  if (!operationId) {
+    throw new Error("operationId is required.");
+  }
+
+  return {
+    operationId,
+    ...parsed,
+  };
+}
+
+export function parseProduceProductOperationInput(value: unknown): ProduceProductOperationRequestPayload {
   const record = requireRecord(value, "input");
   const brief = requireRecord(record.brief, "brief") as unknown as ProductBrief;
   const validationErrors = listProductBriefValidationErrors(brief);
@@ -59,6 +78,7 @@ function buildJobRequest(
     dedupeKey: null,
     initiatorType: "user",
     requestPayload: {
+      operationId: input.operationId,
       brief: input.brief,
       previousWorkOrderIds: input.previousWorkOrderIds,
     },

@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
+import { ensureInstalledCookie } from "./helpers/public-form";
 
 const mobileViewports = [
   { name: "360x800", viewport: { width: 360, height: 800 } },
@@ -9,7 +10,10 @@ const mobileViewports = [
 ] as const;
 
 function getActiveReferralCode(): string {
-  const dbPath = path.resolve(process.cwd(), ".data", "local.db");
+  const dbPath = path.resolve(
+    process.cwd(),
+    process.env.STUDIO_ORDO_DB_PATH ?? path.join(process.env.DATA_DIR ?? ".data", "local.db"),
+  );
   const db = new Database(dbPath, { readonly: true });
 
   try {
@@ -105,9 +109,42 @@ async function expectLauncherClearOf(page: Page, selector: string) {
   expect(metrics.targetBottom).toBeLessThanOrEqual(metrics.launcherTop - 8);
 }
 
+async function expectLauncherAbovePublicDock(page: Page) {
+  const launcher = page.locator('[data-chat-fab-launcher="true"]');
+
+  if (await launcher.count() === 0) {
+    return;
+  }
+
+  const metrics = await page.evaluate(() => {
+    const dock = document.querySelector('[data-public-mobile-route-dock="true"]');
+    const launcherElement = document.querySelector('[data-chat-fab-launcher="true"]');
+
+    if (!dock || !launcherElement) {
+      return null;
+    }
+
+    return {
+      dockTop: dock.getBoundingClientRect().top,
+      launcherBottom: launcherElement.getBoundingClientRect().bottom,
+    };
+  });
+
+  expect(metrics).not.toBeNull();
+
+  if (!metrics) {
+    throw new Error("Public dock and floating chat metrics were unavailable.");
+  }
+
+  expect(metrics.launcherBottom).toBeLessThanOrEqual(metrics.dockTop - 8);
+}
+
 for (const scenario of mobileViewports) {
   test.describe(`Mobile public entry and reading surfaces ${scenario.name}`, () => {
     test.use({ viewport: scenario.viewport });
+    test.beforeEach(async ({ page }) => {
+      await ensureInstalledCookie(page);
+    });
 
     test("login and register keep the primary action inside the first viewport", async ({ page }) => {
       for (const route of ["/login", "/register"]) {
@@ -149,151 +186,30 @@ for (const scenario of mobileViewports) {
       await expectLauncherClearOf(page, '[data-public-entry-primary-action="true"]');
     });
 
-    test("library reading reaches live content quickly and preserves footer clearance", async ({ page }) => {
-      await page.goto("/library");
-      await page.locator('[data-library-book-card="true"]').first().click();
+    test("feed, offers, and about keep public route chrome and floating chat separated", async ({ page }) => {
+      const routes = [
+        { href: "/feed", heading: "Public feed", activeDockLabel: null },
+        { href: "/offers", heading: "Offers", activeDockLabel: "Offers" },
+        { href: "/about", heading: "Run your business like you have a team.", activeDockLabel: "About" },
+      ] as const;
 
-      await expect(page).toHaveURL(/\/library\/[^/]+\/[^/]+$/);
-      await expect(page.locator('[data-library-reading-header="true"]')).toBeVisible();
-      await expect(page.locator('[data-library-sidebar="true"]')).toBeVisible();
-      await expect(page.locator('[data-library-reading-body="true"]')).toBeVisible();
-      await expect(page.locator('[data-library-reading-body="true"] h1')).toHaveCount(0);
-      await expect(page.locator('[data-library-reading-sequence="true"]')).toHaveCount(0);
-      await expect(page.locator('[data-library-reading-support="true"]')).toHaveCount(0);
-      await expect(page.locator('[data-library-reading-chapter-label="true"]')).toHaveCount(0);
-      await expect(page.locator('[data-library-sidebar-current-title="true"]')).toHaveCount(0);
-      await expect(page.locator('[data-library-sidebar-current-sequence="true"]')).toHaveCount(0);
-      await expect(page.locator('[data-library-sidebar-progress="true"]')).toHaveCount(0);
+      for (const route of routes) {
+        await page.goto(route.href);
 
-      await expectNoHorizontalOverflow(page);
+        const publicDock = page.getByRole("navigation", { name: "Public navigation" });
 
-      const bodyMetrics = await measureElement(page, '[data-library-reading-body="true"]');
-      const sidebarMetrics = await page.evaluate(() => {
-        const links = Array.from(document.querySelectorAll('[data-library-sidebar-link="true"]'));
-        const sidebarTheme = document.querySelector('[data-library-sidebar-theme="true"]');
-        const title = document.querySelector('[data-library-reading-title="true"]');
-        const bookCount = document.querySelector('[data-library-sidebar-count="true"]');
+        await expect(page.getByRole("heading", { name: route.heading })).toBeVisible();
+        await expect(publicDock).toBeVisible();
+        await expect(publicDock.getByRole("link", { name: "Chat" })).toHaveAttribute("href", "/");
+        await expect(publicDock.getByRole("link", { name: "Offers" })).toHaveAttribute("href", "/offers");
+        await expect(publicDock.getByRole("link", { name: "About" })).toHaveAttribute("href", "/about");
+        await expect(publicDock.getByRole("link", { name: "Feed" })).toHaveCount(0);
+        await expectNoHorizontalOverflow(page);
+        await expectLauncherAbovePublicDock(page);
 
-        if (links.length < 2) {
-          return null;
+        if (route.activeDockLabel) {
+          await expect(publicDock.getByRole("link", { name: route.activeDockLabel })).toHaveAttribute("aria-current", "page");
         }
-
-        const first = links[0];
-        const second = links[1];
-
-        if (!(first instanceof HTMLElement) || !(second instanceof HTMLElement)) {
-          return null;
-        }
-
-        const firstRect = first.getBoundingClientRect();
-        const secondRect = second.getBoundingClientRect();
-        const firstLinkLabel = first.querySelector('.library-sidebar-link-index');
-        const firstLinkTitle = first.querySelector('.library-sidebar-link-title');
-
-        return {
-          titleText: title?.textContent?.trim() ?? "",
-          bookCountText: bookCount?.textContent?.trim() ?? "",
-          firstLinkLabelText: firstLinkLabel?.textContent?.trim() ?? "",
-          firstLinkTitleText: firstLinkTitle?.textContent?.trim() ?? "",
-          firstTop: firstRect.top,
-          secondTop: secondRect.top,
-          firstLeft: firstRect.left,
-          secondLeft: secondRect.left,
-          sidebarThemeDisplay: sidebarTheme instanceof HTMLElement ? getComputedStyle(sidebarTheme).display : null,
-        };
-      });
-
-      expect(bodyMetrics).not.toBeNull();
-      expect(sidebarMetrics).not.toBeNull();
-
-      if (!bodyMetrics || !sidebarMetrics) {
-        throw new Error("Library reading metrics were unavailable.");
-      }
-
-      expect(bodyMetrics.top).toBeLessThanOrEqual(bodyMetrics.viewportHeight + 48);
-        expect(sidebarMetrics.titleText).not.toMatch(/^Chapter\s+\d+\s*(?:—|-|:)/);
-      expect(sidebarMetrics.bookCountText).toMatch(/^\d+ chapters$/);
-        expect(sidebarMetrics.firstLinkLabelText).toMatch(/^\d{2}$/);
-        expect(sidebarMetrics.firstLinkTitleText).not.toMatch(/^Chapter\s+\d+\s*(?:—|-|:)/);
-      expect(Math.abs(sidebarMetrics.firstTop - sidebarMetrics.secondTop)).toBeLessThanOrEqual(16);
-      expect(sidebarMetrics.secondLeft).toBeGreaterThan(sidebarMetrics.firstLeft + 120);
-      expect(sidebarMetrics.sidebarThemeDisplay).toBe("none");
-
-      await page.locator('[data-library-reading-nav="true"]').scrollIntoViewIfNeeded();
-      await expectLauncherClearOf(page, '[data-library-reading-nav="true"]');
-    });
-
-    test("journal index shows route identity and article inventory in the opening viewport", async ({ page }) => {
-      await page.goto("/journal");
-
-      await expect(page.locator('[data-journal-surface="intro-card"]')).toBeVisible();
-      await expect(page.locator('[data-journal-role="lead-entry"]')).toBeVisible();
-      await expectNoHorizontalOverflow(page);
-
-      const contentMetrics = await page.evaluate(() => {
-        const firstContent = document.querySelector(
-          '[data-journal-role="lead-entry"], [data-journal-entry-tone="essay"], [data-journal-entry-tone="briefing"], [data-journal-surface="empty-shell"]',
-        );
-
-        if (!firstContent) {
-          return null;
-        }
-
-        const rect = firstContent.getBoundingClientRect();
-
-        return {
-          top: rect.top,
-          viewportHeight: window.innerHeight,
-        };
-      });
-
-      expect(contentMetrics).not.toBeNull();
-
-      if (!contentMetrics) {
-        throw new Error("Journal index content metrics were unavailable.");
-      }
-
-      expect(contentMetrics.top).toBeLessThanOrEqual(contentMetrics.viewportHeight + 8);
-
-      const leadMetrics = await measureElement(page, '[data-journal-role="lead-entry"]');
-      expect(leadMetrics).not.toBeNull();
-
-      if (!leadMetrics) {
-        throw new Error("Journal lead entry metrics were unavailable.");
-      }
-
-      expect(leadMetrics.height).toBeLessThanOrEqual(leadMetrics.viewportHeight * 0.66);
-    });
-
-    test("journal articles reach the body within one short header stack", async ({ page }) => {
-      await page.goto("/journal");
-
-      const firstEntry = page.locator('[data-journal-role="lead-entry"], [data-journal-entry-tone="essay"], [data-journal-entry-tone="briefing"]').first();
-
-      await expect(firstEntry).toBeVisible();
-      await firstEntry.click();
-
-      await expect(page.locator('[data-journal-role="article-header"]')).toBeVisible();
-      await expect(page.locator('[data-journal-role="article-body"]')).toBeVisible();
-      await expect(page.locator('[data-journal-role="article-body"] h1')).toHaveCount(0);
-
-      await expectNoHorizontalOverflow(page);
-
-      const openingBodyMetrics = await measureElement(page, '[data-journal-role="article-body-opening"]');
-      const bodyMetrics = await measureElement(page, '[data-journal-role="article-body"]');
-      const heroMetrics = await measureElement(page, '[data-journal-role="article-hero"]');
-      expect(bodyMetrics).not.toBeNull();
-
-      if (!bodyMetrics) {
-        throw new Error("Journal article body metrics were unavailable.");
-      }
-
-      const firstReadableContentMetrics = openingBodyMetrics ?? bodyMetrics;
-      expect(firstReadableContentMetrics.top).toBeLessThanOrEqual(firstReadableContentMetrics.viewportHeight + 16);
-
-      if (openingBodyMetrics && heroMetrics) {
-        expect(openingBodyMetrics.top).toBeLessThanOrEqual(openingBodyMetrics.viewportHeight + 8);
-        expect(openingBodyMetrics.top).toBeLessThan(heroMetrics.top);
       }
     });
   });

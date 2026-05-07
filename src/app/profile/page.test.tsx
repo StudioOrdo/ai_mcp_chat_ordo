@@ -7,8 +7,8 @@ const { getSessionUserMock, redirectMock, getProfileMock, panelMock } = vi.hoist
     throw new Error(`redirect:${path}`);
   }),
   getProfileMock: vi.fn(),
-  panelMock: vi.fn(({ initialProfile }: { initialProfile: { name: string } }) => (
-    <div data-testid="profile-panel">{initialProfile.name}</div>
+  panelMock: vi.fn(({ initialProfile, initialSection }: { initialProfile: { name: string }; initialSection?: string }) => (
+    <div data-testid="profile-panel" data-initial-section={initialSection}>{initialProfile.name}</div>
   )),
 }));
 
@@ -52,5 +52,23 @@ describe("/profile page", () => {
 
     expect(getProfileMock).toHaveBeenCalledWith("usr_1");
     expect(screen.getByTestId("profile-panel")).toHaveTextContent("Morgan Lee");
+    expect(screen.getByTestId("profile-panel")).toHaveAttribute("data-initial-section", "info");
+  });
+
+  it("opens the password section from profile search params", async () => {
+    getSessionUserMock.mockResolvedValue({ id: "usr_1", email: "morgan@example.com", name: "Morgan", roles: ["AUTHENTICATED"] });
+    getProfileMock.mockResolvedValue({ id: "usr_1", name: "Morgan Lee", email: "morgan@example.com", credential: "AI strategist", pushNotificationsEnabled: true, affiliateEnabled: true, referralCode: "mentor-42", referralUrl: "https://studioordo.com/r/mentor-42", qrCodeUrl: "/api/qr/mentor-42", roles: ["AUTHENTICATED"] });
+
+    render(await ProfilePage({ searchParams: Promise.resolve({ section: "password" }) }));
+
+    expect(screen.getByTestId("profile-panel")).toHaveAttribute("data-initial-section", "password");
+  });
+
+  it("redirects stale account referral links to the affiliate dashboard", async () => {
+    getSessionUserMock.mockResolvedValue({ id: "usr_1", email: "morgan@example.com", name: "Morgan", roles: ["AUTHENTICATED"] });
+
+    await expect(ProfilePage({ searchParams: Promise.resolve({ section: "referrals" }) })).rejects.toThrow("redirect:/referrals");
+    expect(redirectMock).toHaveBeenCalledWith("/referrals");
+    expect(getProfileMock).not.toHaveBeenCalled();
   });
 });

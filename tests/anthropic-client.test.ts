@@ -36,7 +36,7 @@ describe("createMessageWithModelFallback", () => {
         systemPrompt: "system",
         tools: [],
       }),
-    ).rejects.toThrow("Anthropic provider error: 401 unauthorized");
+    ).rejects.toThrow("Intelligence provider error: 401 unauthorized");
 
     expect(create).toHaveBeenCalledTimes(1);
   });
@@ -81,7 +81,7 @@ describe("createMessageWithModelFallback", () => {
         systemPrompt: "system",
         tools: [],
       }),
-    ).rejects.toThrow("Anthropic provider error: Provider request timed out.");
+    ).rejects.toThrow("Intelligence provider error: Provider request timed out.");
   });
 
   it("does not retry timeout errors even with multiple retry attempts", async () => {
@@ -103,7 +103,7 @@ describe("createMessageWithModelFallback", () => {
         systemPrompt: "system",
         tools: [],
       }),
-    ).rejects.toThrow("Anthropic provider error: Provider request timed out.");
+    ).rejects.toThrow("Intelligence provider error: Provider request timed out.");
 
     // Should only attempt once — timeouts are not retried
     expect(create).toHaveBeenCalledTimes(1);

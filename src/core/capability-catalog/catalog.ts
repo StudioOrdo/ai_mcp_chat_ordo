@@ -178,6 +178,20 @@ export function projectPromptHint(
 }
 
 /**
+ * Project prompt exposure policy.
+ * Missing metadata remains default-visible for the first rollout so execution
+ * behavior does not change until a capability is explicitly classified.
+ */
+export function projectPromptExposure(
+  def: CapabilityDefinition,
+): NonNullable<CapabilityDefinition["promptExposure"]> {
+  return def.promptExposure ?? {
+    exposure: "default_prompt",
+    rationale: "Default prompt exposure for backward-compatible catalog rollout.",
+  };
+}
+
+/**
  * Project MCP export intent.
  * Returns null if the capability has no MCP export facet.
  */

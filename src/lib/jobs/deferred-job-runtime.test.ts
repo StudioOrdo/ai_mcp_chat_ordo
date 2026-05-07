@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createDeferredJobHandlers } from "@/lib/jobs/deferred-job-handlers";
 import { JOB_CAPABILITY_REGISTRY } from "@/lib/jobs/job-capability-registry";
 import {
@@ -169,7 +169,16 @@ function expectWorkerContext(toolName: keyof typeof JOB_CAPABILITY_REGISTRY, con
 }
 
 describe("deferred job runtime", () => {
+  const originalEnv = process.env;
+
   beforeEach(() => {
+    process.env = {
+      ...originalEnv,
+      OPENAI_API_KEY: "sk-test",
+      IMAGE_PROVIDER: "openai",
+      TTS_PROVIDER: "openai",
+      WEB_SEARCH_PROVIDER: "openai",
+    };
     vi.clearAllMocks();
     executeDraftContentMock.mockResolvedValue({ id: "post_1" });
     executePublishContentMock.mockResolvedValue({ id: "post_1" });
@@ -198,6 +207,10 @@ describe("deferred job runtime", () => {
         outputFormat: "mp4",
       },
     });
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
   });
 
   it("builds worker execution context from the capability registry for contextual handlers", async () => {

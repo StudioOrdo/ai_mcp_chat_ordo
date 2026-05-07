@@ -8,12 +8,12 @@
  * Sprint 7 — Extended to non-chat surfaces (summarization, image, TTS, blog, web search)
  */
 
-import {
-  getAnthropicRequestRetryAttempts,
-  getAnthropicRequestRetryDelayMs,
-  getAnthropicRequestTimeoutMs,
-  getModelFallbacks,
-} from "@/lib/config/env";
+import { ProviderConfigService } from "@/lib/ai/providers/provider-config-service";
+import type {
+  CapabilityProviderId,
+  IntelligenceProviderId,
+  ResolvedIntelligenceProviderConfig,
+} from "@/lib/ai/providers/types";
 import { logEvent } from "@/lib/observability/logger";
 
 // ---------------------------------------------------------------------------
@@ -21,6 +21,7 @@ import { logEvent } from "@/lib/observability/logger";
 // ---------------------------------------------------------------------------
 
 export interface ProviderResiliencePolicy {
+  provider: IntelligenceProviderId;
   timeoutMs: number;
   retryAttempts: number;
   retryDelayMs: number;
@@ -28,18 +29,21 @@ export interface ProviderResiliencePolicy {
 }
 
 /**
- * Resolve the canonical provider resilience policy from environment config.
+ * Resolve the canonical provider resilience policy from selected provider config.
  *
  * Every model-backed surface should call this once per request instead of
  * reading env vars directly.  This ensures timeout, retry, and model-fallback
  * values are always consistent across all provider paths.
  */
-export function resolveProviderPolicy(): ProviderResiliencePolicy {
+export function resolveProviderPolicy(
+  config: ResolvedIntelligenceProviderConfig = ProviderConfigService.resolveSelectedIntelligenceProviderConfig(),
+): ProviderResiliencePolicy {
   return {
-    timeoutMs: getAnthropicRequestTimeoutMs(),
-    retryAttempts: getAnthropicRequestRetryAttempts(),
-    retryDelayMs: getAnthropicRequestRetryDelayMs(),
-    modelCandidates: getModelFallbacks(),
+    provider: config.provider.value,
+    timeoutMs: config.timeoutMs.value,
+    retryAttempts: config.retryAttempts.value,
+    retryDelayMs: config.retryDelayMs.value,
+    modelCandidates: config.modelCandidates,
   };
 }
 
@@ -111,6 +115,7 @@ export type ProviderSurface =
 
 export interface ProviderAttemptEvent {
   kind: ProviderEventKind;
+  provider: IntelligenceProviderId | Exclude<CapabilityProviderId, "disabled">;
   surface: ProviderSurface;
   model: string;
   attempt: number;
@@ -130,6 +135,7 @@ export function emitProviderEvent(event: ProviderAttemptEvent): void {
     event.kind === "attempt_failure" ? "error" : event.kind === "attempt_retry" || event.kind === "model_fallback" ? "warn" : "info",
     `provider.${event.kind}`,
     {
+      provider: event.provider,
       surface: event.surface,
       model: event.model,
       attempt: event.attempt,

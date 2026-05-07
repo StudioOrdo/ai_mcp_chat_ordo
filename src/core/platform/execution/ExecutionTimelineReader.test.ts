@@ -34,6 +34,7 @@ function createFactoryRepositoryMock(): FactoryRepository {
     createWorkOrder: vi.fn(),
     updateWorkOrder: vi.fn(),
     findWorkOrderById: vi.fn(),
+    findWorkOrderByOperationId: vi.fn(),
     listWorkOrdersByUser: vi.fn(),
     saveProductionDAG: vi.fn(),
     findProductionDAGById: vi.fn(),
@@ -466,6 +467,7 @@ describe("ExecutionTimelineReader", () => {
     vi.mocked(factoryRepository.findWorkOrderById).mockResolvedValue({
       id: "wo_1",
       schemaVersion: 1,
+      operationId: "op_wo_1",
       briefId: "brief_1",
       status: "paused",
       currentDag: {

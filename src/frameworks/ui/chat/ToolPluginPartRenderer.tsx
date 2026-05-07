@@ -6,6 +6,7 @@ import { CapabilityErrorCard } from "./plugins/system/CapabilityErrorCard";
 import { resolveSystemCardKind } from "./plugins/system/resolve-system-card";
 import { useToolPluginRegistry } from "./registry/ToolPluginContext";
 import type { ToolPluginProps } from "./registry/types";
+import type { InlineNode } from "@/core/entities/rich-content";
 
 /**
  * Wrapper component that resolves the correct plugin for a tool part or tool call.
@@ -101,6 +102,10 @@ export function ToolPluginPartRenderer(props: ToolPluginProps) {
       toolInvocationId: part.toolInvocationId,
     };
   }, [part, resultEnvelope, toolCall]);
+  const effectiveActions = useMemo(
+    () => computedActions ?? extractResultActions(resultEnvelope?.payload),
+    [computedActions, resultEnvelope],
+  );
   const Plugin = useMemo(
     () => registry.getRenderer(toolName),
     [registry, toolName],
@@ -114,7 +119,7 @@ export function ToolPluginPartRenderer(props: ToolPluginProps) {
     const element = createElement(CapabilityErrorCard, {
       part,
       toolCall: effectiveToolCall,
-      computedActions,
+      computedActions: effectiveActions,
       descriptor,
       resultEnvelope,
       isStreaming,
@@ -129,7 +134,7 @@ export function ToolPluginPartRenderer(props: ToolPluginProps) {
   const element = createElement(Plugin, {
     part,
     toolCall: effectiveToolCall,
-    computedActions,
+    computedActions: effectiveActions,
     descriptor,
     resultEnvelope,
     isStreaming,
@@ -139,4 +144,21 @@ export function ToolPluginPartRenderer(props: ToolPluginProps) {
   return toolInvocationId
     ? createElement("div", { "data-tool-invocation-id": toolInvocationId }, element)
     : element;
+}
+
+function extractResultActions(payload: unknown): InlineNode[] | undefined {
+  if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
+    return undefined;
+  }
+  const actions = (payload as { actions?: unknown }).actions;
+  if (!Array.isArray(actions)) {
+    return undefined;
+  }
+  const actionNodes = actions.filter((action): action is InlineNode =>
+    typeof action === "object"
+    && action !== null
+    && !Array.isArray(action)
+    && (action as { type?: unknown }).type === "action-link",
+  );
+  return actionNodes.length > 0 ? actionNodes : undefined;
 }

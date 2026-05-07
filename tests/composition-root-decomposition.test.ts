@@ -7,6 +7,16 @@ vi.mock("@/adapters/RepositoryFactory", async () => {
   const { createMockRepositoryFactory } = await import("@/__test-utils__");
   return createMockRepositoryFactory({
     getCorpusRepository: () => ({ search: vi.fn(), getSection: vi.fn(), getSummary: vi.fn() }),
+    getBackupSystemCommandDataMapper: () => ({
+      findById: vi.fn(),
+      listRecentBackupRestore: vi.fn(() => []),
+      listBySnapshotId: vi.fn(() => []),
+      listByRestorePlanId: vi.fn(() => []),
+      countByStatusForRustDaemon: vi.fn(() => ({})),
+      hasActiveBackupOrRestoreCommand: vi.fn(() => false),
+      findLatestScheduledCommand: vi.fn(() => null),
+      listSucceededScheduledBackupCommands: vi.fn(() => []),
+    }),
   });
 });
 vi.mock("@/adapters/LocalEmbedder", () => ({ localEmbedder: { embed: vi.fn(() => [0]) } }));

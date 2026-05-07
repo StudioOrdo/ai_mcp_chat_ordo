@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { getSessionUser } from "@/lib/auth";
+import { getSessionUser, resolveSessionAuthorizationRole } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 
 const ANON_SESSION_COOKIE = "lms_anon_session";
@@ -29,7 +29,7 @@ export async function resolveUserId(): Promise<{
   isAnonymous: boolean;
 }> {
   const user = await getSessionUser();
-  const isAnonymous = user.roles[0] === "ANONYMOUS";
+  const isAnonymous = resolveSessionAuthorizationRole(user) === "ANONYMOUS";
 
   if (!isAnonymous) {
     return { userId: user.id, isAnonymous: false };

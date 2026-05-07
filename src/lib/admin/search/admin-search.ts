@@ -30,6 +30,15 @@ interface EntitySearchConfig {
   extraWhere?: string;
 }
 
+const LIST_ALL_QUERIES = new Set([
+  "*",
+  "all",
+  "all users",
+  "list users",
+  "system users",
+  "users",
+]);
+
 const ENTITY_CONFIGS: EntitySearchConfig[] = [
   {
     entityType: "user",
@@ -150,13 +159,14 @@ export async function searchAdminEntities(
   options?: { entityTypes?: string[]; limit?: number },
 ): Promise<AdminSearchResult[]> {
   const trimmed = query.trim();
-  if (trimmed.length < 2) return [];
+  const entityTypes = options?.entityTypes;
+  const isListAllQuery = LIST_ALL_QUERIES.has(trimmed.toLowerCase());
+  if (trimmed.length < 2 && !isListAllQuery) return [];
 
   // getDb() approved: raw SQL query — see data-access-canary.test.ts (Sprint 9)
   const db = getDb();
   const limit = options?.limit ?? 20;
-  const pattern = `%${trimmed}%`;
-  const entityTypes = options?.entityTypes;
+  const pattern = isListAllQuery ? "%" : `%${trimmed}%`;
 
   const activeConfigs = entityTypes?.length
     ? ENTITY_CONFIGS.filter((c) => entityTypes.includes(c.entityType))

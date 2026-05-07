@@ -82,17 +82,58 @@ function resolvePublicationEvent(
   renderableEvent?: JobEvent | null,
 ): JobEvent {
   // If we have a renderable trigger event, use it directly
-  if (event && isRenderableJobEventType(event.eventType)) {
+  if (event && isRenderableJobEventType(event.eventType) && !isStaleComparedToJobState(job, event)) {
     return event;
   }
 
   // If the trigger event is audit-only, prefer the latest renderable event
-  if (renderableEvent && isRenderableJobEventType(renderableEvent.eventType)) {
+  if (
+    renderableEvent
+    && isRenderableJobEventType(renderableEvent.eventType)
+    && !isStaleComparedToJobState(job, renderableEvent)
+  ) {
     return renderableEvent;
   }
 
   // Fall back to a synthetic event from the job's persisted state
   return buildSyntheticJobEvent(job);
+}
+
+function eventTypeToStatus(eventType: JobEvent["eventType"]): JobRequest["status"] | null {
+  switch (eventType) {
+    case "queued":
+    case "requeued":
+    case "retry_scheduled":
+    case "lease_recovered":
+      return "queued";
+    case "started":
+    case "progress":
+      return "running";
+    case "result":
+      return "succeeded";
+    case "failed":
+    case "retry_exhausted":
+      return "failed";
+    case "canceled":
+      return "canceled";
+    default:
+      return null;
+  }
+}
+
+function isStaleComparedToJobState(job: JobRequest, event: JobEvent): boolean {
+  const eventStatus = eventTypeToStatus(event.eventType);
+
+  if (!eventStatus || eventStatus === job.status) {
+    return false;
+  }
+
+  const jobUpdatedAt = Date.parse(job.updatedAt);
+  const eventCreatedAt = Date.parse(event.createdAt);
+
+  return Number.isFinite(jobUpdatedAt)
+    && Number.isFinite(eventCreatedAt)
+    && jobUpdatedAt >= eventCreatedAt;
 }
 
 // ---------------------------------------------------------------------------

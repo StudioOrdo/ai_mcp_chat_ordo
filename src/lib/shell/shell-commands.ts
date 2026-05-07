@@ -5,7 +5,11 @@ import type { MentionItem } from "@/core/entities/mentions";
 import type { Theme } from "@/core/entities/theme";
 import type { User as SessionUser } from "@/core/entities/user";
 
-import { resolveCommandRoutes } from "./shell-navigation";
+import {
+  DEFAULT_SHELL_NAVIGATION_CONTEXT,
+  resolveCommandRoutes,
+  type ShellNavigationContext,
+} from "./shell-navigation";
 
 export interface ShellNavigationCommandDefinition {
   id: string;
@@ -26,6 +30,11 @@ export interface ShellThemeCommandDefinition {
 export type ShellCommandDefinition =
   | ShellNavigationCommandDefinition
   | ShellThemeCommandDefinition;
+
+export interface ShellCommandDefinitionOptions {
+  user?: Pick<SessionUser, "roles"> | null;
+  navigationContext?: ShellNavigationContext;
+}
 
 export const SHELL_THEME_DEFINITIONS: readonly ShellThemeCommandDefinition[] = [
   {
@@ -60,8 +69,9 @@ export const SHELL_THEME_DEFINITIONS: readonly ShellThemeCommandDefinition[] = [
 
 export function resolveShellNavigationCommandDefinitions(
   user?: Pick<SessionUser, "roles"> | null,
+  navigationContext: ShellNavigationContext = DEFAULT_SHELL_NAVIGATION_CONTEXT,
 ): ShellNavigationCommandDefinition[] {
-  return resolveCommandRoutes(user)
+  return resolveCommandRoutes(user, navigationContext)
     .filter((route) => route.showInCommands)
     .map((route) => ({
       id: `nav-${route.id}`,
@@ -75,20 +85,31 @@ export function resolveShellNavigationCommandDefinitions(
 export const SHELL_NAVIGATION_COMMAND_DEFINITIONS: readonly ShellNavigationCommandDefinition[] =
   resolveShellNavigationCommandDefinitions();
 
-export const SHELL_COMMAND_DEFINITIONS: readonly ShellCommandDefinition[] = [
-  ...SHELL_NAVIGATION_COMMAND_DEFINITIONS,
-  ...SHELL_THEME_DEFINITIONS,
-] as const;
+export function resolveShellCommandDefinitions(
+  options: ShellCommandDefinitionOptions = {},
+): ShellCommandDefinition[] {
+  return [
+    ...resolveShellNavigationCommandDefinitions(
+      options.user,
+      options.navigationContext ?? DEFAULT_SHELL_NAVIGATION_CONTEXT,
+    ),
+    ...SHELL_THEME_DEFINITIONS,
+  ];
+}
+
+export const SHELL_COMMAND_DEFINITIONS: readonly ShellCommandDefinition[] =
+  resolveShellCommandDefinitions();
 
 export function createShellCommands(options: {
   navigate: (path: string) => void;
   setTheme: (theme: Theme) => void;
   user?: Pick<SessionUser, "roles"> | null;
+  navigationContext?: ShellNavigationContext;
 }): Command[] {
-  const definitions: ShellCommandDefinition[] = [
-    ...resolveShellNavigationCommandDefinitions(options.user),
-    ...SHELL_THEME_DEFINITIONS,
-  ];
+  const definitions = resolveShellCommandDefinitions({
+    user: options.user,
+    navigationContext: options.navigationContext,
+  });
 
   return definitions.map((definition) => {
     if (definition.kind === "navigation") {

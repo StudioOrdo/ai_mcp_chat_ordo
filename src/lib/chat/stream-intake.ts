@@ -24,6 +24,11 @@ import {
 } from "@/lib/referrals/referral-visit";
 import { getReferralLedgerService } from "@/lib/referrals/referral-ledger";
 import {
+  resolveValidatedTrackedLinkVisit,
+  TRACKED_LINK_VISIT_COOKIE_NAME,
+} from "@/lib/tracked-links/tracked-link-visit";
+import { getTrackedLinkService } from "@/lib/tracked-links/tracked-link-service";
+import {
   normalizeMediaContinuityHandoff,
 } from "@/lib/chat/media-continuity-handoff";
 import {
@@ -157,6 +162,18 @@ export async function ensureStreamConversation(
       conversationId: conversation.id,
       userId,
       visit: referralVisit,
+    });
+  }
+
+  const trackedLinkVisit = resolveValidatedTrackedLinkVisit(
+    request.cookies?.get(TRACKED_LINK_VISIT_COOKIE_NAME)?.value,
+  );
+  if (trackedLinkVisit) {
+    await getTrackedLinkService().recordChatStarted({
+      code: trackedLinkVisit.code,
+      anonymousVisitId: trackedLinkVisit.visitId,
+      conversationId: conversation.id,
+      userId,
     });
   }
 

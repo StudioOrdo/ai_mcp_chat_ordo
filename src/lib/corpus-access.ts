@@ -3,8 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import type { RoleName } from "@/core/entities/user";
 import { ContentAccessDeniedError } from "@/core/entities/errors";
 
-import { getPrimaryRole } from "./access/content-access";
-import { getSessionUser } from "./auth";
+import { getSessionUser, resolveSessionAuthorizationRole } from "./auth";
 
 export interface CorpusAccessOptions {
   role?: RoleName;
@@ -21,7 +20,7 @@ export function resolveCorpusRole(options?: CorpusAccessOptions): RoleName | und
 
 export async function getViewerRole(): Promise<RoleName> {
   const user = await getSessionUser();
-  return getPrimaryRole(user.roles);
+  return resolveSessionAuthorizationRole(user);
 }
 
 export function handleLibraryAccessDenied(role: RoleName): never {

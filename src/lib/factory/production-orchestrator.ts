@@ -76,6 +76,13 @@ export class ProductionOrchestrator {
       input.abortSignal?.throwIfAborted();
 
       const current = await this.requireWorkOrder(input.workOrderId);
+      const pendingCancelRequest = await this.findPendingCancelRequest(current.id);
+      if (current.status === "running" && pendingCancelRequest) {
+        const canceled = await this.cancelWorkOrder(current, pendingCancelRequest);
+        await this.reportProgress(canceled, undefined, this.getCancelReason(pendingCancelRequest));
+        return canceled;
+      }
+
       const nextStage = this.findNextRunnableStage(current);
 
       if (current.status === "running" && nextStage) {
@@ -415,10 +422,59 @@ export class ProductionOrchestrator {
       .at(-1);
   }
 
+  private async findPendingCancelRequest(workOrderId: string) {
+    const events = await this.options.repository.listEventsForWorkOrder(workOrderId);
+    const honoredRequestIds = new Set(
+      events
+        .filter((event) => event.eventType === "revision_cancel_honored")
+        .flatMap((event) => typeof event.payload.requestEventId === "string" ? [event.payload.requestEventId] : []),
+    );
+
+    return events
+      .filter((event) => event.eventType === "revision_cancel_requested" && !honoredRequestIds.has(event.id))
+      .at(-1);
+  }
+
   private getPauseReason(event: { payload: Record<string, unknown> }): string {
     return typeof event.payload.reason === "string"
       ? event.payload.reason
       : "Pause requested by operator.";
+  }
+
+  private getCancelReason(event: { payload: Record<string, unknown> }): string {
+    return typeof event.payload.reason === "string"
+      ? event.payload.reason
+      : "Cancel requested by operator.";
+  }
+
+  private async cancelWorkOrder(
+    workOrder: WorkOrder,
+    event: { id: string; payload: Record<string, unknown> },
+  ): Promise<WorkOrder> {
+    await this.options.repository.appendEvent({
+      workOrderId: workOrder.id,
+      eventType: "revision_cancel_honored",
+      payload: {
+        requestEventId: event.id,
+        reason: this.getCancelReason(event),
+      },
+      createdAt: this.now(),
+    });
+
+    return this.options.repository.updateWorkOrder(this.bumpWorkOrder({
+      ...workOrder,
+      status: "canceled",
+      pausedState: undefined,
+      completedAt: this.now(),
+      executionLog: this.appendExecutionLog(workOrder.executionLog, {
+        timestamp: this.now(),
+        eventType: "canceled",
+        details: {
+          reason: this.getCancelReason(event),
+          requestEventId: event.id,
+        },
+      }),
+    }));
   }
 
   private async reportProgress(workOrder: WorkOrder, activeStageKey: string | undefined, summary: string): Promise<void> {

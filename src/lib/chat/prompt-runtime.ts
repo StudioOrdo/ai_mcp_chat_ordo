@@ -2,7 +2,7 @@ import { ConfigIdentitySource } from "@/adapters/ConfigIdentitySource";
 import { getSystemPromptDataMapper } from "@/adapters/RepositoryFactory";
 import type { TrustedReferralContext } from "@/core/entities/Referral";
 import type { ConversationRoutingSnapshot } from "@/core/entities/conversation-routing";
-import { ROLE_DIRECTIVES } from "@/core/entities/role-directives";
+import { assembleRoleDirective } from "@/core/entities/role-directive-assembler";
 import type { RoleName } from "@/core/entities/user";
 import type { UserPreference } from "@/core/ports/UserPreferencesRepository";
 import type { PromptSection } from "@/core/use-cases/SystemPromptBuilder";
@@ -217,7 +217,11 @@ export class DefaultPromptRuntime implements PromptRuntime {
       });
     } else {
       const identitySlot = await this.resolvePromptSlot("ALL", "base");
-      const directiveSlot = await this.resolvePromptSlot(request.role, "role_directive");
+      const directiveSlot = await this.resolvePromptSlot(
+        request.role,
+        "role_directive",
+        request.capabilityManifest?.map((tool) => tool.name),
+      );
 
       slotRefs.push(identitySlot.ref, directiveSlot.ref);
       this.appendSlotWarnings(identitySlot.ref, warnings);
@@ -407,6 +411,7 @@ export class DefaultPromptRuntime implements PromptRuntime {
   private async resolvePromptSlot(
     role: string,
     promptType: PromptSlotRef["promptType"],
+    availableToolNames?: readonly string[],
   ): Promise<ResolvedPromptSlot> {
     const dbPrompt = await this.promptRepo.getActive(role, promptType);
     if (dbPrompt) {
@@ -416,7 +421,7 @@ export class DefaultPromptRuntime implements PromptRuntime {
       };
     }
 
-    const fallbackContent = this.resolveFallbackContent(role, promptType);
+    const fallbackContent = this.resolveFallbackContent(role, promptType, availableToolNames);
     if (!fallbackContent) {
       return {
         ref: {
@@ -445,12 +450,13 @@ export class DefaultPromptRuntime implements PromptRuntime {
   private resolveFallbackContent(
     role: string,
     promptType: PromptSlotRef["promptType"],
+    availableToolNames?: readonly string[],
   ): string {
     if (promptType === "base") {
       return this.identitySource.getIdentity();
     }
 
-    return ROLE_DIRECTIVES[role as keyof typeof ROLE_DIRECTIVES] ?? "";
+    return assembleRoleDirective(role as RoleName, { availableToolNames });
   }
 
   private toSlotRef(prompt: SystemPrompt, source: PromptSlotRef["source"]): PromptSlotRef {

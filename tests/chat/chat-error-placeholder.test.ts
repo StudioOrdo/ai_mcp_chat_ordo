@@ -9,6 +9,7 @@
  * vi.mock on anthropic-stream would break the real-import tests there.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import type { SelectedIntelligenceRuntime } from "@/lib/ai/providers/selected-intelligence-runtime";
 
 /* ------------------------------------------------------------------ */
 /*  Shared mock refs                                                   */
@@ -217,9 +218,22 @@ vi.mock("@/lib/chat/resolve-user", () => ({
 /*  Helper                                                             */
 /* ------------------------------------------------------------------ */
 
+function createMockIntelligenceRuntime(): Pick<SelectedIntelligenceRuntime, "client" | "policy"> {
+  return {
+    client: { messages: { stream: vi.fn() } },
+    policy: {
+      provider: "anthropic",
+      timeoutMs: 45_000,
+      retryAttempts: 1,
+      retryDelayMs: 0,
+      modelCandidates: ["claude-test"],
+    },
+  } as unknown as Pick<SelectedIntelligenceRuntime, "client" | "policy">;
+}
+
 function buildStreamOptions(overrides?: Record<string, unknown>) {
   return {
-    apiKey: "test",
+    intelligenceRuntime: createMockIntelligenceRuntime(),
     context: { requestId: "r1", route: "/test" } as never,
     conversationId: "conv_abc",
     interactor: {

@@ -14,6 +14,16 @@ const { getSessionUserMock, notFoundMock, redirectMock } = vi.hoisted(() => ({
 
 vi.mock("@/lib/auth", () => ({
   getSessionUser: getSessionUserMock,
+  resolveSessionAuthorizationRole: (user: Pick<SessionUser, "roles" | "realRoles">) => {
+    const roles = [...(user.realRoles ?? []), ...user.roles];
+    return (["ADMIN", "STAFF", "APPRENTICE", "AUTHENTICATED", "ANONYMOUS"] as const).find((role) =>
+      roles.includes(role),
+    ) ?? "ANONYMOUS";
+  },
+  sessionHasRole: (user: Pick<SessionUser, "roles" | "realRoles">, allowedRoles: RoleName[]) => {
+    const roles = new Set([...(user.realRoles ?? []), ...user.roles]);
+    return allowedRoles.some((role) => roles.has(role));
+  },
 }));
 
 vi.mock("next/navigation", () => ({

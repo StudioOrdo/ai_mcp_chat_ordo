@@ -260,6 +260,213 @@
     color: color-mix(in oklab, var(--foreground) 78%, transparent);
   }
 
+  .chat-conversation-shell {
+    grid-template-columns: var(--shell-owner-secondary-column-width, clamp(20rem, 24vw, 22rem)) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .chat-conversation-selector-column {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex-direction: column;
+    gap: var(--space-4);
+    overflow-y: auto;
+    border-inline-end: 1px solid color-mix(in oklab, var(--foreground) 7%, transparent);
+    background: color-mix(in oklab, var(--surface) 70%, var(--background));
+    padding: var(--space-5) var(--space-4);
+  }
+
+  .chat-conversation-selector-copy {
+    display: grid;
+    gap: var(--space-2);
+    color: color-mix(in oklab, var(--foreground) 58%, transparent);
+    font-size: 0.875rem;
+    line-height: 1.55;
+  }
+
+  .chat-conversation-search-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 3rem;
+    gap: var(--space-2);
+  }
+
+  .chat-conversation-search,
+  .chat-conversation-filter-button {
+    min-height: 3.1rem;
+    border: 1px solid color-mix(in oklab, var(--foreground) 10%, transparent);
+    border-radius: 0.85rem;
+    background: color-mix(in oklab, var(--surface) 82%, var(--background));
+    color: var(--foreground);
+  }
+
+  .chat-conversation-search {
+    width: 100%;
+    min-width: 0;
+    padding-inline: var(--space-3);
+    font-size: 0.93rem;
+  }
+
+  .chat-conversation-search::placeholder {
+    color: color-mix(in oklab, var(--foreground) 42%, transparent);
+  }
+
+  .chat-conversation-filter-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: color-mix(in oklab, var(--foreground) 58%, transparent);
+  }
+
+  .chat-conversation-filter-button svg {
+    width: 1.1rem;
+    height: 1.1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.9;
+  }
+
+  .chat-conversation-filter-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.62;
+  }
+
+  .chat-conversation-list {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .chat-conversation-row {
+    display: grid;
+    grid-template-columns: 2.8rem minmax(0, 1fr);
+    gap: var(--space-3);
+    width: 100%;
+    min-height: 5.25rem;
+    align-items: center;
+    border: 1px solid transparent;
+    border-radius: 1rem;
+    background: transparent;
+    color: inherit;
+    padding: var(--space-3);
+    text-align: left;
+    transition:
+      background-color 160ms ease,
+      border-color 160ms ease,
+      box-shadow 160ms ease;
+  }
+
+  .chat-conversation-row-active {
+    border-color: color-mix(in oklab, var(--accent-interactive) 22%, transparent);
+    background: color-mix(in oklab, var(--accent-interactive) 6%, var(--surface));
+    box-shadow: inset 2px 0 0 color-mix(in oklab, var(--accent-interactive) 78%, var(--foreground));
+  }
+
+  .chat-conversation-row-disabled {
+    cursor: not-allowed;
+    opacity: 0.76;
+  }
+
+  .chat-conversation-avatar {
+    display: inline-flex;
+    width: 2.7rem;
+    height: 2.7rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid color-mix(in oklab, var(--foreground) 9%, transparent);
+    border-radius: 9999px;
+    background: color-mix(in oklab, var(--surface) 92%, var(--background));
+    color: color-mix(in oklab, var(--foreground) 72%, transparent);
+    font-family: var(--font-label);
+    font-size: 0.78rem;
+    font-weight: 780;
+    line-height: 1;
+  }
+
+  .chat-conversation-avatar[data-chat-conversation-avatar-active="true"] {
+    border-color: color-mix(in oklab, var(--accent-interactive) 20%, transparent);
+    background: color-mix(in oklab, var(--accent-interactive) 9%, var(--surface));
+    color: var(--foreground);
+  }
+
+  .chat-conversation-row-body {
+    display: grid;
+    min-width: 0;
+    gap: 0.32rem;
+  }
+
+  .chat-conversation-row-topline {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+
+  .chat-conversation-row-title {
+    overflow: hidden;
+    color: var(--foreground);
+    font-family: var(--font-label);
+    font-size: 0.94rem;
+    font-weight: 740;
+    letter-spacing: 0;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .chat-conversation-row-state {
+    flex: 0 0 auto;
+    border: 1px solid color-mix(in oklab, var(--foreground) 10%, transparent);
+    border-radius: 9999px;
+    color: color-mix(in oklab, var(--foreground) 55%, transparent);
+    font-family: var(--font-label);
+    font-size: 0.64rem;
+    font-weight: 760;
+    line-height: 1;
+    padding: 0.26rem 0.45rem;
+    text-transform: uppercase;
+  }
+
+  .chat-conversation-row-subtitle,
+  .chat-conversation-row-meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .chat-conversation-row-subtitle {
+    color: color-mix(in oklab, var(--foreground) 58%, transparent);
+    font-size: 0.82rem;
+    line-height: 1.25;
+  }
+
+  .chat-conversation-row-meta {
+    color: color-mix(in oklab, var(--foreground) 42%, transparent);
+    font-family: var(--font-label);
+    font-size: 0.7rem;
+    font-weight: 680;
+    letter-spacing: 0;
+  }
+
+  .chat-conversation-main {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex-direction: column;
+  }
+
+  @media (max-width: 640px) {
+    .chat-conversation-shell {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .chat-conversation-selector-column {
+      display: none;
+    }
+  }
+
   .ui-system-job-compact-row {
     width: 100%;
     display: grid;
@@ -1335,7 +1542,6 @@
 }
 
 .ui-capability-artifact-link,
-.ui-capability-action,
 .ui-capability-detail-drawer-trigger {
   text-decoration: underline;
   text-decoration-color: color-mix(in oklab, var(--capability-accent) 24%, transparent);
@@ -1343,7 +1549,6 @@
 }
 
 .ui-capability-artifact-link:hover,
-.ui-capability-action:hover,
 .ui-capability-detail-drawer-trigger:hover {
   color: var(--capability-accent);
   text-decoration-color: color-mix(in oklab, var(--capability-accent) 54%, transparent);
@@ -1353,9 +1558,9 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+  margin-top: var(--space-2);
 }
 
-.ui-capability-action,
 .ui-capability-detail-drawer-trigger,
 .ui-capability-detail-drawer-close {
   border: none;
@@ -1365,6 +1570,67 @@
   cursor: pointer;
   font-size: 0.875rem;
   font-weight: 600;
+}
+
+.ui-capability-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 2.25rem;
+  max-inline-size: 100%;
+  border: 1px solid color-mix(in oklab, var(--capability-accent) 34%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--capability-accent) 9%, var(--background) 91%);
+  padding: 0 var(--space-3);
+  color: color-mix(in oklab, var(--capability-accent) 82%, var(--foreground) 18%);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
+  text-decoration: none;
+  box-shadow: 0 1px 2px color-mix(in oklab, var(--foreground) 8%, transparent);
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+
+.ui-capability-action::after {
+  content: none;
+}
+
+.ui-capability-action:hover {
+  border-color: color-mix(in oklab, var(--capability-accent) 56%, transparent);
+  background: color-mix(in oklab, var(--capability-accent) 15%, var(--background) 85%);
+  color: var(--capability-accent);
+  box-shadow: 0 4px 12px color-mix(in oklab, var(--capability-accent) 12%, transparent);
+  transform: translateY(-1px);
+}
+
+.ui-capability-action[data-action-intent="primary"] {
+  border-color: color-mix(in oklab, var(--capability-accent) 74%, transparent);
+  background: var(--capability-accent);
+  color: var(--background);
+  box-shadow: 0 6px 18px color-mix(in oklab, var(--capability-accent) 22%, transparent);
+}
+
+.ui-capability-action[data-action-intent="primary"]:hover {
+  background: color-mix(in oklab, var(--capability-accent) 88%, var(--foreground) 12%);
+  color: var(--background);
+}
+
+.ui-capability-action[data-action-intent="danger"] {
+  border-color: color-mix(in oklab, var(--danger, #b42318) 38%, transparent);
+  background: color-mix(in oklab, var(--danger, #b42318) 8%, var(--background) 92%);
+  color: color-mix(in oklab, var(--danger, #b42318) 82%, var(--foreground) 18%);
+}
+
+.ui-capability-action[data-action-intent="danger"]:hover {
+  border-color: color-mix(in oklab, var(--danger, #b42318) 58%, transparent);
+  background: color-mix(in oklab, var(--danger, #b42318) 14%, var(--background) 86%);
+  color: var(--danger, #b42318);
 }
 
 .ui-capability-disclosure-trigger {
@@ -1526,6 +1792,29 @@
 }
 
 @media (max-width: 640px) {
+  [data-shell-public-mobile-nav="true"] [data-chat-fab-launcher="true"] {
+    inset-block-end: calc(
+      var(--public-mobile-nav-clearance-block) +
+      var(--space-2)
+    );
+  }
+
+  [data-shell-public-mobile-nav="true"] [data-chat-shell-kind="floating"][data-chat-shell-size="default"] {
+    inset-block-end: calc(
+      var(--public-mobile-nav-clearance-block) +
+      var(--space-2)
+    );
+    block-size: min(
+      34rem,
+      calc(
+        var(--viewport-block-size) -
+        max(0.875rem, var(--safe-area-inset-top)) -
+        var(--public-mobile-nav-clearance-block) -
+        var(--space-5)
+      )
+    );
+  }
+
   .ui-capability-card-header,
   .ui-capability-detail-drawer-header,
   [data-capability-progress-bubble="true"] {

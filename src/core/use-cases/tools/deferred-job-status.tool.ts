@@ -8,6 +8,10 @@ import {
   getGlobalJobOperatorRoles,
   getSignedInJobAudienceRoles,
 } from "@/lib/jobs/job-capability-registry";
+import type {
+  SystemCommand,
+  SystemCommandRepository,
+} from "@/lib/appliance/backup/types";
 
 interface DeferredJobStatusInput {
   job_id: string;
@@ -20,7 +24,24 @@ interface ListDeferredJobsInput {
 
 interface DeferredJobStatusOutput {
   ok: true;
-  job: CanonicalJobSnapshot;
+  job?: CanonicalJobSnapshot;
+  systemCommand?: {
+    id: string;
+    command: SystemCommand["command"];
+    status: SystemCommand["status"];
+    requestedByUserId: string | null;
+    requestedFrom: string;
+    errorMessage: string | null;
+    createdAt: string;
+    updatedAt: string;
+    restorePlanId?: string;
+    snapshotId?: string;
+    archivePath?: string;
+  };
+  title?: string;
+  status?: string;
+  summary?: string;
+  nextAction?: string;
 }
 
 interface ListDeferredJobsOutput {
@@ -58,22 +79,98 @@ function requireSignedInContext(context?: ToolExecutionContext): ToolExecutionCo
 }
 
 class GetDeferredJobStatusCommand implements ToolCommand<DeferredJobStatusInput, DeferredJobStatusOutput> {
-  constructor(private readonly query: JobStatusQuery) {}
+  constructor(
+    private readonly query: JobStatusQuery,
+    private readonly systemCommands?: Pick<SystemCommandRepository, "findById"> & {
+      listRecentBackupRestore?: (limit: number, offset?: number) => Promise<SystemCommand[]>;
+    },
+  ) {}
 
   async execute(input: DeferredJobStatusInput): Promise<DeferredJobStatusOutput> {
-    if (!input.job_id?.trim()) {
+    const jobId = input.job_id?.trim();
+    if (!jobId) {
       throw new Error("job_id is required.");
     }
 
-    const job = await this.query.getJobSnapshot(input.job_id);
+    if (jobId.startsWith("syscmd_")) {
+      return this.getSystemCommandStatus(jobId);
+    }
+
+    const job = await this.query.getJobSnapshot(jobId);
     if (!job) {
-      throw new Error(`Deferred job not found: ${input.job_id}`);
+      throw new Error(`Deferred job not found: ${jobId}`);
     }
 
     return {
       ok: true,
       job,
     };
+  }
+
+  private async getSystemCommandStatus(commandId: string): Promise<DeferredJobStatusOutput> {
+    if (!this.systemCommands) {
+      throw new Error(
+        `System command ${commandId} is not a deferred job. Use the appliance backup/restore tools to inspect it.`,
+      );
+    }
+
+    const command = await this.findSystemCommand(commandId);
+    if (!command || command.target !== "rust_daemon") {
+      throw new Error(`Appliance backup/restore command not found: ${commandId}`);
+    }
+
+    const snapshotId = readString(command.payload, "snapshotId")
+      ?? readString(command.resultPayload, "snapshotId");
+    const restorePlanId = readString(command.payload, "restorePlanId")
+      ?? readString(command.resultPayload, "restorePlanId");
+    const archivePath = readString(command.payload, "archivePath")
+      ?? readString(command.resultPayload, "archivePath");
+
+    const operationLabel = command.command === "restore.request"
+      ? "Appliance Restore"
+      : "Appliance Backup";
+    const terminal = command.status === "succeeded" || command.status === "failed";
+
+    return {
+      ok: true,
+      title: `${operationLabel} Status`,
+      status: command.status,
+      summary: terminal
+        ? `${operationLabel} command ${command.id} ${command.status}.`
+        : `${operationLabel} command ${command.id} is ${command.status}.`,
+      nextAction: terminal
+        ? "Use List Appliance Backups for the current backup and restore ledger."
+        : "Refresh appliance backup state instead of polling deferred jobs.",
+      systemCommand: {
+        id: command.id,
+        command: command.command,
+        status: command.status,
+        requestedByUserId: command.requestedByUserId,
+        requestedFrom: command.requestedFrom,
+        errorMessage: command.errorMessage,
+        createdAt: command.createdAt,
+        updatedAt: command.updatedAt,
+        ...(restorePlanId ? { restorePlanId } : {}),
+        ...(snapshotId ? { snapshotId } : {}),
+        ...(archivePath ? { archivePath } : {}),
+      },
+    };
+  }
+
+  private async findSystemCommand(commandId: string): Promise<SystemCommand | null> {
+    const exact = await this.systemCommands?.findById(commandId);
+    if (exact) {
+      return exact;
+    }
+    if (!this.systemCommands?.listRecentBackupRestore) {
+      return null;
+    }
+    const matches = (await this.systemCommands.listRecentBackupRestore(100))
+      .filter((command) => command.id.startsWith(commandId));
+    if (matches.length > 1) {
+      throw new Error(`System command id ${commandId} is ambiguous. Use the full command id.`);
+    }
+    return matches[0] ?? null;
   }
 }
 
@@ -148,6 +245,9 @@ class ListMyJobsCommand implements ToolCommand<ListMyJobsInput, ListMyJobsOutput
 
 export function createGetDeferredJobStatusTool(
   query: JobStatusQuery,
+  systemCommands?: Pick<SystemCommandRepository, "findById"> & {
+    listRecentBackupRestore?: (limit: number, offset?: number) => Promise<SystemCommand[]>;
+  },
 ): ToolDescriptor<DeferredJobStatusInput, DeferredJobStatusOutput> {
   return {
     name: "get_deferred_job_status",
@@ -161,10 +261,15 @@ export function createGetDeferredJobStatusTool(
         required: ["job_id"],
       },
     },
-    command: new GetDeferredJobStatusCommand(query),
+    command: new GetDeferredJobStatusCommand(query, systemCommands),
     roles: getGlobalJobOperatorRoles(),
     category: "content",
   };
+}
+
+function readString(record: Record<string, unknown> | null | undefined, key: string): string | undefined {
+  const value = record?.[key];
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 export function createListDeferredJobsTool(

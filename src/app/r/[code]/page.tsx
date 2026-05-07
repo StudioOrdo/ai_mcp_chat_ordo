@@ -24,7 +24,7 @@ export default async function ReferralLandingPage({
         title="That referral link is not active"
         description="The shared link or QR code may be invalid, expired, or no longer enabled. You can still continue into Studio Ordo normally."
         primaryAction={{ href: "/", label: "Start a normal chat" }}
-        secondaryAction={{ href: "/library", label: "Open library" }}
+        secondaryAction={{ href: "/offers", label: "View offers" }}
       />
     );
   }
@@ -52,8 +52,8 @@ export default async function ReferralLandingPage({
             >
               Start chat
             </Link>
-            <Link href="/library" className="btn-secondary focus-ring w-full sm:w-auto">
-              Open library
+            <Link href="/offers" className="btn-secondary focus-ring w-full sm:w-auto">
+              View offers
             </Link>
           </div>
 

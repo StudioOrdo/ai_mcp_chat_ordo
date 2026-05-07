@@ -1,10 +1,20 @@
 import { createServer } from "node:http";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import { resolve } from "node:path";
 import { existsSync, mkdirSync, writeFileSync, readFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import next from "next";
+import { getWorkerRestartPolicyFromEnv } from "./worker-restart-policy.mjs";
+
+const nativeRuntimeCheck = spawnSync(
+  process.execPath,
+  ["scripts/check-native-runtime.mjs", "better-sqlite3"],
+  { stdio: "inherit" },
+);
+if (nativeRuntimeCheck.status !== 0) {
+  process.exit(nativeRuntimeCheck.status ?? 1);
+}
 
 const requiredServerFilesPath = resolve(".next", "required-server-files.json");
 
@@ -81,9 +91,22 @@ const workerEnabled = process.env.DISABLE_DEFERRED_JOB_WORKER !== "1";
 const externalMediaWorkerUrl = process.env.MEDIA_WORKER_URL?.trim();
 const mediaWorkerEnabled = process.env.DISABLE_MEDIA_WORKER !== "1" && !externalMediaWorkerUrl;
 const mediaWorkerPort = Number.parseInt(process.env.MEDIA_WORKER_PORT ?? "3101", 10);
+const backupExecutorEnabled = process.env.DISABLE_BACKUP_EXECUTOR !== "1";
+const backupSchedulerEnabled = process.env.DISABLE_BACKUP_SCHEDULER !== "1";
+const backupExecutorPath = process.env.ORDO_BACKUP_EXECUTOR_PATH?.trim() || resolve("bin", "ordo-backup");
+const backupExecutorPollIntervalMs = Number.parseInt(process.env.ORDO_BACKUP_EXECUTOR_POLL_INTERVAL_MS ?? "2000", 10);
+const backupExecutorLeaseSeconds = Number.parseInt(process.env.ORDO_BACKUP_EXECUTOR_LEASE_SECONDS ?? "900", 10);
+const sqlitePath = resolve(process.env.STUDIO_ORDO_DB_PATH ?? join(dataDir, "local.db"));
+
+process.env.ORDO_RUNTIME_PROCESS_ROLE = process.env.ORDO_RUNTIME_PROCESS_ROLE ?? "app";
 
 if (mediaWorkerEnabled) {
+  process.env.ORDO_MEDIA_WORKER_MODE = "supervised_child";
   process.env.MEDIA_WORKER_URL = `http://127.0.0.1:${mediaWorkerPort}`;
+} else if (process.env.DISABLE_MEDIA_WORKER === "1") {
+  process.env.ORDO_MEDIA_WORKER_MODE = "disabled";
+} else if (externalMediaWorkerUrl) {
+  process.env.ORDO_MEDIA_WORKER_MODE = "external";
 }
 
 const app = next({ dev: false, hostname, port });
@@ -91,17 +114,31 @@ const handle = app.getRequestHandler();
 const tsxCli = resolve("node_modules", "tsx", "dist", "cli.mjs");
 let shuttingDown = false;
 
+console.info("[startup] Ensuring database schema is fully initialized...");
+const initDbResult = spawnSync(process.execPath, [tsxCli, "scripts/ensure-db-schema.ts"], { stdio: "inherit", env: process.env });
+if (initDbResult.status !== 0) {
+  console.error("[startup] Failed to initialize database schema. Cannot start server.");
+  process.exit(1);
+}
+
 // ── Worker restart-with-backoff ──────────────────────────────────────────────
 
-const MAX_WORKER_RESTARTS = 3;
-const RESTART_WINDOW_MS = 60_000;
+const workerRestartPolicy = getWorkerRestartPolicyFromEnv(process.env);
+const MAX_WORKER_RESTARTS = workerRestartPolicy.maxRestarts;
+const RESTART_WINDOW_MS = workerRestartPolicy.restartWindowMs;
 
 let workerRestarts = [];
 let workerHealthy = !workerEnabled;
 let mediaWorkerRestarts = [];
 let mediaWorkerHealthy = !mediaWorkerEnabled;
+let backupExecutorRestarts = [];
+let backupSchedulerRestarts = [];
+let backupExecutorHealthy = !backupExecutorEnabled;
+let backupSchedulerHealthy = !backupSchedulerEnabled;
 let mediaWorkerProcess = null;
 let workerProcess = null;
+let backupExecutorProcess = null;
+let backupSchedulerProcess = null;
 
 function spawnWorker() {
   const worker = spawn(process.execPath, [tsxCli, "scripts/process-deferred-jobs.ts"], {
@@ -193,6 +230,112 @@ function spawnMediaWorker() {
   return worker;
 }
 
+function spawnBackupExecutor() {
+  if (!existsSync(backupExecutorPath)) {
+    console.warn(`[backup-executor] binary unavailable at ${backupExecutorPath}; backup health will report unavailable`);
+    backupExecutorHealthy = false;
+    return null;
+  }
+
+  const worker = spawn(backupExecutorPath, [
+    "daemon",
+    "--db-path",
+    sqlitePath,
+    "--poll-interval-ms",
+    String(backupExecutorPollIntervalMs),
+    "--lease-seconds",
+    String(backupExecutorLeaseSeconds),
+    "--lease-owner",
+    process.env.ORDO_BACKUP_EXECUTOR_LEASE_OWNER ?? `backup_executor_${port}`,
+  ], {
+    stdio: ["ignore", "pipe", "pipe"],
+    env: {
+      ...process.env,
+      ORDO_RUNTIME_PROCESS_ROLE: "app",
+    },
+  });
+
+  worker.stdout.on("data", (data) => {
+    process.stdout.write(`[backup-executor] ${data}`);
+  });
+  worker.stderr.on("data", (data) => {
+    process.stderr.write(`[backup-executor] ${data}`);
+  });
+
+  worker.on("exit", (code, signal) => {
+    if (shuttingDown) return;
+
+    backupExecutorHealthy = false;
+
+    const now = Date.now();
+    backupExecutorRestarts = backupExecutorRestarts.filter((t) => now - t < RESTART_WINDOW_MS);
+    backupExecutorRestarts.push(now);
+
+    if (backupExecutorRestarts.length > MAX_WORKER_RESTARTS) {
+      console.error(
+        `[backup-executor] crashed ${MAX_WORKER_RESTARTS + 1} times in ${RESTART_WINDOW_MS / 1000}s — continuing without executor`,
+        { code, signal },
+      );
+      return;
+    }
+
+    console.warn(
+      `[backup-executor] exited unexpectedly — restarting (${backupExecutorRestarts.length}/${MAX_WORKER_RESTARTS})`,
+      { code, signal },
+    );
+    backupExecutorProcess = spawnBackupExecutor();
+    backupExecutorHealthy = Boolean(backupExecutorProcess);
+  });
+
+  backupExecutorHealthy = true;
+  return worker;
+}
+
+function spawnBackupScheduler() {
+  const worker = spawn(process.execPath, [tsxCli, "scripts/process-backup-scheduler.ts"], {
+    stdio: ["ignore", "pipe", "pipe"],
+    env: {
+      ...process.env,
+      ORDO_RUNTIME_PROCESS_ROLE: "app",
+    },
+  });
+
+  worker.stdout.on("data", (data) => {
+    process.stdout.write(`[backup-scheduler] ${data}`);
+  });
+  worker.stderr.on("data", (data) => {
+    process.stderr.write(`[backup-scheduler] ${data}`);
+  });
+
+  worker.on("exit", (code, signal) => {
+    if (shuttingDown) return;
+
+    backupSchedulerHealthy = false;
+
+    const now = Date.now();
+    backupSchedulerRestarts = backupSchedulerRestarts.filter((t) => now - t < RESTART_WINDOW_MS);
+    backupSchedulerRestarts.push(now);
+
+    if (backupSchedulerRestarts.length > MAX_WORKER_RESTARTS) {
+      console.error(
+        `[backup-scheduler] crashed ${MAX_WORKER_RESTARTS + 1} times in ${RESTART_WINDOW_MS / 1000}s — continuing without scheduler`,
+        { code, signal },
+      );
+      return;
+    }
+
+    console.warn(
+      `[backup-scheduler] exited unexpectedly — restarting (${backupSchedulerRestarts.length}/${MAX_WORKER_RESTARTS})`,
+      { code, signal },
+    );
+    backupSchedulerProcess = spawnBackupScheduler();
+    backupSchedulerHealthy = Boolean(backupSchedulerProcess);
+  });
+
+  backupSchedulerHealthy = true;
+  return worker;
+}
+
 // ── Server setup ─────────────────────────────────────────────────────────────
 
 await app.prepare();
@@ -252,9 +395,19 @@ function shutdown(signal) {
     mediaWorkerProcess.kill(signal);
   }
 
+  if (backupExecutorProcess && !backupExecutorProcess.killed) {
+    backupExecutorProcess.kill(signal);
+  }
+
+  if (backupSchedulerProcess && !backupSchedulerProcess.killed) {
+    backupSchedulerProcess.kill(signal);
+  }
+
   server.close(async () => {
     await waitForChildExit(workerProcess);
     await waitForChildExit(mediaWorkerProcess);
+    await waitForChildExit(backupExecutorProcess);
+    await waitForChildExit(backupSchedulerProcess);
     console.info("[shutdown] server closed cleanly");
     process.exit(0);
   });
@@ -270,6 +423,8 @@ function shutdown(signal) {
 
 mediaWorkerProcess = mediaWorkerEnabled ? spawnMediaWorker() : null;
 workerProcess = workerEnabled ? spawnWorker() : null;
+backupExecutorProcess = backupExecutorEnabled ? spawnBackupExecutor() : null;
+backupSchedulerProcess = backupSchedulerEnabled ? spawnBackupScheduler() : null;
 
 if (workerEnabled) {
   workerHealthy = true;
@@ -282,7 +437,7 @@ if (mediaWorkerEnabled) {
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));
 
-export { workerHealthy, mediaWorkerHealthy, MAX_WORKER_RESTARTS, RESTART_WINDOW_MS };
+export { workerHealthy, mediaWorkerHealthy, backupExecutorHealthy, backupSchedulerHealthy, MAX_WORKER_RESTARTS, RESTART_WINDOW_MS };
 
 server.listen(port, hostname, () => {
   console.info(`server listening on http://${hostname}:${port}`);

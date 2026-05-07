@@ -40,7 +40,6 @@ describe("runClaudeAgentLoopStream", () => {
     const toolExecutor = vi.fn().mockResolvedValue({ assetId: "uf_audio_1" });
 
     const result = await runClaudeAgentLoopStream({
-      apiKey: "test-key",
       messages: [{ role: "user", content: "make audio" }],
       callbacks,
       maxToolRounds: 2,
@@ -115,7 +114,6 @@ describe("runClaudeAgentLoopStream", () => {
     const toolExecutor = vi.fn().mockResolvedValue({ assetId: "uf_chart_1" });
 
     const result = await runClaudeAgentLoopStream({
-      apiKey: "test-key",
       messages: [{ role: "user", content: "make chart" }],
       callbacks,
       maxToolRounds: 3,

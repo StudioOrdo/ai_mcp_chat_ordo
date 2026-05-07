@@ -257,22 +257,20 @@ describe("admin shell and concierge", () => {
     expect(loadLeadQueueBlockMock).toHaveBeenCalled();
     expect(loadAdminJournalListMock).toHaveBeenCalledWith({});
     expect(loadAdminJobListMock).toHaveBeenCalledWith({}, ["ADMIN"], { limit: 10, offset: 0 });
-    expect(screen.getByRole("heading", { name: "Admin dashboard" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Overview" })).toBeInTheDocument();
+    expect(screen.getByLabelText("System sections")).toHaveAttribute("data-admin-system-selection-column", "true");
+    expect(screen.getByRole("link", { name: /Health/ })).toHaveAttribute("href", "/admin?section=system-health");
     expect(screen.getByText("All clear.")).toBeInTheDocument();
     expect(screen.getByText("No active pipeline follow-ups.")).toBeInTheDocument();
     expect(screen.getByText("No journal posts yet.")).toBeInTheDocument();
   });
 
-  it("keeps self-service routes in the admin account menu route set", () => {
+  it("keeps account and access routes in the admin account menu route set", () => {
     const adminUser = { id: "admin_1", email: "admin@example.com", name: "Admin", roles: ["ADMIN"] as RoleName[] };
 
     expect(resolveAccountMenuRoutes(adminUser).map((route) => route.id)).toEqual([
-      "workspace-overview",
-      "jobs",
-      "my-media",
-      "referrals",
-      "operations-media",
       "profile",
+      "referrals",
     ]);
   });
 });

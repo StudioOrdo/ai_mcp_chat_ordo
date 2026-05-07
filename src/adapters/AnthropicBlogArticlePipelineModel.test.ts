@@ -32,7 +32,7 @@ describe("AnthropicBlogArticlePipelineModel", () => {
       });
     const model = new AnthropicBlogArticlePipelineModel({
       messages: { create },
-    } as never, "claude-haiku-4-5");
+    } as never, "anthropic", "claude-haiku-4-5");
 
     const emptyFindings = await model.reviewArticle({
       title: "Title",
@@ -74,7 +74,7 @@ describe("AnthropicBlogArticlePipelineModel", () => {
           }],
         }),
       },
-    } as never, "claude-haiku-4-5");
+    } as never, "anthropic", "claude-haiku-4-5");
 
     await expect(model.reviewArticle({
       title: "Title",
@@ -106,7 +106,7 @@ describe("AnthropicBlogArticlePipelineModel", () => {
       });
     const model = new AnthropicBlogArticlePipelineModel({
       messages: { create },
-    } as never, "claude-haiku-4-5");
+    } as never, "anthropic", "claude-haiku-4-5");
 
     const resolved = await model.resolveQa({
       title: "Title",
@@ -175,7 +175,7 @@ describe("AnthropicBlogArticlePipelineModel", () => {
       });
     const model = new AnthropicBlogArticlePipelineModel({
       messages: { create },
-    } as never, "claude-haiku-4-5");
+    } as never, "anthropic", "claude-haiku-4-5");
 
     const resolved = await model.resolveQa({
       title: "Title",
@@ -221,7 +221,7 @@ describe("AnthropicBlogArticlePipelineModel", () => {
     });
     const model = new AnthropicBlogArticlePipelineModel({
       messages: { create },
-    } as never, "claude-haiku-4-5");
+    } as never, "anthropic", "claude-haiku-4-5");
     const abortController = new AbortController();
 
     await model.composeArticle({

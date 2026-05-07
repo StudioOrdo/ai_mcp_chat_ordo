@@ -79,8 +79,8 @@ Managed instances don't store Anthropic/OpenAI keys. They store a single `STUDIO
 
 ```
 # Self-hosted instance (bring your own keys)
-ANTHROPIC_API_KEY=sk-ant-...
-OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=anthropic-key-placeholder
+OPENAI_API_KEY=openai-key-placeholder
 
 # Managed instance (proxy key)
 STUDIO_ORDO_API_KEY=so-...

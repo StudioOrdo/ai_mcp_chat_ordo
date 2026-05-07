@@ -29,6 +29,7 @@ import {
   type CatalogToolBindingDeps,
 } from "@/core/capability-catalog/runtime-tool-binding";
 import type { DeferredJobHandler, DeferredJobHandlerContext } from "@/lib/jobs/deferred-job-worker";
+import { assertProviderBackedToolAvailable } from "@/lib/tools/tool-provider-capability-policy";
 
 export interface DeferredJobHandlerDependencies {
   blogRepo: ReturnType<typeof getBlogPostRepository>;
@@ -242,6 +243,7 @@ export function createCatalogBoundDeferredJobHandler(
   dependencies: DeferredJobHandlerDependencies,
 ): DeferredJobHandler {
   return async (job, handlerContext) => {
+    assertProviderBackedToolAvailable(toolName);
     const runtime = resolveCatalogRuntimeBinding(toolName, toCatalogToolBindingDeps(dependencies), {
       planned: false,
     });

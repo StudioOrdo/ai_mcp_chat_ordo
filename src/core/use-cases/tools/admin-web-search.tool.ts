@@ -1,15 +1,15 @@
-import OpenAI from "openai";
-
 import { CAPABILITY_CATALOG } from "@/core/capability-catalog/catalog";
 import { buildCatalogBoundToolDescriptor } from "@/core/capability-catalog/runtime-tool-projection";
 import {
   emitProviderEvent,
   classifyProviderError,
 } from "@/lib/chat/provider-policy";
-import { getOpenaiApiKey } from "@/lib/config/env";
+import { ProviderClientFactory } from "@/lib/ai/providers/provider-client-factory";
+import { ProviderConfigService } from "@/lib/ai/providers/provider-config-service";
 import {
   sanitizeAdminWebSearchInput,
   toAdminWebSearchPayload,
+  DEFAULT_ADMIN_WEB_SEARCH_MODEL,
   type AdminWebSearchPayload,
   type WebSearchInput,
 } from "@/lib/web-search/admin-web-search-payload";
@@ -19,11 +19,20 @@ import {
   type WebSearchError,
   type WebSearchToolDeps,
 } from "@/lib/capabilities/shared/web-search-tool";
+import { assertProviderBackedToolAvailable } from "@/lib/tools/tool-provider-capability-policy";
 
-function createWebSearchDeps(): WebSearchToolDeps {
+export function createAdminWebSearchDeps(): WebSearchToolDeps {
   return {
-    openai: new OpenAI({ apiKey: getOpenaiApiKey() }),
+    openai: ProviderClientFactory.createOpenAiClient(
+      ProviderConfigService.resolveOpenAiApiKey().value,
+    ),
   };
+}
+
+function resolveAdminWebSearchModel(input: WebSearchInput): string {
+  return input.model?.trim()
+    || ProviderConfigService.resolveCapabilityProviderConfig("web_search").model.value
+    || DEFAULT_ADMIN_WEB_SEARCH_MODEL;
 }
 
 function toWebSearchError(error: unknown): WebSearchError {
@@ -49,38 +58,43 @@ function toWebSearchError(error: unknown): WebSearchError {
 
 export async function executeAdminWebSearch(
   input: WebSearchInput,
-  depsFactory: () => WebSearchToolDeps = createWebSearchDeps,
+  depsFactory: () => WebSearchToolDeps = createAdminWebSearchDeps,
 ): Promise<AdminWebSearchPayload> {
   const validationError = validateAdminWebSearchArgs(input);
   if (validationError) {
     return toAdminWebSearchPayload(input, validationError);
   }
 
-  const model = input.model ?? "gpt-5";
+  const model = resolveAdminWebSearchModel(input);
+  const effectiveInput = input.model?.trim() ? input : { ...input, model };
   const startTime = Date.now();
 
   emitProviderEvent({
     kind: "attempt_start",
+    provider: "openai",
     surface: "web_search",
     model,
     attempt: 1,
   });
 
   try {
-    const result = await adminWebSearch(depsFactory(), input);
+    assertProviderBackedToolAvailable("admin_web_search");
+    const result = await adminWebSearch(depsFactory(), effectiveInput);
 
     emitProviderEvent({
       kind: "attempt_success",
+      provider: "openai",
       surface: "web_search",
       model,
       attempt: 1,
       durationMs: Date.now() - startTime,
     });
 
-    return toAdminWebSearchPayload(input, result);
+    return toAdminWebSearchPayload(effectiveInput, result);
   } catch (error) {
     emitProviderEvent({
       kind: "attempt_failure",
+      provider: "openai",
       surface: "web_search",
       model,
       attempt: 1,
@@ -89,13 +103,13 @@ export async function executeAdminWebSearch(
       errorClassification: classifyProviderError(error),
     });
 
-    return toAdminWebSearchPayload(input, toWebSearchError(error));
+    return toAdminWebSearchPayload(effectiveInput, toWebSearchError(error));
   }
 }
 
 export function createAdminWebSearchTool(
-  depsFactory: () => WebSearchToolDeps = createWebSearchDeps,
-){
+  depsFactory: () => WebSearchToolDeps = createAdminWebSearchDeps,
+) {
   return buildCatalogBoundToolDescriptor(CAPABILITY_CATALOG.admin_web_search, {
     parse: sanitizeAdminWebSearchInput,
     execute: (input) => executeAdminWebSearch(input, depsFactory),

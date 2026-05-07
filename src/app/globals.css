@@ -14,6 +14,7 @@
 :root {
    --font-body: var(--font-ibm-plex-sans, "IBM Plex Sans", "Aptos", "Segoe UI", sans-serif);
    --font-display: var(--font-fraunces, "Fraunces", "Iowan Old Style", "Palatino Linotype", serif);
+   --font-brand: "Helvetica Neue", Helvetica, Arial, var(--font-ibm-plex-sans, system-ui), sans-serif;
    --font-mono: var(--font-ibm-plex-mono, "IBM Plex Mono", "SFMono-Regular", "Cascadia Code", monospace);
    --font-base: var(--font-body);
    --font-label: var(--font-body);
@@ -33,4 +34,3 @@
       opacity: 0;
    }
 }
-

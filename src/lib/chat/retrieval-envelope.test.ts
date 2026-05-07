@@ -31,7 +31,7 @@ describe("resolveRetrievalEnvelope (Phase 4)", () => {
       role: "AUTHENTICATED",
       tier: "premium",
     });
-    expect(env.allowedAudiences).toEqual(["public", "account", "premium"]);
+    expect(env.allowedAudiences).toEqual(["public", "member", "account", "premium"]);
   });
 
   it("passes through a provided persona unchanged", () => {
@@ -41,7 +41,7 @@ describe("resolveRetrievalEnvelope (Phase 4)", () => {
       rolePersona: "sales",
     });
     expect(env.rolePersona).toBe("sales");
-    expect(env.allowedAudiences).toEqual(["public", "account"]);
+    expect(env.allowedAudiences).toEqual(["public", "member", "account"]);
   });
 
   it("omits rolePersona when none is provided", () => {

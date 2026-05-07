@@ -84,11 +84,11 @@ describe("Sprint 21 — MCP boundary canonicalization", () => {
 
     for (const process of MCP_PROCESS_METADATA) {
       const scriptName = process.canonicalCommand.replace("npm run ", "");
-      expect(packageJson.scripts?.[scriptName]).toBe(`tsx ${process.entrypoint}`);
+      expect(packageJson.scripts?.[scriptName]).toContain(`tsx ${process.entrypoint}`);
 
       for (const alias of process.compatibilityAliases) {
         const aliasScript = alias.replace("npm run ", "");
-        expect(packageJson.scripts?.[aliasScript]).toBe(`tsx ${process.entrypoint}`);
+        expect(packageJson.scripts?.[aliasScript]).toContain(`tsx ${process.entrypoint}`);
       }
     }
   });

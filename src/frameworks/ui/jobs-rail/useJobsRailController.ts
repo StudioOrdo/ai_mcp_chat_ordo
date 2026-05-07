@@ -34,6 +34,7 @@ export function useJobsRailController() {
   const {
     conversationId,
     jobStateEntries,
+    workflowStateEntries,
     messages,
     setConversationId,
     refreshConversation,
@@ -149,11 +150,12 @@ export function useJobsRailController() {
   const model = useMemo(
     () => resolveJobsRail({
       entries: jobStateEntries ?? [],
+      workflows: workflowStateEntries ?? [],
       syncState: conversationId ? "live" : "unknown",
       conversationId,
       canExportDiagnostics: Boolean(conversationId),
     }),
-    [conversationId, jobStateEntries],
+    [conversationId, jobStateEntries, workflowStateEntries],
   );
 
   return {

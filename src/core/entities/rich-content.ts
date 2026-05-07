@@ -6,9 +6,9 @@ export const INLINE_TYPES = {
   ACTION_LINK: "action-link",
 } as const;
 
-export type ActionLinkType = "conversation" | "route" | "send" | "corpus" | "external" | "job";
+export type ActionLinkType = "conversation" | "route" | "send" | "tool" | "corpus" | "external" | "job" | "operation";
 
-export const VALID_ACTION_TYPES: ReadonlySet<string> = new Set<string>(["conversation", "route", "send", "corpus", "external", "job"]);
+export const VALID_ACTION_TYPES: ReadonlySet<string> = new Set<string>(["conversation", "route", "send", "tool", "corpus", "external", "job", "operation"]);
 
 export const BLOCK_TYPES = {
   PARAGRAPH: "paragraph",
@@ -16,6 +16,7 @@ export const BLOCK_TYPES = {
   LIST: "list",
   BLOCKQUOTE: "blockquote",
   JOB_STATUS: "job-status",
+  OPERATION_CARD: "operation-card",
   CODE: "code-block",
   GRAPH: "graph",
   TABLE: "table",
@@ -29,6 +30,26 @@ export type OperatorBriefSection = {
   summary: InlineNode[];
   items?: InlineNode[][];
 };
+
+export type OperationCardStatusTone = "neutral" | "active" | "blocked" | "danger" | "success";
+
+export interface OperationCardModel {
+  operationId: string;
+  title: string;
+  kind: string;
+  status: string;
+  statusLabel: string;
+  statusTone: OperationCardStatusTone;
+  riskLevel: string;
+  riskLabel: string;
+  summary: string | null;
+  progressPercent: number | null;
+  updatedAt: string | null;
+  latestEventLabel: string | null;
+  artifactCount: number;
+  actionCount: number;
+  actions: ActionLinkInlineNode[];
+}
 
 export type GraphValue = string | number | boolean | null;
 
@@ -111,6 +132,10 @@ export type BlockNode =
       summary?: string;
       error?: string;
       actions?: InlineNode[];
+    }
+  | {
+      type: typeof BLOCK_TYPES.OPERATION_CARD;
+      operation: OperationCardModel;
     }
   | {
       type: typeof BLOCK_TYPES.CODE;

@@ -5,11 +5,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 /* ------------------------------------------------------------------ */
 
 const getSessionUserMock = vi.fn();
-const setMockSessionMock = vi.fn();
+const switchSessionUserRoleMock = vi.fn();
+const clearMockSessionMock = vi.fn();
+const resolveSessionAuthorizationRoleMock = vi.fn((user: { roles: string[] }) => user.roles[0]);
 
 vi.mock("@/lib/auth", () => ({
   getSessionUser: getSessionUserMock,
-  setMockSession: setMockSessionMock,
+  switchSessionUserRole: switchSessionUserRoleMock,
+  clearMockSession: clearMockSessionMock,
+  resolveSessionAuthorizationRole: resolveSessionAuthorizationRoleMock,
 }));
 
 // Capture logEvent calls for audit-log assertions
@@ -58,7 +62,9 @@ describe("Spec 12 — Dev Role-Switch Guard Hardening", () => {
     // Reset env defaults
     envConfigValues.NODE_ENV = "production";
 
-    setMockSessionMock.mockResolvedValue(undefined);
+    switchSessionUserRoleMock.mockResolvedValue(undefined);
+    clearMockSessionMock.mockResolvedValue(undefined);
+    resolveSessionAuthorizationRoleMock.mockImplementation((user: { roles: string[] }) => user.roles[0]);
 
     // Dynamic import so mocks are in place
     const mod = await import("@/app/api/auth/switch/route");
@@ -74,6 +80,8 @@ describe("Spec 12 — Dev Role-Switch Guard Hardening", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.activeRole).toBe("STAFF");
+    expect(body.persisted).toBe(true);
+    expect(switchSessionUserRoleMock).toHaveBeenCalledWith("user-1", "STAFF");
   });
 
   // --- Test 2 ---
@@ -94,6 +102,7 @@ describe("Spec 12 — Dev Role-Switch Guard Hardening", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.activeRole).toBe("ADMIN");
+    expect(switchSessionUserRoleMock).toHaveBeenCalledWith("user-1", "ADMIN");
   });
 
   // --- Test 4 ---

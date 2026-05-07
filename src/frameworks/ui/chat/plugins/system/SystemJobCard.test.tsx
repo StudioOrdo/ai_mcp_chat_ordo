@@ -157,6 +157,46 @@ describe("SystemJobCard (compact inline notice)", () => {
     expect(screen.queryByText("View details")).not.toBeInTheDocument();
   });
 
+  it("uses appliance command result titles for system command status lookups", () => {
+    render(
+      <SystemJobCard
+        part={{
+          type: "job_status",
+          jobId: "syscmd_restore_1",
+          toolName: "get_deferred_job_status",
+          label: "Get Deferred Job Status",
+          status: "succeeded",
+        }}
+        resultEnvelope={{
+          schemaVersion: 1,
+          toolName: "get_deferred_job_status",
+          family: "system",
+          cardKind: "lifecycle",
+          executionMode: "inline",
+          inputSnapshot: { job_id: "syscmd_restore_1" },
+          summary: {
+            title: "Appliance Restore Status",
+            message: "Restore command syscmd_restore_1 is succeeded.",
+          },
+          progress: undefined,
+          artifacts: [],
+          payload: {
+            systemCommand: {
+              id: "syscmd_restore_1",
+              command: "restore.request",
+              status: "succeeded",
+            },
+          },
+        }}
+        isStreaming={false}
+      />,
+    );
+
+    const toggle = screen.getByRole("button", { name: /Appliance Restore Status/i });
+    expect(toggle.textContent ?? "").toContain("Appliance Restore Status");
+    expect(toggle.textContent ?? "").not.toContain("Get Deferred Job Status");
+  });
+
   it("shows completed duration and admin-gated worker identity in expanded details", () => {
     vi.setSystemTime(new Date("2026-04-10T12:10:00.000Z"));
     render(

@@ -15,6 +15,7 @@ import { ProfileCard } from "../plugins/custom/ProfileCard";
 import { ReferralQrCard } from "../plugins/custom/ReferralQrCard";
 import { EditorialWorkflowCard } from "../plugins/custom/EditorialWorkflowCard";
 import { JournalWorkflowCard } from "../plugins/custom/JournalWorkflowCard";
+import { ApplianceBackupCard } from "../plugins/custom/ApplianceBackupCard";
 
 /**
  * Adapter: MediaRenderCard takes { envelope } directly, but ToolComponent
@@ -45,6 +46,14 @@ const TOOL_RENDERER_OVERRIDES: Record<string, ToolComponent> = {
   set_preference: ProfileCard,
   get_my_affiliate_summary: ProfileCard,
   list_my_referral_activity: ProfileCard,
+  create_appliance_backup: ApplianceBackupCard,
+  list_appliance_backups: ApplianceBackupCard,
+  validate_appliance_backup: ApplianceBackupCard,
+  prepare_appliance_restore: ApplianceBackupCard,
+  request_pre_restore_backup: ApplianceBackupCard,
+  confirm_appliance_restore: ApplianceBackupCard,
+  execute_appliance_restore: ApplianceBackupCard,
+  cancel_appliance_restore: ApplianceBackupCard,
 };
 
 function resolveRenderer(toolName: string): ToolComponent {

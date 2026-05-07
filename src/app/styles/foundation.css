@@ -203,6 +203,7 @@
 
   --font-body: var(--font-ibm-plex-sans, sans-serif);
   --font-display: var(--font-fraunces, serif);
+  --font-brand: "Helvetica Neue", Helvetica, Arial, var(--font-ibm-plex-sans, system-ui), sans-serif;
   --font-mono: var(--font-ibm-plex-mono, monospace);
   --font-base: var(--font-body);
   --font-label: var(--font-body);

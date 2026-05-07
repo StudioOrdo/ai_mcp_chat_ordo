@@ -1,0 +1,63 @@
+name: Alpha Feedback
+description: Share concrete feedback from trying Ordo, seeing a demo, or discussing the alpha path.
+title: "[alpha]: "
+labels:
+  - alpha
+  - feedback
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping shape the July 31, 2026 alpha. Concrete evidence helps more than broad opinion.
+
+  - type: dropdown
+    id: feedback_context
+    attributes:
+      label: Feedback Context
+      description: Where did this feedback come from?
+      options:
+        - tried-local-install
+        - tried-hosted-or-demo-build
+        - watched-demo
+        - meetup-or-conversation
+        - reviewed-docs-or-repo
+        - other
+    validations:
+      required: true
+
+  - type: input
+    id: surface
+    attributes:
+      label: Surface Or Topic
+      description: Which page, workflow, command, doc, or idea is this about?
+      placeholder: Chat workspace, install flow, docs/state-of-the-project.md
+    validations:
+      required: true
+
+  - type: textarea
+    id: observation
+    attributes:
+      label: What You Noticed
+      description: Describe the concrete observation, confusion, or opportunity.
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Add screenshots, links, command output, notes from a conversation, or exact language that triggered the feedback.
+
+  - type: textarea
+    id: useful_next_step
+    attributes:
+      label: Useful Next Step
+      description: What would make this clearer, more useful, or easier to validate?
+
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation
+      options:
+        - label: I included enough context for a maintainer or agent to understand where this feedback came from.
+          required: true

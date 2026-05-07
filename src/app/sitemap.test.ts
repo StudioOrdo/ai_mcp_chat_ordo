@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getCorpusSummariesMock, listPublishedMock } = vi.hoisted(() => ({
-  getCorpusSummariesMock: vi.fn(),
-  listPublishedMock: vi.fn(),
+const { loadPublicShellNavigationContextMock } = vi.hoisted(() => ({
+  loadPublicShellNavigationContextMock: vi.fn(),
 }));
 
 vi.mock("@/lib/config/instance", () => ({
@@ -11,14 +10,8 @@ vi.mock("@/lib/config/instance", () => ({
   }),
 }));
 
-vi.mock("@/lib/corpus-library", () => ({
-  getCorpusSummaries: getCorpusSummariesMock,
-}));
-
-vi.mock("@/adapters/RepositoryFactory", () => ({
-  getBlogPostRepository: () => ({
-    listPublished: listPublishedMock,
-  }),
+vi.mock("@/lib/shell/public-shell-state", () => ({
+  loadPublicShellNavigationContext: loadPublicShellNavigationContextMock,
 }));
 
 import sitemap from "@/app/sitemap";
@@ -26,35 +19,39 @@ import sitemap from "@/app/sitemap";
 describe("/app/sitemap", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    loadPublicShellNavigationContextMock.mockResolvedValue({
+      hasPublicFeedItems: false,
+    });
   });
 
-  it("emits canonical /journal public URLs without duplicate /blog entries", async () => {
-    getCorpusSummariesMock.mockResolvedValue([
-      {
-        slug: "systems",
-        sectionSlugs: ["overview", "delivery"],
-      },
+  it("emits only the public site shell routes for an empty feed", async () => {
+    const result = await sitemap();
+    const urls = result.map((entry) => entry.url);
+
+    expect(urls).toEqual([
+      "https://studioordo.com",
+      "https://studioordo.com/offers",
+      "https://studioordo.com/about",
     ]);
-    listPublishedMock.mockResolvedValue([
-      {
-        slug: "launch-plan",
-        publishedAt: "2026-03-26T00:00:00.000Z",
-      },
-      {
-        slug: "ops-ledger",
-        publishedAt: null,
-      },
-    ]);
+    expect(urls).not.toContain("https://studioordo.com/feed");
+    expect(urls).not.toContain("https://studioordo.com/library");
+    expect(urls).not.toContain("https://studioordo.com/journal");
+    expect(urls).not.toContain("https://studioordo.com/blog");
+  });
+
+  it("includes feed when public feed content exists", async () => {
+    loadPublicShellNavigationContextMock.mockResolvedValue({
+      hasPublicFeedItems: true,
+    });
 
     const result = await sitemap();
     const urls = result.map((entry) => entry.url);
 
-    expect(urls).toContain("https://studioordo.com/journal");
-    expect(urls).toContain("https://studioordo.com/journal/launch-plan");
-    expect(urls).toContain("https://studioordo.com/journal/ops-ledger");
-    expect(urls).toContain("https://studioordo.com/library/systems/overview");
-    expect(urls).toContain("https://studioordo.com/library/systems/delivery");
-    expect(urls).not.toContain("https://studioordo.com/blog");
-    expect(urls).not.toContain("https://studioordo.com/blog/launch-plan");
+    expect(urls).toEqual([
+      "https://studioordo.com",
+      "https://studioordo.com/feed",
+      "https://studioordo.com/offers",
+      "https://studioordo.com/about",
+    ]);
   });
 });

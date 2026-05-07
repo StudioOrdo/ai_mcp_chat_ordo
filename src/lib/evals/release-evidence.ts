@@ -26,13 +26,14 @@ import {
 } from "./runtime-integrity-evidence";
 
 type ConversationRefactorEvidenceClassification = "missing" | "historical_baseline" | "final_closure";
+type HealthSweepReport = Awaited<ReturnType<typeof getHealthSweepReport>>;
 
 export interface ReleaseEvidence {
   version: 1;
   generatedAt: string;
   status: "approved" | "conditional" | "blocked";
   manifest: ReleaseManifestReport;
-  health: ReturnType<typeof getHealthSweepReport>;
+  health: HealthSweepReport;
   referralDiagnostics: ReferralOperationalDiagnostics;
   runtimeIntegrity: {
     present: boolean;
@@ -75,7 +76,7 @@ export interface ReleaseEvidence {
 
 interface CreateReleaseEvidenceOptions {
   manifest?: ReleaseManifestReport;
-  health?: ReturnType<typeof getHealthSweepReport>;
+  health?: HealthSweepReport;
   referralDiagnostics?: ReferralOperationalDiagnostics;
   runtimeIntegrityEvidence?: RuntimeIntegrityQaEvidence | null;
   toolInvocationEvidence?: Phase11ToolInvocationQaEvidence | null;
@@ -116,9 +117,104 @@ function classifyConversationRefactorEvidence(
   return "final_closure";
 }
 
+function createUnavailableHealthSweep(now: Date): HealthSweepReport {
+  return {
+    status: "error",
+    generatedAt: now.toISOString(),
+    liveness: {
+      status: "ok",
+      checks: {
+        config: "ok",
+        model: "ok",
+      },
+    },
+    readiness: {
+      status: "error",
+      checks: {
+        config: "error",
+        model: "error",
+      },
+      details: "Health sweep was not provided to synchronous release evidence generation.",
+    },
+    appliance: {
+      status: "unknown",
+      generatedAt: now.toISOString(),
+      profile: {
+        profileId: "unknown",
+        processRole: "unknown",
+        nodeEnv: "production",
+        isDocker: false,
+        isCompose: false,
+        dataDir: "",
+        sqlitePath: "",
+        sqliteInsideDataDir: false,
+        mediaWorker: {
+          mode: "disabled",
+          url: null,
+          port: null,
+          disabled: true,
+        },
+        deferredWorker: {
+          mode: "unavailable",
+          disabled: true,
+          workerId: null,
+        },
+        warnings: ["Health sweep was not provided."],
+      },
+      dataBoundary: {
+        dataDir: "",
+        sqlitePath: "",
+        sqliteWalPath: "",
+        sqliteShmPath: "",
+        sqliteInsideDataDir: false,
+        defaultSqlitePath: "",
+        blogAssetRoot: "",
+        blogAssetRootInsideDataDir: false,
+        userFileRoot: "",
+        userFileRootInsideDataDir: false,
+        requiredIncludePaths: [],
+        defaultExcludePaths: [],
+        warnings: ["Health sweep was not provided."],
+      },
+      providerDiagnostics: {
+        intelligence: {
+          provider: "unknown",
+          providerSource: "default",
+          model: "",
+          modelSource: "default",
+          apiKeyConfigured: false,
+          apiKeySource: "default",
+          baseUrlConfigured: false,
+          baseUrlSource: "default",
+          warningCodes: ["health_sweep_missing"],
+        },
+        capabilities: [],
+        toolSummary: {
+          total: 0,
+          byState: {},
+          protectedCount: 0,
+          staticLockedCount: 0,
+          providerGatedCount: 0,
+          warnings: 1,
+        },
+      },
+      components: [],
+      summary: {
+        healthy: 0,
+        degraded: 0,
+        blocked: 0,
+        disabled: 0,
+        unknown: 0,
+      },
+      warnings: ["Health sweep was not provided."],
+    },
+  };
+}
+
 export function createReleaseEvidence(options: CreateReleaseEvidenceOptions = {}): ReleaseEvidence {
+  const now = options.now ?? new Date();
   const manifest = options.manifest ?? getReleaseManifestReport();
-  const health = options.health ?? getHealthSweepReport();
+  const health = options.health ?? createUnavailableHealthSweep(now);
   const referralDiagnostics = options.referralDiagnostics ?? getReferralOperationalDiagnostics();
   const runtimeIntegrityEvidence = options.runtimeIntegrityEvidence ?? null;
   const toolInvocationEvidence = options.toolInvocationEvidence ?? null;
@@ -175,7 +271,7 @@ export function createReleaseEvidence(options: CreateReleaseEvidenceOptions = {}
 
   return {
     version: 1,
-    generatedAt: (options.now ?? new Date()).toISOString(),
+    generatedAt: now.toISOString(),
     status,
     manifest,
     health,
@@ -282,14 +378,14 @@ export function readRuntimeIntegrityEvidenceFromFile(filePath: string): RuntimeI
   return readRuntimeIntegrityQaEvidenceFromFile(filePath);
 }
 
-export function writeReleaseEvidenceArtifacts(options: WriteReleaseEvidenceArtifactsOptions = {}): {
+export async function writeReleaseEvidenceArtifacts(options: WriteReleaseEvidenceArtifactsOptions = {}): Promise<{
   runtimeIntegrityPath: string;
   toolInvocationPath: string;
   conversationRefactorPath: string;
   canarySummaryPath: string;
   qaEvidencePath: string;
   evidence: ReleaseEvidence;
-} {
+}> {
   const releaseDir = options.releaseDir ?? path.join(process.cwd(), "release");
   const runtimeIntegrityPath = path.join(releaseDir, "runtime-integrity-evidence.json");
   const toolInvocationPath = path.join(releaseDir, "phase-11-tool-invocation-evidence.json");
@@ -301,8 +397,10 @@ export function writeReleaseEvidenceArtifacts(options: WriteReleaseEvidenceArtif
   const conversationRefactorEvidence = options.conversationRefactorEvidence
     ?? readConversationRefactorEvidenceFromFile(conversationRefactorPath);
   const canarySummary = options.canarySummary ?? readCanarySummaryFromFile(canarySummaryPath);
+  const health = options.health ?? await getHealthSweepReport();
   const evidence = createReleaseEvidence({
     ...options,
+    health,
     runtimeIntegrityEvidence,
     runtimeIntegrityArtifactPath: path.relative(process.cwd(), runtimeIntegrityPath),
     toolInvocationEvidence,

@@ -1,0 +1,53 @@
+{
+  "phase": "05f-resource-limits-observability-and-failure-posture",
+  "status": "passed",
+  "capturedAt": "2026-05-03T07:10:06Z",
+  "postImplementationQaRefreshedAt": "2026-05-03T07:16:40Z",
+  "implemented": [
+    "centralized appliance resource policy and env validation",
+    "required resources appliance health component",
+    "writable data volume pressure probe",
+    "backup and restore pressure gates before Rust command creation",
+    "typed ResourcePressureError API responses",
+    "admin backup resource projection",
+    "local and hosted Compose pids, memory, CPU, tmpfs, log rotation, and liveness defaults",
+    "worker restart defaults centralized for tests and env-configurable in production startup",
+    "05E release gate includes 05F resource contract test"
+  ],
+  "postImplementationQaFindingsClosed": [
+    "phase document code-grounding section now reflects implemented state",
+    "production startup and worker-supervisor tests now share scripts/worker-restart-policy.mjs",
+    "runtime supervision tests assert production startup imports shared worker restart policy"
+  ],
+  "verification": [
+    {
+      "command": "./node_modules/.bin/vitest run src/lib/appliance/resources src/lib/appliance/probes/resource-pressure-probe.test.ts src/lib/appliance/health-facade.test.ts src/lib/appliance/backup/backup-self-service.test.ts src/lib/appliance/backup/backup-schedule-service.test.ts tests/health-probes.test.ts tests/health-routes.test.ts tests/image-security-contract.test.ts tests/docker-runtime-contract.test.ts tests/appliance-resource-contract.test.ts tests/runtime-supervision-contract.test.ts tests/worker-server-decoupling.test.ts tests/env-centralization.test.ts --pool=threads",
+      "status": "passed",
+      "testFiles": 13,
+      "tests": 67
+    },
+    {
+      "command": "npm run typecheck",
+      "status": "passed"
+    },
+    {
+      "command": "docker compose config --services",
+      "status": "passed",
+      "output": "app"
+    },
+    {
+      "command": "docker compose -f compose.hosted.yaml config --services",
+      "status": "passed",
+      "output": "app"
+    },
+    {
+      "command": "npm run appliance:release -- --allow-missing-scanners",
+      "status": "passed",
+      "warnings": [
+        "No supported SBOM tool was available.",
+        "No supported vulnerability scanner was available."
+      ],
+      "blockers": []
+    }
+  ]
+}

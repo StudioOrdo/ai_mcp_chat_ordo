@@ -1,4 +1,4 @@
-import { ConfigurationService } from "@/lib/config/ConfigurationService";
+import { resolveInstallState } from "@/lib/appliance/install/install-state";
 import { InstallWizard } from "./InstallWizard";
 import { RedirectAndSetCookie } from "./RedirectAndSetCookie";
 import type { Metadata } from "next";
@@ -9,9 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default async function InstallPage() {
-  const isInitialized = ConfigurationService.isSystemInitialized();
+  const installState = resolveInstallState();
 
-  if (isInitialized) {
+  if (installState.ownerConfigured) {
     // If we're already initialized but hitting this page, the cookie might be missing.
     // Set the cookie and redirect to dashboard.
     return <RedirectAndSetCookie to="/" />;
@@ -27,7 +27,7 @@ export default async function InstallPage() {
           </p>
         </div>
         <div className="p-8">
-          <InstallWizard />
+          <InstallWizard initialInstallState={installState} />
         </div>
       </div>
     </div>

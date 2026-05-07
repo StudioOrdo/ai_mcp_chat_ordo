@@ -68,7 +68,14 @@ vi.mock("@/lib/observability/reason-codes", () => ({
 import { POST } from "@/app/api/tts/route";
 
 describe("POST /api/tts", () => {
+  const originalEnv = process.env;
+
   beforeEach(() => {
+    process.env = {
+      ...originalEnv,
+      OPENAI_API_KEY: "test-openai-key",
+      TTS_PROVIDER: "openai",
+    };
     vi.stubGlobal("fetch", fetchMock);
     getSessionUserMock.mockResolvedValue({ id: "usr_1", roles: ["AUTHENTICATED"] });
     getOpenaiApiKeyMock.mockReturnValue("test-openai-key");
@@ -83,6 +90,7 @@ describe("POST /api/tts", () => {
   });
 
   afterEach(() => {
+    process.env = originalEnv;
     vi.clearAllMocks();
     vi.unstubAllGlobals();
   });
@@ -103,6 +111,7 @@ describe("POST /api/tts", () => {
   });
 
   it("serves cached audio assets without regenerating them", async () => {
+    process.env.TTS_PROVIDER = "disabled";
     readFileMock.mockResolvedValueOnce(Buffer.from("cached-audio"));
     lookupMock.mockResolvedValueOnce({
       file: { id: "uf_cached_1" },
@@ -121,6 +130,23 @@ describe("POST /api/tts", () => {
     expect(response.headers.get("X-User-File-Id")).toBe("uf_cached_1");
     expect(storeMock).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("fails before OpenAI fetch on cache miss when TTS provider is disabled", async () => {
+    process.env.TTS_PROVIDER = "disabled";
+    lookupMock.mockResolvedValueOnce(null);
+
+    const response = await POST(
+      new Request("http://localhost/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: "Hello world" }),
+      }),
+    );
+
+    expect(response.status).toBe(503);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(getOpenaiApiKeyMock).not.toHaveBeenCalled();
   });
 
   it("stores generated audio with typed media metadata", async () => {

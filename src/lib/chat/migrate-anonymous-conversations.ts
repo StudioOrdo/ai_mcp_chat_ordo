@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { clearAnonSession } from "@/lib/chat/resolve-user";
+import { getTrackedLinkService } from "@/lib/tracked-links/tracked-link-service";
 import { createIdentityMigrationService } from "./identity-migration-root";
 
 export async function migrateAnonymousConversationsToUser(
@@ -21,6 +22,12 @@ export async function migrateAnonymousConversationsToUser(
   });
 
   await clearAnonSession();
+  if (source === "registration" && migration.migratedConversationIds.length > 0) {
+    await getTrackedLinkService().recordSignupForConversations({
+      conversationIds: migration.migratedConversationIds,
+      userId,
+    });
+  }
 
   return { migratedConversationIds: [...migration.migratedConversationIds] };
 }

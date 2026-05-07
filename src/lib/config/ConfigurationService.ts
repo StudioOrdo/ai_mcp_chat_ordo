@@ -1,4 +1,5 @@
 import { getSystemSettingsDataMapper } from "@/adapters/RepositoryFactory";
+import { resolveInstallState } from "@/lib/appliance/install/install-state";
 
 /**
  * The ConfigurationService is responsible for resolving system configuration.
@@ -40,8 +41,7 @@ export class ConfigurationService {
    * Helper to check if the system is fully initialized.
    */
   static isSystemInitialized(): boolean {
-    const key = this.getString("ANTHROPIC_API_KEY");
-    return key !== null && key.length > 0;
+    return resolveInstallState().ownerConfigured;
   }
 
   /**
@@ -50,5 +50,14 @@ export class ConfigurationService {
   static setString(key: string, value: string): void {
     const repo = getSystemSettingsDataMapper();
     repo.setSync(key, JSON.stringify(value));
+  }
+
+  /**
+   * Removes a SQLite-backed setting. Environment values still take precedence
+   * and cannot be removed through runtime settings.
+   */
+  static async deleteString(key: string): Promise<void> {
+    const repo = getSystemSettingsDataMapper();
+    await repo.delete(key);
   }
 }

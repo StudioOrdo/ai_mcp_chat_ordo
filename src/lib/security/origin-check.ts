@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { getAllowedCsrfOrigins, resolvePublicOrigin } from "@/lib/appliance/network/public-origin";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
@@ -20,14 +21,13 @@ export function checkOrigin(req: NextRequest): NextResponse | null {
 }
 
 function getAllowedOrigins(host: string | null): Set<string> {
-  const origins = new Set<string>();
-  if (host) {
+  const resolution = resolvePublicOrigin();
+  const origins = new Set<string>(getAllowedCsrfOrigins());
+
+  if (resolution.mode === "local" && host) {
     origins.add(`https://${host}`);
     origins.add(`http://${host}`);
   }
-  const extra = process.env.ALLOWED_ORIGINS?.split(",").map((s) => s.trim());
-  if (extra) {
-    for (const o of extra) if (o) origins.add(o);
-  }
+
   return origins;
 }

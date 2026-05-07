@@ -1,0 +1,174 @@
+{
+  "phase": "05e-release-supply-chain-and-image-provenance",
+  "status": "passed",
+  "generatedAt": "2026-05-03T07:14:58.717Z",
+  "git": {
+    "revision": "c99b37a",
+    "branch": "main",
+    "dirty": true
+  },
+  "toolchains": {
+    "node": "v22.22.2",
+    "npm": "10.9.7",
+    "rustc": "rustc 1.94.0 (4a4ef493e 2026-03-02) (Homebrew)",
+    "cargo": "cargo 1.94.0 (Homebrew)",
+    "docker": "29.1.2"
+  },
+  "source": {
+    "packageLockSha256": "ab7df8612a7970f3661eee6dc4890534c3b15a0fd092e9d74f78d8e798c829b6",
+    "cargoLockSha256": "698f9b548a902d69acd0cd46f3dd8159c24f12fa3e33522346b84c161ae30def",
+    "dockerfileSha256": "d3195d4a36627c9b4adc7ce7930fa19362f627003913801926abc5c8f8dd4449",
+    "rustToolchainSha256": "2705d50a18153750eae02614c794d2af6fa3c484b0a7f3fa3155c618821080a0",
+    "composeSha256": "725fff57e10ef2c91e31d4a33e807e838d9224987a0c632a423ec1ee58b67283",
+    "hostedComposeSha256": "171b153b4e18d30820f1d955cd154b77af38ed39e84d5306bc56c8ba34814c9e"
+  },
+  "image": {
+    "tag": "studioordo:05e-c99b37a",
+    "id": "sha256:24b91cc124f410a85569b0298f14fa53ce59d06df5bbfb512a6e8ffd75f18a8c",
+    "digest": null,
+    "baseImages": [
+      "node:${NODE_VERSION}-alpine AS deps",
+      "rust:1-alpine AS rust-builder",
+      "node:${NODE_VERSION}-alpine AS builder",
+      "node:${NODE_VERSION}-alpine AS runner"
+    ],
+    "sizeBytes": 3827069354,
+    "user": "nextjs",
+    "exposedPorts": [
+      "3000/tcp"
+    ],
+    "labels": {}
+  },
+  "gates": [
+    {
+      "name": "native runtime check",
+      "command": "npm run native:check",
+      "status": "passed",
+      "durationMs": 374,
+      "summary": "> studio-ordo@0.1.0 native:check > node scripts/check-native-runtime.mjs better-sqlite3 tsx"
+    },
+    {
+      "name": "environment validation",
+      "command": "npm run validate:env",
+      "status": "passed",
+      "durationMs": 781,
+      "summary": "> studio-ordo@0.1.0 validate:env > tsx scripts/validate-env.ts Environment validation passed."
+    },
+    {
+      "name": "tracked secret scan",
+      "command": "npm run scan:secrets",
+      "status": "passed",
+      "durationMs": 11377,
+      "summary": "> studio-ordo@0.1.0 scan:secrets > node scripts/scan-secrets.mjs Secret scan passed."
+    },
+    {
+      "name": "typecheck",
+      "command": "npm run typecheck",
+      "status": "passed",
+      "durationMs": 3403,
+      "summary": "> studio-ordo@0.1.0 typecheck > tsc --noEmit"
+    },
+    {
+      "name": "focused image contract tests",
+      "command": "npm test -- tests/image-security-contract.test.ts tests/appliance-resource-contract.test.ts tests/hosted-network-contract.test.ts tests/image-runtime-bundle-contract.test.ts tests/docker-appliance-lifecycle.contract.test.ts tests/appliance-lifecycle-smoke.test.ts tests/release-manifest.test.ts",
+      "status": "passed",
+      "durationMs": 2092,
+      "summary": "✓ tests/image-security-contract.test.ts (3 tests) 7ms ✓ tests/appliance-resource-contract.test.ts (3 tests) 5ms ✓ tests/image-runtime-bundle-contract.test.ts (6 tests) 8ms ✓ tests/appliance-lifecycle-smoke.test.ts (3 tests) 8ms Test Files  7 passed (7) Tests  20 passed (20) Start at  03:15:15 Duration  1.42s (transform 331ms, setup 2.28s, import 308ms, tests 41ms, environment 5.49s)"
+    },
+    {
+      "name": "rust formatting",
+      "command": "cargo fmt --check",
+      "status": "passed",
+      "durationMs": 229,
+      "summary": "completed"
+    },
+    {
+      "name": "rust tests",
+      "command": "cargo test -p ordo-backup",
+      "status": "passed",
+      "durationMs": 753,
+      "summary": "test pre_restore_backup_links_snapshot_to_restore_plan ... ok test stale_running_command_recovery_marks_expired_work_failed ... ok test restore_rejects_data_boundary_escape_before_live_mutation ... ok test restore_rejects_hash_mismatch_before_live_mutation ... ok test restore_replays_sqlite_and_assets_from_valid_archive ... ok test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s running 0 tests test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+    },
+    {
+      "name": "rust clippy",
+      "command": "cargo clippy -p ordo-backup -- -D warnings",
+      "status": "passed",
+      "durationMs": 240,
+      "summary": "completed"
+    },
+    {
+      "name": "release manifest generation",
+      "command": "node scripts/generate-release-manifest.mjs",
+      "status": "passed",
+      "durationMs": 126,
+      "summary": "Release manifest generated at [path]"
+    },
+    {
+      "name": "release manifest verification",
+      "command": "npm run release:verify",
+      "status": "passed",
+      "durationMs": 275,
+      "summary": "> studio-ordo@0.1.0 release:verify > node scripts/validate-release-manifest.mjs Release manifest validation passed."
+    },
+    {
+      "name": "local compose services",
+      "command": "docker compose config --services",
+      "status": "passed",
+      "durationMs": 196,
+      "summary": "app"
+    },
+    {
+      "name": "hosted compose services",
+      "command": "docker compose -f compose.hosted.yaml config --services",
+      "status": "passed",
+      "durationMs": 81,
+      "summary": "app"
+    },
+    {
+      "name": "Docker image build",
+      "command": "docker build --target runner -t studioordo:05e-c99b37a .",
+      "status": "passed",
+      "durationMs": 76697,
+      "summary": "completed"
+    },
+    {
+      "name": "Docker image inspect",
+      "command": "docker image inspect studioordo:05e-c99b37a",
+      "status": "passed",
+      "durationMs": 26,
+      "summary": "image metadata captured"
+    },
+    {
+      "name": "runner image content assertion",
+      "command": "docker run --rm --entrypoint sh studioordo:05e-c99b37a -lc set -eu; test -x /app/bin/ordo-backup; test -d /app/docs/_corpus; test -f /app/release/manifest.json; test ! -e /app/docs/_refactor; test ! -e /app/docs/_review; env | grep -E '^(ANTHROPIC_API_KEY|OPENAI_API_KEY|DEEPSEEK_API_KEY|ORDO_INSTALL_TOKEN)=' && exit 1 || true; echo runner-image-ok",
+      "status": "passed",
+      "durationMs": 249,
+      "summary": "runner-image-ok"
+    }
+  ],
+  "sbom": {
+    "tool": "unavailable",
+    "status": "skipped",
+    "artifactPath": null,
+    "summary": "No supported SBOM tool was available."
+  },
+  "vulnerabilityScan": {
+    "tool": "unavailable",
+    "status": "skipped",
+    "artifactPath": null,
+    "critical": null,
+    "high": null,
+    "summary": "No supported vulnerability scanner was available."
+  },
+  "signing": {
+    "tool": "unavailable",
+    "status": "skipped",
+    "artifactPath": null,
+    "summary": "Signing skipped."
+  },
+  "warnings": [
+    "No supported SBOM tool was available.",
+    "No supported vulnerability scanner was available."
+  ],
+  "blockers": []
+}

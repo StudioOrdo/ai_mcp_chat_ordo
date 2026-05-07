@@ -345,20 +345,20 @@ describe("System page configuration sections", () => {
   it("renders 5 configuration sections with AdminCard", () => {
     const source = readSource("src/app/admin/system/page.tsx");
     expect(source).toContain("Health status");
-    expect(source).toContain("Runtime configuration");
-    expect(source).toContain("Model policy");
+    expect(source).toContain("Provider configuration");
+    expect(source).toContain("Capability providers");
     expect(source).toContain("Registered tools");  // Section 4
     expect(source).toContain("Active workers");     // Section 5
   });
 
-  it("redacts sensitive environment variables", () => {
+  it("reports effective provider diagnostics instead of raw environment variables", () => {
     const source = readSource("src/app/admin/system/page.tsx");
-    expect(source).toContain("redactValue");
-    expect(source).toContain("API_KEY");
-    expect(source).toContain("JWT_SECRET");
-    // Sensitive values are passed through redactValue, not rendered raw
-    expect(source).toContain("redactValue(\"ANTHROPIC_API_KEY\"");
-    expect(source).toContain("redactValue(\"JWT_SECRET\"");
+    expect(source).toContain("getProviderDiagnosticsReport");
+    expect(source).toContain("providerDiagnostics.intelligence");
+    expect(source).toContain("providerDiagnostics.capabilities");
+    expect(source).not.toContain("redactValue");
+    expect(source).not.toContain("process.env.ANTHROPIC_MODEL");
+    expect(source).not.toContain("process.env.OPENAI_API_KEY");
   });
 
   it("reads tool registry and groups by category", () => {
@@ -395,9 +395,14 @@ describe("Dashboard signal card wiring", () => {
     expect(source).toMatch(/\.status === "fulfilled"/);
   });
 
-  it("uses 3-column grid for desktop layout", () => {
+  it("uses the system second-column workspace layout", () => {
     const source = readSource("src/app/admin/page.tsx");
-    expect(source).toContain("lg:grid-cols-3");
+    expect(source).toContain("shell-governance-grid");
+    expect(source).toContain("data-admin-system-workspace");
+    expect(source).toContain("data-admin-system-selection-column");
+    expect(source).toContain("data-admin-system-main-column");
+    expect(source).toContain("ADMIN_DASHBOARD_SECTIONS");
+    expect(source).toContain("resolveAdminSectionId");
   });
 });
 
@@ -406,7 +411,7 @@ describe("Dashboard signal card wiring", () => {
 describe("Dashboard action chips", () => {
   it("overview cards link into their owning workspaces", () => {
     const source = readSource("src/app/admin/page.tsx");
-    expect(source).toContain("haptic-press");
+    expect(source).toContain("SectionLink");
     expect(source).toContain('href="/admin/system"');
     expect(source).toContain("getAdminLeadsListPath");
     expect(source).toContain("getAdminJournalListPath");
@@ -416,6 +421,11 @@ describe("Dashboard action chips", () => {
 
   it("dashboard exposes the new cross-workspace overview cards", () => {
     const source = readSource("src/app/admin/page.tsx");
+    expect(source).toContain('href: "/admin?section=system-health"');
+    expect(source).toContain('href: "/admin?section=pipeline"');
+    expect(source).toContain('href: "/admin?section=conversations"');
+    expect(source).toContain('href: "/admin?section=content"');
+    expect(source).toContain('href: "/admin?section=jobs"');
     expect(source).toContain("Pipeline attention");
     expect(source).toContain("Conversation attention");
     expect(source).toContain("Content operations");

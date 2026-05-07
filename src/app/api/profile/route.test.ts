@@ -65,4 +65,34 @@ describe("/api/profile", () => {
     });
     expect(payload.profile.credential).toBe("AI strategist");
   });
+
+  it("ignores client-supplied user ids and updates only the signed-in account", async () => {
+    getSessionUserMock.mockResolvedValue(createAuthenticatedSessionUser({ id: "usr_owner" }));
+    updateProfileMock.mockResolvedValue({
+      id: "usr_owner",
+      name: "Owner Name",
+      email: "owner@example.com",
+      credential: "Operator",
+      pushNotificationsEnabled: false,
+      affiliateEnabled: false,
+      referralCode: null,
+      referralUrl: null,
+      qrCodeUrl: null,
+      roles: ["AUTHENTICATED"],
+    });
+
+    const response = await PATCH(
+      createRouteRequest("/api/profile", "PATCH", {
+        userId: "usr_someone_else",
+        name: "Owner Name",
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(updateProfileMock).toHaveBeenCalledWith("usr_owner", {
+      name: "Owner Name",
+      email: undefined,
+      credential: undefined,
+    });
+  });
 });

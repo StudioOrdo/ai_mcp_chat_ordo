@@ -65,6 +65,39 @@ describe("capability card primitives", () => {
     expect(onActionClick).toHaveBeenCalledWith("send", "Publish post_1", undefined);
   });
 
+  it("marks restore workflow actions with button intent hooks", () => {
+    render(
+      <CapabilityActionRail
+        actions={[
+          {
+            type: "action-link",
+            label: "Execute Restore",
+            actionType: "operation",
+            value: "op_restore_1",
+            params: { riskLevel: "destructive" },
+          },
+          {
+            type: "action-link",
+            label: "Cancel Restore",
+            actionType: "operation",
+            value: "op_restore_1",
+            params: { riskLevel: "destructive" },
+          },
+          {
+            type: "action-link",
+            label: "List Backups",
+            actionType: "tool",
+            value: "List appliance backups",
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Execute Restore (operation)" })).toHaveAttribute("data-action-intent", "danger");
+    expect(screen.getByRole("button", { name: "Cancel Restore (operation)" })).toHaveAttribute("data-action-intent", "danger");
+    expect(screen.getByRole("button", { name: "List Backups (tool)" })).toHaveAttribute("data-action-intent", "secondary");
+  });
+
   it("renders artifact and timeline primitives with semantic status hooks", () => {
     render(
       <CapabilityCardShell ariaLabel="System capability" state="succeeded">

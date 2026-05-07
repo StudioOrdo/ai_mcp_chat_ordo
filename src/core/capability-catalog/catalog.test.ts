@@ -12,9 +12,9 @@ import {
 
 describe("capability-catalog", () => {
   describe("catalog integrity", () => {
-    it("contains all 59 tool capabilities", () => {
+    it("contains all 69 tool capabilities", () => {
       const names = Object.keys(CAPABILITY_CATALOG);
-      expect(names.length).toBe(59);
+      expect(names.length).toBe(69);
       // Verify pilot entries still present
       expect(names).toContain("draft_content");
       expect(names).toContain("publish_content");
@@ -26,6 +26,10 @@ describe("capability-catalog", () => {
       expect(names).toContain("list_journal_posts");
       expect(names).toContain("produce_blog_article");
       expect(names).toContain("list_conversation_media_assets");
+      // Verify appliance backup self-service entries
+      expect(names).toContain("create_appliance_backup");
+      expect(names).toContain("configure_backup_policy");
+      expect(names).toContain("execute_appliance_restore");
     });
 
     it("every entry has core.name matching its key", () => {

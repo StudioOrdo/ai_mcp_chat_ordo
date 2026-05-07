@@ -1,0 +1,91 @@
+{
+  "phase": "05-docker-and-worker-verification-harness",
+  "mode": "local",
+  "status": "failed",
+  "startedAt": "2026-05-03T03:50:28.660Z",
+  "completedAt": "2026-05-03T03:50:47.540Z",
+  "durationMs": 18880,
+  "nodeVersion": "v22.22.2",
+  "rustVersion": "rustc 1.94.0 (4a4ef493e 2026-03-02) (Homebrew)",
+  "imageTag": null,
+  "gitRevision": "c99b37a",
+  "dataDirLabel": ".data",
+  "appPort": null,
+  "mediaPort": null,
+  "executorPath": "/Users/kwilliams/Projects/ordoSite/bin/ordo-backup",
+  "health": {
+    "status": "degraded",
+    "summary": {
+      "healthy": 6,
+      "degraded": 1,
+      "blocked": 0,
+      "disabled": 1,
+      "unknown": 1
+    },
+    "warnings": [
+      "Tool availability has 1 warning(s)."
+    ]
+  },
+  "backup": {
+    "manualBackupId": null,
+    "scheduledBackupId": null,
+    "archiveSizeBytes": null,
+    "archiveHashPrefix": null
+  },
+  "restore": {
+    "restorePlanId": null,
+    "restoredSeedFile": false
+  },
+  "scheduler": {
+    "commandId": null,
+    "decision": null
+  },
+  "restart": {
+    "verified": false
+  },
+  "steps": [
+    {
+      "name": "prepare temp data boundary",
+      "status": "passed",
+      "startedAt": "2026-05-03T03:50:28.812Z",
+      "completedAt": "2026-05-03T03:50:28.813Z",
+      "durationMs": 1,
+      "summary": "completed"
+    },
+    {
+      "name": "install Rust backup executor",
+      "status": "passed",
+      "startedAt": "2026-05-03T03:50:28.813Z",
+      "completedAt": "2026-05-03T03:50:46.800Z",
+      "durationMs": 17987,
+      "summary": "executor available"
+    },
+    {
+      "name": "initialize SQLite schema",
+      "status": "passed",
+      "startedAt": "2026-05-03T03:50:46.800Z",
+      "completedAt": "2026-05-03T03:50:46.854Z",
+      "durationMs": 54,
+      "summary": "schema initialized"
+    },
+    {
+      "name": "read appliance health",
+      "status": "passed",
+      "startedAt": "2026-05-03T03:50:46.854Z",
+      "completedAt": "2026-05-03T03:50:47.392Z",
+      "durationMs": 538,
+      "summary": "completed"
+    },
+    {
+      "name": "create manual backup through Rust",
+      "status": "failed",
+      "startedAt": "2026-05-03T03:50:47.392Z",
+      "completedAt": "2026-05-03T03:50:47.540Z",
+      "durationMs": 148,
+      "summary": "Rust backup executor run-once failed: "
+    }
+  ],
+  "warnings": [
+    "Rust backup executor run-once failed: "
+  ]
+}

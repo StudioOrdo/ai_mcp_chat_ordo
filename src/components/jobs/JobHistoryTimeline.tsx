@@ -25,10 +25,10 @@ export function JobHistoryTimeline({ events }: JobHistoryTimelineProps) {
       {events.map((event) => (
         <li key={event.id} className="jobs-event-item px-(--space-4) py-(--space-4)">
           <div className="flex flex-wrap items-center gap-(--space-2)">
-            <span className={`inline-flex rounded-full border px-2 py-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.12em] ${getStatusTone(event.part.status)}`}>
+            <span className={`inline-flex rounded-full border px-2 py-0.5 text-[0.68rem] font-semibold uppercase ${getStatusTone(event.part.status)}`}>
               {STATUS_LABELS[event.part.status]}
             </span>
-            <span className="text-xs uppercase tracking-[0.18em] text-foreground/45">Sequence {event.sequence}</span>
+            <span className="text-xs uppercase text-foreground/45">Sequence {event.sequence}</span>
             <span className="text-xs text-foreground/45">{formatJobTimestamp(event.createdAt)}</span>
           </div>
           <p className="mt-(--space-2) text-sm leading-6 text-foreground/72">{formatJobHistoryEntry(event)}</p>

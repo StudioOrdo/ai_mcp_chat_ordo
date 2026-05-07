@@ -1,11 +1,16 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { executeLiveEvalRuntime } from "@/lib/evals/live-runtime";
 import { runLiveEvalScenario } from "@/lib/evals/live-runner";
+import * as agentPlatformFacadeRoot from "@/lib/platform/agent-platform-facade-root";
 
 import { createProviderBoundaryHarness } from "../helpers/provider-boundary-harness";
 
 describe("eval live runtime and runner", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("executes the injected live runtime adapter with the real stream boundary shape", async () => {
     const invokeStream = vi.fn().mockResolvedValue({
       model: "claude-haiku-4-5",
@@ -37,6 +42,53 @@ describe("eval live runtime and runner", () => {
         toolCount: 0,
       }),
     );
+  });
+
+  it("uses prompt-visible tools for the default live eval model surface", async () => {
+    const invokeStream = vi.fn().mockResolvedValue({
+      model: "claude-haiku-4-5",
+      assistantText: "ok",
+      stopReason: "end_turn",
+      toolRoundCount: 0,
+      toolCalls: [],
+      toolResults: [],
+    });
+    const getSchemasForRole = vi.fn().mockReturnValue([
+      { name: "inspect_runtime_context", description: "Executable diagnostic.", input_schema: {} },
+      { name: "search_corpus", description: "Search.", input_schema: {} },
+    ]);
+    const getPromptVisibleSchemasForRole = vi.fn().mockReturnValue([
+      { name: "search_corpus", description: "Search.", input_schema: {} },
+    ]);
+    const executor = vi.fn();
+
+    vi.spyOn(agentPlatformFacadeRoot, "getAgentPlatformFacade").mockReturnValue({
+      getExecutionSurface: () => ({
+        registry: {
+          getSchemasForRole,
+          getPromptVisibleSchemasForRole,
+        },
+        executor,
+      }),
+    } as never);
+
+    const result = await executeLiveEvalRuntime({
+      apiKey: "test-key",
+      role: "AUTHENTICATED",
+      userId: "usr_test",
+      messages: [{ role: "user", content: "hello" }],
+      systemPrompt: "system",
+      invokeStream,
+    });
+
+    expect(getSchemasForRole).not.toHaveBeenCalled();
+    expect(getPromptVisibleSchemasForRole).toHaveBeenCalledWith("AUTHENTICATED", {
+      mode: "default_chat",
+    });
+    expect(invokeStream.mock.calls[0]?.[0].tools.map((tool: { name: string }) => tool.name)).toEqual([
+      "search_corpus",
+    ]);
+    expect(result.toolCount).toBe(1);
   });
 
   it("reuses the shared provider-boundary harness for live runtime tool execution", async () => {

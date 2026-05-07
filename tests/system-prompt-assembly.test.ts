@@ -116,11 +116,10 @@ describe("system prompt assembly", () => {
     expect(extractManifestToolNames(prompt).sort()).toEqual(EXPECTED_ROLE_TOOL_SETS.ANONYMOUS);
   });
 
-  it("ADMIN assembled prompt contains exactly the admin tool set including admin-only tools", () => {
+  it("ADMIN assembled prompt contains exactly the admin tool set including configured admin-only tools", () => {
     const prompt = buildPrompt("ADMIN");
 
     expect(extractManifestToolNames(prompt).sort()).toEqual(EXPECTED_ROLE_TOOL_SETS.ADMIN);
-    expect(prompt).toContain("**admin_web_search**");
     expect(prompt).toContain("**draft_content**");
     expect(prompt).toContain("**publish_content**");
   });
@@ -132,7 +131,6 @@ describe("system prompt assembly", () => {
     expect(manifestNames.slice().sort()).toEqual(EXPECTED_ROLE_TOOL_SETS.APPRENTICE);
     expect(manifestNames).toEqual(expect.arrayContaining([
       "search_my_conversations",
-      "generate_audio",
       "generate_chart",
       "generate_graph",
       "get_section",

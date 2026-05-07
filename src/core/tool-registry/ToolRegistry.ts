@@ -5,6 +5,24 @@ import type { ToolExecutionContext } from "./ToolExecutionContext";
 import type { ToolResultFormatter } from "./ToolResultFormatter";
 import { ToolAccessDeniedError, UnknownToolError } from "./errors";
 
+export type PromptToolProjectionMode =
+  | "default_chat"
+  | "intent_gated"
+  | "operator_chat"
+  | "internal";
+
+export interface PromptToolProjectionOptions {
+  mode?: PromptToolProjectionMode;
+  intentToolNames?: readonly string[];
+  allowedToolNames?: readonly string[];
+}
+
+export interface AnthropicToolProjection {
+  name: string;
+  description: string;
+  input_schema: Record<string, unknown>;
+}
+
 export class ToolRegistry {
   private tools = new Map<string, ToolDescriptor>();
   private toolToBundle = new Map<string, ToolBundleDescriptor>();
@@ -19,15 +37,29 @@ export class ToolRegistry {
     this.tools.set(descriptor.name, descriptor);
   }
 
-  getSchemasForRole(role: RoleName): { name: string; description: string; input_schema: Record<string, unknown> }[] {
+  getSchemasForRole(role: RoleName): AnthropicToolProjection[] {
     return Array.from(this.tools.values())
       .filter((descriptor) => descriptor.roles === "ALL" || (Array.isArray(descriptor.roles) && descriptor.roles.includes(role)))
       .sort((left, right) => left.name.localeCompare(right.name))
-      .map((descriptor) => ({
-        name: descriptor.name,
-        description: descriptor.schema?.description ?? "",
-        input_schema: descriptor.schema?.input_schema ?? { type: "object", properties: {} },
-      }));
+      .map((descriptor) => this.toAnthropicToolProjection(descriptor));
+  }
+
+  getPromptVisibleSchemasForRole(
+    role: RoleName,
+    options: PromptToolProjectionOptions = {},
+  ): AnthropicToolProjection[] {
+    const mode = options.mode ?? "default_chat";
+    const intentToolNames = new Set(options.intentToolNames ?? []);
+    const allowedToolNames = options.allowedToolNames
+      ? new Set(options.allowedToolNames)
+      : null;
+
+    return Array.from(this.tools.values())
+      .filter((descriptor) => this.canRoleExecuteDescriptor(descriptor, role))
+      .filter((descriptor) => !allowedToolNames || allowedToolNames.has(descriptor.name))
+      .filter((descriptor) => this.isPromptVisible(descriptor, mode, intentToolNames))
+      .sort((left, right) => left.name.localeCompare(right.name))
+      .map((descriptor) => this.toAnthropicToolProjection(descriptor));
   }
 
   async execute(
@@ -52,6 +84,7 @@ export class ToolRegistry {
 
   unregister(name: string): void {
     this.tools.delete(name);
+    this.toolToBundle.delete(name);
   }
 
   getDescriptor(name: string): ToolDescriptor | undefined {
@@ -65,7 +98,7 @@ export class ToolRegistry {
   canExecute(name: string, role: RoleName): boolean {
     const descriptor = this.tools.get(name);
     if (!descriptor) return false;
-    return descriptor.roles === "ALL" || (Array.isArray(descriptor.roles) && descriptor.roles.includes(role));
+    return this.canRoleExecuteDescriptor(descriptor, role);
   }
 
   setBundles(descriptors: readonly ToolBundleDescriptor[]): void {
@@ -90,6 +123,43 @@ export class ToolRegistry {
     if (!ref.startsWith("bundle:")) return [ref];
     const bundleId = ref.slice(7);
     const bundle = this.bundles.find((b) => b.id === bundleId);
-    return bundle ? bundle.toolNames : [];
+    return bundle ? bundle.toolNames.filter((toolName) => this.tools.has(toolName)) : [];
+  }
+
+  private canRoleExecuteDescriptor(descriptor: ToolDescriptor, role: RoleName): boolean {
+    return descriptor.roles === "ALL" || (Array.isArray(descriptor.roles) && descriptor.roles.includes(role));
+  }
+
+  private isPromptVisible(
+    descriptor: ToolDescriptor,
+    mode: PromptToolProjectionMode,
+    intentToolNames: ReadonlySet<string>,
+  ): boolean {
+    if (mode === "internal") {
+      return true;
+    }
+
+    const exposure = descriptor.promptExposure?.exposure ?? "default_prompt";
+    if (exposure === "default_prompt") {
+      return true;
+    }
+
+    if (exposure === "intent_gated") {
+      return mode === "intent_gated" || mode === "operator_chat" || intentToolNames.has(descriptor.name);
+    }
+
+    if (exposure === "operator_only") {
+      return mode === "operator_chat";
+    }
+
+    return false;
+  }
+
+  private toAnthropicToolProjection(descriptor: ToolDescriptor): AnthropicToolProjection {
+    return {
+      name: descriptor.name,
+      description: descriptor.schema?.description ?? "",
+      input_schema: descriptor.schema?.input_schema ?? { type: "object", properties: {} },
+    };
   }
 }

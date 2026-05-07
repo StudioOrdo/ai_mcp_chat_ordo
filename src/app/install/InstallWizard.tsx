@@ -1,28 +1,70 @@
 "use client";
 
 import { useState } from "react";
+import type {
+  CapabilitySettingsInputMap,
+  ProviderSettingsUpdateInput,
+} from "@/lib/ai/providers/provider-settings-service";
+import type { CapabilityProviderId, CapabilitySlotId, IntelligenceProviderId } from "@/lib/ai/providers/types";
+import type { InstallStateView } from "@/lib/appliance/install/install-state";
 
 type Step = "environment" | "providers" | "admin";
+
+const PROVIDER_DEFAULTS = {
+  anthropic: {
+    label: "Anthropic",
+    defaultModel: "claude-haiku-4-5",
+    defaultBaseUrl: "",
+    models: ["claude-haiku-4-5", "claude-sonnet-4-6", "claude-opus-4-6"],
+  },
+  deepseek: {
+    label: "DeepSeek",
+    defaultModel: "deepseek-v4-flash",
+    defaultBaseUrl: "https://api.deepseek.com/anthropic",
+    models: ["deepseek-v4-flash", "deepseek-v4-pro"],
+  },
+} as const;
+
+const CAPABILITY_LABELS: Record<CapabilitySlotId, string> = {
+  image: "Image generation",
+  tts: "Text to speech",
+  stt: "Speech to text",
+  web_search: "Web search",
+};
+
+const DEFAULT_CAPABILITIES: CapabilitySettingsInputMap = {
+  image: { provider: "disabled", model: "gpt-image-1" },
+  tts: { provider: "disabled", model: "tts-1" },
+  stt: { provider: "disabled", model: null },
+  web_search: { provider: "disabled", model: "gpt-5" },
+};
 
 function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
-export function InstallWizard() {
+export function InstallWizard({ initialInstallState }: { initialInstallState: InstallStateView }) {
   const [currentStep, setCurrentStep] = useState<Step>("environment");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // State
   const [envStatus, setEnvStatus] = useState<"pending" | "success" | "error">("pending");
-  const [anthropicKey, setAnthropicKey] = useState("");
+  const [provider, setProvider] = useState<IntelligenceProviderId>("anthropic");
+  const [providerKey, setProviderKey] = useState("");
+  const [providerModel, setProviderModel] = useState<string>(PROVIDER_DEFAULTS.anthropic.defaultModel);
+  const [providerBaseUrl, setProviderBaseUrl] = useState("");
   const [openAiKey, setOpenAiKey] = useState("");
+  const [capabilities, setCapabilities] = useState<CapabilitySettingsInputMap>(DEFAULT_CAPABILITIES);
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
-  const anthropicInputId = "install-anthropic-key";
+  const [installToken, setInstallToken] = useState("");
+  const [installTokenRequired, setInstallTokenRequired] = useState(initialInstallState.installTokenRequired);
+  const providerInputId = "install-provider-key";
   const openAiInputId = "install-openai-key";
   const adminEmailInputId = "install-admin-email";
   const adminPasswordInputId = "install-admin-password";
+  const installTokenInputId = "install-token";
 
   const checkEnvironment = async () => {
     setLoading(true);
@@ -30,7 +72,8 @@ export function InstallWizard() {
     try {
       const res = await fetch("/api/install/check");
       if (!res.ok) throw new Error("Environment check failed");
-      const data = await res.json() as { ready?: boolean; message?: string };
+      const data = await res.json() as InstallStateView;
+      setInstallTokenRequired(data.installTokenRequired);
       if (data.ready) {
         setEnvStatus("success");
         setTimeout(() => setCurrentStep("providers"), 800);
@@ -45,10 +88,47 @@ export function InstallWizard() {
     }
   };
 
+  function buildProviderPayload(): ProviderSettingsUpdateInput {
+    return {
+      intelligence: {
+        provider,
+        apiKey: providerKey,
+        model: providerModel,
+        baseUrl: providerBaseUrl || null,
+      },
+      openAiKey: openAiKey || undefined,
+      capabilities,
+    };
+  }
+
+  function withInstallToken<T extends object>(payload: T): T & { installToken?: string } {
+    return installTokenRequired ? { ...payload, installToken } : payload;
+  }
+
+  function changeProvider(next: IntelligenceProviderId) {
+    setProvider(next);
+    setProviderModel(PROVIDER_DEFAULTS[next].defaultModel);
+    setProviderBaseUrl(PROVIDER_DEFAULTS[next].defaultBaseUrl);
+  }
+
+  function updateCapability(slot: CapabilitySlotId, patch: Partial<{ provider: CapabilityProviderId; model: string }>) {
+    setCapabilities((current) => ({
+      ...current,
+      [slot]: {
+        ...current[slot],
+        ...patch,
+      },
+    }));
+  }
+
   const handleProviderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!anthropicKey) {
-      setError("Anthropic API Key is required.");
+    if (!providerKey) {
+      setError(`${PROVIDER_DEFAULTS[provider].label} API Key is required.`);
+      return;
+    }
+    if (installTokenRequired && !installToken.trim()) {
+      setError("Install token is required for hosted setup.");
       return;
     }
     
@@ -59,7 +139,7 @@ export function InstallWizard() {
       const res = await fetch("/api/install/validate-keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ anthropicKey, openAiKey }),
+        body: JSON.stringify(withInstallToken(buildProviderPayload())),
       });
 
       if (!res.ok) {
@@ -89,12 +169,11 @@ export function InstallWizard() {
       const res = await fetch("/api/install/setup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          anthropicKey,
-          openAiKey,
+        body: JSON.stringify(withInstallToken({
+          ...buildProviderPayload(),
           adminEmail,
           adminPassword,
-        }),
+        })),
       });
 
       if (!res.ok) {
@@ -165,6 +244,21 @@ export function InstallWizard() {
           >
             {loading ? "Checking..." : envStatus === "success" ? "All clear!" : "Run Diagnostics"}
           </button>
+          {installTokenRequired && (
+            <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/30">
+              <label htmlFor={installTokenInputId} className="block text-sm font-medium text-amber-900 dark:text-amber-100">
+                Hosted install token
+              </label>
+              <input
+                id={installTokenInputId}
+                type="password"
+                value={installToken}
+                onChange={(event) => setInstallToken(event.target.value)}
+                className="w-full px-3 py-2 border rounded-md dark:bg-neutral-900 dark:border-neutral-700 focus:ring-2 focus:ring-amber-500 outline-none"
+                autoComplete="one-time-code"
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -173,24 +267,65 @@ export function InstallWizard() {
         <form onSubmit={handleProviderSubmit} className="space-y-4">
           <h2 className="text-xl font-semibold">AI Providers</h2>
           <p className="text-neutral-500 text-sm">
-            Enter your API keys. Anthropic is required as the primary intelligence engine.
+            Choose the intelligence provider for chat and reasoning. OpenAI is
+            optional and only powers selected image, audio, and search capabilities.
           </p>
+
+          <div className="space-y-2">
+            <label htmlFor="install-provider" className="block text-sm font-medium">Intelligence provider</label>
+            <select
+              id="install-provider"
+              value={provider}
+              onChange={(e) => changeProvider(e.target.value as IntelligenceProviderId)}
+              className="w-full px-3 py-2 border rounded-md dark:bg-neutral-900 dark:border-neutral-700 focus:ring-2 focus:ring-blue-500 outline-none"
+            >
+              <option value="anthropic">Anthropic</option>
+              <option value="deepseek">DeepSeek</option>
+            </select>
+          </div>
           
           <div className="space-y-2">
-            <label htmlFor={anthropicInputId} className="block text-sm font-medium">Anthropic API Key *</label>
+            <label htmlFor={providerInputId} className="block text-sm font-medium">{PROVIDER_DEFAULTS[provider].label} API Key *</label>
             <input
-              id={anthropicInputId}
+              id={providerInputId}
               type="password"
-              value={anthropicKey}
-              onChange={(e) => setAnthropicKey(e.target.value)}
+              value={providerKey}
+              onChange={(e) => setProviderKey(e.target.value)}
               className="w-full px-3 py-2 border rounded-md dark:bg-neutral-900 dark:border-neutral-700 focus:ring-2 focus:ring-blue-500 outline-none"
-              placeholder="sk-ant-..."
+              placeholder={provider === "anthropic" ? "sk-ant-..." : "DeepSeek API key"}
               required
             />
           </div>
 
           <div className="space-y-2">
-            <label htmlFor={openAiInputId} className="block text-sm font-medium">OpenAI API Key (Optional)</label>
+            <label htmlFor="install-provider-model" className="block text-sm font-medium">Model</label>
+            <input
+              id="install-provider-model"
+              value={providerModel}
+              onChange={(e) => setProviderModel(e.target.value)}
+              list="install-provider-models"
+              className="w-full px-3 py-2 border rounded-md dark:bg-neutral-900 dark:border-neutral-700 focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+            <datalist id="install-provider-models">
+              {PROVIDER_DEFAULTS[provider].models.map((model) => (
+                <option key={model} value={model} />
+              ))}
+            </datalist>
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="install-provider-base-url" className="block text-sm font-medium">Base URL</label>
+            <input
+              id="install-provider-base-url"
+              value={providerBaseUrl}
+              onChange={(e) => setProviderBaseUrl(e.target.value)}
+              className="w-full px-3 py-2 border rounded-md dark:bg-neutral-900 dark:border-neutral-700 focus:ring-2 focus:ring-blue-500 outline-none"
+              placeholder={PROVIDER_DEFAULTS[provider].defaultBaseUrl || "SDK default"}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor={openAiInputId} className="block text-sm font-medium">OpenAI API Key (Optional Capabilities)</label>
             <input
               id={openAiInputId}
               type="password"
@@ -199,6 +334,36 @@ export function InstallWizard() {
               className="w-full px-3 py-2 border rounded-md dark:bg-neutral-900 dark:border-neutral-700 focus:ring-2 focus:ring-blue-500 outline-none"
               placeholder="sk-..."
             />
+            <p className="text-xs text-neutral-500">Used only for enabled OpenAI-backed image, audio, and search capabilities.</p>
+          </div>
+
+          <div className="space-y-3 rounded-md border border-neutral-200 p-4 dark:border-neutral-700">
+            <h3 className="text-sm font-semibold">Optional capabilities</h3>
+            {(Object.keys(capabilities) as CapabilitySlotId[]).map((slot) => (
+              <div key={slot} className="grid gap-2 md:grid-cols-[1fr_150px_1fr] md:items-center">
+                <label htmlFor={`install-${slot}-provider`} className="text-sm font-medium">
+                  {CAPABILITY_LABELS[slot]}
+                </label>
+                <select
+                  id={`install-${slot}-provider`}
+                  value={capabilities[slot].provider}
+                  onChange={(event) => updateCapability(slot, { provider: event.target.value as CapabilityProviderId })}
+                  className="px-3 py-2 border rounded-md dark:bg-neutral-900 dark:border-neutral-700"
+                >
+                  <option value="disabled">disabled</option>
+                  {slot === "stt" ? <option value="local_whisper">local_whisper</option> : null}
+                  <option value="openai">openai</option>
+                </select>
+                <input
+                  aria-label={`${CAPABILITY_LABELS[slot]} model`}
+                  value={capabilities[slot].model ?? ""}
+                  onChange={(event) => updateCapability(slot, { model: event.target.value })}
+                  disabled={capabilities[slot].provider === "disabled"}
+                  className="px-3 py-2 border rounded-md dark:bg-neutral-900 dark:border-neutral-700 disabled:opacity-50"
+                  placeholder={DEFAULT_CAPABILITIES[slot].model ?? "default"}
+                />
+              </div>
+            ))}
           </div>
 
           <button

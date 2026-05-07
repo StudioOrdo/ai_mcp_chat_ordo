@@ -8,10 +8,13 @@ import { UserPreferencesDataMapper } from "@/adapters/UserPreferencesDataMapper"
 import { AppShell } from "@/components/AppShell";
 import { ChatSurface } from "@/frameworks/ui/ChatSurface";
 import { getSessionUser } from "@/lib/auth";
+import { resolvePublicOrigin } from "@/lib/appliance/network/public-origin";
 import { getInstanceIdentity, getInstancePrompts } from "@/lib/config/instance";
 import { InstanceConfigProvider } from "@/lib/config/InstanceConfigContext";
 import { getDb } from "@/lib/db";
 import { REFERRAL_VISIT_COOKIE_NAME } from "@/lib/referrals/referral-visit";
+import { ShellNavigationProvider } from "@/lib/shell/ShellNavigationContextProvider";
+import { loadPublicShellNavigationContext } from "@/lib/shell/public-shell-state";
 import {
   DEFAULT_THEME_STATE,
   THEME_COOKIE_KEYS,
@@ -24,7 +27,8 @@ import {
 
 export async function generateMetadata(): Promise<Metadata> {
   const identity = getInstanceIdentity();
-  const canonicalUrl = `https://${identity.domain}`;
+  const publicOrigin = resolvePublicOrigin({ instanceDomain: identity.domain });
+  const canonicalUrl = publicOrigin.origin ?? `https://${identity.domain}`;
 
   return {
     metadataBase: new URL(canonicalUrl),
@@ -68,7 +72,9 @@ export default async function RootLayout({
   const identity = getInstanceIdentity();
   const prompts = getInstancePrompts();
   const user = await getSessionUser();
+  const navigationContext = await loadPublicShellNavigationContext();
   const isAnonymousUser = user.roles.includes("ANONYMOUS");
+  const hasPublicMobileNav = user.roles.every((role) => role === "ANONYMOUS");
   const respectSystemDarkMode = !user.roles.includes("ANONYMOUS");
   const cookieStore = await cookies();
   const canResolveReferralVisit = Boolean(cookieStore.get(REFERRAL_VISIT_COOKIE_NAME)?.value);
@@ -108,12 +114,13 @@ export default async function RootLayout({
       data-color-blind={themeDocumentState.attributes["data-color-blind"]}
       style={themeDocumentState.style}
     >
-      <head>
+      <body
+        className="antialiased"
+        data-shell-public-mobile-nav={hasPublicMobileNav ? "true" : undefined}
+      >
         <Script id="theme-bootstrap" strategy="beforeInteractive">
           {buildThemeBootstrapScript({ respectSystemDarkMode })}
         </Script>
-      </head>
-      <body className="antialiased">
         <ThemeProvider
           respectSystemDarkMode={respectSystemDarkMode}
           initialThemeState={initialThemeState}
@@ -121,10 +128,12 @@ export default async function RootLayout({
         >
           <InstanceConfigProvider identity={identity} prompts={prompts}>
             <ChatProvider initialRole={user.roles[0]} canResolveReferralVisit={canResolveReferralVisit}>
-              <AppShell user={user}>{children}</AppShell>
-              <Suspense fallback={null}>
-                <ChatSurface mode="floating" />
-              </Suspense>
+              <ShellNavigationProvider value={navigationContext}>
+                <AppShell user={user} navigationContext={navigationContext}>{children}</AppShell>
+                <Suspense fallback={null}>
+                  <ChatSurface mode="floating" />
+                </Suspense>
+              </ShellNavigationProvider>
 
             </ChatProvider>
           </InstanceConfigProvider>

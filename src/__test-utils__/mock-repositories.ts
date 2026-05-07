@@ -50,6 +50,7 @@ export function createMockRepositoryFactory(overrides?: FactoryOverrides): Recor
       findById: vi.fn(),
       findBySlug: vi.fn(),
       listPublished: vi.fn().mockResolvedValue([]),
+      countPublished: vi.fn().mockResolvedValue(0),
       listForAdmin: vi.fn().mockResolvedValue([]),
       countForAdmin: vi.fn().mockResolvedValue(0),
       create: vi.fn(),

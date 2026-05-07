@@ -1,17 +1,20 @@
+import { ProviderConfigService } from "@/lib/ai/providers/provider-config-service";
+import { resolveFirstConfiguredSecret, resolveRuntimeSecret } from "@/lib/config/secret-source";
+
 const EMPTY_ENV_MESSAGE = "must be set to a non-empty value";
 
 function readEnv(...keys: string[]): string | undefined {
   for (const key of keys) {
-    const value = process.env[key];
-    if (typeof value === "string" && value.trim().length > 0) {
-      return value.trim();
+    const secret = resolveRuntimeSecret(key);
+    if (secret.value) {
+      return secret.value;
     }
   }
 
   return undefined;
 }
 
-function requireNonEmpty(value: string | undefined, keysLabel: string): string {
+function requireNonEmpty(value: string | null | undefined, keysLabel: string): string {
   if (!value) {
     throw new Error(`${keysLabel} ${EMPTY_ENV_MESSAGE}.`);
   }
@@ -28,22 +31,18 @@ function readPrimary(primaryKey: string): string | undefined {
   return undefined;
 }
 
-function readPrimaryWithAliases(primaryKey: string, ...aliasKeys: string[]): string | undefined {
-  return readEnv(primaryKey, ...aliasKeys);
-}
-
 export function getAnthropicApiKey(): string {
-  const value = readPrimaryWithAliases("ANTHROPIC_API_KEY", "API__ANTHROPIC_API_KEY");
+  const value = ProviderConfigService.resolveAnthropicProviderConfig().apiKey.value;
   return requireNonEmpty(value, "ANTHROPIC_API_KEY or API__ANTHROPIC_API_KEY");
 }
 
 export function getOpenaiApiKey(): string {
-  const value = readPrimaryWithAliases("OPENAI_API_KEY", "API__OPENAI_API_KEY");
+  const value = ProviderConfigService.resolveOpenAiApiKey().value;
   return requireNonEmpty(value, "OPENAI_API_KEY or API__OPENAI_API_KEY");
 }
 
 export function getAnthropicModel(): string {
-  return readPrimary("ANTHROPIC_MODEL") ?? "claude-haiku-4-5";
+  return ProviderConfigService.resolveAnthropicProviderConfig().model.value;
 }
 
 function parsePositiveIntegerEnv(
@@ -63,10 +62,7 @@ function parsePositiveIntegerEnv(
 }
 
 export function getAnthropicRequestTimeoutMs(): number {
-  return parsePositiveIntegerEnv(
-    readPrimary("ANTHROPIC_REQUEST_TIMEOUT_MS"),
-    45000,
-  );
+  return ProviderConfigService.resolveAnthropicProviderConfig().timeoutMs.value;
 }
 
 export function getTtsFetchTimeoutMs(): number {
@@ -77,36 +73,29 @@ export function getTtsFetchTimeoutMs(): number {
 }
 
 export function getAnthropicRequestRetryAttempts(): number {
-  return parsePositiveIntegerEnv(
-    readPrimary("ANTHROPIC_RETRY_ATTEMPTS"),
-    3,
-  );
+  return ProviderConfigService.resolveAnthropicProviderConfig().retryAttempts.value;
 }
 
 export function getAnthropicRequestRetryDelayMs(): number {
-  return parsePositiveIntegerEnv(
-    readPrimary("ANTHROPIC_RETRY_DELAY_MS"),
-    150,
-  );
+  return ProviderConfigService.resolveAnthropicProviderConfig().retryDelayMs.value;
 }
 
 export function getModelFallbacks(): string[] {
-  const configured = readPrimary("ANTHROPIC_MODEL");
-  const models = [
-    configured,
-    "claude-haiku-4-5",
-    "claude-sonnet-4-6",
-    "claude-opus-4-6",
-  ].filter(
-    (value): value is string =>
-      typeof value === "string" && value.trim().length > 0,
-  );
+  return ProviderConfigService.resolveAnthropicProviderConfig().modelCandidates;
+}
 
-  return [...new Set(models)];
+export function getSelectedIntelligenceModelFallbacks(): string[] {
+  return ProviderConfigService.resolveSelectedIntelligenceProviderConfig().modelCandidates;
 }
 
 export function validateRequiredRuntimeConfig() {
-  getAnthropicApiKey();
+  const config = ProviderConfigService.resolveSelectedIntelligenceProviderConfig();
+  return requireNonEmpty(
+    config.apiKey.value,
+    config.apiKey.aliasOf
+      ? `${config.apiKey.key} or ${config.apiKey.aliasOf}`
+      : config.apiKey.key,
+  );
 }
 
 export function getWebPushPublicKey(): string | null {
@@ -114,7 +103,7 @@ export function getWebPushPublicKey(): string | null {
 }
 
 export function getWebPushPrivateKey(): string | null {
-  return readEnv("WEB_PUSH_VAPID_PRIVATE_KEY") ?? null;
+  return resolveRuntimeSecret("WEB_PUSH_VAPID_PRIVATE_KEY").value;
 }
 
 export function getWebPushSubject(): string {
@@ -122,5 +111,25 @@ export function getWebPushSubject(): string {
 }
 
 export function getInternalRuntimeServiceToken(): string {
-  return readEnv("ORDO_INTERNAL_RUNTIME_SERVICE_TOKEN") ?? "local-dev-runtime-token";
+  return resolveRuntimeSecret("ORDO_INTERNAL_RUNTIME_SERVICE_TOKEN").value ?? "local-dev-runtime-token";
+}
+
+export function resolveInternalRuntimeServiceTokenState(): {
+  configured: boolean;
+  source: "env" | "file" | "default";
+  unsafeDefault: boolean;
+} {
+  const secret = resolveFirstConfiguredSecret(["ORDO_INTERNAL_RUNTIME_SERVICE_TOKEN"]);
+  if (secret.value) {
+    return {
+      configured: true,
+      source: secret.source === "file" ? "file" : "env",
+      unsafeDefault: false,
+    };
+  }
+  return {
+    configured: false,
+    source: "default",
+    unsafeDefault: true,
+  };
 }

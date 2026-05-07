@@ -2,75 +2,222 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+
 import { useTheme } from "./ThemeProvider";
-import type { AccessibilitySettings, FontSize, SpacingLevel } from "./ThemeProvider";
-import {
-  resolveAccountMenuRoutes,
-} from "@/lib/shell/shell-navigation";
 import { useMockAuth } from "@/hooks/useMockAuth";
-import type { User as SessionUser, RoleName } from "@/core/entities/user";
+import {
+  isShellRouteActive,
+  resolveAccountMenuRoutes,
+  type ShellRouteDefinition,
+} from "@/lib/shell/shell-navigation";
+import type { RoleName, User as SessionUser } from "@/core/entities/user";
 
 interface AccountMenuProps {
   user?: SessionUser;
   role?: string;
 }
 
-const ROLE_CONFIG: Record<
-  RoleName,
-  { label: string; dot: string; description: string }
-> = {
-  ANONYMOUS: {
-    label: "Anonymous",
-    dot: "bg-[color:color-mix(in_oklab,var(--foreground)_38%,transparent)]",
-    description: "Public visitor — sales agent mode",
-  },
-  AUTHENTICATED: {
-    label: "Authenticated",
-    dot: "bg-status-success",
-    description: "Signed-in user — full library access",
-  },
-  APPRENTICE: {
-    label: "Apprentice",
-    dot: "bg-[color:color-mix(in_oklab,var(--status-success)_72%,var(--accent-interactive))]",
-    description: "Student — referral and assignment capabilities",
-  },
-  STAFF: {
-    label: "Staff",
-    dot: "bg-[color:color-mix(in_oklab,var(--accent-interactive)_82%,var(--foreground))]",
-    description: "Staff analyst — user insights & KPIs",
-  },
-  ADMIN: {
-    label: "Admin",
-    dot: "bg-[color:color-mix(in_oklab,var(--status-error)_55%,var(--accent-interactive))]",
-    description: "Admin — global configuration access",
-  },
-};
+const GUEST_ACCESS_LINKS = [
+  { href: "/login", label: "Login" },
+  { href: "/register", label: "Register" },
+] as const;
 
-const SettingBlock = ({ label, children }: { label: string; children: React.ReactNode }) => (
-  <div className="flex flex-col gap-(--space-2)">
-    <div className="shell-micro-text ml-(--space-1) opacity-60">
-      {label}
-    </div>
-    <div className="ui-shell-setting-row shell-action-row rounded-theme border-theme p-(--space-1)" data-shell-setting-row="true">
+function isAuthenticated(user: Pick<SessionUser, "roles">): boolean {
+  return user.roles.some((roleName) => roleName !== "ANONYMOUS");
+}
+
+function getRoleLabel(user: Pick<SessionUser, "roles">): string {
+  if (user.roles.includes("ADMIN")) {
+    return "Admin";
+  }
+
+  if (user.roles.includes("STAFF")) {
+    return "Staff";
+  }
+
+  if (user.roles.includes("APPRENTICE")) {
+    return "Apprentice";
+  }
+
+  if (user.roles.includes("AUTHENTICATED")) {
+    return "Owner";
+  }
+
+  return "Visitor";
+}
+
+function getInitials(name: string): string {
+  const initials = name
+    .trim()
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  return initials || "O";
+}
+
+function routeMatchesPath(route: ShellRouteDefinition, currentLocation: string): boolean {
+  const [hrefPath, hrefQuery] = route.href.split("?");
+  const [pathname, searchQuery = ""] = currentLocation.split("?");
+
+  if (hrefQuery) {
+    return hrefPath === pathname && hrefQuery === searchQuery;
+  }
+
+  if (searchQuery) {
+    return false;
+  }
+
+  return isShellRouteActive({ ...route, href: hrefPath }, pathname);
+}
+
+function AccountRouteIcon({ routeId }: { routeId: string }) {
+  if (routeId === "profile") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <circle cx="12" cy="8" r="3.5" />
+        <path d="M5 20a7 7 0 0 1 14 0" />
+      </svg>
+    );
+  }
+
+  if (routeId === "referrals") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M7 8.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+        <path d="M17 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+        <path d="M7 21.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+        <path d="m9.6 7.1 4.8 2.3" />
+        <path d="m9.4 17.1 5.2-4.2" />
+      </svg>
+    );
+  }
+
+  if (routeId === "preferences") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M12 3v3" />
+        <path d="M12 18v3" />
+        <path d="M4.6 7.5 7 9" />
+        <path d="m17 15 2.4 1.5" />
+        <path d="m4.6 16.5 2.4-1.5" />
+        <path d="M17 9l2.4-1.5" />
+        <circle cx="12" cy="12" r="4" />
+      </svg>
+    );
+  }
+
+  if (routeId === "theme") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z" />
+      </svg>
+    );
+  }
+
+  if (routeId === "sign-out") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M10 5H6v14h4" />
+        <path d="M14 8l4 4-4 4" />
+        <path d="M18 12H9" />
+      </svg>
+    );
+  }
+
+  if (routeId === "login" || routeId === "register") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M12 5h6v14h-6" />
+        <path d="M5 12h10" />
+        <path d="m11 8 4 4-4 4" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M5 5h14v14H5z" />
+    </svg>
+  );
+}
+
+function AccountMenuIcon({ routeId }: { routeId: string }) {
+  return (
+    <span className="shell-account-menu-icon" data-account-menu-icon={routeId} aria-hidden="true">
+      <AccountRouteIcon routeId={routeId} />
+    </span>
+  );
+}
+
+function AccountMenuLink({
+  route,
+  currentLocation,
+  onNavigate,
+}: {
+  route: ShellRouteDefinition;
+  currentLocation: string;
+  onNavigate: () => void;
+}) {
+  const active = routeMatchesPath(route, currentLocation);
+
+  return (
+    <Link
+      href={route.href}
+      onClick={onNavigate}
+      aria-current={active ? "page" : undefined}
+      className={`shell-account-label flex min-h-11 items-center gap-(--space-2) rounded-theme px-(--space-inset-default) py-(--space-2) transition-all haptic-press hover-surface focus-ring ${
+        active ? "ui-shell-menu-link-active" : ""
+      }`}
+      data-account-menu-route={route.id}
+    >
+      <AccountMenuIcon routeId={route.id} />
+      <span className="min-w-0 truncate">{route.label}</span>
+    </Link>
+  );
+}
+
+function AccountMenuGroup({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-(--space-1)" data-account-menu-group={label.toLowerCase().replaceAll(" ", "-")}>
+      <p className="shell-micro-text ml-(--space-1) opacity-60">{label}</p>
       {children}
     </div>
-  </div>
-);
+  );
+}
 
-const ControlButton = ({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) => (
-  <button
-    onClick={onClick}
-    className={`shell-micro-text flex-1 rounded-lg py-(--space-2) transition-all focus-ring ${
-      active
-        ? "ui-shell-setting-option-active"
-        : "ui-shell-setting-option-idle hover:opacity-100"
-    }`}
-    data-shell-setting-option={active ? "active" : "idle"}
-  >
-    {label}
-  </button>
-);
+function ThemeToggleButton({
+  isDark,
+  onToggle,
+}: {
+  isDark: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="shell-theme-toggle focus-ring"
+      aria-label={isDark ? "Theme: dark. Switch to light theme" : "Theme: light. Switch to dark theme"}
+      aria-pressed={isDark}
+      data-shell-theme-toggle="true"
+    >
+      <span className="shell-theme-toggle-label">{isDark ? "Dark" : "Light"}</span>
+      <span className="shell-theme-toggle-track" aria-hidden="true">
+        <span className="shell-theme-toggle-thumb" />
+      </span>
+    </button>
+  );
+}
 
 export function AccountMenu({ user: userProp, role }: AccountMenuProps) {
   const user: SessionUser = userProp ?? {
@@ -80,31 +227,23 @@ export function AccountMenu({ user: userProp, role }: AccountMenuProps) {
     roles: role ? [role as RoleName] : ["ANONYMOUS"],
   };
   const [open, setOpen] = useState(false);
-  const [showAccessibility, setShowAccessibility] = useState(false);
-  const [showSimulation, setShowSimulation] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const surfaceRef = useRef<HTMLDivElement>(null);
-  const [isDesktopSurface, setIsDesktopSurface] = useState(() => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
-      return true;
-    }
-
-    return window.matchMedia("(min-width: 1024px)").matches;
-  });
+  const [isDesktopSurface, setIsDesktopSurface] = useState(true);
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const previousPathname = useRef(pathname);
-  const { switchRole, logout } = useMockAuth();
-  const { 
-    isDark, 
-    setIsDark, 
-    accessibility, 
-    setAccessibility 
-  } = useTheme();
+  const { logout } = useMockAuth();
+  const { isDark, setIsDark } = useTheme();
 
+  const isAuth = isAuthenticated(user);
+  const roleLabel = getRoleLabel(user);
+  const initials = getInitials(user.name);
+  const accountRoutes = resolveAccountMenuRoutes(user);
+  const searchQuery = searchParams.toString();
+  const currentLocation = searchQuery ? `${pathname}?${searchQuery}` : pathname;
   const closeMenu = useCallback(() => {
     setOpen(false);
-    setShowAccessibility(false);
-    setShowSimulation(false);
   }, []);
 
   useEffect(() => {
@@ -131,7 +270,9 @@ export function AccountMenu({ user: userProp, role }: AccountMenuProps) {
   }, [closeMenu, open, pathname]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      return;
+    }
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -144,7 +285,9 @@ export function AccountMenu({ user: userProp, role }: AccountMenuProps) {
   }, [closeMenu, open]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      return;
+    }
 
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
@@ -179,178 +322,79 @@ export function AccountMenu({ user: userProp, role }: AccountMenuProps) {
     return () => mediaQuery.removeListener(syncSurface);
   }, []);
 
-  const initials = user.name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase();
+  const renderRouteLinks = (routes: readonly ShellRouteDefinition[]) =>
+    routes.map((route) => (
+      <AccountMenuLink
+        key={route.id}
+        route={route}
+        currentLocation={currentLocation}
+        onNavigate={closeMenu}
+      />
+    ));
 
-  const isAuth = user.roles.some((r) => r !== "ANONYMOUS");
-  const isDev = process.env.NODE_ENV === "development";
-  const canSimulate = user.roles.includes("ADMIN") || isDev;
-
-  const updateAcc = <K extends keyof AccessibilitySettings>(
-    key: K,
-    value: AccessibilitySettings[K],
-  ) => {
-    setAccessibility({ ...accessibility, [key]: value });
-  };
-
-  const FONT_SIZES: { value: FontSize; label: string }[] = [
-    { value: "xs", label: "XS" },
-    { value: "sm", label: "S" },
-    { value: "md", label: "M" },
-    { value: "lg", label: "L" },
-    { value: "xl", label: "XL" },
-  ];
-
-  const SPACING: { value: SpacingLevel; label: string }[] = [
-    { value: "tight", label: "Tight" },
-    { value: "normal", label: "Normal" },
-    { value: "relaxed", label: "Relaxed" },
-  ];
-  const accountMenuRoutes = resolveAccountMenuRoutes(user);
-  const triggerName = isAuth ? user.name : "Account";
-  const triggerMeta = isAuth ? user.roles[0] : "Guest";
-  const headerTitle = isAuth ? user.name : "Account";
-  const headerMeta = isAuth
-    ? user.email
-    : "Login, register, and keep your workspace, referrals, and shell settings in sync.";
-  const guestAccessLinks = [
-    { href: "/login", label: "Login" },
-    { href: "/register", label: "Register" },
-  ] as const;
-
-  const renderMenuContent = (surface: "dropdown" | "drawer") => (
+  const renderMenuContent = (surface: "dropdown" | "sheet") => (
     <>
       <div className={`ui-shell-dropdown-header px-(--space-inset-default) py-(--space-inset-compact) flex items-center justify-between ${surface === "dropdown" ? "mb-(--space-2) rounded-t-2xl" : "border-b border-foreground/8"}`}>
-        <div className="min-w-0">
-          <p className="shell-panel-heading truncate">{headerTitle}</p>
-          <p className="shell-meta-text truncate opacity-50 normal-case tracking-[0.04em]">{headerMeta}</p>
+        <div className="flex min-w-0 items-center gap-(--space-3)">
+          <div className="ui-shell-account-avatar shell-account-avatar rounded-full font-bold" aria-hidden="true">
+            {isAuth ? initials : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <path d="M12 13.5a4.5 4.5 0 1 0-4.5-4.5A4.5 4.5 0 0 0 12 13.5Z" />
+                <path d="M4.5 19.5a7.5 7.5 0 0 1 15 0" />
+              </svg>
+            )}
+          </div>
+          <div className="min-w-0">
+            <p className="shell-panel-heading truncate">{isAuth ? user.name : "Account"}</p>
+            <p className="shell-meta-text truncate opacity-50 normal-case tracking-[0.04em]">
+              {isAuth ? roleLabel : "Login or register"}
+            </p>
+          </div>
         </div>
-        <div className="ui-shell-control-cluster shell-action-row rounded-theme border-theme p-(--space-1) shadow-inner">
-          <button
-            type="button"
-            onClick={() => setIsDark(!isDark)}
-            className={`p-(--space-2) rounded-lg transition-all focus-ring ${isDark ? "accent-interactive-fill" : "opacity-40 hover:opacity-100"}`}
-            title="Toggle Dark Mode"
-            aria-label="Toggle dark mode"
-          >
-            {isDark ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" /></svg> : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="1" y1="12" x2="3" y2="12" /></svg>}
-          </button>
-          {surface === "drawer" ? (
+        <div className="flex shrink-0 items-center gap-(--space-2)">
+          <ThemeToggleButton isDark={isDark} onToggle={() => setIsDark(!isDark)} />
+          {surface === "sheet" ? (
             <button
               type="button"
               onClick={closeMenu}
               className="p-(--space-2) rounded-lg opacity-60 transition-all hover:opacity-100 focus-ring"
               aria-label="Close account menu"
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12" /></svg>
             </button>
           ) : null}
         </div>
       </div>
 
       {isAuth ? (
-        <div className={`flex flex-col gap-(--space-1) ${surface === "drawer" ? "px-(--space-4) pb-(--space-2)" : "px-(--space-inset-default)"}`}>
-          <p className="shell-micro-text ml-(--space-1) opacity-60">Workspace</p>
-          {accountMenuRoutes.map((route) => {
-            const isActive = pathname === route.href;
+        <div className={`flex flex-col gap-(--space-4) ${surface === "sheet" ? "px-(--space-4) py-(--space-4)" : "px-(--space-inset-default)"}`}>
+          {accountRoutes.length > 0 ? (
+            <AccountMenuGroup label="Account">
+              {renderRouteLinks(accountRoutes)}
+            </AccountMenuGroup>
+          ) : null}
 
-            return (
-              <Link
-                key={route.id}
-                href={route.href}
-                onClick={closeMenu}
-                aria-current={isActive ? "page" : undefined}
-                className={`shell-account-label flex items-center gap-(--space-2) rounded-theme px-(--space-inset-default) py-(--space-1) transition-all haptic-press hover-surface focus-ring ${isActive ? "ui-shell-menu-link-active" : ""}`}
-              >
-                {route.label}
-              </Link>
-            );
-          })}
         </div>
       ) : (
-        <div className={`flex flex-col gap-(--space-1) ${surface === "drawer" ? "px-(--space-4) py-(--space-4)" : "px-(--space-inset-default)"}`}>
-          <p className="shell-micro-text ml-(--space-1) opacity-60">Access</p>
-          {guestAccessLinks.map((item) => {
-            const isActive = pathname === item.href;
+        <div className={`flex flex-col gap-(--space-1) ${surface === "sheet" ? "px-(--space-4) py-(--space-4)" : "px-(--space-inset-default)"}`}>
+          <AccountMenuGroup label="Access">
+            {GUEST_ACCESS_LINKS.map((item) => {
+              const active = pathname === item.href;
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={closeMenu}
-                aria-current={isActive ? "page" : undefined}
-                className={`shell-account-label flex items-center gap-(--space-2) rounded-theme px-(--space-inset-default) py-(--space-1) transition-all haptic-press hover-surface focus-ring ${isActive ? "ui-shell-menu-link-active" : ""}`}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </div>
-      )}
-
-      <div className="ui-shell-divider h-px mx-(--space-2) my-(--space-2)" />
-
-      <div className={`flex flex-col ${surface === "drawer" ? "px-(--space-4)" : ""}`}>
-        <button
-          type="button"
-          onClick={() => setShowAccessibility(!showAccessibility)}
-          className={`shell-account-label flex items-center justify-between rounded-theme px-(--space-inset-default) py-(--space-2) transition-all hover-surface focus-ring ${showAccessibility ? "ui-shell-accordion-active" : ""}`}
-        >
-          System Legibility
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={`transition-transform duration-300 ${showAccessibility ? "rotate-180" : ""}`}><path d="m6 9 6 6 6-6"/></svg>
-        </button>
-        {showAccessibility && (
-          <div className="px-(--space-inset-default) py-(--space-4) flex flex-col gap-(--space-4) animate-in fade-in slide-in-from-top-2">
-            <SettingBlock label="Type Scale">
-              {FONT_SIZES.map((fs) => (
-                <ControlButton key={fs.value} label={fs.label} active={accessibility.fontSize === fs.value} onClick={() => updateAcc("fontSize", fs.value)} />
-              ))}
-            </SettingBlock>
-            <SettingBlock label="Line Height">
-              {SPACING.map((s) => (
-                <ControlButton key={s.value} label={s.label} active={accessibility.lineHeight === s.value} onClick={() => updateAcc("lineHeight", s.value)} />
-              ))}
-            </SettingBlock>
-            <SettingBlock label="Tracking">
-              {SPACING.map((s) => (
-                <ControlButton key={s.value} label={s.label} active={accessibility.letterSpacing === s.value} onClick={() => updateAcc("letterSpacing", s.value)} />
-              ))}
-            </SettingBlock>
-          </div>
-        )}
-      </div>
-
-      {canSimulate && (
-        <div className={`flex flex-col ${surface === "drawer" ? "px-(--space-4)" : ""}`}>
-          <button
-            type="button"
-            onClick={() => setShowSimulation(!showSimulation)}
-            className={`shell-account-label flex items-center justify-between rounded-theme px-(--space-inset-default) py-(--space-2) transition-all hover-surface focus-ring ${showSimulation ? "ui-shell-accordion-active" : ""}`}
-          >
-            Simulation Mode
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={`transition-transform duration-300 ${showSimulation ? "rotate-180" : ""}`}><path d="m6 9 6 6 6-6"/></svg>
-          </button>
-          {showSimulation && (
-            <div className="px-(--space-inset-default) py-(--space-3) flex flex-col gap-(--space-2) animate-in fade-in slide-in-from-top-2">
-              {(Object.entries(ROLE_CONFIG) as [RoleName, typeof ROLE_CONFIG[RoleName]][]).map(([roleName, config]) => (
-                <button
-                  key={roleName}
-                  type="button"
-                  onClick={() => switchRole(roleName)}
-                  className={`focus-ring flex min-h-11 w-full items-start gap-(--space-2) rounded-theme px-(--space-inset-default) py-(--space-1) text-left transition-all haptic-press hover-surface ${user.roles.includes(roleName) ? "ui-shell-simulation-active" : ""}`}
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={closeMenu}
+                  aria-current={active ? "page" : undefined}
+                  className={`shell-account-label flex min-h-11 items-center gap-(--space-2) rounded-theme px-(--space-inset-default) py-(--space-2) transition-all haptic-press hover-surface focus-ring ${active ? "ui-shell-menu-link-active" : ""}`}
                 >
-                  <span className={`w-2 h-2 rounded-full ${config.dot} mt-(--space-2) shrink-0`} />
-                  <div className="min-w-0">
-                    <p className="shell-account-label leading-tight">{config.label}</p>
-                    <p className="shell-nav-label truncate opacity-60">{config.description}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
+                  <AccountMenuIcon routeId={item.href === "/login" ? "login" : "register"} />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </AccountMenuGroup>
         </div>
       )}
 
@@ -358,13 +402,14 @@ export function AccountMenu({ user: userProp, role }: AccountMenuProps) {
         <>
           <div className="ui-shell-divider h-px mx-(--space-2) my-(--space-2)" />
 
-          <div className={surface === "drawer" ? "px-(--space-4) pb-(--space-4)" : ""}>
+          <div className={surface === "sheet" ? "px-(--space-4) pb-(--space-4)" : ""}>
             <button
               type="button"
               onClick={logout}
-              className="shell-section-heading w-full py-(--space-1) text-center opacity-60 transition-opacity hover:opacity-100 focus-ring"
+              className="shell-account-label shell-section-heading flex min-h-11 w-full items-center justify-center gap-(--space-2) rounded-theme px-(--space-inset-default) py-(--space-2) text-status-error/80 transition-opacity hover:opacity-100 focus-ring"
             >
-              Sign Out
+              <AccountMenuIcon routeId="sign-out" />
+              <span>Sign out</span>
             </button>
           </div>
         </>
@@ -372,39 +417,35 @@ export function AccountMenu({ user: userProp, role }: AccountMenuProps) {
     </>
   );
 
-  const menuTrigger = (
-    <button
-      ref={triggerRef}
-      type="button"
-      onClick={() => setOpen((current) => !current)}
-      className="ui-shell-account-trigger group shell-account-trigger rounded-full transition-all focus-ring hover:ui-shell-account-trigger-hover"
-      aria-label={isAuth ? `${user.name} menu` : "Open account menu"}
-      aria-expanded={open}
-      aria-haspopup="menu"
-      data-shell-account-trigger="true"
-    >
-      <div className="hidden min-w-0 flex-col items-end xl:flex">
-        <span className="shell-account-label truncate leading-none text-foreground/78">{triggerName}</span>
-        <span className="shell-micro-text opacity-40">
-          {triggerMeta}
-        </span>
-      </div>
-      <div className="ui-shell-account-avatar shell-account-avatar rounded-full font-bold group-hover:bg-surface-hover transition-colors">
-        {isAuth ? (
-          initials
-        ) : (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
-            <path d="M12 13.5a4.5 4.5 0 1 0-4.5-4.5A4.5 4.5 0 0 0 12 13.5Z" />
-            <path d="M4.5 19.5a7.5 7.5 0 0 1 15 0" />
-          </svg>
-        )}
-      </div>
-    </button>
-  );
-
   return (
-    <div className="relative" data-shell-account-rail="authenticated">
-      {menuTrigger}
+    <div className="relative" data-shell-account-rail={isAuth ? "authenticated" : "anonymous"}>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="ui-shell-account-trigger group shell-account-trigger rounded-full transition-all focus-ring hover:ui-shell-account-trigger-hover"
+        aria-label={isAuth ? `${user.name} account menu` : "Open account menu"}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        data-shell-account-trigger="true"
+      >
+        <div className="hidden min-w-0 flex-col items-end xl:flex">
+          <span className="shell-account-label truncate leading-none text-foreground/78">
+            {isAuth ? user.name : "Account"}
+          </span>
+          <span className="shell-micro-text opacity-40">
+            {isAuth ? roleLabel : "Guest"}
+          </span>
+        </div>
+        <div className="ui-shell-account-avatar shell-account-avatar rounded-full font-bold group-hover:bg-surface-hover transition-colors">
+          {isAuth ? initials : (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+              <path d="M12 13.5a4.5 4.5 0 1 0-4.5-4.5A4.5 4.5 0 0 0 12 13.5Z" />
+              <path d="M4.5 19.5a7.5 7.5 0 0 1 15 0" />
+            </svg>
+          )}
+        </div>
+      </button>
 
       {open && (
         isDesktopSurface ? (
@@ -415,20 +456,29 @@ export function AccountMenu({ user: userProp, role }: AccountMenuProps) {
               className="fixed inset-0 z-90 bg-transparent"
               onClick={closeMenu}
             />
-            <div ref={surfaceRef} className="ui-shell-dropdown ui-shell-dropdown-anchor absolute right-0 z-100 w-[min(20rem,calc(100vw-var(--space-6)))] max-w-[calc(100vw-var(--space-4))] rounded-3xl p-(--space-inset-compact) flex flex-col gap-(--space-2) animate-in fade-in slide-in-from-top-4 duration-500 spring-bounce shadow-bloom" data-shell-dropdown="true">
+            <div
+              ref={surfaceRef}
+              className="ui-shell-dropdown ui-shell-dropdown-anchor absolute right-0 z-100 w-[min(22rem,calc(100vw-var(--space-6)))] max-w-[calc(100vw-var(--space-4))] rounded-2xl p-(--space-inset-compact) flex flex-col gap-(--space-2) animate-in fade-in slide-in-from-top-2 duration-200 shadow-bloom"
+              data-shell-dropdown="true"
+              data-shell-account-menu="true"
+            >
               {renderMenuContent("dropdown")}
             </div>
           </>
         ) : (
-          <div className="fixed inset-0 z-100" data-shell-account-drawer="true">
+          <div className="fixed inset-0 z-100" data-shell-account-sheet="true">
             <button
               type="button"
               aria-label="Close account menu"
               className="absolute inset-0 bg-black/30 backdrop-blur-sm"
               onClick={closeMenu}
             />
-            <div ref={surfaceRef} className="absolute inset-y-0 right-0 flex w-[min(24rem,calc(100vw-var(--space-3)))] max-w-full flex-col overflow-y-auto border-l border-foreground/10 bg-background shadow-2xl">
-              {renderMenuContent("drawer")}
+            <div
+              ref={surfaceRef}
+              className="absolute inset-x-(--space-2) bottom-(--space-2) max-h-[min(82vh,42rem)] overflow-y-auto rounded-2xl border border-foreground/10 bg-background shadow-2xl"
+              data-shell-account-menu="true"
+            >
+              {renderMenuContent("sheet")}
             </div>
           </div>
         )

@@ -75,7 +75,6 @@ describe("Bug 1 — timeout retry amplification", () => {
 
     await expect(
       runClaudeAgentLoopStream({
-        apiKey: "k",
         messages: [{ role: "user", content: "what is 2+2?" }],
         callbacks: { onDelta: vi.fn(), onToolCall: vi.fn(), onToolResult: vi.fn() },
         systemPrompt: "sys",
@@ -113,7 +112,6 @@ describe("Bug 1 — timeout retry amplification", () => {
     });
 
     const result = await runClaudeAgentLoopStream({
-      apiKey: "k",
       messages: [{ role: "user", content: "hello" }],
       callbacks: { onDelta: vi.fn() },
       systemPrompt: "sys",
@@ -138,7 +136,6 @@ describe("Bug 1 — timeout retry amplification", () => {
 
     await expect(
       runClaudeAgentLoopStream({
-        apiKey: "k",
         messages: [{ role: "user", content: "hello" }],
         callbacks: {},
         systemPrompt: "sys",

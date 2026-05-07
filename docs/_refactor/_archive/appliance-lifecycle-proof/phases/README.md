@@ -1,0 +1,32 @@
+# Appliance Lifecycle Proof Phases
+
+Status: In progress - Phase 06 split into 06x systems-help series
+
+## Phases
+
+- `00-baseline-evidence.md`: complete. Captured current lifecycle evidence in `../evidence/00-baseline-evidence-2026-05-02.md`.
+- `01-prompt-exposure-budget-prerequisite.md`: complete. Added prompt exposure projection and evidence in `../evidence/01-prompt-exposure-budget-2026-05-02.md`.
+- `02-runtime-shape-and-lifecycle-contract.md`: complete. Codified runtime profile and `.data` lifecycle boundary with evidence in `../evidence/02-runtime-shape-and-lifecycle-contract-2026-05-02.md`.
+- `03-appliance-health-facade.md`: complete. Consolidated readiness and diagnostics through a shared appliance health facade with evidence in `../evidence/03-appliance-health-facade-2026-05-02.md`.
+- `04-backup-restore-service.md`: index. Splits backup and restore into the 04x safety series; there is no separate monolithic Phase 04 implementation.
+- `04a-backup-governance-contract.md`: complete. Defined Node-owned backup/restore commands, policy, snapshots, schema, roles, and audit.
+- `04b-manifest-archive-and-validation.md`: complete. Defined manifest-backed archive validation, archive-level integrity, compatibility, exclusions, snapshot validation transitions, and path safety.
+- `04c-restore-safety-pipeline.md`: complete. Added Node-owned restore planning, archive revalidation, impact summaries, pre-restore backup gating, explicit confirmation, guarded restore command authorization, and audit. Raw restore I/O remains Phase 04D. Evidence in `../evidence/04c-restore-safety-pipeline-2026-05-02.md`.
+- `04d-rust-backup-executor-integration.md`: complete. Replaced the Rust prototype with a governed backup/restore executor, Node-owned command payloads, safe archive I/O, restore staging, Docker supervision, health projection, and evidence in `../evidence/04d-rust-backup-executor-integration-2026-05-02.md`.
+- `04e-admin-and-conversation-self-service.md`: complete. Added backup/restore read models, shared self-service facade, admin UI/API, operator-only tools, Rust-boundary protections, and evidence in `../evidence/04e-admin-and-conversation-self-service-2026-05-02.md`.
+- `04f-automatic-backup-policy-and-health.md`: complete. Added configurable automatic latest backups, retention, overdue detection, scheduler supervision, policy update, admin/conversation controls, health integration, and evidence in `../evidence/04f-automatic-backup-policy-and-health-2026-05-03.md`.
+- `05-docker-and-worker-verification-harness.md`: complete and now serves as the index for the 05x image-hardening series. Converted compose/docs/tests to the single-image appliance contract, added local/Docker lifecycle smoke harnesses, fixed Rust restore reconciliation and single-connection restore execution, and recorded passing local smoke evidence in `../evidence/05-docker-and-worker-verification-2026-05-03T04-04-11-043Z.md`.
+- `05a-image-security-baseline-and-runtime-contract.md`: complete. Added hosted reverse-proxy compose, strict image security contract tests, README guidance, and evidence in `../evidence/05a-image-security-baseline-2026-05-03.md`.
+- `05b-hosted-appliance-network-and-proxy-contract.md`: complete. Added shared public-origin resolution, hosted compose env, hosted CSRF behavior, referral/metadata integration, network health/readiness, env validation, tests, README guidance, and evidence in `../evidence/05b-hosted-appliance-network-and-proxy-contract-2026-05-03.md`.
+- `05c-image-minimization-and-runtime-bundle.md`: complete. Added a runtime bundle contract test, narrowed runner docs to `docs/_corpus`, narrowed release files to `release/manifest.json`, retained TSX-dependent runtime paths with evidence, and recorded verification in `../evidence/05c-image-minimization-and-runtime-bundle-2026-05-03.md`.
+- `05d-secrets-and-first-boot-hardening.md`: complete. Added admin-ownership first-boot locking, hosted install token/origin gating, file-backed secret resolution, operator-locked file provider secrets, shared runtime redaction, Dockerfile secret-placeholder removal, compose secret-file contracts, security health projection, and evidence in `../evidence/05d-secrets-and-first-boot-hardening-2026-05-03.md`.
+- `05e-release-supply-chain-and-image-provenance.md`: complete. Added the `npm run appliance:release` image provenance gate, release evidence JSON/Markdown, image build/inspect/runner assertions, Rust and secret hygiene gates, optional SBOM/scan/signing adapters, Docker failure classification, cleanup behavior, and evidence in `../evidence/05e-release-supply-chain-and-image-provenance-2026-05-03.md`.
+- `05f-resource-limits-observability-and-failure-posture.md`: complete. Added centralized resource policy, required resource health, disk-pressure backup/restore gating, Compose pids/memory/CPU/tmpfs/log bounds, liveness healthchecks, admin resource projection, release-gate coverage, and evidence in `../evidence/05f-resource-limits-observability-and-failure-posture-2026-05-03.md`.
+- `06-admin-docs-and-closeout.md`: index. Splits admin docs and closeout into the 06x systems-help series; there is no separate monolithic Phase 06 implementation.
+- `06a-corpus-help-information-architecture.md`: planned. Define the `_corpus` systems-help information architecture, role tiers, authoring metadata, and book/chapter organization.
+- `06b-corpus-access-control-proof.md`: planned. Prove role-gated corpus access across library routes, search, section reads, summaries, vector metadata, citations, and action links.
+- `06c-systems-help-content-foundation.md`: planned. Create the first runtime systems-help corpus from the implemented appliance lifecycle features.
+- `06d-custom-message-help-and-operation-cards.md`: planned. Use custom chat cards and buttons for guided help, health, backup, restore, runbook navigation, and safe operations.
+- `06e-admin-and-staff-help-surfaces.md`: planned. Expose role-appropriate systems help in admin/staff pages and chat using shared health, backup, and corpus contracts.
+- `06f-closeout-evidence-and-regression-suite.md`: planned. Close the package with evidence, docs, validation checklist updates, and regression tests.
+- `06g-role-onboarding-and-chief-of-staff-persona.md`: planned. Align first-use, role bootstraps, lifecycle coaching, anonymous public posture, and role-specific access around the CEO chief-of-staff experience model.

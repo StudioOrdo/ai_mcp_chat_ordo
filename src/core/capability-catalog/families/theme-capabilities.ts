@@ -67,6 +67,10 @@ export const THEME_CAPABILITIES = {
       outputHint: "Returns active theme configuration with design tokens",
     },
     runtime: {},
+    promptExposure: {
+      exposure: "intent_gated",
+      rationale: "Theme inspection is useful for UI customization requests but noisy in the default prompt.",
+    },
     executorBinding: {
       bundleId: "theme",
       executorId: "inspect_theme",
@@ -118,6 +122,10 @@ export const THEME_CAPABILITIES = {
       mode: "parse",
     },
     runtime: {},
+    promptExposure: {
+      exposure: "intent_gated",
+      rationale: "Broad UI adjustments should be exposed only for explicit UI customization intent.",
+    },
     presentation: {
       family: "theme",
       cardKind: "theme_inspection",

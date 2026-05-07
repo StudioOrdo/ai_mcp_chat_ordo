@@ -35,6 +35,29 @@ describe("adminSearchTool", () => {
     expect(result.totalCount).toBe(0);
   });
 
+  it("treats wildcard user-list requests as a valid admin listing query", async () => {
+    const mockResults = [
+      {
+        entityType: "user",
+        id: "usr_1",
+        title: "Keith Williams",
+        subtitle: "User — keith@example.com",
+        href: "/admin/users/usr_1",
+        matchField: "name",
+        updatedAt: "2026-05-02",
+      },
+    ];
+    mockDb(mockResults);
+
+    const result = await adminSearchTool.command.execute({
+      query: "*",
+      entityTypes: ["user"],
+    });
+
+    expect(result.totalCount).toBe(1);
+    expect(result.results[0].entityType).toBe("user");
+  });
+
   it("returns results with correct structure", async () => {
     const mockResults = [
       {

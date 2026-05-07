@@ -5,12 +5,14 @@ import { resolveShellHomeHref } from "@/lib/shell/shell-navigation";
 import { ChatSurface } from "@/frameworks/ui/ChatSurface";
 
 export default async function Home() {
-  const _user = await getSessionUser();
+  const user = await getSessionUser();
   const homeHref = resolveShellHomeHref();
 
   if (homeHref !== "/") {
     redirect(homeHref);
   }
 
-  return <ChatSurface mode="embedded" />;
+  const showConversationSelector = user.roles.some((role) => role !== "ANONYMOUS");
+
+  return <ChatSurface mode="embedded" showConversationSelector={showConversationSelector} />;
 }

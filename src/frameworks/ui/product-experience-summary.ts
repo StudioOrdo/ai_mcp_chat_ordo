@@ -162,7 +162,7 @@ function resolveTargetAction(
     case "trust_distribution_context":
       return createRouteAction(label, "/referrals");
     case "journal_item":
-      return createRouteAction(label, "/journal");
+      return createRouteAction(label, "/feed");
     default:
       return null;
   }

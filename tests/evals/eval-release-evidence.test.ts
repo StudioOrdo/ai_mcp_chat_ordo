@@ -24,6 +24,8 @@ import {
   type EliteOpsEvidence,
 } from "@/lib/evals/elite-ops-evidence";
 import type { StagingCanarySummary } from "@/lib/evals/staging-canary";
+import type { ApplianceHealthReport } from "@/lib/appliance/health-types";
+import type { getHealthSweepReport } from "@/lib/admin/processes";
 import type { ProbeResult } from "@/lib/health/probes";
 
 function createCanarySummary(overrides: Partial<StagingCanarySummary> = {}): StagingCanarySummary {
@@ -80,11 +82,89 @@ function createProbeResult(status: ProbeResult["status"]): ProbeResult {
   };
 }
 
-const HEALTH_OK = {
+type HealthSweepReport = Awaited<ReturnType<typeof getHealthSweepReport>>;
+
+function createApplianceHealthReport(status: ApplianceHealthReport["status"]): ApplianceHealthReport {
+  return {
+    status,
+    generatedAt: "2026-03-20T10:30:00.000Z",
+    profile: {
+      profileId: "test",
+      processRole: "app",
+      nodeEnv: "test",
+      isDocker: false,
+      isCompose: false,
+      dataDir: "/tmp/ordo-data",
+      sqlitePath: "/tmp/ordo-data/local.db",
+      sqliteInsideDataDir: true,
+      mediaWorker: {
+        mode: "disabled",
+        url: null,
+        port: null,
+        disabled: true,
+      },
+      deferredWorker: {
+        mode: "disabled",
+        disabled: true,
+        workerId: null,
+      },
+      warnings: [],
+    },
+    dataBoundary: {
+      dataDir: "/tmp/ordo-data",
+      sqlitePath: "/tmp/ordo-data/local.db",
+      sqliteWalPath: "/tmp/ordo-data/local.db-wal",
+      sqliteShmPath: "/tmp/ordo-data/local.db-shm",
+      sqliteInsideDataDir: true,
+      defaultSqlitePath: "/tmp/ordo-data/local.db",
+      blogAssetRoot: "/tmp/ordo-data/blog-assets",
+      blogAssetRootInsideDataDir: true,
+      userFileRoot: "/tmp/ordo-data/user-files",
+      userFileRootInsideDataDir: true,
+      requiredIncludePaths: [],
+      defaultExcludePaths: [],
+      warnings: [],
+    },
+    providerDiagnostics: {
+      intelligence: {
+        provider: "anthropic",
+        providerSource: "env",
+        model: "claude-haiku-4-5",
+        modelSource: "env",
+        apiKeyConfigured: true,
+        apiKeySource: "env",
+        baseUrlConfigured: false,
+        baseUrlSource: "default",
+        warningCodes: [],
+      },
+      capabilities: [],
+      toolSummary: {
+        total: 0,
+        byState: {},
+        protectedCount: 0,
+        staticLockedCount: 0,
+        providerGatedCount: 0,
+        warnings: 0,
+      },
+    },
+    components: [],
+    summary: {
+      healthy: 0,
+      degraded: 0,
+      blocked: 0,
+      disabled: 0,
+      unknown: 0,
+    },
+    warnings: [],
+  };
+}
+
+const HEALTH_OK: HealthSweepReport = {
   status: "ok" as const,
   generatedAt: "2026-03-20T10:30:00.000Z",
   liveness: createProbeResult("ok"),
   readiness: createProbeResult("ok"),
+  appliance: createApplianceHealthReport("healthy"),
 };
 
 const REFERRAL_DIAGNOSTICS_OK = {
@@ -256,7 +336,7 @@ describe("release evidence", () => {
     expect(evidence.review.manualChecks).toEqual(["Founder sign-off pending."]);
   });
 
-  it("writes deterministic canary and qa evidence artifacts to the release directory", () => {
+  it("writes deterministic canary and qa evidence artifacts to the release directory", async () => {
     const releaseDir = fs.mkdtempSync(path.join(os.tmpdir(), "release-evidence-"));
     const canarySummary = createCanarySummary();
 
@@ -267,7 +347,7 @@ describe("release evidence", () => {
       canarySummaryPath,
       qaEvidencePath,
       evidence,
-    } = writeReleaseEvidenceArtifacts({
+    } = await writeReleaseEvidenceArtifacts({
       releaseDir,
       manifest: MANIFEST,
       health: HEALTH_OK,

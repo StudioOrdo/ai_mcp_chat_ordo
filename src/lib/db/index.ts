@@ -2,23 +2,12 @@ import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 import { ensureSchema } from "./schema";
+import { resolveApplianceSqlitePath } from "@/lib/appliance/data-boundary";
 
 let dbInstance: Database.Database | null = null;
 
 function resolveDbPath(): string {
-  const configuredPath = process.env.STUDIO_ORDO_DB_PATH?.trim();
-  if (configuredPath) {
-    return path.isAbsolute(configuredPath)
-      ? configuredPath
-      : path.resolve(process.cwd(), configuredPath);
-  }
-
-  const configuredDataDir = process.env.DATA_DIR?.trim();
-  const dataDir = configuredDataDir
-    ? path.resolve(process.cwd(), configuredDataDir)
-    : path.join(process.cwd(), ".data");
-
-  return path.join(dataDir, "local.db");
+  return resolveApplianceSqlitePath();
 }
 
 export function getDb(): Database.Database {
@@ -35,6 +24,9 @@ export function getDb(): Database.Database {
 
   // Open the DB file
   dbInstance = new Database(dbPath);
+
+  // Enforce declared foreign keys for runtime and appliance integrity.
+  dbInstance.pragma("foreign_keys = ON");
 
   // Enable WAL mode for better concurrency performance
   dbInstance.pragma("journal_mode = WAL");
@@ -68,4 +60,12 @@ export function withDb<T>(
 
 export function ensureDbSchema(): void {
   getDb();
+}
+
+export function closeDbConnection(): void {
+  if (!dbInstance) {
+    return;
+  }
+  dbInstance.close();
+  dbInstance = null;
 }

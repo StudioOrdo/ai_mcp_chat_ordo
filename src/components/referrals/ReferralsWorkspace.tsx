@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { downloadFileFromUrl } from "@/lib/download-browser";
+import { formatStableDateTimeOrValue } from "@/lib/format/stable-date";
 import type { ReferralsWorkspaceData } from "@/lib/referrals/load-referrals-workspace";
 
 type NoticeState =
@@ -17,21 +18,11 @@ function getNoticeClassName(kind: NoticeState["kind"]): string {
 }
 
 function formatMetricValue(value: number | string): string {
-  return typeof value === "number" ? value.toLocaleString() : value;
+  return typeof value === "number" ? String(value) : value;
 }
 
 function formatRelativeDate(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("en", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date);
+  return formatStableDateTimeOrValue(value);
 }
 
 function buildCtaCopy(referralUrl: string): string {
@@ -44,14 +35,14 @@ export function ReferralsWorkspace({ workspace }: { workspace: ReferralsWorkspac
 
   if (!profile.affiliateEnabled || !profile.referralCode || !profile.referralUrl || !profile.qrCodeUrl) {
     return (
-      <main className="referrals-page-shell mx-auto flex w-full max-w-5xl flex-col gap-(--space-6) px-(--space-frame-default) py-(--space-section-loose) sm:py-(--space-frame-wide)" data-referrals-workspace="true">
+      <main className="referrals-page-shell mx-auto flex w-full max-w-5xl flex-col gap-(--space-6) px-(--space-frame-default) py-(--space-section-loose) sm:py-(--space-frame-wide)" data-referrals-workspace="true" data-referrals-workspace-state="disabled">
         <header className="referrals-route-header flex flex-col gap-(--space-3)" data-referrals-header="true">
           <p className="theme-label tier-micro uppercase text-foreground/42">Referrals</p>
           <h1 className="theme-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-            Referral + QR workspace
+            Affiliate dashboard
           </h1>
           <p className="max-w-2xl text-sm leading-6 text-foreground/62 sm:text-base">
-            Share links, QR assets, milestone visibility, and self-service reporting live here once affiliate access is enabled for your account.
+            Referral links, QR assets, milestone visibility, and reporting live here once affiliate access is enabled for your account.
           </p>
         </header>
 
@@ -104,11 +95,11 @@ export function ReferralsWorkspace({ workspace }: { workspace: ReferralsWorkspac
   }
 
   return (
-    <main className="referrals-page-shell mx-auto flex w-full max-w-6xl flex-col gap-(--space-6) px-(--space-frame-default) py-(--space-section-loose) sm:py-(--space-frame-wide)" data-referrals-workspace="true">
+    <main className="referrals-page-shell mx-auto flex w-full max-w-6xl flex-col gap-(--space-6) px-(--space-frame-default) py-(--space-section-loose) sm:py-(--space-frame-wide)" data-referrals-workspace="true" data-referrals-workspace-state="enabled">
       <header className="referrals-route-header flex flex-col gap-(--space-3)" data-referrals-header="true">
         <p className="theme-label tier-micro uppercase text-foreground/42">Referrals</p>
         <h1 className="theme-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-          Referral + QR workspace
+          Affiliate dashboard
         </h1>
         <p className="max-w-3xl text-sm leading-6 text-foreground/62 sm:text-base">
           Share your public link or QR, review recent referral milestones, and track how introductions move from first visit through registration, qualified opportunity, and credit review.

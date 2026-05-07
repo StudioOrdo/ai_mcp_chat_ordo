@@ -549,7 +549,7 @@ describe("Sprint 4 — QR Code and Referral Tracking", () => {
       expect(migrated!.referralSource).toBe("refcode");
     });
 
-    it("E4: QR code URL uses domain from instance config (via code pattern)", () => {
+    it("E4: referral image URL uses domain from instance config (via code pattern)", () => {
       const src = readSource("src/app/api/qr/[code]/route.ts");
       expect(src).toContain("buildPublicReferralUrl");
       expect(readSource("src/lib/referrals/referral-origin.ts")).toContain("getInstanceIdentity");

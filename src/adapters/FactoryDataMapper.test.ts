@@ -112,10 +112,12 @@ function createStageRunRecord(overrides: Partial<StageRunRecord> = {}): StageRun
 
 function createWorkOrder(overrides: Partial<WorkOrder> = {}): WorkOrder {
   const dag = createProductionDAG();
+  const id = overrides.id ?? "wo_1";
 
   return {
-    id: "wo_1",
+    id,
     schemaVersion: 1,
+    operationId: overrides.operationId ?? `op_${id}`,
     briefId: dag.briefId,
     status: "running",
     currentDag: dag,
@@ -269,6 +271,7 @@ describe("FactoryDataMapper", () => {
     const found = requireValue(await mapper.findWorkOrderById("wo_1"));
     expect(found.previousWorkOrderIds).toEqual(["wo_parent_a", "wo_parent_b"]);
     expect(await mapper.listParentWorkOrderIds("wo_1")).toEqual(["wo_parent_a", "wo_parent_b"]);
+    expect(requireValue(await mapper.findWorkOrderByOperationId("op_wo_1")).id).toBe("wo_1");
   });
 
   it("persists DAG snapshots and resolves the current DAG for a work order", async () => {

@@ -55,6 +55,7 @@ const CORE_TOOL_NAMES = Object.freeze([
   ...Object.keys(CONVERSATION_CAPABILITIES),
   ...Object.keys(PROFILE_CAPABILITIES),
   ...Object.keys(JOB_CAPABILITIES),
+  "configure_tool_availability",
 ]);
 
 export const STANDARD_HOST_CORE_TOOL_NAMES = CORE_TOOL_NAMES;

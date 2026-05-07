@@ -17,6 +17,10 @@ import type { RoleName } from "./user";
 import { getJobStatusDirectiveLines } from "./job-status-response-strategy";
 import { projectAllCapabilityRuntimeStatics } from "@/core/platform/capability-runtime/CapabilityRuntime";
 
+export interface RoleDirectiveAssemblyOptions {
+  availableToolNames?: readonly string[];
+}
+
 // ---------------------------------------------------------------------------
 // Role-level framing — NOT tool-specific, stays hardcoded
 // ---------------------------------------------------------------------------
@@ -104,8 +108,14 @@ const ADMIN_OPERATOR_FORMAT_LINES: readonly string[] = [
  * 4. Admin operator format guidance (hardcoded — behavioral)
  * 5. Job status directive lines (dynamic — getJobStatusDirectiveLines())
  */
-export function assembleRoleDirective(role: RoleName): string {
+export function assembleRoleDirective(
+  role: RoleName,
+  options: RoleDirectiveAssemblyOptions = {},
+): string {
   const lines: string[] = [];
+  const availableToolNames = options.availableToolNames
+    ? new Set(options.availableToolNames)
+    : null;
 
   // 1. Role-level framing
   lines.push(...ROLE_FRAMING[role]);
@@ -113,6 +123,10 @@ export function assembleRoleDirective(role: RoleName): string {
   // 2. CapabilityRuntime prompt hints — collect tool-specific directives
   const toolDirectiveLines: string[] = [];
   for (const runtime of projectAllCapabilityRuntimeStatics()) {
+    if (availableToolNames && !availableToolNames.has(runtime.capabilityName)) {
+      continue;
+    }
+
     const hintLines = runtime.promptHintsByRole?.[role] ?? null;
     if (hintLines && hintLines.length > 0) {
       toolDirectiveLines.push(...hintLines);

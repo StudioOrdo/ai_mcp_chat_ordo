@@ -12,6 +12,7 @@ export interface BlogPostRepository {
   findById(id: string): Promise<BlogPost | null>;
   findBySlug(slug: string): Promise<BlogPost | null>;
   listPublished(): Promise<BlogPost[]>;
+  countPublished(): Promise<number>;
   listForAdmin(filters?: BlogPostAdminFilters): Promise<BlogPost[]>;
   countForAdmin(filters?: Omit<BlogPostAdminFilters, "limit">): Promise<number>;
   updateDraftContent(id: string, patch: BlogPostDraftPatch): Promise<BlogPost>;

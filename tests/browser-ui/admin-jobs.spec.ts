@@ -49,6 +49,13 @@ async function waitForUserIdByEmail(email: string): Promise<string> {
   throw new Error(`Timed out waiting for registered user ${email}`);
 }
 
+async function switchActualRole(page: Page, role: "STAFF" | "ADMIN") {
+  const response = await page.request.post(new URL("/api/auth/switch", page.url()).toString(), {
+    data: { role },
+  });
+  expect(response.ok()).toBe(true);
+}
+
 function seedConversation(db: Database.Database, conversationId: string, userId: string, title: string) {
   db.prepare(
     `INSERT INTO conversations (id, user_id, title, status, session_source)
@@ -88,15 +95,7 @@ async function registerAndSimulateAdmin(page: Page): Promise<{ seedKey: string; 
   const userId = await waitForUserIdByEmail(uniqueEmail);
   await finishRegisterNavigation(page);
 
-  await page.context().addCookies([
-    {
-      name: "lms_mock_session_role",
-      value: "ADMIN",
-      url: page.url(),
-      httpOnly: true,
-      sameSite: "Lax",
-    },
-  ]);
+  await switchActualRole(page, "ADMIN");
 
   return {
     seedKey,

@@ -1,11 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getBlogPostRepository = vi.fn();
 const getBlogAssetRepository = vi.fn();
 const getBlogPostArtifactRepository = vi.fn();
 const getOpenaiApiKey = vi.fn();
-const getAnthropicApiKey = vi.fn();
-const getAnthropicModel = vi.fn();
+const createSelectedIntelligenceRuntime = vi.fn();
 
 vi.mock("@/adapters/RepositoryFactory", () => ({
   getBlogPostRepository,
@@ -15,12 +14,21 @@ vi.mock("@/adapters/RepositoryFactory", () => ({
 
 vi.mock("@/lib/config/env", () => ({
   getOpenaiApiKey,
-  getAnthropicApiKey,
-  getAnthropicModel,
+}));
+
+vi.mock("@/lib/ai/providers/selected-intelligence-runtime", () => ({
+  createSelectedIntelligenceRuntime,
 }));
 
 describe("blog-production-root", () => {
+  const originalEnv = process.env;
+
   beforeEach(() => {
+    process.env = {
+      ...originalEnv,
+      OPENAI_API_KEY: "sk-test",
+      IMAGE_PROVIDER: "openai",
+    };
     vi.resetModules();
     vi.clearAllMocks();
 
@@ -35,8 +43,22 @@ describe("blog-production-root", () => {
     getBlogPostArtifactRepository.mockReturnValue({
       create: vi.fn(),
     });
-    getAnthropicApiKey.mockReturnValue("anthropic_test_key");
-    getAnthropicModel.mockReturnValue("claude-haiku-4-5");
+    createSelectedIntelligenceRuntime.mockReturnValue({
+      client: { messages: { create: vi.fn() } },
+      provider: "anthropic",
+      model: "claude-haiku-4-5",
+      policy: {
+        provider: "anthropic",
+        timeoutMs: 45_000,
+        retryAttempts: 1,
+        retryDelayMs: 0,
+        modelCandidates: ["claude-haiku-4-5"],
+      },
+    });
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
   });
 
   it("constructs the image-generation service without requiring the OpenAI API key eagerly", async () => {
@@ -50,10 +72,8 @@ describe("blog-production-root", () => {
     expect(getOpenaiApiKey).not.toHaveBeenCalled();
   });
 
-  it("fails only when image generation is invoked and the OpenAI API key is missing", async () => {
-    getOpenaiApiKey.mockImplementation(() => {
-      throw new Error("OPENAI_API_KEY must be set to a non-empty value.");
-    });
+  it("fails before OpenAI construction when image generation capability is disabled", async () => {
+    process.env.IMAGE_PROVIDER = "disabled";
 
     const { getBlogImageGenerationService } = await import("./blog-production-root");
     const service = getBlogImageGenerationService();
@@ -65,6 +85,7 @@ describe("blog-production-root", () => {
       quality: "high",
       enhancePrompt: true,
       createdByUserId: "usr_admin",
-    })).rejects.toThrow(/OPENAI_API_KEY must be set/i);
+    })).rejects.toThrow(/image capability is disabled/i);
+    expect(getOpenaiApiKey).not.toHaveBeenCalled();
   });
 });

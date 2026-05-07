@@ -5,6 +5,7 @@ import type {
 } from "../core/entities/rich-content";
 import { BLOCK_TYPES, INLINE_TYPES, VALID_ACTION_TYPES } from "../core/entities/rich-content";
 import type { ActionLinkType } from "../core/entities/rich-content";
+import { operationCardBlock, parseSerializedOperationCard } from "@/lib/operations/operation-presentation";
 
 export class MarkdownParserService {
   parse(markdown: string): RichContent {
@@ -68,6 +69,14 @@ export class MarkdownParserService {
 
       if (inCode) {
         codeBuffer.push(line);
+        continue;
+      }
+
+      const operationCard = parseSerializedOperationCard(trimmed);
+      if (operationCard) {
+        flushList();
+        flushTable();
+        blocks.push(operationCardBlock(operationCard));
         continue;
       }
 
@@ -283,6 +292,13 @@ export class MarkdownParserService {
       if (pEq > 0) {
         params[parts[i].slice(0, pEq)] = decodeURIComponent(parts[i].slice(pEq + 1).replace(/\+/g, " "));
       }
+    }
+
+    if (
+      actionType === "operation"
+      && (!params.operationId || !params.actionId || !params.idempotencyKey || !params.operationRevision)
+    ) {
+      return null;
     }
 
     return {

@@ -30,6 +30,7 @@ function createFactoryRepositoryMock(): FactoryRepository {
     createWorkOrder: vi.fn(),
     updateWorkOrder: vi.fn(),
     findWorkOrderById: vi.fn(),
+    findWorkOrderByOperationId: vi.fn(),
     listWorkOrdersByUser: vi.fn(),
     saveProductionDAG: vi.fn(),
     findProductionDAGById: vi.fn(),
@@ -112,6 +113,7 @@ describe("RevisionReader", () => {
     vi.mocked(factoryRepository.findWorkOrderById).mockResolvedValue({
       id: "wo_1",
       schemaVersion: 1,
+      operationId: "op_wo_1",
       briefId: "brief_1",
       status: "paused",
       currentDag: {
@@ -166,10 +168,7 @@ describe("RevisionReader", () => {
       supportLevel: "advanced",
       state: "paused",
     }));
-    expect(result?.revision.actions).toEqual(expect.arrayContaining([
-      expect.objectContaining({ operation: "refine" }),
-      expect.objectContaining({ operation: "resume" }),
-    ]));
+    expect(result?.revision.actions).toEqual([]);
   });
 
   it("returns explicit unsupported revision inspection for unsupported execution kinds", async () => {

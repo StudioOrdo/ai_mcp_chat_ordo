@@ -15,6 +15,16 @@ import {
   importConversationFromPayload,
 } from "@/hooks/chat/chatConversationApi";
 import { resolveJobsRail, type JobsRailAction } from "@/frameworks/ui/jobs-rail/resolve-jobs-rail";
+import type { OperationActionConfirmation } from "@/core/entities/operation";
+import {
+  buildOperationActionDispatchPayload,
+  parseOperationActionLinkModel,
+  type OperationActionLinkModel,
+} from "@/lib/operations/operation-action-view-model";
+import type {
+  OperationActionConfirmationRequest,
+  OperationActionConfirmationResolver,
+} from "@/frameworks/ui/operations/OperationActionConfirmationDialog";
 
 export type ActionDispatchDeps = {
   router: ReturnType<typeof useRouter>;
@@ -22,6 +32,9 @@ export type ActionDispatchDeps = {
   setConversationId: (id: string) => void;
   refreshConversation: (id?: string) => void;
   setComposerText: (text: string) => void;
+  sendMessage?: (messageText: string) => Promise<{ ok: boolean; error?: string }>;
+  setActionError?: (error: string) => void;
+  confirmOperationAction?: OperationActionConfirmationResolver;
 };
 
 function isSyntheticBrowserJobId(jobId: string): boolean {
@@ -48,6 +61,66 @@ async function postJobAction(jobId: string, operation: string) {
   return response.json() as Promise<{ job?: { conversationId?: string } }>;
 }
 
+async function resolveOperationActionConfirmation(
+  model: OperationActionLinkModel,
+  confirmOperationAction?: OperationActionConfirmationResolver,
+): Promise<OperationActionConfirmation | null | undefined> {
+  switch (model.confirmPolicy) {
+    case "none":
+      return undefined;
+    case "single_click":
+      if (model.riskLevel === "destructive" || model.riskLevel === "high") {
+        return confirmOperationAction?.(model) ?? null;
+      }
+      return { confirmed: true };
+    case "phrase":
+      return confirmOperationAction?.(model) ?? null;
+    case "admin_reauth":
+      return confirmOperationAction?.(model) ?? null;
+    default:
+      model.confirmPolicy satisfies never;
+      return null;
+  }
+}
+
+async function postOperationAction(
+  value: string,
+  params?: Record<string, string>,
+  confirmOperationAction?: OperationActionConfirmationResolver,
+) {
+  const model = parseOperationActionLinkModel(value, params);
+  if (model.disabledReason) {
+    return null;
+  }
+
+  const confirmation = await resolveOperationActionConfirmation(model, confirmOperationAction);
+  if (confirmation === null) {
+    return null;
+  }
+
+  const response = await fetch(
+    `/api/operations/${encodeURIComponent(model.operationId)}/actions/${encodeURIComponent(model.actionId)}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(buildOperationActionDispatchPayload(model, confirmation)),
+    },
+  );
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok && typeof payload !== "object") {
+    throw new Error("Operation action failed.");
+  }
+
+  return payload as {
+    operation?: { conversationId?: string | null };
+    snapshot?: { operation?: { conversationId?: string | null } };
+    conversationSummary?: unknown;
+  };
+}
+
 function resolveExternalActionUrl(value: string): string | null {
   const trimmed = value.trim();
   if (!trimmed || trimmed.startsWith("//")) {
@@ -69,6 +142,19 @@ function resolveExternalActionUrl(value: string): string | null {
   }
 }
 
+function isRetiredPublicRoute(value: string): boolean {
+  return value === "/library"
+    || value.startsWith("/library/")
+    || value === "/journal"
+    || value.startsWith("/journal/")
+    || value === "/blog"
+    || value.startsWith("/blog/");
+}
+
+function resolveRouteActionValue(value: string, params?: Record<string, string>): string {
+  return (value || params?.href || params?.path || "").trim();
+}
+
 export const ACTION_HANDLERS: Record<ActionLinkType, (deps: ActionDispatchDeps, value: string, params?: Record<string, string>) => void | Promise<void>> = {
   conversation: (deps, value, params) => {
     const targetId = value || params?.id;
@@ -79,14 +165,35 @@ export const ACTION_HANDLERS: Record<ActionLinkType, (deps: ActionDispatchDeps, 
     deps.setConversationId(targetId);
     deps.refreshConversation(targetId);
   },
-  route: (deps, value) => {
-    if (value.startsWith("/") && !value.startsWith("//")) deps.router.push(value);
+  route: (deps, value, params) => {
+    const target = resolveRouteActionValue(value, params);
+
+    if (isRetiredPublicRoute(target)) {
+      deps.setComposerText("Tell me what you want to find or publish, and I will help from here.");
+      return;
+    }
+    if (target.startsWith("/") && !target.startsWith("//")) deps.router.push(target);
   },
   send: (deps, value, params) => {
     deps.setComposerText(value || params?.text || "");
   },
+  tool: async (deps, value, params) => {
+    const text = value || params?.text || "";
+    if (!text.trim()) {
+      return;
+    }
+    if (deps.sendMessage) {
+      await deps.sendMessage(text);
+      return;
+    }
+    deps.setComposerText(text);
+  },
   corpus: (deps, value) => {
-    deps.router.push(`/library/section/${value}`);
+    deps.setComposerText(
+      value
+        ? `Find the internal material related to ${value}.`
+        : "Find the internal material I need.",
+    );
   },
   external: (_deps, value, params) => {
     const target = resolveExternalActionUrl(value || params?.url || "");
@@ -107,6 +214,24 @@ export const ACTION_HANDLERS: Record<ActionLinkType, (deps: ActionDispatchDeps, 
 
     const payload = await postJobAction(value, operation);
     deps.refreshConversation(payload.job?.conversationId || deps.conversationId || undefined);
+  },
+  operation: async (deps, value, params) => {
+    let payload: Awaited<ReturnType<typeof postOperationAction>>;
+    try {
+      payload = await postOperationAction(value, params, deps.confirmOperationAction);
+    } catch {
+      deps.setActionError?.("Operation action failed.");
+      return;
+    }
+    if (!payload) {
+      return;
+    }
+
+    const conversationId = payload.operation?.conversationId
+      ?? payload.snapshot?.operation?.conversationId
+      ?? deps.conversationId
+      ?? undefined;
+    deps.refreshConversation(conversationId);
   },
 };
 
@@ -140,6 +265,10 @@ export function useChatSurfaceState({
   const [sessionSearchQuery, setSessionSearchQuery] = useState("");
   const [isConversationActionPending, setIsConversationActionPending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [operationConfirmationRequest, setOperationConfirmationRequest] =
+    useState<OperationActionConfirmationRequest | null>(null);
+  const operationConfirmationResolverRef =
+    useRef<((confirmation: OperationActionConfirmation | null | undefined) => void) | null>(null);
   const sendErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleSendError = useCallback((error: string) => {
@@ -200,16 +329,50 @@ export function useChatSurfaceState({
   }, [isSending, sendMessage]);
 
   const handleLinkClick = useCallback((slug: string) => {
-    router.push(`/library/section/${slug}`);
-  }, [router]);
+    setComposerText(
+      slug
+        ? `Find the internal material related to ${slug}.`
+        : "Find the internal material I need.",
+    );
+  }, [setComposerText]);
+
+  const confirmOperationAction = useCallback<OperationActionConfirmationResolver>((model, label = "Operation action") => {
+    return new Promise((resolve) => {
+      operationConfirmationResolverRef.current = resolve;
+      setOperationConfirmationRequest({ model, label });
+    });
+  }, []);
+
+  const handleOperationConfirmationCancel = useCallback(() => {
+    const resolve = operationConfirmationResolverRef.current;
+    operationConfirmationResolverRef.current = null;
+    setOperationConfirmationRequest(null);
+    resolve?.(null);
+  }, []);
+
+  const handleOperationConfirmationConfirm = useCallback((confirmation: OperationActionConfirmation) => {
+    const resolve = operationConfirmationResolverRef.current;
+    operationConfirmationResolverRef.current = null;
+    setOperationConfirmationRequest(null);
+    resolve?.(confirmation);
+  }, []);
 
   const handleActionClick = useCallback(
     (actionType: ActionLinkType, value: string, params?: Record<string, string>) => {
-      const deps: ActionDispatchDeps = { router, conversationId, setConversationId, refreshConversation, setComposerText };
+      const deps: ActionDispatchDeps = {
+        router,
+        conversationId,
+        setConversationId,
+        refreshConversation,
+        setComposerText,
+        sendMessage,
+        setActionError: handleSendError,
+        confirmOperationAction,
+      };
       const handler = ACTION_HANDLERS[actionType];
       void handler?.(deps, value, params);
     },
-    [router, conversationId, setConversationId, refreshConversation, setComposerText],
+    [router, conversationId, setConversationId, refreshConversation, setComposerText, sendMessage, handleSendError, confirmOperationAction],
   );
 
   const handleRetryClick = useCallback(async (retryKey: string) => {
@@ -312,11 +475,12 @@ export function useChatSurfaceState({
   const jobsRail = useMemo(
     () => resolveJobsRail({
       entries: jobStateEntries ?? [],
+      workflows: workflowStateEntries ?? [],
       syncState: conversationId ? "live" : "unknown",
       conversationId,
       canExportDiagnostics: Boolean(conversationId),
     }),
-    [conversationId, jobStateEntries],
+    [conversationId, jobStateEntries, workflowStateEntries],
   );
   const handleJobsRailAction = useCallback((action: JobsRailAction) => {
     if (action.kind === "download_bundle") {
@@ -376,6 +540,11 @@ export function useChatSurfaceState({
     onSuggestionClick: handleSuggestionClick,
     onSuggestionSelect: handleSuggestionSelect,
     onStopStream: stopStream,
+    operationConfirmationDialog: {
+      request: operationConfirmationRequest,
+      onCancel: handleOperationConfirmationCancel,
+      onConfirm: handleOperationConfirmationConfirm,
+    },
     pendingFiles,
     productExperienceState: productExperience.kind,
     productExperienceSummary: visibleProductExperienceSummary,

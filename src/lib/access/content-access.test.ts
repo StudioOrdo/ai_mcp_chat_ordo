@@ -11,7 +11,7 @@ import {
 
 describe("canUserAccessAudience (Phase 1)", () => {
   it("matches canAccessAudience when tier is undefined", () => {
-    const audiences = ["public", "account", "premium", "apprentice", "staff", "admin"] as const;
+    const audiences = ["public", "member", "account", "premium", "apprentice", "staff", "admin"] as const;
     const roles = ["ANONYMOUS", "AUTHENTICATED", "APPRENTICE", "STAFF", "ADMIN"] as const;
     for (const audience of audiences) {
       for (const role of roles) {
@@ -80,18 +80,19 @@ describe("getAllowedAudiencesForUser (Phase 4)", () => {
 
   it("returns public+account for authenticated on account tier", () => {
     const allowed = getAllowedAudiencesForUser({ role: "AUTHENTICATED", tier: "account" });
-    expect(allowed).toEqual(["public", "account"]);
+    expect(allowed).toEqual(["public", "member", "account"]);
   });
 
   it("widens premium for authenticated on premium tier", () => {
     const allowed = getAllowedAudiencesForUser({ role: "AUTHENTICATED", tier: "premium" });
-    expect(allowed).toEqual(["public", "account", "premium"]);
+    expect(allowed).toEqual(["public", "member", "account", "premium"]);
   });
 
   it("returns every audience for admin", () => {
     const allowed = getAllowedAudiencesForUser({ role: "ADMIN" });
     expect(allowed).toEqual([
       "public",
+      "member",
       "account",
       "premium",
       "apprentice",
@@ -103,7 +104,7 @@ describe("getAllowedAudiencesForUser (Phase 4)", () => {
   it("mirrors canUserAccessAudience for every (role, tier, audience) combination", () => {
     const roles = ["ANONYMOUS", "AUTHENTICATED", "APPRENTICE", "STAFF", "ADMIN"] as const;
     const tiers = [undefined, "account", "premium"] as const;
-    const audiences = ["public", "account", "premium", "apprentice", "staff", "admin"] as const;
+    const audiences = ["public", "member", "account", "premium", "apprentice", "staff", "admin"] as const;
     for (const role of roles) {
       for (const tier of tiers) {
         const allowed = new Set(getAllowedAudiencesForUser({ role, tier }));

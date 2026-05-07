@@ -35,7 +35,9 @@ export function sanitizeAdminSearchInput(value: unknown): AdminSearchInput {
 }
 
 export async function executeAdminSearch(input: AdminSearchInput): Promise<AdminSearchOutput> {
-  if (!input.query || input.query.trim().length < 2) {
+  const normalizedQuery = input.query.trim().toLowerCase();
+  const isListAllQuery = ["*", "all", "all users", "list users", "system users", "users"].includes(normalizedQuery);
+  if ((!input.query || input.query.trim().length < 2) && !isListAllQuery) {
     return { results: [], totalCount: 0 };
   }
 

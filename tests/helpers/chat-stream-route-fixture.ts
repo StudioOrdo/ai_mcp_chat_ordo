@@ -85,6 +85,7 @@ export type StreamRouteMockSet = {
   createSystemPromptBuilderMock: MockControl;
   looksLikeMathMock: MockControl;
   getSchemasForRoleMock: MockControl;
+  getPromptVisibleSchemasForRoleMock?: MockControl;
   toolExecutorFactoryMock: MockControl;
   getByIdMock: MockControl;
   assignConversationMock: MockControl;
@@ -209,6 +210,7 @@ export function seedChatStreamRouteMocks(mocks: StreamRouteMockSet): void {
     (text: string) => text.includes("+"),
   );
   mocks.getSchemasForRoleMock.mockReturnValue([]);
+  mocks.getPromptVisibleSchemasForRoleMock?.mockReturnValue([]);
   mocks.toolExecutorFactoryMock.mockReturnValue(() => undefined);
   mocks.getByIdMock.mockResolvedValue({
     file: {

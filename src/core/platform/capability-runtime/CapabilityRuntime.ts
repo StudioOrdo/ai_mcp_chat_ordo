@@ -5,6 +5,7 @@ import {
   projectJobCapability,
   projectMcpExportIntent,
   projectPresentationDescriptor,
+  projectPromptExposure,
 } from "@/core/capability-catalog/catalog";
 import type {
   CapabilityDefinition,
@@ -58,6 +59,7 @@ export interface CapabilityRuntime {
   binding: CapabilityRuntimeBindingSummary | null;
   localExecutionTargets: CapabilityDefinition["localExecutionTargets"] | null;
   promptHintsByRole: NonNullable<CapabilityDefinition["promptHint"]>["roleDirectiveLines"] | null;
+  promptExposure: NonNullable<CapabilityDefinition["promptExposure"]>;
 }
 
 export type CapabilityRuntimeStatic = Omit<CapabilityRuntime, "executionPlan" | "executionExplanation">;
@@ -107,6 +109,7 @@ export function projectCapabilityRuntimeDefinition(
     binding: buildCapabilityRuntimeBindingSummary(def),
     localExecutionTargets: def.localExecutionTargets ?? null,
     promptHintsByRole: def.promptHint?.roleDirectiveLines ?? null,
+    promptExposure: projectPromptExposure(def),
   };
 }
 

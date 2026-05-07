@@ -79,7 +79,7 @@ describe("D10.3: AccountMenu — self-service scope", () => {
     expect(source).toMatch(/resolveAccountMenuRoutes/);
   });
 
-  it("AccountMenu source references ADMIN only for simulation controls", () => {
+  it("AccountMenu source references ADMIN only for role-gated system account links", () => {
     const candidates = [
       "src/components/shell/AccountMenu.tsx",
       "src/components/AccountMenu.tsx",
@@ -87,7 +87,7 @@ describe("D10.3: AccountMenu — self-service scope", () => {
     const source = candidates
       .map((p) => (fileExists(p) ? readSource(p) : ""))
       .find((s) => s.length > 0) ?? "";
-    expect(source).toMatch(/ADMIN/);
+    expect(source).toMatch(/ADMIN_ROUTE_IDS/);
     expect(source).not.toMatch(/href.*\/admin/g);
   });
 
@@ -133,7 +133,7 @@ describe("D10.3: AccountMenu — self-service scope", () => {
     const source = candidates
       .map((p) => (fileExists(p) ? readSource(p) : ""))
       .find((s) => s.length > 0) ?? "";
-    expect(source).toMatch(/Workspace|Account|System Legibility/i);
+    expect(source).toMatch(/My work|Account|Preferences|Theme/i);
   });
 });
 

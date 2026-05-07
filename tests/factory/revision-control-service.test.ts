@@ -101,6 +101,7 @@ function createWorkOrder(brief: ProductBrief, overrides: Partial<WorkOrder> = {}
     conversationId: "conv_factory",
     initiatedBy: "batch_automation",
     ...overrides,
+    operationId: overrides.operationId ?? "op_wo_1",
   };
 }
 

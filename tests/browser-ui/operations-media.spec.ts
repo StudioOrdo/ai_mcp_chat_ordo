@@ -9,7 +9,6 @@ test.describe.configure({ timeout: 60_000 });
 
 const PNG_UPLOAD_FIXTURE_PATH = path.join(process.cwd(), "public", "ordo-avatar.png");
 const PLAYWRIGHT_BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:34123";
-const PLAYWRIGHT_COOKIE_DOMAIN = new URL(PLAYWRIGHT_BASE_URL).hostname;
 
 interface OperationsMediaSeedSpec {
   fileName: string;
@@ -266,16 +265,10 @@ async function createRoleScopedPage(browser: Browser, page: Page, role: "STAFF" 
 }
 
 async function setSimulatedRole(page: Page, role: "STAFF" | "ADMIN") {
-  await page.context().addCookies([
-    {
-      name: "lms_mock_session_role",
-      value: role,
-      domain: PLAYWRIGHT_COOKIE_DOMAIN,
-      path: "/",
-      httpOnly: true,
-      sameSite: "Lax",
-    },
-  ]);
+  const response = await page.request.post(`${PLAYWRIGHT_BASE_URL}/api/auth/switch`, {
+    data: { role },
+  });
+  expect(response.ok()).toBe(true);
 }
 
 test("operations media route keeps conversation detail admin-only while allowing staff inventory access", async ({ page, browser }) => {
@@ -288,7 +281,6 @@ test("operations media route keeps conversation detail admin-only while allowing
 
   await setSimulatedRole(page, "STAFF");
   await page.goto(`/operations/media?userId=${userId}`);
-  await page.waitForLoadState("networkidle");
 
   await expect(page.getByRole("heading", { name: /Media inventory for Operations Media User/i })).toBeVisible();
   await expect(page.getByRole("button", { name: fixture.fileName })).toBeVisible();
@@ -302,7 +294,6 @@ test("operations media route keeps conversation detail admin-only while allowing
 
   try {
     await adminSession.page.goto(`/operations/media?userId=${userId}`);
-    await adminSession.page.waitForLoadState("networkidle");
     await adminSession.page.getByRole("button", { name: fixture.fileName }).click();
 
     const detailLink = adminSession.page.getByRole("link", { name: /Open conversation detail/i });
@@ -384,7 +375,6 @@ test("operations media route keeps combined filters and pagination stable across
       && params.get("attached") === "attached"
       && params.get("page") === null;
   });
-  await page.waitForLoadState("networkidle");
 
   await expect(page.getByText(/52 matching assets · page 1 · showing up to 50/i)).toBeVisible({ timeout: 10000 });
   const nextLink = page.getByRole("link", { name: "Next" });

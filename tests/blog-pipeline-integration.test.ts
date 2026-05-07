@@ -44,6 +44,7 @@ function createMockRepo(
     findById: vi.fn().mockResolvedValue(null),
     findBySlug: vi.fn().mockResolvedValue(null),
     listPublished: vi.fn().mockResolvedValue([]),
+    countPublished: vi.fn().mockResolvedValue(0),
     listForAdmin: vi.fn().mockResolvedValue([]),
     countForAdmin: vi.fn().mockResolvedValue(0),
     updateDraftContent: vi.fn(),
@@ -388,6 +389,7 @@ vi.mock("@/lib/corpus-library", () => ({
 
 vi.mock("@/adapters/RepositoryFactory", () => ({
   getBlogPostRepository: () => ({
+    countPublished: vi.fn().mockResolvedValue(1),
     listPublished: vi.fn().mockResolvedValue([
       {
         id: "post_1",
@@ -409,32 +411,28 @@ vi.mock("@/adapters/RepositoryFactory", () => ({
 
 import sitemap from "@/app/sitemap";
 
-// Sitemap now emits /journal paths after blog→journal route migration
-describe("sitemap blog entries", () => {
-  it("P8: includes /journal index entry", async () => {
+describe("sitemap public feed entries", () => {
+  it("P8: includes /feed index entry when public feed content exists", async () => {
     const entries = await sitemap();
-    const journalIndex = entries.find(
-      (e) => e.url === "https://studioordo.com/journal",
+    const feedIndex = entries.find(
+      (e) => e.url === "https://studioordo.com/feed",
     );
-    expect(journalIndex).toBeDefined();
-    expect(journalIndex?.priority).toBe(0.7);
+    expect(feedIndex).toBeDefined();
+    expect(feedIndex?.priority).toBe(0.7);
   });
 
-  it("P9: includes published journal post entries", async () => {
+  it("P9: does not emit retired journal post entries", async () => {
     const entries = await sitemap();
     const postEntry = entries.find(
       (e) => e.url === "https://studioordo.com/journal/first-post",
     );
-    expect(postEntry).toBeDefined();
-    expect(postEntry?.priority).toBe(0.5);
+    expect(postEntry).toBeUndefined();
   });
 
-  it("N7: excludes draft posts (only published posts are returned by listPublished)", async () => {
+  it("N7: keeps retired journal posts out of the public sitemap", async () => {
     const entries = await sitemap();
-    // Posts now live under /journal/ after migration
     const journalPosts = entries.filter((e) => e.url.match(/\/journal\/[^/]+$/));
-    expect(journalPosts).toHaveLength(1);
-    expect(journalPosts[0].url).toContain("first-post");
+    expect(journalPosts).toHaveLength(0);
   });
 });
 
@@ -455,17 +453,18 @@ describe("slug generation", () => {
   });
 });
 
-// /blog pages are now redirect stubs; canonical content lives at /journal
-// Source analysis checks the journal pages which contain the actual rendering
+// Public blog/journal/library routes are retired; feed will own public output.
 describe("blog page source analysis", () => {
-  it("E3: journal index page exports generateMetadata", () => {
+  it("E3: journal index page is retired with notFound", () => {
     const src = readSource("src/app/journal/page.tsx");
-    expect(src).toContain("generateMetadata");
+    expect(src).toContain("notFound");
+    expect(src).not.toContain("generateMetadata");
   });
 
-  it("E4: journal post page exports generateMetadata", () => {
+  it("E4: journal post page is retired with notFound", () => {
     const src = readSource("src/app/journal/[slug]/page.tsx");
-    expect(src).toContain("generateMetadata");
+    expect(src).toContain("notFound");
+    expect(src).not.toContain("generateMetadata");
   });
 
   it("E5: blog post redirect page calls notFound for missing posts", () => {
@@ -480,9 +479,10 @@ describe("blog page source analysis", () => {
     expect(src).toContain("normalizeBlogMarkdown");
   });
 
-  it("E5c: library section page uses the shared markdown renderer", () => {
+  it("E5c: library section page is retired with notFound", () => {
     const src = readSource("src/app/library/[document]/[section]/page.tsx");
-    expect(src).toContain("MarkdownProse");
+    expect(src).toContain("notFound");
+    expect(src).not.toContain("MarkdownProse");
   });
 
   it("E6: blog redirect pages have no auth imports", () => {

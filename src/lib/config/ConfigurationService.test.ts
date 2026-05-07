@@ -4,6 +4,10 @@ import * as RepositoryFactory from "@/adapters/RepositoryFactory";
 import type { SystemSettingsDataMapper } from "@/adapters/SystemSettingsDataMapper";
 import type { SystemSetting } from "@/core/ports/SystemSettingsRepository";
 
+const { resolveInstallStateMock } = vi.hoisted(() => ({
+  resolveInstallStateMock: vi.fn(),
+}));
+
 vi.mock("@/adapters/RepositoryFactory", async () => {
   const { createMockRepositoryFactory } = await import("@/__test-utils__");
   return {
@@ -13,19 +17,27 @@ vi.mock("@/adapters/RepositoryFactory", async () => {
   };
 });
 
+vi.mock("@/lib/appliance/install/install-state", () => ({
+  resolveInstallState: resolveInstallStateMock,
+}));
+
 describe("ConfigurationService", () => {
   let mockGetSync: ReturnType<typeof vi.fn<(key: string) => SystemSetting | null>>;
   let mockSetSync: ReturnType<typeof vi.fn<(key: string, valueJson: string) => void>>;
+  let mockDelete: ReturnType<typeof vi.fn<(key: string) => Promise<void>>>;
   const originalEnv = process.env;
 
   beforeEach(() => {
     process.env = { ...originalEnv };
     mockGetSync = vi.fn();
     mockSetSync = vi.fn();
+    mockDelete = vi.fn(async () => undefined);
+    resolveInstallStateMock.mockReturnValue({ ownerConfigured: false });
     vi.mocked(RepositoryFactory.getSystemSettingsDataMapper).mockReturnValue({
       getSync: mockGetSync,
       setSync: mockSetSync,
-    } as Pick<SystemSettingsDataMapper, "getSync" | "setSync"> as SystemSettingsDataMapper);
+      delete: mockDelete,
+    } as Pick<SystemSettingsDataMapper, "getSync" | "setSync" | "delete"> as SystemSettingsDataMapper);
   });
 
   afterEach(() => {
@@ -74,14 +86,14 @@ describe("ConfigurationService", () => {
   });
 
   describe("isSystemInitialized", () => {
-    it("returns true if ANTHROPIC_API_KEY is present", () => {
-      process.env.ANTHROPIC_API_KEY = "sk-ant-test";
+    it("returns true when the install state has a credentialed owner", () => {
+      resolveInstallStateMock.mockReturnValue({ ownerConfigured: true });
       expect(ConfigurationService.isSystemInitialized()).toBe(true);
     });
 
-    it("returns false if ANTHROPIC_API_KEY is absent", () => {
-      delete process.env.ANTHROPIC_API_KEY;
-      mockGetSync.mockReturnValue(null);
+    it("returns false when no credentialed owner exists even if provider keys are present", () => {
+      process.env.ANTHROPIC_API_KEY = "anthropic-test-key";
+      resolveInstallStateMock.mockReturnValue({ ownerConfigured: false });
       expect(ConfigurationService.isSystemInitialized()).toBe(false);
     });
   });
@@ -90,6 +102,11 @@ describe("ConfigurationService", () => {
     it("writes string values as JSON to the DB", () => {
       ConfigurationService.setString("TEST_KEY", "new_value");
       expect(mockSetSync).toHaveBeenCalledWith("TEST_KEY", JSON.stringify("new_value"));
+    });
+
+    it("deletes SQLite-backed settings", async () => {
+      await ConfigurationService.deleteString("TEST_KEY");
+      expect(mockDelete).toHaveBeenCalledWith("TEST_KEY");
     });
   });
 });

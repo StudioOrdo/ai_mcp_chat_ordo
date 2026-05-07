@@ -77,11 +77,13 @@ describe("/jobs page", () => {
       selectedJobId: "job_1",
       selectedJob: null,
       selectedJobHistory: [{ id: "evt_1" }],
+      query: { jobId: "job_1" },
+      pageInfo: { total: 1 },
     });
 
     render(await JobsPage({ searchParams: Promise.resolve({ jobId: "job_1" }) }));
 
-    expect(loadUserJobsWorkspaceMock).toHaveBeenCalledWith("usr_apprentice", "job_1");
+    expect(loadUserJobsWorkspaceMock).toHaveBeenCalledWith("usr_apprentice", { jobId: "job_1" });
     expect(screen.getByTestId("jobs-workspace")).toHaveTextContent("Apprentice:1:job_1:1");
   });
 });

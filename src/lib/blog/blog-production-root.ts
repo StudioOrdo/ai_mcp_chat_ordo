@@ -1,4 +1,3 @@
-import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 
 import {
@@ -6,26 +5,25 @@ import {
   getBlogPostArtifactRepository,
   getBlogPostRepository,
 } from "@/adapters/RepositoryFactory";
-import { AnthropicBlogArticlePipelineModel } from "@/adapters/AnthropicBlogArticlePipelineModel";
+import { AnthropicBlogArticlePipelineModel as SelectedProviderBlogArticlePipelineModel } from "@/adapters/AnthropicBlogArticlePipelineModel";
 import { OpenAiBlogImageProvider } from "@/adapters/OpenAiBlogImageProvider";
 import type { BlogArticlePipelineModel } from "@/core/use-cases/BlogArticlePipelineModel";
 import type {
   BlogImageGenerationRequest,
   BlogImageProvider,
 } from "@/core/use-cases/BlogImageProvider";
+import { createSelectedIntelligenceRuntime } from "@/lib/ai/providers/selected-intelligence-runtime";
 import { BlogArticleProductionService } from "@/lib/blog/blog-article-production-service";
-import {
-  getAnthropicApiKey,
-  getAnthropicModel,
-  getOpenaiApiKey,
-} from "@/lib/config/env";
+import { getOpenaiApiKey } from "@/lib/config/env";
 import { BlogImageGenerationService } from "@/lib/blog/blog-image-generation-service";
+import { assertProviderBackedToolAvailable } from "@/lib/tools/tool-provider-capability-policy";
 
 let blogImageGenerationService: BlogImageGenerationService | null = null;
 let blogArticleProductionService: BlogArticleProductionService | null = null;
 
 const lazyOpenAiBlogImageProvider: BlogImageProvider = {
   async generate(request: BlogImageGenerationRequest) {
+    assertProviderBackedToolAvailable("generate_blog_image");
     const provider = new OpenAiBlogImageProvider(
       new OpenAI({ apiKey: getOpenaiApiKey() }),
     );
@@ -49,9 +47,11 @@ const lazyAnthropicBlogArticlePipelineModel: BlogArticlePipelineModel = {
 };
 
 function createAnthropicBlogArticlePipelineModel(): BlogArticlePipelineModel {
-  return new AnthropicBlogArticlePipelineModel(
-    new Anthropic({ apiKey: getAnthropicApiKey() }),
-    getAnthropicModel(),
+  const runtime = createSelectedIntelligenceRuntime();
+  return new SelectedProviderBlogArticlePipelineModel(
+    runtime.client,
+    runtime.provider,
+    runtime.model,
   );
 }
 

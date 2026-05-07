@@ -5,8 +5,8 @@
  * the next one, up to 10 attempts.
  */
 import { createServer } from "net";
-import { spawn } from "child_process";
-import { resolve } from "path";
+import { spawn, spawnSync } from "child_process";
+import { join, resolve } from "path";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { once } from "events";
 
@@ -16,6 +16,32 @@ const DEV_STACK_LOCK_PATH = resolve(".next", "dev-stack.lock");
 const MEDIA_WORKER_PORT = parseInt(process.env.MEDIA_WORKER_PORT || "3101", 10);
 const CHILD_EXIT_TIMEOUT_MS = parseInt(process.env.DEV_CHILD_EXIT_TIMEOUT_MS || "5000", 10);
 const MEDIA_WORKER_READY_TIMEOUT_MS = parseInt(process.env.MEDIA_WORKER_READY_TIMEOUT_MS || "10000", 10);
+const BACKUP_EXECUTOR_ENABLED = process.env.DISABLE_BACKUP_EXECUTOR !== "1";
+const BACKUP_SCHEDULER_ENABLED = process.env.DISABLE_BACKUP_SCHEDULER !== "1";
+const BACKUP_EXECUTOR_PATH = process.env.ORDO_BACKUP_EXECUTOR_PATH?.trim() || resolve("bin", "ordo-backup");
+const BACKUP_EXECUTOR_POLL_INTERVAL_MS = parseInt(process.env.ORDO_BACKUP_EXECUTOR_POLL_INTERVAL_MS || "2000", 10);
+const BACKUP_EXECUTOR_LEASE_SECONDS = parseInt(process.env.ORDO_BACKUP_EXECUTOR_LEASE_SECONDS || "900", 10);
+const DATA_DIR = resolve(process.env.DATA_DIR || ".data");
+const SQLITE_PATH = resolve(process.env.STUDIO_ORDO_DB_PATH || join(DATA_DIR, "local.db"));
+
+process.env.ORDO_RUNTIME_PROCESS_ROLE = process.env.ORDO_RUNTIME_PROCESS_ROLE ?? "app";
+process.env.ORDO_MEDIA_WORKER_MODE = process.env.DISABLE_MEDIA_WORKER === "1"
+  ? "disabled"
+  : "local_dev";
+
+function assertNativeRuntime() {
+  const result = spawnSync(
+    process.execPath,
+    ["scripts/check-native-runtime.mjs", "better-sqlite3"],
+    { stdio: "inherit" },
+  );
+
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1);
+  }
+}
+
+assertNativeRuntime();
 
 function isProcessAlive(pid) {
   if (!Number.isInteger(pid) || pid <= 0) {
@@ -75,6 +101,10 @@ function releaseDevStackLock() {
   if (pid === process.pid) {
     rmSync(DEV_STACK_LOCK_PATH, { force: true });
   }
+}
+
+function isExpectedChildShutdownSignal(signal) {
+  return signal === "SIGINT" || signal === "SIGTERM";
 }
 
 acquireDevStackLock();
@@ -169,18 +199,29 @@ if (!(await isPortFree(MEDIA_WORKER_PORT))) {
   process.exit(1);
 }
 
+console.log("⚡ Ensuring database schema is fully initialized...");
+const initDbResult = spawnSync(process.execPath, [tsxCli, "scripts/ensure-db-schema.ts"], { stdio: "inherit", env: sharedEnv });
+if (initDbResult.status !== 0) {
+  console.error("[dev] Failed to initialize database schema.");
+  process.exit(1);
+}
+
 const nextProcess = spawnManaged(nextBin, ["dev", "--port", String(port)], sharedEnv);
 const workerProcess = spawnManaged(process.execPath, [tsxCli, "scripts/process-deferred-jobs.ts"], {
   ...sharedEnv,
   DEFERRED_JOB_WORKER_ID: process.env.DEFERRED_JOB_WORKER_ID ?? `worker_dev_${port}`,
 });
 const mediaWorkerProcess = spawnManaged(process.execPath, [tsxCli, "scripts/media-worker-server.ts"], sharedEnv);
+const backupExecutorProcess = spawnBackupExecutor();
+const backupSchedulerProcess = BACKUP_SCHEDULER_ENABLED
+  ? spawnManaged(process.execPath, [tsxCli, "scripts/process-backup-scheduler.ts"], sharedEnv)
+  : null;
 
 let shuttingDown = false;
 let shutdownPromise = null;
 
 function terminate(child, signal = "SIGTERM") {
-  if (!child.killed) {
+  if (child && !child.killed) {
     child.kill(signal);
   }
 }
@@ -193,12 +234,16 @@ async function shutdown(signal, exitCode = 0) {
   shuttingDown = true;
   terminate(workerProcess, signal);
   terminate(mediaWorkerProcess, signal);
+  terminate(backupExecutorProcess, signal);
+  terminate(backupSchedulerProcess, signal);
   terminate(nextProcess, signal);
   releaseDevStackLock();
 
   shutdownPromise = Promise.all([
     waitForChildExit(workerProcess),
     waitForChildExit(mediaWorkerProcess),
+    waitForChildExit(backupExecutorProcess),
+    waitForChildExit(backupSchedulerProcess),
     waitForChildExit(nextProcess),
   ]).finally(() => {
     process.exit(exitCode);
@@ -232,6 +277,24 @@ mediaWorkerProcess.on("exit", (code, signal) => {
   void shutdown("SIGTERM", code ?? 1);
 });
 
+backupExecutorProcess?.on("exit", (code, signal) => {
+  if (shuttingDown || isExpectedChildShutdownSignal(signal)) {
+    return;
+  }
+
+  console.error("[backup-executor] process exited unexpectedly", { code, signal });
+  void shutdown("SIGTERM", code ?? 1);
+});
+
+backupSchedulerProcess?.on("exit", (code, signal) => {
+  if (shuttingDown || isExpectedChildShutdownSignal(signal)) {
+    return;
+  }
+
+  console.error("[backup-scheduler] process exited unexpectedly", { code, signal });
+  void shutdown("SIGTERM", code ?? 1);
+});
+
 nextProcess.on("exit", (code, signal) => {
   if (shuttingDown) {
     return;
@@ -240,6 +303,45 @@ nextProcess.on("exit", (code, signal) => {
   console.error("[next-dev] process exited", { code, signal });
   void shutdown("SIGTERM", code ?? 1);
 });
+
+function spawnBackupExecutor() {
+  if (!BACKUP_EXECUTOR_ENABLED) {
+    console.warn("[backup-executor] disabled by DISABLE_BACKUP_EXECUTOR=1");
+    return null;
+  }
+
+  if (!existsSync(BACKUP_EXECUTOR_PATH)) {
+    console.warn(`[backup-executor] binary unavailable at ${BACKUP_EXECUTOR_PATH}; building local executor`);
+    const install = spawnSync(
+      process.execPath,
+      ["scripts/install-backup-executor.mjs"],
+      { stdio: "inherit", env: sharedEnv },
+    );
+
+    if (install.status !== 0 || !existsSync(BACKUP_EXECUTOR_PATH)) {
+      console.warn(
+        `[backup-executor] binary unavailable at ${BACKUP_EXECUTOR_PATH}. `
+        + "Run npm run backup:install-executor to inspect the build failure.",
+      );
+      return null;
+    }
+  }
+
+  return spawnManaged(BACKUP_EXECUTOR_PATH, [
+    "daemon",
+    "--db-path",
+    SQLITE_PATH,
+    "--poll-interval-ms",
+    String(BACKUP_EXECUTOR_POLL_INTERVAL_MS),
+    "--lease-seconds",
+    String(BACKUP_EXECUTOR_LEASE_SECONDS),
+    "--lease-owner",
+    process.env.ORDO_BACKUP_EXECUTOR_LEASE_OWNER ?? `backup_executor_dev_${port}`,
+  ], {
+    ...sharedEnv,
+    ORDO_RUNTIME_PROCESS_ROLE: "app",
+  });
+}
 
 try {
   await waitForHttpReady(`http://127.0.0.1:${MEDIA_WORKER_PORT}/health`, MEDIA_WORKER_READY_TIMEOUT_MS);

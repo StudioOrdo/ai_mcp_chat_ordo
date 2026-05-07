@@ -15,7 +15,7 @@ import { findLatestUserMessage } from "@/lib/chat/validation";
 import { createSystemPromptBuilder } from "@/lib/chat/policy";
 import { getPromptAssemblyReplayContext } from "@/lib/chat/prompt-runtime";
 import { getRequestScopedToolSelection } from "@/lib/chat/tool-capability-routing";
-import { getAnthropicApiKey } from "@/lib/config/env";
+import { createSelectedIntelligenceRuntime } from "@/lib/ai/providers/selected-intelligence-runtime";
 import { logDegradation } from "@/lib/observability/logger";
 import { REASON_CODES } from "@/lib/observability/reason-codes";
 import { getAgentPlatformFacade } from "@/lib/platform/agent-platform-facade-root";
@@ -42,11 +42,12 @@ export async function executeChatStreamRoute(options: {
     | "isSafePreparationFallback"
     | "finalizePreparedPrompt"
     | "checkMathShortCircuit"
+    | "maybeHandleOperationIntent"
     | "createDeferredToolExecutor"
     | "createStreamResponse"
   >;
 }): Promise<Response> {
-  const apiKey = getAnthropicApiKey();
+  const intelligenceRuntime = createSelectedIntelligenceRuntime();
   const { user, role, userId, isAnonymous } = await options.pipeline.resolveSession(options.context);
 
   const parseResultOrResponse = options.pipeline.validateAndParse(
@@ -155,6 +156,7 @@ export async function executeChatStreamRoute(options: {
       latestUserContent,
       taskOriginHandoff,
       mediaContinuityHandoff,
+      role,
     );
   } catch (error) {
     if (!options.pipeline.isSafePreparationFallback(error)) {
@@ -192,6 +194,24 @@ export async function executeChatStreamRoute(options: {
       undefined,
       "CONTEXT_LIMIT",
     );
+  }
+
+  const operationIntentResponse = await options.pipeline.maybeHandleOperationIntent({
+    latestUserText,
+    latestUserContent,
+    conversationId,
+    userId,
+    role,
+    interactor,
+    preparedContext,
+    incomingAttachments,
+    taskOriginHandoff,
+    mediaContinuityHandoff,
+    context: options.context,
+    userMessageId: userMessagePersistence.messageId,
+  });
+  if (operationIntentResponse) {
+    return operationIntentResponse;
   }
 
   const toolSelection = getRequestScopedToolSelection(
@@ -306,6 +326,7 @@ export async function executeChatStreamRoute(options: {
     role,
     userId,
     conversationId,
+    userMessageId: userMessagePersistence.messageId ?? undefined,
     promptBindingId: rootPromptBinding?.id,
     promptRuntime: finalPromptRuntimeResult,
     allowedToolNames: toolSelection.allowedToolNames,
@@ -330,7 +351,7 @@ export async function executeChatStreamRoute(options: {
   });
 
   return options.pipeline.createStreamResponse({
-    apiKey,
+    intelligenceRuntime,
     context: options.context,
     conversationId,
     interactor,

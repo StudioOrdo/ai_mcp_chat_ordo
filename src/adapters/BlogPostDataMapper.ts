@@ -135,6 +135,14 @@ export class BlogPostDataMapper implements BlogPostRepository {
     return rows.map(mapRow);
   }
 
+  async countPublished(): Promise<number> {
+    const row = this.db
+      .prepare(`SELECT COUNT(*) AS total FROM blog_posts WHERE status = 'published'`)
+      .get() as { total: number };
+
+    return row.total;
+  }
+
   async listForAdmin(filters: BlogPostAdminFilters = {}): Promise<BlogPost[]> {
     const { whereClause, params } = buildAdminFilterQuery(filters);
     const limit = Math.min(Math.max(filters.limit ?? 50, 1), 200);

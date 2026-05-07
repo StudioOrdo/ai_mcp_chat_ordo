@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+
+import { describe, expect, it } from "vitest";
 
 function routePath(relativePath: string): string {
   return join(process.cwd(), relativePath);
@@ -10,19 +11,18 @@ function readSource(relativePath: string): string {
   return readFileSync(routePath(relativePath), "utf-8");
 }
 
-describe("/app/journal/page cutover guard", () => {
-  it("creates a canonical /journal index route module with /journal metadata", () => {
+describe("/app/journal/page retired public route guard", () => {
+  it("keeps the stale journal index visible as not-found only", () => {
     const relativePath = "src/app/journal/page.tsx";
     const exists = existsSync(routePath(relativePath));
 
     expect(exists).toBe(true);
-    if (!exists) {
-      return;
-    }
+    if (!exists) return;
 
     const src = readSource(relativePath);
 
-    expect(src).toContain("/journal");
-    expect(src).not.toContain("https://${identity.domain}/blog");
+    expect(src).toContain("notFound");
+    expect(src).toContain("index: false");
+    expect(src).not.toContain("PublicJournalPages");
   });
 });

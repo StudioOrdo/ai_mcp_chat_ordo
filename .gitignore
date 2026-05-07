@@ -76,3 +76,8 @@ lint_results.txt
 # Copyrighted reference materials (local LLM context only — not for distribution)
 docs/content_strategy/reference/antifragile.txt
 docs/content_strategy/reference/transcripts/
+
+# Rust / Cargo
+/target/
+/bin/
+**/*.rs.bk

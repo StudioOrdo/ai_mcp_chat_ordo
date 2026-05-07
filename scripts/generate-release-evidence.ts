@@ -38,7 +38,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const { evidence, qaEvidencePath, canarySummaryPath, runtimeIntegrityPath } = writeReleaseEvidenceArtifacts({
+  const { evidence, qaEvidencePath, canarySummaryPath, runtimeIntegrityPath } = await writeReleaseEvidenceArtifacts({
     warnings: readRepeatedFlags("--warning"),
     manualChecks: readRepeatedFlags("--manual-check"),
   });

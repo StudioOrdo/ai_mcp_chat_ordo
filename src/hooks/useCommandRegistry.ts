@@ -6,22 +6,29 @@ import type { MentionItem } from "@/core/entities/mentions";
 import {
   createCommandMentions,
   createShellCommands,
+  resolveShellCommandDefinitions,
 } from "@/lib/shell/shell-commands";
+import { useShellNavigationContext } from "@/lib/shell/ShellNavigationContextProvider";
 
 export function useCommandRegistry() {
   const router = useRouter();
   const { setTheme } = useTheme();
+  const navigationContext = useShellNavigationContext();
 
   const commands = useMemo<Command[]>(
     () =>
       createShellCommands({
         navigate: (path) => router.push(path),
         setTheme,
+        navigationContext,
       }),
-    [router, setTheme],
+    [router, setTheme, navigationContext],
   );
 
-  const mentions = useMemo<MentionItem[]>(() => createCommandMentions(), []);
+  const mentions = useMemo<MentionItem[]>(
+    () => createCommandMentions(resolveShellCommandDefinitions({ navigationContext })),
+    [navigationContext],
+  );
 
   const executeCommand = useCallback(
     (commandId: string) => {

@@ -36,4 +36,16 @@ describe("searchAdminEntities", () => {
       updatedAt: "2026-04-15T12:00:00.000Z",
     });
   });
+
+  it("supports explicit all-user listing queries for admin user lookup", async () => {
+    db.prepare(
+      `INSERT INTO users (id, email, name, created_at) VALUES (?, ?, ?, ?)`
+    ).run("usr_search_2", "keith@example.com", "Keith Williams", "2026-04-16T12:00:00.000Z");
+
+    const results = await searchAdminEntities("*", { entityTypes: ["user"] });
+
+    expect(results.map((result) => result.id)).toEqual(
+      expect.arrayContaining(["usr_search_2", "usr_search"]),
+    );
+  });
 });

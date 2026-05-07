@@ -14,6 +14,45 @@ const PRODUCE_PRODUCT_PROGRESS_PHASES = [
   { key: "release", label: "Publishing release", baselinePercent: 98 },
 ] as const satisfies readonly JobProgressPhaseDefinition[];
 
+function applianceBackupCapability(
+  name: keyof typeof CATALOG_INPUT_SCHEMAS,
+  label: string,
+  description: string,
+) {
+  return {
+    core: {
+      name,
+      label,
+      description,
+      category: "system",
+      roles: ["ADMIN"],
+    },
+    schema: {
+      inputSchema: CATALOG_INPUT_SCHEMAS[name],
+      outputHint: "Returns governed backup/restore state, next action, warnings, and command identifiers when queued.",
+    },
+    runtime: {},
+    promptExposure: {
+      exposure: "operator_only",
+      rationale: "Appliance backup and restore are administrative recovery operations and must not be prompt-visible by default.",
+    },
+    executorBinding: {
+      bundleId: "admin",
+      executorId: name,
+      executionSurface: "internal",
+    },
+    validationBinding: {
+      validatorId: name,
+      mode: "parse",
+    },
+    presentation: {
+      family: "system",
+      cardKind: "fallback",
+      executionMode: "inline",
+    },
+  } as const satisfies CapabilityDefinition;
+}
+
 export const ADMIN_PILOT_CAPABILITIES = {
   admin_web_search: {
     core: {
@@ -34,6 +73,10 @@ export const ADMIN_PILOT_CAPABILITIES = {
       family: "search",
       cardKind: "search_result",
       executionMode: "deferred",
+    },
+    promptExposure: {
+      exposure: "operator_only",
+      rationale: "Live web search is an admin/operator action and should not be in the default prompt.",
     },
     promptHint: {
       roleDirectiveLines: {
@@ -118,19 +161,98 @@ export const ADMIN_PILOT_CAPABILITIES = {
 } as const satisfies Record<string, CapabilityDefinition>;
 
 export const ADMIN_OPERATIONS_CAPABILITIES = {
+  create_appliance_backup: applianceBackupCapability(
+    "create_appliance_backup",
+    "Create Appliance Backup",
+    "Admin-only operation to queue a governed appliance backup through the Rust executor command boundary.",
+  ),
+  list_appliance_backups: applianceBackupCapability(
+    "list_appliance_backups",
+    "List Appliance Backups",
+    "Admin-only operation to summarize backup, restore, command, policy, and executor state.",
+  ),
+  validate_appliance_backup: applianceBackupCapability(
+    "validate_appliance_backup",
+    "Validate Appliance Backup",
+    "Admin-only operation to validate an existing appliance backup archive.",
+  ),
+  prepare_appliance_restore: applianceBackupCapability(
+    "prepare_appliance_restore",
+    "Prepare Appliance Restore",
+    "Admin-only operation to prepare a restore plan and show impact before confirmation.",
+  ),
+  request_pre_restore_backup: applianceBackupCapability(
+    "request_pre_restore_backup",
+    "Request Pre-Restore Backup",
+    "Admin-only operation to queue the required safety backup before restore execution.",
+  ),
+  confirm_appliance_restore: applianceBackupCapability(
+    "confirm_appliance_restore",
+    "Confirm Appliance Restore",
+    "Admin-only operation to confirm a prepared restore plan with its exact confirmation phrase.",
+  ),
+  execute_appliance_restore: applianceBackupCapability(
+    "execute_appliance_restore",
+    "Execute Appliance Restore",
+    "Admin-only operation to queue restore execution for a confirmed and safety-backed restore plan.",
+  ),
+  cancel_appliance_restore: applianceBackupCapability(
+    "cancel_appliance_restore",
+    "Cancel Appliance Restore",
+    "Admin-only operation to cancel a non-running restore plan.",
+  ),
+  configure_backup_policy: applianceBackupCapability(
+    "configure_backup_policy",
+    "Configure Backup Policy",
+    "Admin-only operation to update automatic appliance backup interval and retention policy.",
+  ),
+  configure_tool_availability: {
+    core: {
+      name: "configure_tool_availability",
+      label: "Configure Tool Availability",
+      description:
+        "Admin-only control plane tool for enabling, disabling, explaining, and summarizing runtime tool availability.",
+      category: "system",
+      roles: ["ADMIN"],
+    },
+    schema: {
+      inputSchema: CATALOG_INPUT_SCHEMAS.configure_tool_availability,
+      outputHint:
+        "Returns the updated effective tool manifest summary, warnings, and any requested explanation.",
+    },
+    runtime: {},
+    promptExposure: {
+      exposure: "operator_only",
+      rationale: "Tool availability changes are administrative control-plane operations.",
+    },
+    executorBinding: {
+      bundleId: "admin",
+      executorId: "configure_tool_availability",
+      executionSurface: "internal",
+    },
+    validationBinding: {
+      validatorId: "configure_tool_availability",
+      mode: "parse",
+    },
+    presentation: {
+      family: "system",
+      cardKind: "fallback",
+      executionMode: "inline",
+    },
+  },
   produce_product: {
     core: {
       name: "produce_product",
       label: "Produce Product",
       description:
-        "Run the factory orchestration pipeline from validated brief through release persistence.",
+        "Create a governed factory work-order operation from a validated ProductBrief.",
       category: "content",
-      roles: ["ADMIN"],
+      roles: ["STAFF", "ADMIN"],
     },
     schema: {
       inputSchema: CATALOG_INPUT_SCHEMAS.produce_product,
       outputHint:
-        "Returns workOrderId, releaseId, compositionId, and persisted output ids for the completed factory run.",
+        "Returns an operation projection with operationId, status, available action buttons, and linked workOrderId when execution starts.",
     },
     runtime: {
       executionMode: "deferred",
@@ -190,6 +312,10 @@ export const ADMIN_OPERATIONS_CAPABILITIES = {
       outputHint: "Returns prioritized lead list with scores and recommended actions",
     },
     runtime: {},
+    promptExposure: {
+      exposure: "operator_only",
+      rationale: "Lead queue prioritization is an operator triage action and should not be prompt-visible by default.",
+    },
     executorBinding: {
       bundleId: "admin",
       executorId: "admin_prioritize_leads",
@@ -343,6 +469,10 @@ export const ADMIN_OPERATIONS_CAPABILITIES = {
     validationBinding: {
       validatorId: "inspect_runtime_logs",
       mode: "parse",
+    },
+    promptExposure: {
+      exposure: "operator_only",
+      rationale: "Runtime log inspection is an operator diagnostic and should not be prompt-visible by default.",
     },
     localExecutionTargets: {
       mcpStdio: {

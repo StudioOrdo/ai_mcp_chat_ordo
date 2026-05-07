@@ -374,6 +374,42 @@ export class UserDataMapper implements UserRepository, UserProfileRepository {
     this.db.prepare(`INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)`).run(userId, roleId);
   }
 
+  async updatePasswordHash(userId: string, passwordHash: string): Promise<void> {
+    this.db.prepare(`UPDATE users SET password_hash = ? WHERE id = ?`).run(passwordHash, userId);
+  }
+
+  async findPasswordCredentialByUserId(userId: string): Promise<{ id: string; passwordHash: string | null } | null> {
+    const row = this.db
+      .prepare(`SELECT id, password_hash FROM users WHERE id = ?`)
+      .get(userId) as { id: string; password_hash: string | null } | undefined;
+
+    if (!row) {
+      return null;
+    }
+
+    return {
+      id: row.id,
+      passwordHash: row.password_hash,
+    };
+  }
+
+  hasCredentialedAdminOwner(): boolean {
+    const row = this.db
+      .prepare(`
+        SELECT 1
+        FROM users u
+        JOIN user_roles ur ON ur.user_id = u.id
+        JOIN roles r ON r.id = ur.role_id
+        WHERE r.name = 'ADMIN'
+          AND u.password_hash IS NOT NULL
+          AND trim(u.password_hash) <> ''
+        LIMIT 1
+      `)
+      .get() as { "1": number } | undefined;
+
+    return Boolean(row);
+  }
+
   async toggleAffiliate(userId: string, enabled: boolean): Promise<void> {
     if (enabled) {
       const existing = this.db

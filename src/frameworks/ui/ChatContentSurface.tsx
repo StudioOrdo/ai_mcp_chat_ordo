@@ -13,6 +13,10 @@ import { createDefaultToolRegistry } from "./chat/registry/default-tool-registry
 import type { ProductExperienceStateKind } from "./product-experience-facade";
 import { ProductExperienceSummary } from "./ProductExperienceSummary";
 import type { ProductExperienceSummaryModel } from "./product-experience-summary";
+import {
+  OperationActionConfirmationDialog,
+  type OperationActionConfirmationDialogProps,
+} from "@/frameworks/ui/operations/OperationActionConfirmationDialog";
 
 const defaultToolRegistry = createDefaultToolRegistry();
 
@@ -42,6 +46,7 @@ interface ChatContentSurfaceProps {
   onSuggestionClick: (text: string) => void;
   onSuggestionSelect: (item: MentionItem) => void;
   onStopStream?: () => void | Promise<unknown>;
+  operationConfirmationDialog?: OperationActionConfirmationDialogProps;
   pendingFiles: File[];
   productExperienceState: ProductExperienceStateKind;
   productExperienceSummary: ProductExperienceSummaryModel | null;
@@ -77,6 +82,7 @@ export function ChatContentSurface({
   onSuggestionClick,
   onSuggestionSelect,
   onStopStream,
+  operationConfirmationDialog,
   pendingFiles,
   productExperienceState,
   productExperienceSummary,
@@ -144,6 +150,9 @@ export function ChatContentSurface({
           />
         </div>
       </div>
+      {operationConfirmationDialog ? (
+        <OperationActionConfirmationDialog {...operationConfirmationDialog} />
+      ) : null}
 
     </ToolPluginRegistryProvider>
   );

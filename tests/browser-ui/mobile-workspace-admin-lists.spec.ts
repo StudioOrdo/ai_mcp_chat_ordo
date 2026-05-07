@@ -51,6 +51,13 @@ async function waitForUserIdByEmail(email: string): Promise<string> {
   throw new Error(`Timed out waiting for registered user ${email}`);
 }
 
+async function switchActualRole(page: Page, role: "ADMIN") {
+  const response = await page.request.post(new URL("/api/auth/switch", page.url()).toString(), {
+    data: { role },
+  });
+  expect(response.ok()).toBe(true);
+}
+
 function seedConversation(db: Database.Database, conversationId: string, userId: string, title: string) {
   db.prepare(
     `INSERT INTO conversations (id, user_id, title, status, session_source)
@@ -104,15 +111,7 @@ async function registerUser(
   await finishRegisterNavigation(page);
 
   if (admin) {
-    await page.context().addCookies([
-      {
-        name: "lms_mock_session_role",
-        value: "ADMIN",
-        url: page.url(),
-        httpOnly: true,
-        sameSite: "Lax",
-      },
-    ]);
+    await switchActualRole(page, "ADMIN");
   }
 
   return {
@@ -358,11 +357,27 @@ test.describe("Mobile workspace and admin list routes", () => {
     await page.goto("/profile");
 
     await expect(page.locator('[data-profile-page="true"]')).toBeVisible();
+    await expect(page.locator('[data-profile-page="true"]')).toHaveAttribute("data-profile-mobile-state", "list");
+    await expect(page.locator('[data-profile-account-nav="true"]')).toBeVisible();
+    await page.getByRole("link", { name: /User info/i }).click();
+    await expect(page.locator('[data-profile-page="true"]')).toHaveAttribute("data-profile-mobile-state", "detail");
     await expect(page.locator('[data-profile-primary-surface="true"]')).toBeVisible();
     await expect(page.locator('[data-profile-form="true"]')).toBeVisible();
-    await expect(page.getByRole("link", { name: "Open referrals workspace" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Back to account sections" })).toBeVisible();
     await expectNoHorizontalOverflow(page);
     await expectTopWithinViewport(page, '[data-profile-primary-surface="true"]');
+    await page.getByRole("link", { name: "Back to account sections" }).click();
+    await expect(page.locator('[data-profile-page="true"]')).toHaveAttribute("data-profile-mobile-state", "list");
+    await expect(page.locator('[data-profile-account-nav="true"]')).toBeVisible();
+
+    await page.goto("/profile?section=password");
+
+    await expect(page.locator('[data-profile-page="true"]')).toHaveAttribute("data-profile-mobile-state", "detail");
+    await expect(page.locator('[data-profile-section="password"]')).toBeVisible();
+    await expect(page.getByRole("link", { name: "Back to account sections" })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await page.getByRole("link", { name: "Back to account sections" }).click();
+    await expect(page.locator('[data-profile-account-nav="true"]')).toBeVisible();
 
     await page.goto("/referrals");
 

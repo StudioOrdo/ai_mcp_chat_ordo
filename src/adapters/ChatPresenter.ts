@@ -538,6 +538,11 @@ function normalizeActionParams(action: ActionLinkType, entry: Record<string, unk
       const baseParams = omitKeys(sanitizedParams, ["text", "prompt", "message"]);
       return text ? { ...baseParams, text } : baseParams;
     }
+    case "tool": {
+      const text = getNormalizedString(rawParams, ["text", "prompt", "message"]) ?? getNormalizedString(entry, ["value"]);
+      const baseParams = omitKeys(sanitizedParams, ["text", "prompt", "message"]);
+      return text ? { ...baseParams, text } : baseParams;
+    }
     case "corpus": {
       const slug = getNormalizedString(rawParams, ["slug", "id"]) ?? getNormalizedString(entry, ["value"]);
       const baseParams = omitKeys(sanitizedParams, ["slug", "id"]);
@@ -564,6 +569,23 @@ function normalizeActionParams(action: ActionLinkType, entry: Record<string, unk
           ...(operation ? { operation } : {}),
         }
         : baseParams;
+    }
+    case "operation": {
+      const operationId = getNormalizedString(rawParams, ["operationId"]) ?? getNormalizedString(entry, ["value"]);
+      const actionId = getNormalizedString(rawParams, ["actionId"]);
+      const idempotencyKey = getNormalizedString(rawParams, ["idempotencyKey"]);
+      const operationRevision = getNormalizedString(rawParams, ["operationRevision"]);
+      const baseParams = omitKeys(sanitizedParams, ["operationId", "actionId", "idempotencyKey", "operationRevision"]);
+      if (!operationId || !actionId || !idempotencyKey || !operationRevision) {
+        return null;
+      }
+      return {
+        ...baseParams,
+        operationId,
+        actionId,
+        idempotencyKey,
+        operationRevision,
+      };
     }
     default:
       return null;

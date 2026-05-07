@@ -2,6 +2,7 @@ import type { ToolCommand } from "@/core/tool-registry/ToolCommand";
 import type { ToolDescriptor } from "@/core/tool-registry/ToolDescriptor";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
 import { projectCapabilityRuntimeDescriptorDefinition } from "@/core/platform/capability-runtime/CapabilityRuntime";
+import { projectPromptExposure } from "./catalog";
 import type { CapabilityDefinition } from "./capability-definition";
 
 export type CatalogInputParser<TInput = unknown> = (input: unknown) => TInput;
@@ -39,5 +40,6 @@ export function buildCatalogBoundToolDescriptor<TInput, TOutput>(
     category: runtimeDescriptor.category,
     executionMode: runtimeDescriptor.executionMode,
     deferred: runtimeDescriptor.deferred,
+    promptExposure: projectPromptExposure(def),
   };
 }

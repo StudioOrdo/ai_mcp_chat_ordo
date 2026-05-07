@@ -38,8 +38,11 @@ describe("runtime integrity evidence", () => {
     expect(inventory.tools.countsByRole.ADMIN).toBeGreaterThan(inventory.tools.countsByRole.ANONYMOUS);
     expect(inventory.tools.manifestsByRole.ANONYMOUS.map((entry) => entry.name)).toContain("navigate_to_page");
     expect(inventory.tools.manifestsByRole.ANONYMOUS.map((entry) => entry.name)).not.toContain("navigate");
-    expect(inventory.navigation.routesByRole.ANONYMOUS.some((route) => route.href === "/library")).toBe(true);
-    expect(inventory.navigation.routesByRole.AUTHENTICATED.some((route) => route.href === "/my/media")).toBe(true);
+    expect(inventory.navigation.routesByRole.ANONYMOUS.some((route) => route.href === "/offers")).toBe(true);
+    expect(inventory.navigation.routesByRole.ANONYMOUS.some((route) => route.href === "/about")).toBe(true);
+    expect(inventory.navigation.routesByRole.ANONYMOUS.some((route) => route.href === "/library")).toBe(false);
+    expect(inventory.navigation.routesByRole.ANONYMOUS.some((route) => route.href === "/jobs")).toBe(false);
+    expect(inventory.navigation.routesByRole.AUTHENTICATED.some((route) => route.href === "/studio")).toBe(true);
     expect(inventory.navigation.routesByRole.STAFF.some((route) => route.href === "/operations/media")).toBe(true);
     expect(inventory.mcp.processCount).toBe(4);
     expect(inventory.mcp.processes).toEqual(

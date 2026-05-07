@@ -15,11 +15,59 @@ describe("provider-policy", () => {
   describe("resolveProviderPolicy", () => {
     it("returns a valid policy with all required fields", () => {
       const policy = resolveProviderPolicy();
+      expect(policy.provider).toBeDefined();
       expect(policy.timeoutMs).toBeGreaterThan(0);
       expect(policy.retryAttempts).toBeGreaterThan(0);
       expect(policy.retryDelayMs).toBeGreaterThan(0);
       expect(Array.isArray(policy.modelCandidates)).toBe(true);
       expect(policy.modelCandidates.length).toBeGreaterThan(0);
+    });
+
+    it("uses selected-provider candidates without mixing Claude fallbacks into DeepSeek", () => {
+      const policy = resolveProviderPolicy({
+        provider: {
+          key: "AI_PROVIDER",
+          value: "deepseek",
+          source: "sqlite",
+        },
+        apiKey: {
+          key: "DEEPSEEK_API_KEY",
+          value: "secret",
+          source: "sqlite",
+          configured: true,
+        },
+        model: {
+          key: "DEEPSEEK_MODEL",
+          value: "deepseek-v4-pro",
+          source: "sqlite",
+        },
+        baseUrl: {
+          key: "DEEPSEEK_BASE_URL",
+          value: "https://api.deepseek.com/anthropic",
+          source: "default",
+        },
+        modelCandidates: ["deepseek-v4-pro", "deepseek-v4-flash"],
+        timeoutMs: {
+          key: "DEEPSEEK_REQUEST_TIMEOUT_MS",
+          value: 45_000,
+          source: "default",
+        },
+        retryAttempts: {
+          key: "DEEPSEEK_RETRY_ATTEMPTS",
+          value: 3,
+          source: "default",
+        },
+        retryDelayMs: {
+          key: "DEEPSEEK_RETRY_DELAY_MS",
+          value: 150,
+          source: "default",
+        },
+        warnings: [],
+      });
+
+      expect(policy.provider).toBe("deepseek");
+      expect(policy.modelCandidates).toEqual(["deepseek-v4-pro", "deepseek-v4-flash"]);
+      expect(policy.modelCandidates.some((model) => model.includes("claude"))).toBe(false);
     });
 
     it("returns consistent values on repeated calls", () => {
@@ -142,6 +190,7 @@ describe("provider-policy", () => {
       expect(() =>
         emitProviderEvent({
           kind: "attempt_start",
+          provider: "anthropic",
           surface: "stream",
           model: "claude-sonnet-4-20250514",
           attempt: 1,
@@ -153,6 +202,7 @@ describe("provider-policy", () => {
       expect(() =>
         emitProviderEvent({
           kind: "attempt_success",
+          provider: "anthropic",
           surface: "direct_turn",
           model: "claude-sonnet-4-20250514",
           attempt: 1,
@@ -165,6 +215,7 @@ describe("provider-policy", () => {
       expect(() =>
         emitProviderEvent({
           kind: "attempt_failure",
+          provider: "anthropic",
           surface: "stream",
           model: "claude-sonnet-4-20250514",
           attempt: 2,
@@ -214,6 +265,7 @@ describe("provider-policy", () => {
       for (const surface of surfaces) {
         const event: ProviderAttemptEvent = {
           kind: "attempt_start",
+          provider: "anthropic",
           surface,
           model: "test-model",
           attempt: 1,
@@ -234,6 +286,7 @@ describe("provider-policy", () => {
         expect(() =>
           emitProviderEvent({
             kind: "attempt_start",
+            provider: "anthropic",
             surface,
             model: "test-model",
             attempt: 1,

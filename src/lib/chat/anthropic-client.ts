@@ -7,6 +7,7 @@ import {
   isTransientProviderError,
   toErrorMessage,
 } from "@/lib/chat/provider-policy";
+import type { ProviderResiliencePolicy } from "@/lib/chat/provider-policy";
 import {
   createProviderRuntime,
   type ProviderAttemptAction,
@@ -19,11 +20,7 @@ export type ChatProvider = {
   }): Promise<Anthropic.Message>;
 };
 
-export type AnthropicResilienceOptions = {
-  timeoutMs?: number;
-  retryAttempts?: number;
-  retryDelayMs?: number;
-};
+export type AnthropicResilienceOptions = Partial<ProviderResiliencePolicy>;
 
 const providerRuntime = createProviderRuntime();
 
@@ -56,7 +53,7 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
 
 function normalizeProviderError(error: unknown): Error {
   return new ChatProviderError(
-    `Anthropic provider error: ${toErrorMessage(error)}`,
+    `Intelligence provider error: ${toErrorMessage(error)}`,
     error,
   );
 }
@@ -126,8 +123,11 @@ export async function createMessageWithModelFallback({
   tools: Anthropic.Tool[];
 }): Promise<Anthropic.Message> {
   const basePolicy = providerRuntime.resolvePolicy("direct_turn");
-  const resolvedPolicy = {
+  const resolvedPolicy: ProviderResiliencePolicy = {
     ...basePolicy,
+    ...options,
+    provider: options?.provider ?? basePolicy.provider,
+    modelCandidates: options?.modelCandidates ?? basePolicy.modelCandidates,
     timeoutMs: options?.timeoutMs ?? basePolicy.timeoutMs,
     retryAttempts: options?.retryAttempts ?? basePolicy.retryAttempts,
     retryDelayMs: options?.retryDelayMs ?? basePolicy.retryDelayMs,
@@ -157,7 +157,7 @@ export async function createMessageWithModelFallback({
     onExhausted: (lastError) => normalizeProviderError(lastError),
     onNoModels: () =>
       new Error(
-        "No valid Anthropic model found. Set ANTHROPIC_MODEL to a valid model alias.",
+        `No valid intelligence provider model found for ${resolvedPolicy.provider}. Configure a valid selected-provider model.`,
       ),
   });
 }

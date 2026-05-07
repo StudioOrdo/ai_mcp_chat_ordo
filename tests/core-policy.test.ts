@@ -65,7 +65,7 @@ describe("ChatPolicyInteractor", () => {
     expect(ROLE_DIRECTIVES.AUTHENTICATED).toContain("answer in plain language by default");
     expect(ROLE_DIRECTIVES.AUTHENTICATED).toContain("Only render a concise list when the user explicitly asks");
     expect(ROLE_DIRECTIVES.STAFF).toContain("Do not start or repeat work when the user asked only for status");
-    expect(ROLE_DIRECTIVES.APPRENTICE).toContain("review the full operational view at /jobs");
+    expect(ROLE_DIRECTIVES.APPRENTICE).toContain("review the full production view at /studio");
     expect(ROLE_DIRECTIVES.ANONYMOUS).toContain("Do not send them to /jobs");
   });
 
@@ -148,7 +148,7 @@ describe("ToolRegistry RBAC", () => {
   it("ANONYMOUS keeps the public self-serve tool subset while member tools stay restricted", () => {
     expect(registry.canExecute("get_section", "ANONYMOUS")).toBe(true);
     expect(registry.canExecute("get_checklist", "ANONYMOUS")).toBe(true);
-    expect(registry.canExecute("generate_audio", "ANONYMOUS")).toBe(true);
+    expect(registry.canExecute("generate_audio", "ANONYMOUS")).toBe(false);
     expect(registry.canExecute("generate_chart", "ANONYMOUS")).toBe(true);
     expect(registry.canExecute("generate_graph", "ANONYMOUS")).toBe(true);
     expect(registry.canExecute("list_practitioners", "ANONYMOUS")).toBe(true);

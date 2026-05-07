@@ -144,6 +144,7 @@ function createBrief() {
 describe("produce_product catalog tool", () => {
   it("parses a validated ProductBrief payload", () => {
     const parsed = parseProduceProductInput({
+      operationId: "op_factory_tool_parse",
       brief: createBrief(),
       previousWorkOrderIds: ["wo_0", "", 123, "wo_1"],
     });
@@ -173,6 +174,7 @@ describe("produce_product catalog tool", () => {
 
     const result = await tool.command.execute(
       {
+        operationId: "op_factory_tool_execute",
         brief: createBrief(),
         previousWorkOrderIds: [],
       },

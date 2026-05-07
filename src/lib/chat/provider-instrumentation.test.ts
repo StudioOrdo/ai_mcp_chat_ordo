@@ -116,6 +116,7 @@ describe("provider-instrumentation", () => {
       expect(() => {
         runtime.emitEvent({
           kind: "attempt_start",
+          provider: "anthropic",
           surface: "stream",
           model: "test-model",
           attempt: 1,

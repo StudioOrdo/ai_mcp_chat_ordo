@@ -5,20 +5,26 @@ import Link from "next/link";
 
 import { ShellBrand } from "@/components/shell/ShellBrand";
 import {
+  DEFAULT_SHELL_NAVIGATION_CONTEXT,
   resolveFooterGroups,
   resolveFooterGroupRoutes,
   resolveShellHomeHref,
+  type ShellNavigationContext,
 } from "@/lib/shell/shell-navigation";
 import type { User as SessionUser } from "@/core/entities/user";
 import { useInstanceIdentity } from "@/lib/config/InstanceConfigContext";
 
 interface SiteFooterProps {
   user: SessionUser;
+  navigationContext?: ShellNavigationContext;
 }
 
-export function SiteFooter({ user }: SiteFooterProps) {
+export function SiteFooter({
+  user,
+  navigationContext = DEFAULT_SHELL_NAVIGATION_CONTEXT,
+}: SiteFooterProps) {
   const identity = useInstanceIdentity();
-  const footerGroups = resolveFooterGroups(user);
+  const footerGroups = resolveFooterGroups(user, navigationContext);
   const homeHref = resolveShellHomeHref();
 
   return (
@@ -36,7 +42,7 @@ export function SiteFooter({ user }: SiteFooterProps) {
             <div key={group.id} className="flex flex-col shell-section-gap">
               <p className="shell-section-heading opacity-70">{group.label}</p>
               <ul className="space-y-(--phi-3) shell-nav-label opacity-70 transition-opacity hover:opacity-100">
-                {resolveFooterGroupRoutes(group, user).map((route) => (
+                {resolveFooterGroupRoutes(group, user, navigationContext).map((route) => (
                   <li key={route.id}>
                     <Link href={route.href} className="shell-nav-label">
                       {route.label}

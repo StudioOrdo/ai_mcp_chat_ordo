@@ -1,9 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import AdmZip from "adm-zip";
 
 const OUTPUT_FILE = "ordo_llm_export.txt";
-const OUTPUT_ZIP_FILE = "ordo_llm_export.zip";
 const ROOT_DIR = process.cwd();
 
 /** Directories to skip entirely */
@@ -95,7 +93,6 @@ function walk(dir: string, callback: (filePath: string) => void) {
 
 function run() {
   const outputFilePath = path.join(ROOT_DIR, OUTPUT_FILE);
-  const outputZipPath = path.join(ROOT_DIR, OUTPUT_ZIP_FILE);
   const outputStream = fs.createWriteStream(outputFilePath);
 
   outputStream.write(`--- ORDO PROJECT EXPORT ---\n`);
@@ -121,12 +118,7 @@ function run() {
   });
 
   outputStream.end(() => {
-    const archive = new AdmZip();
-    archive.addLocalFile(outputFilePath);
-    archive.writeZip(outputZipPath);
-
     console.log(`\nExport complete! Concatenated ${fileCount} files into ${OUTPUT_FILE}.`);
-    console.log(`Created uploadable archive ${OUTPUT_ZIP_FILE}.`);
   });
 }
 

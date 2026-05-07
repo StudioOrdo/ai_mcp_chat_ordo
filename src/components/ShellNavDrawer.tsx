@@ -10,25 +10,32 @@ import {
   resolveAdminNavigationGroups,
 } from "@/lib/admin/admin-navigation";
 import {
+  DEFAULT_SHELL_NAVIGATION_CONTEXT,
   isShellRouteActive,
   resolveShellNavDrawerGroups,
   SHELL_BRAND,
+  type ShellNavigationContext,
 } from "@/lib/shell/shell-navigation";
 import type { User as SessionUser } from "@/core/entities/user";
 
 interface ShellNavDrawerProps {
   user: SessionUser;
+  navigationContext?: ShellNavigationContext;
   tone?: "default" | "quiet";
 }
 
-export function ShellNavDrawer({ user, tone = "default" }: ShellNavDrawerProps) {
+export function ShellNavDrawer({
+  user,
+  navigationContext = DEFAULT_SHELL_NAVIGATION_CONTEXT,
+  tone = "default",
+}: ShellNavDrawerProps) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const previousPathname = useRef(pathname);
 
-  const drawerGroups = resolveShellNavDrawerGroups(user);
+  const drawerGroups = resolveShellNavDrawerGroups(user, navigationContext);
   const adminGroups = user.roles.includes("ADMIN") ? resolveAdminNavigationGroups() : [];
 
   const closeDrawer = useCallback((restoreFocus = false) => {

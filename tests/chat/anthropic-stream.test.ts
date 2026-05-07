@@ -23,7 +23,6 @@ describe("runClaudeAgentLoopStream", () => {
     });
 
     const result = await runClaudeAgentLoopStream({
-      apiKey: "test-key",
       messages: [{ role: "user", content: "hello" }],
       callbacks: {},
       signal: abortController.signal,
@@ -47,7 +46,6 @@ describe("runClaudeAgentLoopStream", () => {
 
     await expect(
       runClaudeAgentLoopStream({
-        apiKey: "test-key",
         messages: [{ role: "user", content: "hello" }],
         callbacks: {},
         signal: abortController.signal,
@@ -76,7 +74,6 @@ describe("runClaudeAgentLoopStream", () => {
       .mockImplementationOnce(() => createStreamDouble(async () => ({ stop_reason: "end_turn", content: [] }), (emit) => emit("ok")));
 
     const result = await runClaudeAgentLoopStream({
-      apiKey: "test-key",
       messages: [{ role: "user", content: "hello" }],
       callbacks: {},
       systemPrompt: "system",
@@ -102,7 +99,6 @@ describe("runClaudeAgentLoopStream", () => {
       .mockImplementationOnce(() => createStreamDouble(async () => ({ stop_reason: "end_turn", content: [] }), (emit) => emit("recovered")));
 
     const result = await runClaudeAgentLoopStream({
-      apiKey: "test-key",
       messages: [{ role: "user", content: "hello" }],
       callbacks: {},
       systemPrompt: "system",
@@ -139,7 +135,6 @@ describe("runClaudeAgentLoopStream", () => {
 
     await expect(
       runClaudeAgentLoopStream({
-        apiKey: "test-key",
         messages: [{ role: "user", content: "what is 1+1?" }],
         callbacks: { onDelta: vi.fn(), onToolCall: vi.fn(), onToolResult: vi.fn() },
         systemPrompt: "system",
@@ -171,7 +166,6 @@ describe("runClaudeAgentLoopStream", () => {
 
     await expect(
       runClaudeAgentLoopStream({
-        apiKey: "test-key",
         messages: [{ role: "user", content: "what is 1+1?" }],
         callbacks: { onToolResult },
         systemPrompt: "system",

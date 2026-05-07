@@ -4,6 +4,7 @@ import { getJobQueueRepository, getUserFileDataMapper } from "@/adapters/Reposit
 import type { MessagePart } from "@/core/entities/message-parts";
 import type { RoleName } from "@/core/entities/user";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
+import type { SelectedIntelligenceRuntime } from "@/lib/ai/providers/selected-intelligence-runtime";
 import { runClaudeAgentLoopStream } from "@/lib/chat/anthropic-stream";
 import {
   ActiveStreamConflictError,
@@ -53,7 +54,7 @@ type GenerationLifecycleDescriptor = {
 
 export type CreateStreamResponseOptions = {
   runtimeHookRunner: RuntimeHookRunner;
-  apiKey: string;
+  intelligenceRuntime: Pick<SelectedIntelligenceRuntime, "client" | "policy">;
   context: RouteContext;
   conversationId: string;
   interactor: ReturnType<typeof createConversationRuntimeServices>["interactor"];
@@ -456,7 +457,8 @@ export function createStreamResponse(options: CreateStreamResponseOptions): Resp
         });
 
         await runClaudeAgentLoopStream({
-          apiKey: options.apiKey,
+          client: options.intelligenceRuntime.client,
+          policy: options.intelligenceRuntime.policy,
           messages: anthropicMessages,
           signal: streamAbortController.signal,
           systemPrompt: options.systemPrompt,

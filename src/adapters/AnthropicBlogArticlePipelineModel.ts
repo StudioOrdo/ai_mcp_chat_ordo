@@ -4,6 +4,7 @@ import {
   emitProviderEvent,
   classifyProviderError,
 } from "@/lib/chat/provider-policy";
+import type { IntelligenceProviderId } from "@/lib/ai/providers/types";
 
 import type {
   BlogArticlePipelineModel,
@@ -36,7 +37,7 @@ function extractFirstText(response: Anthropic.Message): string {
   const text = textBlock?.text?.trim();
 
   if (!text) {
-    throw new Error("Anthropic article pipeline returned no text response.");
+    throw new Error("Article pipeline provider returned no text response.");
   }
 
   return text;
@@ -49,7 +50,7 @@ function extractJsonObject(text: string): JsonObject {
   const lastBrace = raw.lastIndexOf("}");
 
   if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
-    throw new Error("Anthropic article pipeline did not return valid JSON.");
+    throw new Error("Article pipeline provider did not return valid JSON.");
   }
 
   return JSON.parse(raw.slice(firstBrace, lastBrace + 1)) as JsonObject;
@@ -57,7 +58,7 @@ function extractJsonObject(text: string): JsonObject {
 
 function requireString(value: unknown, label: string): string {
   if (typeof value !== "string" || value.trim().length === 0) {
-    throw new Error(`Anthropic article pipeline returned invalid ${label}.`);
+    throw new Error(`Article pipeline provider returned invalid ${label}.`);
   }
 
   return value.trim();
@@ -91,6 +92,7 @@ function isJsonTruncationError(error: unknown): boolean {
 export class AnthropicBlogArticlePipelineModel implements BlogArticlePipelineModel {
   constructor(
     private readonly client: Anthropic,
+    private readonly provider: IntelligenceProviderId,
     private readonly model: string,
   ) {}
 
@@ -99,6 +101,7 @@ export class AnthropicBlogArticlePipelineModel implements BlogArticlePipelineMod
 
     emitProviderEvent({
       kind: "attempt_start",
+      provider: this.provider,
       surface: "blog_production",
       model: this.model,
       attempt: 1,
@@ -120,6 +123,7 @@ export class AnthropicBlogArticlePipelineModel implements BlogArticlePipelineMod
     } catch (error) {
       emitProviderEvent({
         kind: "attempt_failure",
+        provider: this.provider,
         surface: "blog_production",
         model: this.model,
         attempt: 1,
@@ -132,6 +136,7 @@ export class AnthropicBlogArticlePipelineModel implements BlogArticlePipelineMod
 
     emitProviderEvent({
       kind: "attempt_success",
+      provider: this.provider,
       surface: "blog_production",
       model: this.model,
       attempt: 1,
@@ -149,6 +154,7 @@ export class AnthropicBlogArticlePipelineModel implements BlogArticlePipelineMod
 
       emitProviderEvent({
         kind: "attempt_start",
+        provider: this.provider,
         surface: "blog_production",
         model: this.model,
         attempt: 2,
@@ -181,6 +187,7 @@ export class AnthropicBlogArticlePipelineModel implements BlogArticlePipelineMod
       } catch (error) {
         emitProviderEvent({
           kind: "attempt_failure",
+          provider: this.provider,
           surface: "blog_production",
           model: this.model,
           attempt: 2,
@@ -193,6 +200,7 @@ export class AnthropicBlogArticlePipelineModel implements BlogArticlePipelineMod
 
       emitProviderEvent({
         kind: "attempt_success",
+        provider: this.provider,
         surface: "blog_production",
         model: this.model,
         attempt: 2,
@@ -205,7 +213,7 @@ export class AnthropicBlogArticlePipelineModel implements BlogArticlePipelineMod
         return extractJsonObject(repairedText);
       } catch {
         throw new Error(
-          `Anthropic article pipeline did not return valid JSON. Initial stop reason: ${initialResponse.stop_reason ?? "unknown"}. Repair stop reason: ${repairedResponse.stop_reason ?? "unknown"}. Initial response preview: ${preview(initialText)}. Repair response preview: ${preview(repairedText)}.`,
+          `Article pipeline provider did not return valid JSON. Initial stop reason: ${initialResponse.stop_reason ?? "unknown"}. Repair stop reason: ${repairedResponse.stop_reason ?? "unknown"}. Initial response preview: ${preview(initialText)}. Repair response preview: ${preview(repairedText)}.`,
         );
       }
     }
@@ -216,6 +224,7 @@ export class AnthropicBlogArticlePipelineModel implements BlogArticlePipelineMod
 
     emitProviderEvent({
       kind: "attempt_start",
+      provider: this.provider,
       surface: "blog_production",
       model: this.model,
       attempt: 1,
@@ -237,6 +246,7 @@ export class AnthropicBlogArticlePipelineModel implements BlogArticlePipelineMod
     } catch (error) {
       emitProviderEvent({
         kind: "attempt_failure",
+        provider: this.provider,
         surface: "blog_production",
         model: this.model,
         attempt: 1,
@@ -249,6 +259,7 @@ export class AnthropicBlogArticlePipelineModel implements BlogArticlePipelineMod
 
     emitProviderEvent({
       kind: "attempt_success",
+      provider: this.provider,
       surface: "blog_production",
       model: this.model,
       attempt: 1,
@@ -265,6 +276,7 @@ export class AnthropicBlogArticlePipelineModel implements BlogArticlePipelineMod
 
     emitProviderEvent({
       kind: "attempt_start",
+      provider: this.provider,
       surface: "blog_production",
       model: this.model,
       attempt: 2,
@@ -296,6 +308,7 @@ export class AnthropicBlogArticlePipelineModel implements BlogArticlePipelineMod
     } catch (error) {
       emitProviderEvent({
         kind: "attempt_failure",
+        provider: this.provider,
         surface: "blog_production",
         model: this.model,
         attempt: 2,
@@ -308,6 +321,7 @@ export class AnthropicBlogArticlePipelineModel implements BlogArticlePipelineMod
 
     emitProviderEvent({
       kind: "attempt_success",
+      provider: this.provider,
       surface: "blog_production",
       model: this.model,
       attempt: 2,
@@ -318,7 +332,7 @@ export class AnthropicBlogArticlePipelineModel implements BlogArticlePipelineMod
 
     if (repairedResponse.stop_reason === "max_tokens") {
       throw new Error(
-        `Anthropic article pipeline returned truncated text output. Initial stop reason: ${initialResponse.stop_reason ?? "unknown"}. Repair stop reason: ${repairedResponse.stop_reason ?? "unknown"}. Initial response preview: ${preview(initialText)}. Repair response preview: ${preview(repairedText)}.`,
+        `Article pipeline provider returned truncated text output. Initial stop reason: ${initialResponse.stop_reason ?? "unknown"}. Repair stop reason: ${repairedResponse.stop_reason ?? "unknown"}. Initial response preview: ${preview(initialText)}. Repair response preview: ${preview(repairedText)}.`,
       );
     }
 

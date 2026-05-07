@@ -3,6 +3,10 @@ import fs from "fs";
 import path from "path";
 import type { UserFile } from "@/core/entities/user-file";
 import type { UserFileRepository } from "@/core/use-cases/UserFileRepository";
+import {
+  resolveApplianceDataDir,
+  resolveApplianceUserFileRoot,
+} from "@/lib/appliance/data-boundary";
 import { buildUserFileMetadata } from "@/lib/media/media-asset-projection";
 import {
   buildMediaQuotaSnapshot,
@@ -11,13 +15,11 @@ import {
 } from "@/lib/storage/media-quota-policy";
 
 export function getDataRootPath(): string {
-  const configured = process.env.DATA_DIR?.trim();
-  const relativePath = configured && configured.length > 0 ? configured : ".data";
-  return path.resolve(process.cwd(), relativePath);
+  return resolveApplianceDataDir();
 }
 
 export function getUserFilesRootPath(): string {
-  return path.join(getDataRootPath(), "user-files");
+  return resolveApplianceUserFileRoot();
 }
 
 export function getUserFilePath(userId: string, fileName: string): string {

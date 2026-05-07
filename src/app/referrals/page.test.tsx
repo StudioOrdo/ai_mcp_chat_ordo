@@ -87,7 +87,7 @@ describe("/referrals page", () => {
     render(await ReferralsPage());
 
     expect(loadReferralsWorkspaceMock).toHaveBeenCalledWith("usr_1");
-    expect(screen.getByText("Referral + QR workspace")).toBeInTheDocument();
+    expect(screen.getByText("Affiliate dashboard")).toBeInTheDocument();
     expect(screen.getAllByText("Introductions").length).toBeGreaterThan(0);
     expect(screen.getAllByText("1 pending review").length).toBeGreaterThan(0);
   });

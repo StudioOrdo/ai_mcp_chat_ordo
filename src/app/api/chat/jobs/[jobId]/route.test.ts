@@ -15,6 +15,11 @@ const {
   getConversationMock,
   resolveUserIdMock,
   reviseExecutionMock,
+  findWorkflowByStepJobIdMock,
+  listAvailableActionsMock,
+  findWorkflowByIdMock,
+  buildWorkflowSnapshotMock,
+  dispatchOperationActionMock,
 } = vi.hoisted(() => ({
   findJobByIdMock: vi.fn(),
   findLatestRenderableEventForJobMock: vi.fn(),
@@ -28,6 +33,11 @@ const {
   getConversationMock: vi.fn(),
   resolveUserIdMock: vi.fn(),
   reviseExecutionMock: vi.fn(),
+  findWorkflowByStepJobIdMock: vi.fn(),
+  listAvailableActionsMock: vi.fn(),
+  findWorkflowByIdMock: vi.fn(),
+  buildWorkflowSnapshotMock: vi.fn(),
+  dispatchOperationActionMock: vi.fn(),
 }));
 
 vi.mock("@/adapters/RepositoryFactory", async () => {
@@ -46,9 +56,25 @@ vi.mock("@/adapters/RepositoryFactory", async () => {
       getPlatformInteractionFacade: () => ({
         getJobInteraction: getJobInteractionMock,
       }),
+      getMediaWorkflowRepository: () => ({
+        findWorkflowByStepJobId: findWorkflowByStepJobIdMock,
+        findWorkflowById: findWorkflowByIdMock,
+      }),
+      getOperationRepository: () => ({
+        listAvailableActions: listAvailableActionsMock,
+      }),
+      getMediaWorkflowReadModel: () => ({
+        buildSnapshot: buildWorkflowSnapshotMock,
+      }),
     })
   };
 });
+
+vi.mock("@/lib/operations/operation-action-dispatch-root", () => ({
+  createOperationActionDispatchService: () => ({
+    dispatch: dispatchOperationActionMock,
+  }),
+}));
 
 vi.mock("@/lib/platform/agent-platform-facade-root", () => ({
   getAgentPlatformFacade: () => ({
@@ -73,6 +99,10 @@ describe("/api/chat/jobs/[jobId]", () => {
     vi.clearAllMocks();
     resolveUserIdMock.mockResolvedValue({ userId: "usr_owner" });
     getConversationMock.mockResolvedValue({ conversation: { id: "conv_jobs" }, messages: [] });
+    findWorkflowByStepJobIdMock.mockReturnValue(null);
+    listAvailableActionsMock.mockResolvedValue([]);
+    findWorkflowByIdMock.mockReturnValue(null);
+    buildWorkflowSnapshotMock.mockResolvedValue(null);
   });
 
   it("returns the job snapshot when the conversation is accessible", async () => {
@@ -193,6 +223,90 @@ describe("/api/chat/jobs/[jobId]", () => {
         targetJobId: "job_retry",
       },
       eventSequence: 12,
+    });
+  });
+
+  it("routes media workflow job actions through the operation dispatcher", async () => {
+    getJobInteractionMock.mockResolvedValue({
+      job: {
+        id: "job_media_1",
+        conversationId: "conv_jobs",
+      },
+    });
+    findWorkflowByStepJobIdMock.mockReturnValue({
+      workflow: {
+        id: "workflow_media_1",
+        request: {
+          operation: {
+            operationId: "op_media_1",
+          },
+        },
+      },
+    });
+    listAvailableActionsMock.mockResolvedValue([
+      {
+        id: "action_cancel_1",
+        operationId: "op_media_1",
+        operationRevision: 3,
+        actionType: "media.workflow.cancel",
+        label: "Cancel workflow",
+        riskLevel: "low",
+        confirmPolicy: "single_click",
+        requiredRole: "AUTHENTICATED",
+        payload: {
+          workflowId: "workflow_media_1",
+          reason: "user_cancelled",
+        },
+        idempotencyKey: "idem_cancel_1",
+        enabled: true,
+      },
+    ]);
+    dispatchOperationActionMock.mockResolvedValue({
+      snapshot: {
+        operation: {
+          id: "op_media_1",
+          status: "cancelled",
+        },
+      },
+      availableActions: [],
+    });
+    findWorkflowByIdMock.mockReturnValue({ workflow: { id: "workflow_media_1" } });
+    buildWorkflowSnapshotMock.mockResolvedValue({
+      workflow: {
+        id: "workflow_media_1",
+        status: "canceled",
+      },
+    });
+
+    const response = await POST(
+      createRouteRequest("/api/chat/jobs/job_media_1", "POST", { action: "cancel" }),
+      createRouteParams({ jobId: "job_media_1" }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(reviseExecutionMock).not.toHaveBeenCalled();
+    expect(dispatchOperationActionMock).toHaveBeenCalledWith(expect.objectContaining({
+      operationId: "op_media_1",
+      actionId: "action_cancel_1",
+      idempotencyKey: "idem_cancel_1",
+      clientOperationRevision: 3,
+      actorUserId: "usr_owner",
+      confirmation: { confirmed: true },
+    }));
+    expect(body).toMatchObject({
+      ok: true,
+      action: "cancel",
+      operation: {
+        id: "op_media_1",
+        status: "cancelled",
+      },
+      workflow: {
+        workflow: {
+          id: "workflow_media_1",
+          status: "canceled",
+        },
+      },
     });
   });
 });

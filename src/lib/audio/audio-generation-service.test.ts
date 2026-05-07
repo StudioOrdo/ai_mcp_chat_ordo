@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { lookupMock, storeMock, readFileMock, emitProviderEventMock } = vi.hoisted(() => ({
   lookupMock: vi.fn(),
@@ -34,7 +34,7 @@ vi.mock("@/lib/chat/provider-policy", () => ({
   emitProviderEvent: emitProviderEventMock,
 }));
 
-import { AudioGenerationError } from "@/lib/audio/audio-generation-errors";
+import type { AudioGenerationError } from "@/lib/audio/audio-generation-errors";
 import {
   buildGenerateAudioRuntimePayload,
   generateStoredAudioArtifact,
@@ -42,7 +42,14 @@ import {
 } from "@/lib/audio/audio-generation-service";
 
 describe("audio-generation-service", () => {
+  const originalEnv = process.env;
+
   beforeEach(() => {
+    process.env = {
+      ...originalEnv,
+      OPENAI_API_KEY: "test-key",
+      TTS_PROVIDER: "openai",
+    };
     vi.useRealTimers();
     lookupMock.mockReset();
     storeMock.mockReset();
@@ -51,7 +58,12 @@ describe("audio-generation-service", () => {
     vi.unstubAllGlobals();
   });
 
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
   it("returns cached generated audio without calling the provider", async () => {
+    process.env.TTS_PROVIDER = "disabled";
     lookupMock.mockResolvedValue({
       file: { id: "uf_cached_audio_1" },
       diskPath: "/tmp/audio.mp3",
@@ -72,6 +84,24 @@ describe("audio-generation-service", () => {
       provider: "user-file-cache",
       cacheHit: true,
     });
+  });
+
+  it("fails before provider fetch on cache miss when TTS provider is disabled", async () => {
+    process.env.TTS_PROVIDER = "disabled";
+    lookupMock.mockResolvedValue(null);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(generateStoredAudioArtifact({
+      userId: "usr_1",
+      conversationId: "conv_1",
+      text: "Hello world",
+    })).rejects.toMatchObject({
+      name: "ProviderCapabilityUnavailableError",
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(storeMock).not.toHaveBeenCalled();
   });
 
   it("regenerates audio when a cache row exists but the mp3 is missing on disk", async () => {
@@ -119,7 +149,9 @@ describe("audio-generation-service", () => {
 
   it("classifies non-retryable provider status failures as terminal", async () => {
     lookupMock.mockResolvedValue(null);
-    vi.stubGlobal("fetch", vi.fn(async () => new Response("bad request", { status: 400 })));
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      error: { message: "Input is too long. Maximum input length is 4096 characters." },
+    }), { status: 400 })));
 
     await expect(generateStoredAudioArtifact({
       userId: "usr_1",
@@ -130,6 +162,11 @@ describe("audio-generation-service", () => {
       failureClass: "terminal",
       statusCode: 400,
     } satisfies Partial<AudioGenerationError>);
+    await expect(generateStoredAudioArtifact({
+      userId: "usr_1",
+      conversationId: "conv_1",
+      text: "Hello world",
+    })).rejects.toThrow("Input is too long");
   });
 
   it("classifies provider timeouts as transient failures", async () => {

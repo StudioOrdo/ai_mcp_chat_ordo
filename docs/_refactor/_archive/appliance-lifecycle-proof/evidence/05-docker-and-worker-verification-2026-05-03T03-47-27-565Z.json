@@ -1,0 +1,115 @@
+{
+  "phase": "05-docker-and-worker-verification-harness",
+  "mode": "local",
+  "status": "failed",
+  "startedAt": "2026-05-03T03:47:26.711Z",
+  "completedAt": "2026-05-03T03:47:27.565Z",
+  "durationMs": 854,
+  "nodeVersion": "v22.22.2",
+  "rustVersion": "rustc 1.94.0 (4a4ef493e 2026-03-02) (Homebrew)",
+  "imageTag": null,
+  "gitRevision": "c99b37a",
+  "dataDirLabel": ".data",
+  "appPort": null,
+  "mediaPort": null,
+  "executorPath": "/Users/kwilliams/Projects/ordoSite/bin/ordo-backup",
+  "health": {
+    "status": "degraded",
+    "summary": {
+      "healthy": 6,
+      "degraded": 1,
+      "blocked": 0,
+      "disabled": 1,
+      "unknown": 1
+    },
+    "warnings": [
+      "Tool availability has 1 warning(s)."
+    ]
+  },
+  "backup": {
+    "manualBackupId": "backup_54168e7f-e3f1-4881-a1f4-a6da09c4f8be",
+    "scheduledBackupId": "backup_dc56d430-98c0-47ad-8a1a-c151c8d30135",
+    "archiveSizeBytes": 32541,
+    "archiveHashPrefix": "sha256:8b5a523d0d3f9"
+  },
+  "restore": {
+    "restorePlanId": "restore_b7add271-b2fe-4f9f-a354-02f7d1c959ec",
+    "restoredSeedFile": false
+  },
+  "scheduler": {
+    "commandId": "syscmd_9982362f-eab2-4863-9ba9-8776de287ce6",
+    "decision": "enqueue"
+  },
+  "restart": {
+    "verified": false
+  },
+  "steps": [
+    {
+      "name": "prepare temp data boundary",
+      "status": "passed",
+      "startedAt": "2026-05-03T03:47:26.855Z",
+      "completedAt": "2026-05-03T03:47:26.856Z",
+      "durationMs": 1,
+      "summary": "completed"
+    },
+    {
+      "name": "install Rust backup executor",
+      "status": "passed",
+      "startedAt": "2026-05-03T03:47:26.856Z",
+      "completedAt": "2026-05-03T03:47:26.856Z",
+      "durationMs": 0,
+      "summary": "executor available"
+    },
+    {
+      "name": "initialize SQLite schema",
+      "status": "passed",
+      "startedAt": "2026-05-03T03:47:26.856Z",
+      "completedAt": "2026-05-03T03:47:26.906Z",
+      "durationMs": 50,
+      "summary": "schema initialized"
+    },
+    {
+      "name": "read appliance health",
+      "status": "passed",
+      "startedAt": "2026-05-03T03:47:26.906Z",
+      "completedAt": "2026-05-03T03:47:27.445Z",
+      "durationMs": 539,
+      "summary": "completed"
+    },
+    {
+      "name": "create manual backup through Rust",
+      "status": "passed",
+      "startedAt": "2026-05-03T03:47:27.445Z",
+      "completedAt": "2026-05-03T03:47:27.480Z",
+      "durationMs": 35,
+      "summary": "completed"
+    },
+    {
+      "name": "verify restart-persistent seed data",
+      "status": "passed",
+      "startedAt": "2026-05-03T03:47:27.480Z",
+      "completedAt": "2026-05-03T03:47:27.480Z",
+      "durationMs": 0,
+      "summary": "seed file readable"
+    },
+    {
+      "name": "enqueue and complete scheduled backup",
+      "status": "passed",
+      "startedAt": "2026-05-03T03:47:27.480Z",
+      "completedAt": "2026-05-03T03:47:27.506Z",
+      "durationMs": 26,
+      "summary": "completed"
+    },
+    {
+      "name": "prepare and execute restore",
+      "status": "failed",
+      "startedAt": "2026-05-03T03:47:27.506Z",
+      "completedAt": "2026-05-03T03:47:27.565Z",
+      "durationMs": 59,
+      "summary": "Rust backup executor run-once failed: Error: FOREIGN KEY constraint failed\n\nCaused by:\n    Error code 787: Foreign key constraint failed\n"
+    }
+  ],
+  "warnings": [
+    "Rust backup executor run-once failed: Error: FOREIGN KEY constraint failed\n\nCaused by:\n    Error code 787: Foreign key constraint failed\n"
+  ]
+}

@@ -7,9 +7,11 @@ const {
   buildResultMock,
   getAllMock,
   createMessageMock,
+  createSelectedIntelligenceRuntimeMock,
   orchestrateChatTurnMock,
   logEventMock,
   getSchemasForRoleMock,
+  getPromptVisibleSchemasForRoleMock,
   getToolExecutorFactoryMock,
   withToolManifestMock,
 } = vi.hoisted(() => ({
@@ -17,28 +19,17 @@ const {
   buildResultMock: vi.fn(),
   getAllMock: vi.fn(),
   createMessageMock: vi.fn(),
+  createSelectedIntelligenceRuntimeMock: vi.fn(),
   orchestrateChatTurnMock: vi.fn(),
   logEventMock: vi.fn(),
   getSchemasForRoleMock: vi.fn(),
+  getPromptVisibleSchemasForRoleMock: vi.fn(),
   getToolExecutorFactoryMock: vi.fn(),
   withToolManifestMock: vi.fn(),
 }));
 
-// Phase 7 Mock Density Exception: This file tests a complex composition root or integration pipeline and legitimately requires extensive boundary mocking for external services (auth, db, observability, etc.).
-vi.mock("@anthropic-ai/sdk", () => ({
-  default: class MockAnthropic {
-    messages = {
-      create: createMessageMock,
-    };
-  },
-}));
-
-vi.mock("@/lib/config/env", () => ({
-  getAnthropicApiKey: vi.fn(() => "test-key"),
-  getAnthropicRequestTimeoutMs: vi.fn(() => 10000),
-  getAnthropicRequestRetryAttempts: vi.fn(() => 2),
-  getAnthropicRequestRetryDelayMs: vi.fn(() => 150),
-  getModelFallbacks: vi.fn(() => ["claude-haiku-4-5"]),
+vi.mock("@/lib/ai/providers/selected-intelligence-runtime", () => ({
+  createSelectedIntelligenceRuntime: createSelectedIntelligenceRuntimeMock,
 }));
 
 vi.mock("@/lib/chat/policy", () => ({
@@ -73,6 +64,7 @@ vi.mock("@/lib/platform/agent-platform-facade-root", () => ({
     getExecutionSurface: () => ({
       registry: {
         getSchemasForRole: getSchemasForRoleMock,
+        getPromptVisibleSchemasForRole: getPromptVisibleSchemasForRoleMock,
       },
       executor: getToolExecutorFactoryMock(),
     }),
@@ -93,7 +85,24 @@ describe("executeDirectChatTurn", () => {
     });
     getAllMock.mockResolvedValue([]);
     getSchemasForRoleMock.mockReturnValue([]);
+    getPromptVisibleSchemasForRoleMock.mockReturnValue([]);
     getToolExecutorFactoryMock.mockReturnValue(vi.fn());
+    createSelectedIntelligenceRuntimeMock.mockReturnValue({
+      provider: "anthropic",
+      client: {
+        messages: {
+          create: createMessageMock,
+        },
+      },
+      model: "claude-haiku-4-5",
+      policy: {
+        provider: "anthropic",
+        timeoutMs: 10000,
+        retryAttempts: 2,
+        retryDelayMs: 150,
+        modelCandidates: ["claude-haiku-4-5"],
+      },
+    });
     createMessageMock.mockResolvedValue({
       content: [{ type: "text", text: "hi" }],
     });
@@ -142,6 +151,10 @@ describe("executeDirectChatTurn", () => {
 
   it("adds the direct-turn tool manifest to the prompt builder", async () => {
     getSchemasForRoleMock.mockReturnValue([
+      { name: "inspect_runtime_context", description: "Inspect runtime.", input_schema: {} },
+      { name: "search_corpus", description: "Search the corpus.", input_schema: {} },
+    ]);
+    getPromptVisibleSchemasForRoleMock.mockReturnValue([
       { name: "search_corpus", description: "Search the corpus.", input_schema: {} },
     ]);
 
@@ -155,6 +168,43 @@ describe("executeDirectChatTurn", () => {
     expect(withToolManifestMock).toHaveBeenCalledWith([
       { name: "search_corpus", description: "Search the corpus." },
     ]);
+    expect(getPromptVisibleSchemasForRoleMock).toHaveBeenCalledWith("ANONYMOUS", {
+      mode: "default_chat",
+    });
+  });
+
+  it("filters operation-backed tools out of direct-turn prompt exposure", async () => {
+    getPromptVisibleSchemasForRoleMock.mockReturnValue([
+      { name: "search_corpus", description: "Search the corpus.", input_schema: {} },
+      { name: "create_appliance_backup", description: "Create backup.", input_schema: {} },
+      { name: "list_appliance_backups", description: "List backups.", input_schema: {} },
+    ]);
+
+    await executeDirectChatTurn({
+      incomingMessages: [{ role: "user", content: "hello" }],
+      user: { id: "usr_admin", roles: ["ADMIN"] },
+      route: "/api/chat",
+      requestId: "req_tools_pruned",
+    });
+
+    expect(withToolManifestMock).toHaveBeenCalledWith([
+      { name: "search_corpus", description: "Search the corpus." },
+    ]);
+  });
+
+  it("rejects operation-backed direct turns before model or tool exposure", async () => {
+    const reply = await executeDirectChatTurn({
+      incomingMessages: [{ role: "user", content: "create an appliance backup now" }],
+      user: { id: "usr_admin", roles: ["ADMIN"] },
+      route: "/api/chat",
+      requestId: "req_direct_operation",
+    });
+
+    expect(reply).toContain("conversation-backed operation");
+    expect(createSelectedIntelligenceRuntimeMock).not.toHaveBeenCalled();
+    expect(createMessageMock).not.toHaveBeenCalled();
+    expect(orchestrateChatTurnMock).not.toHaveBeenCalled();
+    expect(withToolManifestMock).not.toHaveBeenCalled();
   });
 
   it("threads prompt runtime provenance into the tool execution context", async () => {
@@ -194,7 +244,7 @@ describe("executeDirectChatTurn", () => {
       user: { id: "usr_1", roles: ["ANONYMOUS"] },
       route: "/api/chat",
       requestId: "req_2",
-    })).rejects.toThrow("Anthropic provider error: Provider request timed out.");
+    })).rejects.toThrow("Intelligence provider error: Provider request timed out.");
 
     expect(logEventMock.mock.calls).toEqual(
       expect.arrayContaining([
@@ -215,7 +265,7 @@ describe("executeDirectChatTurn", () => {
             model: expect.any(String),
             attempt: 1,
             durationMs: expect.any(Number),
-            error: "Anthropic provider error: Provider request timed out.",
+            error: "Intelligence provider error: Provider request timed out.",
             errorClassification: expect.any(String),
           }),
         ],

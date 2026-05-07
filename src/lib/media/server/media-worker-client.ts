@@ -9,6 +9,12 @@ export interface MediaWorkerClientConfig {
   sharedSecret?: string;
 }
 
+export interface MediaWorkerHealthResult {
+  ok: boolean;
+  statusCode: number | null;
+  error: string | null;
+}
+
 export interface ExecuteComposeMediaJobRequest {
   plan: MediaCompositionPlan;
   userId: string;
@@ -121,5 +127,45 @@ export class MediaWorkerClient {
     }
 
     return await response.json() as CapabilityResultEnvelope;
+  }
+
+  async checkHealth(options: { timeoutMs?: number } = {}): Promise<MediaWorkerHealthResult> {
+    const timeoutMs = options.timeoutMs ?? 750;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await this.fetchImpl(`${this.baseUrl}/health`, {
+        method: "GET",
+        headers: {
+          ...(this.sharedSecret ? { authorization: `Bearer ${this.sharedSecret}` } : {}),
+        },
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        return {
+          ok: false,
+          statusCode: response.status,
+          error: `Media worker health request failed with ${response.status}.`,
+        };
+      }
+
+      const body = await response.json() as { ok?: unknown };
+      const ok = body.ok === true;
+      return {
+        ok,
+        statusCode: response.status,
+        error: ok ? null : "Media worker health response did not report ok.",
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        statusCode: null,
+        error: error instanceof Error ? error.message : "Media worker health request failed.",
+      };
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 }

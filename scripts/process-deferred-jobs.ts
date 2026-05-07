@@ -3,6 +3,13 @@ import { runDeferredJobRuntime } from "@/lib/jobs/deferred-job-runtime";
 
 loadLocalEnv();
 
+const nodeMajor = Number.parseInt(process.versions.node.split(".")[0] ?? "", 10);
+if (nodeMajor !== 22) {
+  throw new Error(
+    `Deferred job worker requires Node 22 because better-sqlite3 is native; current runtime is ${process.version}.`,
+  );
+}
+
 async function main() {
   const controller = new AbortController();
   const runOnce = process.env.DEFERRED_JOB_RUN_ONCE === "1";

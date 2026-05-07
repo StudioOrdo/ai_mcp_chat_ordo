@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-13T16:46:34.380Z",
+  "generatedAt": "2026-05-06T23:45:35.512Z",
   "corpus": {
     "name": "Second Renaissance Knowledge System",
     "documentCount": 11,
@@ -8,777 +8,1702 @@
   },
   "tools": {
     "countsByRole": {
-      "ANONYMOUS": 16,
-      "AUTHENTICATED": 26,
-      "APPRENTICE": 26,
-      "STAFF": 26,
-      "ADMIN": 55
+      "ANONYMOUS": 15,
+      "AUTHENTICATED": 28,
+      "APPRENTICE": 28,
+      "STAFF": 29,
+      "ADMIN": 67
     },
     "manifestsByRole": {
       "ANONYMOUS": [
         {
           "name": "adjust_ui",
           "description": "Adjust the UI appearance for accessibility, comfort, or user preference. Supports named presets and individual property overrides.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "protected_recovery_tool",
+          "bundleId": "theme",
+          "protected": true,
+          "toggleable": false
         },
         {
           "name": "calculator",
           "description": "Performs arithmetic. Mandatory for every math calculation.",
-          "category": "math"
-        },
-        {
-          "name": "generate_audio",
-          "description": "Generate in-chat audio player.",
-          "category": "content"
+          "category": "math",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "calculator",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "generate_chart",
           "description": "Generate a visual Mermaid.js chart. Prefer the structured spec for common chart families like flowcharts, pie charts, quadrants, xy charts, and mindmaps.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "media",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "generate_graph",
           "description": "Generate a quantitative graph or data table for time-series, comparisons, distributions, or trend visualizations.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "media",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_checklist",
           "description": "Get chapter checklists.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "corpus",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_corpus_summary",
           "description": "Return a structured summary of the knowledge corpus including document count and top-level topics.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "corpus",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_current_page",
           "description": "Return authoritative information about the page the user is currently viewing.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "navigation",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_section",
           "description": "Retrieve structured full content, canonical metadata, and related sections for a specific corpus section.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "corpus",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "inspect_runtime_context",
           "description": "Inspect the current role-scoped runtime context for truthful meta answers about available capabilities.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "protected_recovery_tool",
+          "bundleId": "navigation",
+          "protected": true,
+          "toggleable": false
         },
         {
           "name": "inspect_theme",
           "description": "Inspect the active theme configuration and return machine-readable design tokens.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "protected_recovery_tool",
+          "bundleId": "theme",
+          "protected": true,
+          "toggleable": false
         },
         {
           "name": "list_available_pages",
           "description": "List all pages the current user can access based on their role.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "navigation",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "list_practitioners",
           "description": "List key practitioners referenced in the series.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "corpus",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "navigate_to_page",
           "description": "Navigate the user to a validated page. Dispatches the destination to the client router.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "navigation",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "search_corpus",
           "description": "Search across all 11 books (93 chapters) in the Second Renaissance Knowledge System.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "corpus",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "set_theme",
           "description": "Change site aesthetic era.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "protected_recovery_tool",
+          "bundleId": "theme",
+          "protected": true,
+          "toggleable": false
         }
       ],
       "AUTHENTICATED": [
         {
           "name": "adjust_ui",
           "description": "Adjust the UI appearance for accessibility, comfort, or user preference. Supports named presets and individual property overrides.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "protected_recovery_tool",
+          "bundleId": "theme",
+          "protected": true,
+          "toggleable": false
         },
         {
           "name": "calculator",
           "description": "Performs arithmetic. Mandatory for every math calculation.",
-          "category": "math"
+          "category": "math",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "calculator",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "compose_media",
           "description": "Compose, trim, and combine visual and audio assets into a new MP4 video. Produces a unified artifact. You must provide governed asset handles.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "media",
+          "protected": false,
+          "toggleable": true
         },
         {
-          "name": "generate_audio",
-          "description": "Generate in-chat audio player.",
-          "category": "content"
+          "name": "create_offer",
+          "description": "Create a durable draft offer from conversation so the owner can govern price, visibility, and publishing in the Offers surface.",
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "profile",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "generate_chart",
           "description": "Generate a visual Mermaid.js chart. Prefer the structured spec for common chart families like flowcharts, pie charts, quadrants, xy charts, and mindmaps.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "media",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "generate_graph",
           "description": "Generate a quantitative graph or data table for time-series, comparisons, distributions, or trend visualizations.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "media",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_checklist",
           "description": "Get chapter checklists.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "corpus",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_corpus_summary",
           "description": "Return a structured summary of the knowledge corpus including document count and top-level topics.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "corpus",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_current_page",
           "description": "Return authoritative information about the page the user is currently viewing.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "navigation",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_my_affiliate_summary",
           "description": "Retrieve the authenticated user's affiliate performance summary including referrals and conversion metrics.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "affiliate",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_my_job_status",
           "description": "Get the status of a specific deferred job belonging to the current user.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "profile",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_my_profile",
           "description": "Retrieve the authenticated user's profile including name, roles, and referral info.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "profile",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_my_referral_qr",
           "description": "Generate and return the authenticated user's referral QR code image URL and shareable link.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "profile",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_section",
           "description": "Retrieve structured full content, canonical metadata, and related sections for a specific corpus section.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "corpus",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "inspect_runtime_context",
           "description": "Inspect the current role-scoped runtime context for truthful meta answers about available capabilities.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "protected_recovery_tool",
+          "bundleId": "navigation",
+          "protected": true,
+          "toggleable": false
         },
         {
           "name": "inspect_theme",
           "description": "Inspect the active theme configuration and return machine-readable design tokens.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "protected_recovery_tool",
+          "bundleId": "theme",
+          "protected": true,
+          "toggleable": false
         },
         {
           "name": "list_available_pages",
           "description": "List all pages the current user can access based on their role.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "navigation",
+          "protected": false,
+          "toggleable": true
+        },
+        {
+          "name": "list_conversation_media_assets",
+          "description": "List reusable governed media assets already attached to the current conversation.",
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "media",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "list_my_jobs",
           "description": "List all deferred jobs belonging to the current user with status and progress.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "profile",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "list_my_referral_activity",
           "description": "List the authenticated user's recent referral activity feed with status updates.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "affiliate",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "list_practitioners",
           "description": "List key practitioners referenced in the series.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "corpus",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "navigate_to_page",
           "description": "Navigate the user to a validated page. Dispatches the destination to the client router.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "navigation",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "search_corpus",
           "description": "Search across all 11 books (93 chapters) in the Second Renaissance Knowledge System.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "corpus",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "search_my_conversations",
-          "description": "Search your own conversation history to recall past discussions.",
-          "category": "system"
+          "description": "Search your own conversation transcript history to recall past discussion turns.",
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "conversation",
+          "protected": false,
+          "toggleable": true
+        },
+        {
+          "name": "search_relationship_memory",
+          "description": "Search active relationship memory to recall goals, preferences, decisions, commitments, milestones, and unresolved questions.",
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "conversation",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "set_preference",
           "description": "Create or update a user preference key-value pair persisted to the user's profile.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "theme",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "set_theme",
           "description": "Change site aesthetic era.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "protected_recovery_tool",
+          "bundleId": "theme",
+          "protected": true,
+          "toggleable": false
         },
         {
           "name": "update_my_profile",
           "description": "Update the authenticated user's profile fields (name, credential).",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "profile",
+          "protected": false,
+          "toggleable": true
         }
       ],
       "APPRENTICE": [
         {
           "name": "adjust_ui",
           "description": "Adjust the UI appearance for accessibility, comfort, or user preference. Supports named presets and individual property overrides.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "protected_recovery_tool",
+          "bundleId": "theme",
+          "protected": true,
+          "toggleable": false
         },
         {
           "name": "calculator",
           "description": "Performs arithmetic. Mandatory for every math calculation.",
-          "category": "math"
+          "category": "math",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "calculator",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "compose_media",
           "description": "Compose, trim, and combine visual and audio assets into a new MP4 video. Produces a unified artifact. You must provide governed asset handles.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "media",
+          "protected": false,
+          "toggleable": true
         },
         {
-          "name": "generate_audio",
-          "description": "Generate in-chat audio player.",
-          "category": "content"
+          "name": "create_offer",
+          "description": "Create a durable draft offer from conversation so the owner can govern price, visibility, and publishing in the Offers surface.",
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "profile",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "generate_chart",
           "description": "Generate a visual Mermaid.js chart. Prefer the structured spec for common chart families like flowcharts, pie charts, quadrants, xy charts, and mindmaps.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "media",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "generate_graph",
           "description": "Generate a quantitative graph or data table for time-series, comparisons, distributions, or trend visualizations.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "media",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_checklist",
           "description": "Get chapter checklists.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "corpus",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_corpus_summary",
           "description": "Return a structured summary of the knowledge corpus including document count and top-level topics.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "corpus",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_current_page",
           "description": "Return authoritative information about the page the user is currently viewing.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "navigation",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_my_affiliate_summary",
           "description": "Retrieve the authenticated user's affiliate performance summary including referrals and conversion metrics.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "affiliate",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_my_job_status",
           "description": "Get the status of a specific deferred job belonging to the current user.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "profile",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_my_profile",
           "description": "Retrieve the authenticated user's profile including name, roles, and referral info.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "profile",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_my_referral_qr",
           "description": "Generate and return the authenticated user's referral QR code image URL and shareable link.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "profile",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_section",
           "description": "Retrieve structured full content, canonical metadata, and related sections for a specific corpus section.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "corpus",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "inspect_runtime_context",
           "description": "Inspect the current role-scoped runtime context for truthful meta answers about available capabilities.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "protected_recovery_tool",
+          "bundleId": "navigation",
+          "protected": true,
+          "toggleable": false
         },
         {
           "name": "inspect_theme",
           "description": "Inspect the active theme configuration and return machine-readable design tokens.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "protected_recovery_tool",
+          "bundleId": "theme",
+          "protected": true,
+          "toggleable": false
         },
         {
           "name": "list_available_pages",
           "description": "List all pages the current user can access based on their role.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "navigation",
+          "protected": false,
+          "toggleable": true
+        },
+        {
+          "name": "list_conversation_media_assets",
+          "description": "List reusable governed media assets already attached to the current conversation.",
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "media",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "list_my_jobs",
           "description": "List all deferred jobs belonging to the current user with status and progress.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "profile",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "list_my_referral_activity",
           "description": "List the authenticated user's recent referral activity feed with status updates.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "affiliate",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "list_practitioners",
           "description": "List key practitioners referenced in the series.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "corpus",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "navigate_to_page",
           "description": "Navigate the user to a validated page. Dispatches the destination to the client router.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "navigation",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "search_corpus",
           "description": "Search across all 11 books (93 chapters) in the Second Renaissance Knowledge System.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "corpus",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "search_my_conversations",
-          "description": "Search your own conversation history to recall past discussions.",
-          "category": "system"
+          "description": "Search your own conversation transcript history to recall past discussion turns.",
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "conversation",
+          "protected": false,
+          "toggleable": true
+        },
+        {
+          "name": "search_relationship_memory",
+          "description": "Search active relationship memory to recall goals, preferences, decisions, commitments, milestones, and unresolved questions.",
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "conversation",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "set_preference",
           "description": "Create or update a user preference key-value pair persisted to the user's profile.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "theme",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "set_theme",
           "description": "Change site aesthetic era.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "protected_recovery_tool",
+          "bundleId": "theme",
+          "protected": true,
+          "toggleable": false
         },
         {
           "name": "update_my_profile",
           "description": "Update the authenticated user's profile fields (name, credential).",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "profile",
+          "protected": false,
+          "toggleable": true
         }
       ],
       "STAFF": [
         {
           "name": "adjust_ui",
           "description": "Adjust the UI appearance for accessibility, comfort, or user preference. Supports named presets and individual property overrides.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "protected_recovery_tool",
+          "bundleId": "theme",
+          "protected": true,
+          "toggleable": false
         },
         {
           "name": "calculator",
           "description": "Performs arithmetic. Mandatory for every math calculation.",
-          "category": "math"
+          "category": "math",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "calculator",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "compose_media",
           "description": "Compose, trim, and combine visual and audio assets into a new MP4 video. Produces a unified artifact. You must provide governed asset handles.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "media",
+          "protected": false,
+          "toggleable": true
         },
         {
-          "name": "generate_audio",
-          "description": "Generate in-chat audio player.",
-          "category": "content"
+          "name": "create_offer",
+          "description": "Create a durable draft offer from conversation so the owner can govern price, visibility, and publishing in the Offers surface.",
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "profile",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "generate_chart",
           "description": "Generate a visual Mermaid.js chart. Prefer the structured spec for common chart families like flowcharts, pie charts, quadrants, xy charts, and mindmaps.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "media",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "generate_graph",
           "description": "Generate a quantitative graph or data table for time-series, comparisons, distributions, or trend visualizations.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "media",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_checklist",
           "description": "Get chapter checklists.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "corpus",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_corpus_summary",
           "description": "Return a structured summary of the knowledge corpus including document count and top-level topics.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "corpus",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_current_page",
           "description": "Return authoritative information about the page the user is currently viewing.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "navigation",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_my_affiliate_summary",
           "description": "Retrieve the authenticated user's affiliate performance summary including referrals and conversion metrics.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "affiliate",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_my_job_status",
           "description": "Get the status of a specific deferred job belonging to the current user.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "profile",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_my_profile",
           "description": "Retrieve the authenticated user's profile including name, roles, and referral info.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "profile",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_my_referral_qr",
           "description": "Generate and return the authenticated user's referral QR code image URL and shareable link.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "profile",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_section",
           "description": "Retrieve structured full content, canonical metadata, and related sections for a specific corpus section.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "corpus",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "inspect_runtime_context",
           "description": "Inspect the current role-scoped runtime context for truthful meta answers about available capabilities.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "protected_recovery_tool",
+          "bundleId": "navigation",
+          "protected": true,
+          "toggleable": false
         },
         {
           "name": "inspect_theme",
           "description": "Inspect the active theme configuration and return machine-readable design tokens.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "protected_recovery_tool",
+          "bundleId": "theme",
+          "protected": true,
+          "toggleable": false
         },
         {
           "name": "list_available_pages",
           "description": "List all pages the current user can access based on their role.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "navigation",
+          "protected": false,
+          "toggleable": true
+        },
+        {
+          "name": "list_conversation_media_assets",
+          "description": "List reusable governed media assets already attached to the current conversation.",
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "media",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "list_my_jobs",
           "description": "List all deferred jobs belonging to the current user with status and progress.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "profile",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "list_my_referral_activity",
           "description": "List the authenticated user's recent referral activity feed with status updates.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "affiliate",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "list_practitioners",
           "description": "List key practitioners referenced in the series.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "corpus",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "navigate_to_page",
           "description": "Navigate the user to a validated page. Dispatches the destination to the client router.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "navigation",
+          "protected": false,
+          "toggleable": true
+        },
+        {
+          "name": "produce_product",
+          "description": "Create a governed factory work-order operation from a validated ProductBrief.",
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "admin",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "search_corpus",
           "description": "Search across all 11 books (93 chapters) in the Second Renaissance Knowledge System.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "corpus",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "search_my_conversations",
-          "description": "Search your own conversation history to recall past discussions.",
-          "category": "system"
+          "description": "Search your own conversation transcript history to recall past discussion turns.",
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "conversation",
+          "protected": false,
+          "toggleable": true
+        },
+        {
+          "name": "search_relationship_memory",
+          "description": "Search active relationship memory to recall goals, preferences, decisions, commitments, milestones, and unresolved questions.",
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "conversation",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "set_preference",
           "description": "Create or update a user preference key-value pair persisted to the user's profile.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "theme",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "set_theme",
           "description": "Change site aesthetic era.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "protected_recovery_tool",
+          "bundleId": "theme",
+          "protected": true,
+          "toggleable": false
         },
         {
           "name": "update_my_profile",
           "description": "Update the authenticated user's profile fields (name, credential).",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "profile",
+          "protected": false,
+          "toggleable": true
         }
       ],
       "ADMIN": [
         {
           "name": "adjust_ui",
           "description": "Adjust the UI appearance for accessibility, comfort, or user preference. Supports named presets and individual property overrides.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "protected_recovery_tool",
+          "bundleId": "theme",
+          "protected": true,
+          "toggleable": false
         },
         {
           "name": "admin_prioritize_leads",
           "description": "Retrieve and prioritize the current lead queue for administrative triage and follow-up.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "admin",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "admin_prioritize_offer",
           "description": "Analyze a lead's profile and recommend a tailored service offer from the available packages.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "admin",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "admin_search",
           "description": "Search across users, conversations, leads, and referrals for administrative lookups.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "navigation",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "admin_triage_routing_risk",
           "description": "Analyze routing risk signals and recommend triage actions for conversations with uncertain intent.",
-          "category": "system"
-        },
-        {
-          "name": "admin_web_search",
-          "description": "Search the live web using OpenAI and return a sourced answer with citations. Use allowed_domains to target specific sites (e.g. en.wikipedia.org for Wikipedia searches). Admin only.",
-          "category": "content"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "admin",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "approve_journal_post",
           "description": "Approve a journal post for publication after editorial review.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "blog",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "calculator",
           "description": "Performs arithmetic. Mandatory for every math calculation.",
-          "category": "math"
+          "category": "math",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "calculator",
+          "protected": false,
+          "toggleable": true
+        },
+        {
+          "name": "cancel_appliance_restore",
+          "description": "Admin-only operation to cancel a non-running restore plan.",
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "admin",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "compose_blog_article",
           "description": "Compose the first editorial article draft from a brief.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "blog",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "compose_media",
           "description": "Compose, trim, and combine visual and audio assets into a new MP4 video. Produces a unified artifact. You must provide governed asset handles.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "media",
+          "protected": false,
+          "toggleable": true
+        },
+        {
+          "name": "configure_backup_policy",
+          "description": "Admin-only operation to update automatic appliance backup interval and retention policy.",
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "admin",
+          "protected": false,
+          "toggleable": true
+        },
+        {
+          "name": "configure_tool_availability",
+          "description": "Admin-only control plane tool for enabling, disabling, explaining, and summarizing runtime tool availability.",
+          "category": "system",
+          "state": "enabled",
+          "reason": "protected_recovery_tool",
+          "bundleId": "admin",
+          "protected": true,
+          "toggleable": false
+        },
+        {
+          "name": "confirm_appliance_restore",
+          "description": "Admin-only operation to confirm a prepared restore plan with its exact confirmation phrase.",
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "admin",
+          "protected": false,
+          "toggleable": true
+        },
+        {
+          "name": "create_appliance_backup",
+          "description": "Admin-only operation to queue a governed appliance backup through the Rust executor command boundary.",
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "admin",
+          "protected": false,
+          "toggleable": true
+        },
+        {
+          "name": "create_offer",
+          "description": "Create a durable draft offer from conversation so the owner can govern price, visibility, and publishing in the Offers surface.",
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "profile",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "draft_content",
           "description": "Draft a journal article as structured markdown. Use markdown headings, lists, links, quotes, tables, or fenced code blocks as appropriate. Do not repeat the title inside the content body. The article is saved as a draft that must be explicitly published by an admin.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "blog",
+          "protected": false,
+          "toggleable": true
         },
         {
-          "name": "generate_audio",
-          "description": "Generate in-chat audio player.",
-          "category": "content"
-        },
-        {
-          "name": "generate_blog_image",
-          "description": "Generate the editorial hero image asset for a prepared article.",
-          "category": "content"
+          "name": "execute_appliance_restore",
+          "description": "Admin-only operation to queue restore execution for a confirmed and safety-backed restore plan.",
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "admin",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "generate_blog_image_prompt",
           "description": "Design the editorial hero-image prompt and related metadata for a finished article.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "blog",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "generate_chart",
           "description": "Generate a visual Mermaid.js chart. Prefer the structured spec for common chart families like flowcharts, pie charts, quadrants, xy charts, and mindmaps.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "media",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "generate_graph",
           "description": "Generate a quantitative graph or data table for time-series, comparisons, distributions, or trend visualizations.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "media",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_admin_affiliate_summary",
           "description": "Retrieve the system-wide affiliate analytics dashboard for administrative review.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "affiliate",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_checklist",
           "description": "Get chapter checklists.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "corpus",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_corpus_summary",
           "description": "Return a structured summary of the knowledge corpus including document count and top-level topics.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "corpus",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_current_page",
           "description": "Return authoritative information about the page the user is currently viewing.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "navigation",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_deferred_job_status",
           "description": "Get the status of a specific deferred job by conversation context. Admin only.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "job",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_journal_post",
           "description": "Retrieve a specific journal post by ID with full content and metadata.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "blog",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_journal_workflow_summary",
           "description": "Get a summary of the editorial workflow state for a journal post including active jobs and blockers.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "blog",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_my_affiliate_summary",
           "description": "Retrieve the authenticated user's affiliate performance summary including referrals and conversion metrics.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "affiliate",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_my_job_status",
           "description": "Get the status of a specific deferred job belonging to the current user.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "profile",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_my_profile",
           "description": "Retrieve the authenticated user's profile including name, roles, and referral info.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "profile",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_my_referral_qr",
           "description": "Generate and return the authenticated user's referral QR code image URL and shareable link.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "profile",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "get_section",
           "description": "Retrieve structured full content, canonical metadata, and related sections for a specific corpus section.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "corpus",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "inspect_runtime_context",
           "description": "Inspect the current role-scoped runtime context for truthful meta answers about available capabilities.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "protected_recovery_tool",
+          "bundleId": "navigation",
+          "protected": true,
+          "toggleable": false
+        },
+        {
+          "name": "inspect_runtime_logs",
+          "description": "Inspect system runtime logs for debugging issues with deferred jobs, MCP processes, and remote services. Output should be summarized as a Markdown report so the admin can copy it to GitHub if needed.",
+          "category": "system",
+          "state": "enabled",
+          "reason": "protected_recovery_tool",
+          "bundleId": "admin",
+          "protected": true,
+          "toggleable": false
         },
         {
           "name": "inspect_theme",
           "description": "Inspect the active theme configuration and return machine-readable design tokens.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "protected_recovery_tool",
+          "bundleId": "theme",
+          "protected": true,
+          "toggleable": false
         },
         {
           "name": "list_admin_referral_exceptions",
           "description": "List referral entries that require administrative review due to anomalies or policy exceptions.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "affiliate",
+          "protected": false,
+          "toggleable": true
+        },
+        {
+          "name": "list_appliance_backups",
+          "description": "Admin-only operation to summarize backup, restore, command, policy, and executor state.",
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "admin",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "list_available_pages",
           "description": "List all pages the current user can access based on their role.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "navigation",
+          "protected": false,
+          "toggleable": true
+        },
+        {
+          "name": "list_conversation_media_assets",
+          "description": "List reusable governed media assets already attached to the current conversation.",
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "media",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "list_deferred_jobs",
           "description": "List all deferred jobs for the current conversation with status and progress. Admin only.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "job",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "list_journal_posts",
           "description": "List journal posts with optional status and category filters.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "blog",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "list_journal_revisions",
           "description": "List all editorial revisions for a specific journal post.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "blog",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "list_my_jobs",
           "description": "List all deferred jobs belonging to the current user with status and progress.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "profile",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "list_my_referral_activity",
           "description": "List the authenticated user's recent referral activity feed with status updates.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "affiliate",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "list_practitioners",
           "description": "List key practitioners referenced in the series.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "corpus",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "navigate_to_page",
           "description": "Navigate the user to a validated page. Dispatches the destination to the client router.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "navigation",
+          "protected": false,
+          "toggleable": true
+        },
+        {
+          "name": "prepare_appliance_restore",
+          "description": "Admin-only operation to prepare a restore plan and show impact before confirmation.",
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "admin",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "prepare_journal_post_for_publish",
           "description": "Check whether a journal post is ready to publish and summarize blockers, active work, and QA findings.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "blog",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "produce_blog_article",
           "description": "Run the full editorial production pipeline from composition through draft persistence.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "blog",
+          "protected": false,
+          "toggleable": true
+        },
+        {
+          "name": "produce_product",
+          "description": "Create a governed factory work-order operation from a validated ProductBrief.",
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "admin",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "publish_content",
           "description": "Publish a draft journal article, making it publicly visible in the journal. Accepts either the post ID or the article slug.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "blog",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "publish_journal_post",
           "description": "Publish an approved journal post, making it publicly visible.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "blog",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "qa_blog_article",
           "description": "Run editorial QA against the current article draft and return structured findings.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "blog",
+          "protected": false,
+          "toggleable": true
+        },
+        {
+          "name": "request_pre_restore_backup",
+          "description": "Admin-only operation to queue the required safety backup before restore execution.",
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "admin",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "resolve_blog_article_qa",
           "description": "Apply editorial fixes from a normalized QA report to the current article draft.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "blog",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "restore_journal_revision",
           "description": "Restore a previous editorial revision as the active draft content.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "blog",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "search_corpus",
           "description": "Search across all 11 books (93 chapters) in the Second Renaissance Knowledge System.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "corpus",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "search_my_conversations",
-          "description": "Search your own conversation history to recall past discussions.",
-          "category": "system"
+          "description": "Search your own conversation transcript history to recall past discussion turns.",
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "conversation",
+          "protected": false,
+          "toggleable": true
+        },
+        {
+          "name": "search_relationship_memory",
+          "description": "Search active relationship memory to recall goals, preferences, decisions, commitments, milestones, and unresolved questions.",
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "conversation",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "select_journal_hero_image",
           "description": "Select or change the hero image for a journal post from available generated assets.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "blog",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "set_preference",
           "description": "Create or update a user preference key-value pair persisted to the user's profile.",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "theme",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "set_theme",
           "description": "Change site aesthetic era.",
-          "category": "ui"
+          "category": "ui",
+          "state": "enabled",
+          "reason": "protected_recovery_tool",
+          "bundleId": "theme",
+          "protected": true,
+          "toggleable": false
         },
         {
           "name": "submit_journal_review",
           "description": "Submit an editorial review for a journal post with approval or change-request decision.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "blog",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "update_journal_draft",
           "description": "Replace the content body of a journal post draft.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "blog",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "update_journal_metadata",
           "description": "Update journal post metadata fields such as title, description, tags, and category.",
-          "category": "content"
+          "category": "content",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "blog",
+          "protected": false,
+          "toggleable": true
         },
         {
           "name": "update_my_profile",
           "description": "Update the authenticated user's profile fields (name, credential).",
-          "category": "system"
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "profile",
+          "protected": false,
+          "toggleable": true
+        },
+        {
+          "name": "validate_appliance_backup",
+          "description": "Admin-only operation to validate an existing appliance backup archive.",
+          "category": "system",
+          "state": "enabled",
+          "reason": "catalog_declared",
+          "bundleId": "admin",
+          "protected": false,
+          "toggleable": true
         }
       ]
     }
   },
   "navigation": {
     "countsByRole": {
-      "ANONYMOUS": 7,
-      "AUTHENTICATED": 9,
-      "APPRENTICE": 9,
-      "STAFF": 10,
-      "ADMIN": 18
+      "ANONYMOUS": 5,
+      "AUTHENTICATED": 10,
+      "APPRENTICE": 10,
+      "STAFF": 13,
+      "ADMIN": 21
     },
     "routesByRole": {
       "ANONYMOUS": [
@@ -788,29 +1713,19 @@
           "description": "Return to the main homepage and chat entry point."
         },
         {
-          "label": "Legacy Book Chapter Redirect",
-          "href": "/book/[chapter]",
-          "description": null
-        },
-        {
-          "label": "Legacy Books Index",
-          "href": "/books",
-          "description": null
-        },
-        {
-          "label": "Journal",
-          "href": "/journal",
-          "description": "Read published journal content."
-        },
-        {
-          "label": "Library",
-          "href": "/library",
-          "description": "Browse the library and structured reference material."
+          "label": "About",
+          "href": "/about",
+          "description": "Learn what this Ordo instance is and how it helps the business operate."
         },
         {
           "label": "Login",
           "href": "/login",
           "description": null
+        },
+        {
+          "label": "Offers",
+          "href": "/offers",
+          "description": "Review public offers or govern owner offers after signing in."
         },
         {
           "label": "Register",
@@ -825,44 +1740,49 @@
           "description": "Return to the main homepage and chat entry point."
         },
         {
-          "label": "Legacy Book Chapter Redirect",
-          "href": "/book/[chapter]",
-          "description": null
+          "label": "Conversations",
+          "href": "/",
+          "description": "Open conversations with Ordo now and people handoffs later."
         },
         {
-          "label": "Legacy Books Index",
-          "href": "/books",
-          "description": null
+          "label": "About",
+          "href": "/about",
+          "description": "Learn what this Ordo instance is and how it helps the business operate."
         },
         {
-          "label": "Jobs",
-          "href": "/jobs",
-          "description": "Review current and recent deferred jobs."
+          "label": "About",
+          "href": "/about",
+          "description": "Review the business and public About surface from the owner workspace."
         },
         {
-          "label": "Journal",
-          "href": "/journal",
-          "description": "Read published journal content."
+          "label": "People",
+          "href": "/business",
+          "description": "Open People for relationships, referrals, and customer-facing signals."
         },
         {
-          "label": "Library",
-          "href": "/library",
-          "description": "Browse the library and structured reference material."
+          "label": "Offers",
+          "href": "/offers",
+          "description": "Review public offers or govern owner offers after signing in."
         },
         {
-          "label": "Login",
-          "href": "/login",
-          "description": null
-        },
-        {
-          "label": "Profile",
+          "label": "My Account",
           "href": "/profile",
-          "description": "View profile, referral, and personal settings."
+          "description": "Manage user info, password, preferences, and account access."
         },
         {
-          "label": "Register",
-          "href": "/register",
-          "description": null
+          "label": "Change Password",
+          "href": "/profile?section=password",
+          "description": "Update the password for this signed-in account."
+        },
+        {
+          "label": "Studio",
+          "href": "/studio",
+          "description": "Open the production workspace for generated media, workflows, and current work."
+        },
+        {
+          "label": "Today",
+          "href": "/workspace",
+          "description": "Open Today for attention, current work, outputs, and the next useful action."
         }
       ],
       "APPRENTICE": [
@@ -872,44 +1792,49 @@
           "description": "Return to the main homepage and chat entry point."
         },
         {
-          "label": "Legacy Book Chapter Redirect",
-          "href": "/book/[chapter]",
-          "description": null
+          "label": "Conversations",
+          "href": "/",
+          "description": "Open conversations with Ordo now and people handoffs later."
         },
         {
-          "label": "Legacy Books Index",
-          "href": "/books",
-          "description": null
+          "label": "About",
+          "href": "/about",
+          "description": "Learn what this Ordo instance is and how it helps the business operate."
         },
         {
-          "label": "Jobs",
-          "href": "/jobs",
-          "description": "Review current and recent deferred jobs."
+          "label": "About",
+          "href": "/about",
+          "description": "Review the business and public About surface from the owner workspace."
         },
         {
-          "label": "Journal",
-          "href": "/journal",
-          "description": "Read published journal content."
+          "label": "People",
+          "href": "/business",
+          "description": "Open People for relationships, referrals, and customer-facing signals."
         },
         {
-          "label": "Library",
-          "href": "/library",
-          "description": "Browse the library and structured reference material."
+          "label": "Offers",
+          "href": "/offers",
+          "description": "Review public offers or govern owner offers after signing in."
         },
         {
-          "label": "Login",
-          "href": "/login",
-          "description": null
-        },
-        {
-          "label": "Profile",
+          "label": "My Account",
           "href": "/profile",
-          "description": "View profile, referral, and personal settings."
+          "description": "Manage user info, password, preferences, and account access."
         },
         {
-          "label": "Register",
-          "href": "/register",
-          "description": null
+          "label": "Change Password",
+          "href": "/profile?section=password",
+          "description": "Update the password for this signed-in account."
+        },
+        {
+          "label": "Studio",
+          "href": "/studio",
+          "description": "Open the production workspace for generated media, workflows, and current work."
+        },
+        {
+          "label": "Today",
+          "href": "/workspace",
+          "description": "Open Today for attention, current work, outputs, and the next useful action."
         }
       ],
       "STAFF": [
@@ -919,49 +1844,64 @@
           "description": "Return to the main homepage and chat entry point."
         },
         {
+          "label": "Conversations",
+          "href": "/",
+          "description": "Open conversations with Ordo now and people handoffs later."
+        },
+        {
+          "label": "About",
+          "href": "/about",
+          "description": "Learn what this Ordo instance is and how it helps the business operate."
+        },
+        {
+          "label": "About",
+          "href": "/about",
+          "description": "Review the business and public About surface from the owner workspace."
+        },
+        {
           "label": "Journal",
           "href": "/admin/journal",
           "description": "Manage journal inventory, workflow, and preview states."
         },
         {
-          "label": "Legacy Book Chapter Redirect",
-          "href": "/book/[chapter]",
-          "description": null
+          "label": "Training",
+          "href": "/admin/training",
+          "description": "Access internal training references and operator playbooks."
         },
         {
-          "label": "Legacy Books Index",
-          "href": "/books",
-          "description": null
+          "label": "People",
+          "href": "/business",
+          "description": "Open People for relationships, referrals, and customer-facing signals."
         },
         {
-          "label": "Jobs",
-          "href": "/jobs",
-          "description": "Review current and recent deferred jobs."
+          "label": "Offers",
+          "href": "/offers",
+          "description": "Review public offers or govern owner offers after signing in."
         },
         {
-          "label": "Journal",
-          "href": "/journal",
-          "description": "Read published journal content."
+          "label": "Media Ops",
+          "href": "/operations/media",
+          "description": "Inspect governed media across the fleet without widening the admin shell."
         },
         {
-          "label": "Library",
-          "href": "/library",
-          "description": "Browse the library and structured reference material."
-        },
-        {
-          "label": "Login",
-          "href": "/login",
-          "description": null
-        },
-        {
-          "label": "Profile",
+          "label": "My Account",
           "href": "/profile",
-          "description": "View profile, referral, and personal settings."
+          "description": "Manage user info, password, preferences, and account access."
         },
         {
-          "label": "Register",
-          "href": "/register",
-          "description": null
+          "label": "Change Password",
+          "href": "/profile?section=password",
+          "description": "Update the password for this signed-in account."
+        },
+        {
+          "label": "Studio",
+          "href": "/studio",
+          "description": "Open the production workspace for generated media, workflows, and current work."
+        },
+        {
+          "label": "Today",
+          "href": "/workspace",
+          "description": "Open Today for attention, current work, outputs, and the next useful action."
         }
       ],
       "ADMIN": [
@@ -969,6 +1909,21 @@
           "label": "Home",
           "href": "/",
           "description": "Return to the main homepage and chat entry point."
+        },
+        {
+          "label": "Conversations",
+          "href": "/",
+          "description": "Open conversations with Ordo now and people handoffs later."
+        },
+        {
+          "label": "About",
+          "href": "/about",
+          "description": "Learn what this Ordo instance is and how it helps the business operate."
+        },
+        {
+          "label": "About",
+          "href": "/about",
+          "description": "Review the business and public About surface from the owner workspace."
         },
         {
           "label": "Admin",
@@ -1011,55 +1966,55 @@
           "description": "Inspect feature flags, model policy, and runtime status."
         },
         {
+          "label": "Training",
+          "href": "/admin/training",
+          "description": "Access internal training references and operator playbooks."
+        },
+        {
           "label": "Users",
           "href": "/admin/users",
           "description": "Review people, roles, and account context."
         },
         {
-          "label": "Legacy Book Chapter Redirect",
-          "href": "/book/[chapter]",
-          "description": null
+          "label": "People",
+          "href": "/business",
+          "description": "Open People for relationships, referrals, and customer-facing signals."
         },
         {
-          "label": "Legacy Books Index",
-          "href": "/books",
-          "description": null
+          "label": "Offers",
+          "href": "/offers",
+          "description": "Review public offers or govern owner offers after signing in."
         },
         {
-          "label": "Jobs",
-          "href": "/jobs",
-          "description": "Review current and recent deferred jobs."
+          "label": "Media Ops",
+          "href": "/operations/media",
+          "description": "Inspect governed media across the fleet without widening the admin shell."
         },
         {
-          "label": "Journal",
-          "href": "/journal",
-          "description": "Read published journal content."
-        },
-        {
-          "label": "Library",
-          "href": "/library",
-          "description": "Browse the library and structured reference material."
-        },
-        {
-          "label": "Login",
-          "href": "/login",
-          "description": null
-        },
-        {
-          "label": "Profile",
+          "label": "My Account",
           "href": "/profile",
-          "description": "View profile, referral, and personal settings."
+          "description": "Manage user info, password, preferences, and account access."
         },
         {
-          "label": "Register",
-          "href": "/register",
-          "description": null
+          "label": "Change Password",
+          "href": "/profile?section=password",
+          "description": "Update the password for this signed-in account."
+        },
+        {
+          "label": "Studio",
+          "href": "/studio",
+          "description": "Open the production workspace for generated media, workflows, and current work."
+        },
+        {
+          "label": "Today",
+          "href": "/workspace",
+          "description": "Open Today for attention, current work, outputs, and the next useful action."
         }
       ]
     }
   },
   "mcp": {
-    "processCount": 3,
+    "processCount": 4,
     "processes": [
       {
         "id": "admin-web-search",
@@ -1083,6 +2038,17 @@
         ]
       },
       {
+        "id": "generate-audio",
+        "serverName": "generate-audio-mcp-server",
+        "entrypoint": "mcp/generate-audio-server.ts",
+        "canonicalCommand": "npm run mcp:generate-audio",
+        "compatibilityAliases": [],
+        "capabilityGroups": [
+          "media",
+          "audio"
+        ]
+      },
+      {
         "id": "operations",
         "serverName": "operations-mcp-server",
         "entrypoint": "mcp/operations-server.ts",
@@ -1092,7 +2058,8 @@
           "embeddings",
           "corpus",
           "prompt",
-          "analytics"
+          "analytics",
+          "admin-intelligence"
         ]
       }
     ]

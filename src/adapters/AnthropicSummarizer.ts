@@ -1,6 +1,7 @@
-import Anthropic from "@anthropic-ai/sdk";
+import type Anthropic from "@anthropic-ai/sdk";
 import type { Message } from "@/core/entities/conversation";
 import type { LlmSummarizer } from "@/core/use-cases/LlmSummarizer";
+import type { IntelligenceProviderId } from "@/lib/ai/providers/types";
 import {
   classifyProviderError,
   emitProviderEvent,
@@ -21,16 +22,15 @@ const SUMMARY_MAX_TOKENS = 800;
 
 export class AnthropicSummarizer implements LlmSummarizer {
   constructor(
-    private readonly apiKey: string,
+    private readonly client: Anthropic,
+    private readonly provider: IntelligenceProviderId,
     private readonly model: string,
   ) {}
 
   async summarize(messages: Message[]): Promise<string> {
     if (!this.model) {
-      throw new Error("No valid Anthropic model configured.");
+      throw new Error("No valid intelligence provider model configured.");
     }
-
-    const client = new Anthropic({ apiKey: this.apiKey });
 
     const formatted: Anthropic.MessageParam[] = messages
       .filter((m) => m.role === "user" || m.role === "assistant")
@@ -39,13 +39,14 @@ export class AnthropicSummarizer implements LlmSummarizer {
     const startedAt = Date.now();
     emitProviderEvent({
       kind: "attempt_start",
+      provider: this.provider,
       surface: "summarization",
       model: this.model,
       attempt: 1,
     });
 
     try {
-      const response = await client.messages.create({
+      const response = await this.client.messages.create({
         model: this.model,
         max_tokens: SUMMARY_MAX_TOKENS,
         system: SUMMARY_PROMPT,
@@ -57,6 +58,7 @@ export class AnthropicSummarizer implements LlmSummarizer {
 
       emitProviderEvent({
         kind: "attempt_success",
+        provider: this.provider,
         surface: "summarization",
         model: this.model,
         attempt: 1,
@@ -67,6 +69,7 @@ export class AnthropicSummarizer implements LlmSummarizer {
     } catch (error) {
       emitProviderEvent({
         kind: "attempt_failure",
+        provider: this.provider,
         surface: "summarization",
         model: this.model,
         attempt: 1,

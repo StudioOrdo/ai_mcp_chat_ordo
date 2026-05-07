@@ -4,6 +4,7 @@ import {
   subscribeObservability,
 } from "@/lib/observability/events";
 import { createRawPinoInstance } from "@/adapters/PinoLogger";
+import { redactSecrets } from "@/lib/observability/secret-redaction";
 
 export type LogLevel = "info" | "warn" | "error";
 
@@ -47,7 +48,7 @@ export function logEvent(
       timestamp: new Date().toISOString(),
       level,
       event,
-      context,
+      context: redactSecrets(context).value,
     },
   });
 }

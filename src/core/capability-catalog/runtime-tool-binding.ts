@@ -1,4 +1,4 @@
-import { getJobQueueRepository, getMaterializationRepository } from "@/adapters/RepositoryFactory";
+import { getJobQueueRepository } from "@/adapters/RepositoryFactory";
 import { localEmbedder } from "@/adapters/LocalEmbedder";
 import type { UserPreferencesRepository } from "@/core/ports/UserPreferencesRepository";
 import type { VectorStore } from "@/core/search/ports/VectorStore";
@@ -40,13 +40,22 @@ import { createAdminPrioritizeLeadsTool } from "@/core/use-cases/tools/admin-pri
 import { createAdminPrioritizeOfferTool } from "@/core/use-cases/tools/admin-prioritize-offer.tool";
 import { createAdminTriageRoutingRiskTool } from "@/core/use-cases/tools/admin-triage-routing-risk.tool";
 import { executeAdminWebSearch } from "@/core/use-cases/tools/admin-web-search.tool";
+import { assertProviderBackedToolAvailable } from "@/lib/tools/tool-provider-capability-policy";
 import {
   createGetAdminAffiliateSummaryTool,
   createGetMyAffiliateSummaryTool,
   createListAdminReferralExceptionsTool,
   createListMyReferralActivityTool,
 } from "@/core/use-cases/tools/affiliate-analytics.tool";
-import { executeComposeMedia, parseComposeMediaInput } from "@/core/use-cases/tools/compose-media.tool";
+import { parseComposeMediaInput } from "@/core/use-cases/tools/compose-media.tool";
+import {
+  executeConfigureToolAvailability,
+  parseConfigureToolAvailabilityInput,
+} from "@/core/use-cases/tools/configure-tool-availability.tool";
+import {
+  executeApplianceBackupAction,
+  parseApplianceBackupInput,
+} from "@/core/use-cases/tools/appliance-backup.tool";
 import { createGenerateBlogImageTool } from "@/core/use-cases/tools/blog-image.tool";
 import {
   createComposeBlogArticleTool,
@@ -56,8 +65,7 @@ import {
   createResolveBlogArticleQaTool,
 } from "@/core/use-cases/tools/blog-production.tool";
 import {
-  createProduceProductTool,
-  parseProduceProductInput,
+  parseProduceProductOperationInput,
 } from "@/core/use-cases/tools/factory-production.tool";
 import {
   createGetDeferredJobStatusTool,
@@ -132,7 +140,6 @@ import {
   executeSetTheme,
   parseSetThemeInput,
 } from "@/core/use-cases/tools/set-theme.tool";
-import { createProduceProductDeferredJobHandler } from "@/lib/factory/factory-production-root";
 import {
   executeSetPreference,
   parseSetPreferenceInput,
@@ -147,6 +154,7 @@ import {
   createGetMyReferralQrTool,
   createUpdateMyProfileTool,
 } from "@/core/use-cases/tools/user-profile.tool";
+import { createCreateOfferTool } from "@/core/use-cases/tools/offer-management.tool";
 import type { CapabilityDefinition } from "./capability-definition";
 import { CAPABILITY_CATALOG, getCatalogDefinition } from "./catalog";
 import { resolveExecutionPlanningContextForCapability } from "./execution-planning-policy";
@@ -173,13 +181,22 @@ import {
   createNativeProcessExecutionTargetAdapter,
   createRemoteServiceExecutionTargetAdapter,
 } from "@/lib/capabilities/external-target-adapters";
-import { enqueueComposeMediaDeferredJob } from "@/lib/jobs/compose-media-deferred-job";
-import { enqueueGenerateAudioDeferredJob } from "@/lib/jobs/generate-audio-deferred-job";
 import { enqueueDeferredToolJob } from "@/lib/jobs/enqueue-deferred-tool-job";
 import {
   COMPOSE_MEDIA_COMPLETE_LABEL,
 } from "@/lib/media/compose-media-progress";
 import { MediaWorkerClient } from "@/lib/media/server/media-worker-client";
+import {
+  launchMediaWorkflowOperation,
+  toMediaWorkflowOperationToolResult,
+  type MediaWorkflowOperationLauncher,
+  type MediaWorkflowOperationToolName,
+} from "@/lib/media/workflows/media-workflow-operation-launcher";
+import {
+  launchFactoryWorkOrderOperation,
+  toFactoryWorkOrderOperationToolResult,
+  type FactoryWorkOrderOperationLauncher,
+} from "@/lib/factory/factory-work-order-operation-launcher";
 import {
   planCapabilityExecution,
   type ExecutionPlanningContext,
@@ -196,6 +213,8 @@ import type { AdminReferralAnalyticsService } from "@/lib/referrals/admin-referr
 import type { ReferralAnalyticsService } from "@/lib/referrals/referral-analytics";
 import { sanitizeAdminWebSearchInput } from "@/lib/web-search/admin-web-search-payload";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
+import type { SystemCommand, SystemCommandRepository } from "@/lib/appliance/backup/types";
+import type { OfferService } from "@/lib/offers/offer-service";
 
 export interface CatalogToolBindingDeps {
   blogRepo?: BlogPostRepository;
@@ -212,13 +231,19 @@ export interface CatalogToolBindingDeps {
   registry?: ToolRegistry;
   userPreferencesRepo?: UserPreferencesRepository;
   profileService?: CatalogProfileService;
+  offerService?: OfferService;
   analyticsService?: ReferralAnalyticsService;
   adminAnalyticsService?: AdminReferralAnalyticsService;
   vectorStore?: VectorStore;
   relationshipMemoryReader?: RelationshipMemoryReader;
   userFileRepository?: UserFileRepository;
   assetCatalogReader?: AssetCatalogReader;
+  mediaWorkflowOperationLauncher?: MediaWorkflowOperationLauncher;
+  factoryWorkOrderOperationLauncher?: FactoryWorkOrderOperationLauncher;
   adminWebSearchDepsFactory?: () => WebSearchToolDeps;
+  systemCommandRepository?: Pick<SystemCommandRepository, "findById"> & {
+    listRecentBackupRestore?: (limit: number, offset?: number) => Promise<SystemCommand[]>;
+  };
 }
 
 interface CatalogProfileService {
@@ -310,10 +335,6 @@ function resolveJobQueueRepository(deps: CatalogToolBindingDeps): JobQueueReposi
   return deps.jobQueueRepository ?? getJobQueueRepository();
 }
 
-function resolveMaterializationRepository(deps: CatalogToolBindingDeps): MaterializationRepository {
-  return deps.materializationRepository ?? getMaterializationRepository();
-}
-
 function requireJobStatusQuery(deps: CatalogToolBindingDeps): JobStatusQuery {
   if (!deps.jobStatusQuery) {
     throw new Error("Catalog runtime binding for job tools requires a JobStatusQuery.");
@@ -336,6 +357,14 @@ function requireProfileService(deps: CatalogToolBindingDeps): CatalogProfileServ
   }
 
   return deps.profileService;
+}
+
+function requireOfferService(deps: CatalogToolBindingDeps): OfferService {
+  if (!deps.offerService) {
+    throw new Error("Catalog runtime binding for offer tools requires an offer service.");
+  }
+
+  return deps.offerService;
 }
 
 function requireAnalyticsService(deps: CatalogToolBindingDeps): ReferralAnalyticsService {
@@ -418,6 +447,84 @@ async function executeComposeMediaForSystemWorker(
   return result;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isMediaWorkflowOperationToolName(name: string): name is MediaWorkflowOperationToolName {
+  return name === "compose_media" || name === "generate_audio";
+}
+
+async function executeMediaWorkflowOperationTool(
+  toolName: MediaWorkflowOperationToolName,
+  input: unknown,
+  context: ToolExecutionContext | undefined,
+  deps: CatalogToolBindingDeps,
+): Promise<Record<string, unknown>> {
+  const conversationId = context?.conversationId ?? (
+    toolName === "compose_media" && isRecord(input) && isRecord(input.plan)
+      ? (typeof input.plan.conversationId === "string" ? input.plan.conversationId : undefined)
+      : undefined
+  );
+  if (!conversationId) {
+    throw new Error(`${toolName} requires a conversationId to create a media workflow operation.`);
+  }
+
+  const userId = context?.userId;
+  if (!userId) {
+    throw new Error(`${toolName} requires a userId to create a media workflow operation.`);
+  }
+
+  const role = context?.role;
+  if (!role || role === "ANONYMOUS") {
+    throw new Error(`${toolName} requires an authenticated role to create a media workflow operation.`);
+  }
+
+  const launcher = deps.mediaWorkflowOperationLauncher ?? launchMediaWorkflowOperation;
+  const result = await launcher({
+    toolName,
+    conversationId,
+    userId,
+    role,
+    request: isRecord(input) ? input : { input },
+    sourceSurface: "capability_catalog",
+  });
+
+  return toMediaWorkflowOperationToolResult(toolName, result);
+}
+
+async function executeFactoryWorkOrderOperationTool(
+  input: ReturnType<typeof parseProduceProductOperationInput>,
+  context: ToolExecutionContext | undefined,
+  deps: CatalogToolBindingDeps,
+): Promise<Record<string, unknown>> {
+  const conversationId = context?.conversationId ?? input.brief.sourceConversationId;
+  if (!conversationId) {
+    throw new Error("produce_product requires a conversationId to create a factory work-order operation.");
+  }
+
+  const userId = context?.userId;
+  if (!userId) {
+    throw new Error("produce_product requires a userId to create a factory work-order operation.");
+  }
+
+  const role = context?.role;
+  if (role !== "STAFF" && role !== "ADMIN") {
+    throw new Error("produce_product requires STAFF or ADMIN role to create a factory work-order operation.");
+  }
+
+  const launcher = deps.factoryWorkOrderOperationLauncher ?? launchFactoryWorkOrderOperation;
+  const result = await launcher({
+    conversationId,
+    userId,
+    role,
+    request: input,
+    sourceSurface: "capability_catalog",
+  });
+
+  return toFactoryWorkOrderOperationToolResult(result);
+}
+
 const passthroughInput: CatalogInputParser = (input) => input;
 type CatalogDescriptorFactory = (deps: CatalogToolBindingDeps) => ToolDescriptor;
 
@@ -435,6 +542,9 @@ function createDescriptorBackedRuntimeBinding(
 }
 
 const DESCRIPTOR_BACKED_RUNTIME_BINDINGS = {
+  create_offer: createDescriptorBackedRuntimeBinding(
+    (deps) => createCreateOfferTool(requireOfferService(deps)),
+  ),
   admin_prioritize_leads: createDescriptorBackedRuntimeBinding(
     () => createAdminPrioritizeLeadsTool(loadOperatorLeadQueue),
   ),
@@ -456,7 +566,7 @@ const DESCRIPTOR_BACKED_RUNTIME_BINDINGS = {
   compose_blog_article: createDescriptorBackedRuntimeBinding(
     (deps) => createComposeBlogArticleTool(requireBlogArticleService(deps)),
   ),
-  // generate_audio is bound manually in RUNTIME_BINDINGS below to enqueue canonical audio jobs.
+  // generate_audio is bound manually in RUNTIME_BINDINGS below to create canonical media workflow operations.
   generate_blog_image: createDescriptorBackedRuntimeBinding(
     (deps) => createGenerateBlogImageTool(requireBlogImageService(deps)),
   ),
@@ -475,7 +585,10 @@ const DESCRIPTOR_BACKED_RUNTIME_BINDINGS = {
     (deps) => createGetCorpusSummaryTool(requireCorpusRepo(deps)),
   ),
   get_deferred_job_status: createDescriptorBackedRuntimeBinding(
-    (deps) => createGetDeferredJobStatusTool(requireJobStatusQuery(deps)),
+    (deps) => createGetDeferredJobStatusTool(
+      requireJobStatusQuery(deps),
+      deps.systemCommandRepository,
+    ),
   ),
   get_journal_post: createDescriptorBackedRuntimeBinding(
     (deps) => createGetJournalPostTool(new GetJournalPostInteractor(requireBlogRepo(deps))),
@@ -549,10 +662,6 @@ const DESCRIPTOR_BACKED_RUNTIME_BINDINGS = {
         requireBlogArticleService(deps),
       ),
     ),
-  ),
-  produce_product: createDescriptorBackedRuntimeBinding(
-    () => createProduceProductTool(createProduceProductDeferredJobHandler()),
-    parseProduceProductInput,
   ),
   produce_blog_article: createDescriptorBackedRuntimeBinding(
     (deps) => createProduceBlogArticleTool(requireBlogArticleService(deps)),
@@ -671,14 +780,75 @@ const RUNTIME_BINDINGS = {
   },
   compose_media: {
     parse: parseComposeMediaInput,
-    createExecutor: (): CatalogExecutor<ReturnType<typeof parseComposeMediaInput>> => {
+    createExecutor: (deps): CatalogExecutor<ReturnType<typeof parseComposeMediaInput>> => {
       return async (input, context) => {
         if (context?.executionPrincipal === "system_worker") {
           return executeComposeMediaForSystemWorker(input, context);
         }
 
-        return executeComposeMedia(input);
+        return executeMediaWorkflowOperationTool("compose_media", input, context, deps);
       };
+    },
+  },
+  configure_tool_availability: {
+    parse: parseConfigureToolAvailabilityInput,
+    createExecutor: (deps): CatalogExecutor<ReturnType<typeof parseConfigureToolAvailabilityInput>> => {
+      const registry = requireRegistry(deps);
+      return async (input, context) => executeConfigureToolAvailability(registry, input, context);
+    },
+  },
+  create_appliance_backup: {
+    parse: parseApplianceBackupInput,
+    createExecutor: (): CatalogExecutor<ReturnType<typeof parseApplianceBackupInput>> => {
+      return async (input, context) => executeApplianceBackupAction("create_appliance_backup", input, context);
+    },
+  },
+  list_appliance_backups: {
+    parse: parseApplianceBackupInput,
+    createExecutor: (): CatalogExecutor<ReturnType<typeof parseApplianceBackupInput>> => {
+      return async (input, context) => executeApplianceBackupAction("list_appliance_backups", input, context);
+    },
+  },
+  validate_appliance_backup: {
+    parse: parseApplianceBackupInput,
+    createExecutor: (): CatalogExecutor<ReturnType<typeof parseApplianceBackupInput>> => {
+      return async (input, context) => executeApplianceBackupAction("validate_appliance_backup", input, context);
+    },
+  },
+  prepare_appliance_restore: {
+    parse: parseApplianceBackupInput,
+    createExecutor: (): CatalogExecutor<ReturnType<typeof parseApplianceBackupInput>> => {
+      return async (input, context) => executeApplianceBackupAction("prepare_appliance_restore", input, context);
+    },
+  },
+  request_pre_restore_backup: {
+    parse: parseApplianceBackupInput,
+    createExecutor: (): CatalogExecutor<ReturnType<typeof parseApplianceBackupInput>> => {
+      return async (input, context) => executeApplianceBackupAction("request_pre_restore_backup", input, context);
+    },
+  },
+  confirm_appliance_restore: {
+    parse: parseApplianceBackupInput,
+    createExecutor: (): CatalogExecutor<ReturnType<typeof parseApplianceBackupInput>> => {
+      return async (input, context) => executeApplianceBackupAction("confirm_appliance_restore", input, context);
+    },
+  },
+  execute_appliance_restore: {
+    parse: parseApplianceBackupInput,
+    createExecutor: (): CatalogExecutor<ReturnType<typeof parseApplianceBackupInput>> => {
+      return async (input, context) => executeApplianceBackupAction("execute_appliance_restore", input, context);
+    },
+  },
+  cancel_appliance_restore: {
+    parse: parseApplianceBackupInput,
+    createExecutor: (): CatalogExecutor<ReturnType<typeof parseApplianceBackupInput>> => {
+      return async (input, context) => executeApplianceBackupAction("cancel_appliance_restore", input, context);
+    },
+  },
+  configure_backup_policy: {
+    parse: parseApplianceBackupInput,
+    createExecutor: (): CatalogExecutor<ReturnType<typeof parseApplianceBackupInput>> => {
+      return async (input, context) => executeApplianceBackupAction("configure_backup_policy", input, context);
     },
   },
   draft_content: {
@@ -726,6 +896,12 @@ const RUNTIME_BINDINGS = {
       return async (input, context) => executePublishContent(blogRepo, input, context, deps.blogAssetRepo);
     },
   },
+  produce_product: {
+    parse: parseProduceProductOperationInput,
+    createExecutor: (deps): CatalogExecutor<ReturnType<typeof parseProduceProductOperationInput>> => {
+      return async (input, context) => executeFactoryWorkOrderOperationTool(input, context, deps);
+    },
+  },
   search_corpus: {
     parse: parseSearchCorpusInput,
     createExecutor: (deps): CatalogExecutor<ReturnType<typeof parseSearchCorpusInput>> => {
@@ -737,50 +913,7 @@ const RUNTIME_BINDINGS = {
     parse: parseGenerateAudioInput,
     createExecutor: (deps): CatalogExecutor<ReturnType<typeof parseGenerateAudioInput>> => {
       return async (input, context) => {
-        if (!context?.conversationId) {
-          throw new Error("generate_audio requires a conversationId to queue deferred execution.");
-        }
-        if (!context.userId) {
-          throw new Error("generate_audio requires a userId to queue deferred execution.");
-        }
-
-        const result = await enqueueGenerateAudioDeferredJob({
-          repository: resolveJobQueueRepository(deps),
-          materializationRepository: resolveMaterializationRepository(deps),
-          conversationId: context.conversationId,
-          userId: context.userId,
-          input,
-          promptBindingId: context.promptBindingId,
-          toolInvocationId: context.toolInvocationId,
-          initiatorType: context.role === "ANONYMOUS" ? "anonymous_session" : "user",
-        });
-
-        if (result.payload) {
-          return result.payload;
-        }
-
-        if (result.outcome === "exact_reuse" && result.materialization) {
-          const primaryOutputAsset = result.materialization.outputRefs.find((ref) => ref.kind === "asset");
-          return {
-            action: "generate_audio",
-            outcome: "exact_reuse",
-            materializationId: result.materialization.id,
-            materializationKey: result.materialization.materializationKey,
-            producedByJobId: result.materialization.producedByJobId,
-            outputRefs: result.materialization.outputRefs,
-            ...(primaryOutputAsset ? {
-              primaryAssetId: primaryOutputAsset.id,
-              assetId: primaryOutputAsset.id,
-              mimeType: "audio/mpeg",
-              retentionClass: result.materialization.conversationId ? "conversation" : "ephemeral",
-            } : {}),
-          };
-        }
-
-        return {
-          action: "generate_audio",
-          outcome: result.outcome,
-        };
+        return executeMediaWorkflowOperationTool("generate_audio", input, context, deps);
       };
     },
   },
@@ -987,6 +1120,8 @@ function createDeferredJobExecutionTargetAdapter(
       const conversationId = request.context?.conversationId ?? (
         def.core.name === "compose_media"
           ? (request.input as ReturnType<typeof parseComposeMediaInput>).plan.conversationId
+          : def.core.name === "produce_product"
+            ? (request.input as ReturnType<typeof parseProduceProductOperationInput>).brief.sourceConversationId
           : undefined
       );
       if (!conversationId) {
@@ -999,7 +1134,19 @@ function createDeferredJobExecutionTargetAdapter(
       }
 
       const initiatorType = request.context?.role === "ANONYMOUS" ? "anonymous_session" : "user";
-      
+
+      if (isMediaWorkflowOperationToolName(def.core.name)) {
+        return executeMediaWorkflowOperationTool(def.core.name, request.input, request.context, deps);
+      }
+
+      if (def.core.name === "produce_product") {
+        return executeFactoryWorkOrderOperationTool(
+          request.input as ReturnType<typeof parseProduceProductOperationInput>,
+          request.context,
+          deps,
+        );
+      }
+
       let preAllocatedAssetId: string | undefined = undefined;
       const requestPayload = request.input as Record<string, unknown>;
 
@@ -1017,85 +1164,6 @@ function createDeferredJobExecutionTargetAdapter(
           preAllocatedAssetId = pending.id;
           requestPayload.assetId = pending.id;
         }
-      }
-
-      if (def.core.name === "compose_media") {
-        const input = request.input as ReturnType<typeof parseComposeMediaInput>;
-        const result = await enqueueComposeMediaDeferredJob({
-          repository: resolveJobQueueRepository(deps),
-          materializationRepository: resolveMaterializationRepository(deps),
-          conversationId,
-          userId,
-          plan: input.plan,
-          promptBindingId: request.context?.promptBindingId,
-          initiatorType,
-        });
-
-        if (result.payload) {
-          return result.payload;
-        }
-
-        if (result.outcome === "exact_reuse" && result.materialization) {
-          const primaryOutputAsset = result.materialization.outputRefs.find((ref) => ref.kind === "asset");
-          return {
-            action: "compose_media",
-            outcome: "exact_reuse",
-            materializationId: result.materialization.id,
-            materializationKey: result.materialization.materializationKey,
-            producedByJobId: result.materialization.producedByJobId,
-            outputRefs: result.materialization.outputRefs,
-            ...(primaryOutputAsset ? {
-              primaryAssetId: primaryOutputAsset.id,
-              mimeType: "video/mp4",
-              retentionClass: result.materialization.conversationId ? "conversation" : "ephemeral",
-            } : {}),
-          };
-        }
-
-        return {
-          action: "compose_media",
-          outcome: result.outcome,
-        };
-      }
-
-      if (def.core.name === "generate_audio") {
-        const result = await enqueueGenerateAudioDeferredJob({
-          repository: resolveJobQueueRepository(deps),
-          materializationRepository: resolveMaterializationRepository(deps),
-          conversationId,
-          userId,
-          input: request.input,
-          promptBindingId: request.context?.promptBindingId,
-          toolInvocationId: request.context?.toolInvocationId,
-          initiatorType,
-        });
-
-        if (result.payload) {
-          return result.payload;
-        }
-
-        if (result.outcome === "exact_reuse" && result.materialization) {
-          const primaryOutputAsset = result.materialization.outputRefs.find((ref) => ref.kind === "asset");
-          return {
-            action: "generate_audio",
-            outcome: "exact_reuse",
-            materializationId: result.materialization.id,
-            materializationKey: result.materialization.materializationKey,
-            producedByJobId: result.materialization.producedByJobId,
-            outputRefs: result.materialization.outputRefs,
-            ...(primaryOutputAsset ? {
-              primaryAssetId: primaryOutputAsset.id,
-              assetId: primaryOutputAsset.id,
-              mimeType: "audio/mpeg",
-              retentionClass: result.materialization.conversationId ? "conversation" : "ephemeral",
-            } : {}),
-          };
-        }
-
-        return {
-          action: "generate_audio",
-          outcome: result.outcome,
-        };
       }
 
       const result = await enqueueDeferredToolJob({
@@ -1181,6 +1249,8 @@ function resolvePlannedExecutor(
   const registry = createExecutionTargetAdapterRegistry(adapters);
 
   return async (input, context) => {
+    assertProviderBackedToolAvailable(def.core.name);
+
     if (def.core.name === "compose_media" && context?.executionPrincipal === "system_worker") {
       return execute(input, context);
     }

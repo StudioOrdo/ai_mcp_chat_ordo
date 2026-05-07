@@ -71,6 +71,56 @@ describe("deferred job status tools", () => {
     });
   });
 
+  it("routes rust system command ids to appliance backup and restore status", async () => {
+    const systemCommands = {
+      findById: vi.fn(async () => ({
+        id: "syscmd_restore",
+        target: "rust_daemon" as const,
+        command: "restore.request" as const,
+        status: "succeeded" as const,
+        payload: {
+          restorePlanId: "restore_1",
+          snapshotId: "backup_1",
+          archivePath: "/tmp/backup.zip",
+        },
+        resultPayload: {
+          restorePlanId: "restore_1",
+          snapshotId: "backup_1",
+        },
+        errorMessage: null,
+        requestedByUserId: "usr_admin",
+        requestedByRole: "ADMIN" as const,
+        requestedFrom: "operator_tool",
+        leaseOwner: null,
+        leaseExpiresAt: null,
+        createdAt: "2026-05-03T02:08:44.000Z",
+        updatedAt: "2026-05-03T02:08:45.000Z",
+      })),
+    };
+    const tool = createGetDeferredJobStatusTool(
+      createJobStatusQuery(repository),
+      systemCommands,
+    );
+
+    const result = await tool.command.execute({ job_id: "syscmd_restore" });
+
+    expect(findJobByIdMock).not.toHaveBeenCalled();
+    expect(systemCommands.findById).toHaveBeenCalledWith("syscmd_restore");
+    expect(result).toMatchObject({
+      ok: true,
+      title: "Appliance Restore Status",
+      status: "succeeded",
+      systemCommand: {
+        id: "syscmd_restore",
+        command: "restore.request",
+        status: "succeeded",
+        restorePlanId: "restore_1",
+        snapshotId: "backup_1",
+        archivePath: "/tmp/backup.zip",
+      },
+    });
+  });
+
   it("describes admin status tools as explicit inspection instead of wait-loop polling", () => {
     const query = createJobStatusQuery(repository);
     const getTool = createGetDeferredJobStatusTool(query);

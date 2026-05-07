@@ -104,6 +104,7 @@ export interface FactoryRepository {
   createWorkOrder(workOrder: WorkOrder): Promise<WorkOrder>;
   updateWorkOrder(workOrder: WorkOrder): Promise<WorkOrder>;
   findWorkOrderById(id: string): Promise<WorkOrder | null>;
+  findWorkOrderByOperationId(operationId: string): Promise<WorkOrder | null>;
   listWorkOrdersByUser(
     userId: string,
     options?: { statuses?: WorkOrderStatus[]; limit?: number },

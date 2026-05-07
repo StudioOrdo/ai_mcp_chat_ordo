@@ -37,6 +37,7 @@ const {
   createSystemPromptBuilderMock,
   looksLikeMathMock,
   getSchemasForRoleMock,
+  getPromptVisibleSchemasForRoleMock,
   getDescriptorMock,
   toolExecutorFactoryMock,
   getJobStatusQueryMock,
@@ -47,6 +48,7 @@ const {
   findActiveJobByDedupeKeyMock,
   appendJobEventMock,
   getTrustedReferrerContextMock,
+  createSelectedIntelligenceRuntimeMock,
 } = vi.hoisted(() => ({
   executeDirectChatTurnMock: vi.fn(),
   getSessionUserMock: vi.fn(),
@@ -70,6 +72,7 @@ const {
   createSystemPromptBuilderMock: vi.fn(),
   looksLikeMathMock: vi.fn(),
   getSchemasForRoleMock: vi.fn(),
+  getPromptVisibleSchemasForRoleMock: vi.fn(),
   getDescriptorMock: vi.fn(),
   toolExecutorFactoryMock: vi.fn(),
   getJobStatusQueryMock: vi.fn(),
@@ -80,11 +83,14 @@ const {
   findActiveJobByDedupeKeyMock: vi.fn(),
   appendJobEventMock: vi.fn(),
   getTrustedReferrerContextMock: vi.fn(),
+  createSelectedIntelligenceRuntimeMock: vi.fn(),
 }));
 
 // Phase 7 Mock Density Exception: This file tests a complex composition root or integration pipeline and legitimately requires extensive boundary mocking for external services (auth, db, observability, etc.).
 vi.mock("@/lib/auth", () => ({
   getSessionUser: getSessionUserMock,
+  resolveSessionAuthorizationRole: (user: { roles: string[]; realRoles?: string[] }) =>
+    [...(user.realRoles ?? []), ...user.roles].includes("ADMIN") ? "ADMIN" : user.roles[0],
 }));
 
 vi.mock("@/lib/chat/resolve-user", () => ({
@@ -109,6 +115,10 @@ vi.mock("@/lib/chat/chat-turn", () => ({
   executeDirectChatTurn: executeDirectChatTurnMock,
 }));
 
+vi.mock("@/lib/ai/providers/selected-intelligence-runtime", () => ({
+  createSelectedIntelligenceRuntime: createSelectedIntelligenceRuntimeMock,
+}));
+
 vi.mock("@/lib/chat/math-classifier", () => ({
   looksLikeMath: looksLikeMathMock,
 }));
@@ -128,6 +138,7 @@ vi.mock("@/lib/chat/tool-composition-root", () => ({
   getToolComposition: vi.fn(() => ({
     registry: {
       getSchemasForRole: getSchemasForRoleMock,
+      getPromptVisibleSchemasForRole: getPromptVisibleSchemasForRoleMock,
       getDescriptor: getDescriptorMock,
     },
     executor: toolExecutorFactoryMock(),
@@ -163,6 +174,62 @@ vi.mock("@/adapters/RepositoryFactory", () => ({
     findLatestByConversation: vi.fn(async () => null),
     findByConversationAndTurnId: vi.fn(async () => null),
     listByConversation: vi.fn(async () => []),
+  }),
+  getOperationRepository: vi.fn(() => {
+    let latestSnapshot: {
+      operation: Record<string, unknown>;
+      steps: unknown[];
+      actions: unknown[];
+      events: unknown[];
+      artifacts: unknown[];
+    } | null = null;
+    const createSnapshot = (input: Record<string, unknown>) => {
+      const now = String(input.now ?? "2026-03-25T03:00:00.000Z");
+      latestSnapshot = {
+        operation: {
+          id: input.id,
+          kind: input.kind,
+          revision: 1,
+          title: input.title,
+          status: input.status ?? "draft",
+          riskLevel: input.riskLevel ?? "medium",
+          conversationId: input.conversationId ?? null,
+          originMessageId: input.originMessageId ?? null,
+          createdByUserId: input.createdByUserId ?? null,
+          createdByRole: input.createdByRole ?? "ADMIN",
+          visibility: input.visibility ?? "conversation",
+          currentStepId: input.currentStepId ?? null,
+          createdAt: now,
+          updatedAt: now,
+          completedAt: null,
+          summary: input.summary ?? null,
+          input: input.input ?? {},
+          result: input.result ?? null,
+          error: input.error ?? null,
+        },
+        steps: [],
+        actions: [],
+        events: [],
+        artifacts: [],
+      };
+      return latestSnapshot;
+    };
+
+    return {
+      createOperation: vi.fn(async (input: Record<string, unknown>) => createSnapshot(input)),
+      replaceActions: vi.fn(async ({ actions }: { actions: unknown[] }) => ({
+        ...(latestSnapshot ?? createSnapshot({
+          id: "op_test",
+          kind: "help_flow",
+          title: "Test Operation",
+          createdByRole: "ADMIN",
+        })),
+        actions,
+      })),
+      findOperationById: vi.fn(async () => null),
+      listOperationsByConversation: vi.fn(async () => []),
+      listAvailableActions: vi.fn(async () => []),
+    };
   }),
 }));
 
@@ -200,6 +267,27 @@ function parseSsePayloads(body: string): Array<Record<string, unknown>> {
 describe("POST /api/chat/stream", () => {
   beforeEach(() => {
     vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
+    createSelectedIntelligenceRuntimeMock.mockReset();
+    createSelectedIntelligenceRuntimeMock.mockReturnValue({
+      provider: "anthropic",
+      client: {},
+      model: "claude-haiku-4-5",
+      baseUrl: null,
+      policy: {
+        provider: "anthropic",
+        timeoutMs: 10000,
+        retryAttempts: 1,
+        retryDelayMs: 0,
+        modelCandidates: ["claude-haiku-4-5"],
+      },
+      metadata: {
+        providerSource: "default",
+        apiKeySource: "env",
+        apiKeyConfigured: true,
+        modelSource: "default",
+        baseUrlSource: "default",
+      },
+    });
     clearActiveStreamsForTests();
     getDescriptorMock.mockReset();
     getDescriptorMock.mockReturnValue(undefined);
@@ -273,6 +361,7 @@ describe("POST /api/chat/stream", () => {
       createSystemPromptBuilderMock,
       looksLikeMathMock,
       getSchemasForRoleMock,
+      getPromptVisibleSchemasForRoleMock,
       toolExecutorFactoryMock,
       getByIdMock,
       assignConversationMock,
@@ -872,6 +961,7 @@ describe("POST /api/chat/stream", () => {
     );
     resolveUserIdMock.mockResolvedValue({ userId: "usr_admin", isAnonymous: false });
     getSchemasForRoleMock.mockReturnValue([{ name: "admin_prioritize_leads", description: "", input_schema: {} }]);
+    getPromptVisibleSchemasForRoleMock.mockReturnValue([{ name: "admin_prioritize_leads", description: "", input_schema: {} }]);
 
     const response = await POST(
       createStreamRouteRequest({
@@ -885,7 +975,9 @@ describe("POST /api/chat/stream", () => {
       surface: "chat_stream",
       currentPathname: undefined,
     });
-    expect(getSchemasForRoleMock).toHaveBeenCalledWith("ADMIN");
+    expect(getPromptVisibleSchemasForRoleMock).toHaveBeenCalledWith("ADMIN", {
+      mode: "operator_chat",
+    });
     const call = runClaudeAgentLoopStreamMock.mock.calls.at(-1)?.[0] as { tools: Array<{ name: string }> };
     expect(call.tools).toEqual([{ name: "admin_prioritize_leads", description: "", input_schema: {} }]);
   });
@@ -902,6 +994,12 @@ describe("POST /api/chat/stream", () => {
     );
     resolveUserIdMock.mockResolvedValue({ userId: "usr_admin", isAnonymous: false });
     getSchemasForRoleMock.mockReturnValue([
+      { name: "admin_search", description: "", input_schema: {} },
+      { name: "generate_audio", description: "", input_schema: {} },
+      { name: "navigate_to_page", description: "", input_schema: {} },
+      { name: "search_corpus", description: "", input_schema: {} },
+    ]);
+    getPromptVisibleSchemasForRoleMock.mockReturnValue([
       { name: "admin_search", description: "", input_schema: {} },
       { name: "generate_audio", description: "", input_schema: {} },
       { name: "navigate_to_page", description: "", input_schema: {} },
@@ -1016,7 +1114,7 @@ describe("POST /api/chat/stream", () => {
 
     const response = await POST(
       createStreamRouteRequest({
-        messages: [{ role: "user", content: "Generate a short cheese audio clip." }],
+        messages: [{ role: "user", content: "Run the tool invocation id regression path." }],
       }) as never,
     );
 
@@ -1100,6 +1198,7 @@ describe("POST /api/chat/stream", () => {
     );
     resolveUserIdMock.mockResolvedValue({ userId: "usr_admin", isAnonymous: false });
     getSchemasForRoleMock.mockReturnValue([{ name: "draft_content", description: "", input_schema: {} }]);
+    getPromptVisibleSchemasForRoleMock.mockReturnValue([{ name: "draft_content", description: "", input_schema: {} }]);
     getDescriptorMock.mockImplementation((name: string) => {
       if (name !== "draft_content") {
         return undefined;
@@ -1243,6 +1342,7 @@ describe("POST /api/chat/stream", () => {
     );
     resolveUserIdMock.mockResolvedValue({ userId: "usr_admin", isAnonymous: false });
     getSchemasForRoleMock.mockReturnValue([{ name: "publish_content", description: "", input_schema: {} }]);
+    getPromptVisibleSchemasForRoleMock.mockReturnValue([{ name: "publish_content", description: "", input_schema: {} }]);
     getDescriptorMock.mockImplementation((name: string) => {
       if (name !== "publish_content") {
         return undefined;
@@ -1306,7 +1406,7 @@ describe("POST /api/chat/stream", () => {
 
     const response = await POST(
       createStreamRouteRequest({
-        messages: [{ role: "user", content: "Publish draft post_1." }],
+        messages: [{ role: "user", content: "Exercise the deferred content tool for post_1." }],
       }) as never,
     );
 
@@ -1361,6 +1461,7 @@ describe("POST /api/chat/stream", () => {
     );
     resolveUserIdMock.mockResolvedValue({ userId: "usr_admin", isAnonymous: false });
     getSchemasForRoleMock.mockReturnValue([{ name: "get_deferred_job_status", description: "", input_schema: {} }]);
+    getPromptVisibleSchemasForRoleMock.mockReturnValue([{ name: "get_deferred_job_status", description: "", input_schema: {} }]);
 
     runClaudeAgentLoopStreamMock.mockImplementationOnce(
       async ({ callbacks }: {

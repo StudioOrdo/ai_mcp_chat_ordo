@@ -1,10 +1,7 @@
-/**
- * Extracted restart-with-backoff logic from start-server.mjs.
- * Testable in isolation without spawning real processes.
- */
+import { DEFAULT_WORKER_RESTART_POLICY } from "./worker-restart-policy.mjs";
 
-export const MAX_WORKER_RESTARTS = 3;
-export const RESTART_WINDOW_MS = 60_000;
+export const MAX_WORKER_RESTARTS = DEFAULT_WORKER_RESTART_POLICY.maxRestarts;
+export const RESTART_WINDOW_MS = DEFAULT_WORKER_RESTART_POLICY.restartWindowMs;
 
 export interface WorkerSupervisorOptions {
   maxRestarts?: number;

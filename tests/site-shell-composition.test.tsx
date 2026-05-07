@@ -18,6 +18,8 @@ const baseUser: User = {
   roles: ["AUTHENTICATED"],
 };
 
+const publishedFeedContext = { hasPublicFeedItems: true };
+
 // Phase 7 Mock Density Exception: This file tests a complex composition root or integration pipeline and legitimately requires extensive boundary mocking for external services (auth, db, observability, etc.).
 vi.mock("next/navigation", () => ({
   usePathname: () => pathname,
@@ -32,8 +34,8 @@ vi.mock("@/components/ShellWorkspaceMenu", () => ({
   ShellWorkspaceMenu: () => <div data-testid="workspace-menu" />,
 }));
 
-vi.mock("@/components/NotificationFeed", () => ({
-  NotificationFeed: () => <div data-testid="notification-feed" />,
+vi.mock("@/components/AttentionInbox", () => ({
+  AttentionInbox: () => <div data-testid="attention-inbox" />,
 }));
 
 vi.mock("@/frameworks/ui/jobs-rail/JobsRail", () => ({
@@ -53,9 +55,9 @@ describe("site shell composition", () => {
     pathname = "/";
   });
 
-  function renderShell() {
+  function renderShell(navigationContext = { hasPublicFeedItems: false }) {
     return render(
-      <AppShell user={baseUser}>
+      <AppShell user={baseUser} navigationContext={navigationContext}>
         <div>Shell Content</div>
       </AppShell>,
     );
@@ -88,32 +90,50 @@ describe("site shell composition", () => {
   });
 
   it("marks the active canonical nav item based on the current route", () => {
-    pathname = "/library";
+    pathname = "/feed";
 
     renderShell();
 
     const nav = screen.getByRole("navigation", { name: "Primary" });
+    const workRail = screen.getByRole("navigation", { name: "Workspace" });
     const footer = screen.getByRole("contentinfo");
 
-    expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).toBeNull();
-    expect(within(nav).getByTestId("workspace-menu")).toBeInTheDocument();
-    expect(within(nav).getByTestId("notification-feed")).toBeInTheDocument();
-    expect(within(footer).getByRole("link", { name: "Library" })).toHaveAttribute("href", "/library");
-    expect(within(nav).queryByRole("link", { name: "Home" })).toBeNull();
-    expect(within(nav).queryByRole("link", { name: "Dashboard" })).toBeNull();
+    expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).not.toBeNull();
+    expect(within(nav).queryByTestId("workspace-menu")).toBeNull();
+    expect(within(nav).queryByTestId("attention-inbox")).toBeNull();
+    expect(within(workRail).queryByTestId("attention-inbox")).toBeNull();
+    expect(within(footer).queryByRole("link", { name: "Feed" })).toBeNull();
+    expect(within(nav).getByRole("link", { name: "Offers" })).toHaveAttribute("href", "/offers");
+    expect(within(nav).getByRole("link", { name: "About" })).toHaveAttribute("href", "/about");
+    expect(within(nav).queryByRole("link", { name: "Feed" })).toBeNull();
+    expect(within(nav).queryByRole("link", { name: "Today" })).toBeNull();
   });
 
-  it("renders the public journal route in both the primary nav and footer", () => {
-    pathname = "/journal";
+  it("adds the public feed route to header and footer when content exists", () => {
+    pathname = "/feed";
+
+    renderShell(publishedFeedContext);
+
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+    const footer = screen.getByRole("contentinfo");
+
+    expect(within(nav).getByRole("link", { name: "Feed" })).toHaveAttribute("href", "/feed");
+    expect(within(nav).getByRole("link", { name: "Feed" })).toHaveAttribute("aria-current", "page");
+    expect(within(footer).getByRole("link", { name: "Feed" })).toHaveAttribute("href", "/feed");
+  });
+
+  it("renders the public offers route in the footer", () => {
+    pathname = "/offers";
 
     renderShell();
 
     const nav = screen.getByRole("navigation", { name: "Primary" });
     const footer = screen.getByRole("contentinfo");
 
-    expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).toBeNull();
-    expect(within(nav).getByTestId("workspace-menu")).toBeInTheDocument();
-    expect(within(footer).getByRole("link", { name: "Journal" })).toHaveAttribute("href", "/journal");
+    expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).not.toBeNull();
+    expect(within(nav).queryByTestId("workspace-menu")).toBeNull();
+    expect(within(nav).getByRole("link", { name: "Offers" })).toHaveAttribute("aria-current", "page");
+    expect(within(footer).getByRole("link", { name: "Offers" })).toHaveAttribute("href", "/offers");
   });
 
   it("does not reintroduce the dead footer routes removed from the canonical shell model", () => {
@@ -123,12 +143,16 @@ describe("site shell composition", () => {
 
     for (const label of [
       "Training",
-      "Studio",
       "Documentation",
       "Patterns",
       "API",
       "Privacy",
       "Terms",
+      "Library",
+      "Jobs",
+      "Activity",
+      "My Media",
+      "Referrals",
     ]) {
       expect(within(footer).queryByRole("link", { name: label })).toBeNull();
     }
@@ -143,20 +167,28 @@ describe("site shell composition", () => {
   });
 
   it("renders only the canonical primary nav labels", () => {
-    pathname = "/library";
+    pathname = "/feed";
 
     renderShell();
 
     const nav = screen.getByRole("navigation", { name: "Primary" });
 
-    expect(resolvePrimaryNavRoutes(baseUser).map((route) => route.id)).toEqual(["corpus", "journal"]);
+    expect(resolvePrimaryNavRoutes(baseUser).map((route) => route.id)).toEqual(["home", "offers", "about"]);
+    expect(resolvePrimaryNavRoutes(baseUser, publishedFeedContext).map((route) => route.id)).toEqual([
+      "home",
+      "feed",
+      "offers",
+      "about",
+    ]);
     expect(within(nav).getByRole("link", { name: /studio ordo home/i })).toHaveAttribute("href", "/");
-    expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).toBeNull();
-    expect(within(nav).getByTestId("workspace-menu")).toBeInTheDocument();
-    expect(within(nav).queryByTestId("account-menu")).toBeNull();
-    expect(within(nav).getByTestId("jobs-rail")).toBeInTheDocument();
-    expect(within(nav).queryByRole("link", { name: "Home" })).toBeNull();
-    expect(within(nav).queryByRole("link", { name: "Dashboard" })).toBeNull();
+    expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).not.toBeNull();
+    expect(within(nav).queryByTestId("workspace-menu")).toBeNull();
+    expect(within(nav).getByTestId("account-menu")).toBeInTheDocument();
+    expect(within(nav).queryByTestId("jobs-rail")).toBeNull();
+    expect(within(screen.getByRole("navigation", { name: "Workspace" })).queryByTestId("jobs-rail")).toBeNull();
+    expect(within(nav).getByRole("link", { name: "Offers" })).toHaveAttribute("href", "/offers");
+    expect(within(nav).getByRole("link", { name: "About" })).toHaveAttribute("href", "/about");
+    expect(within(nav).queryByRole("link", { name: "Today" })).toBeNull();
   });
 
   it("shows guest access links on the home rail for anonymous users", () => {
@@ -176,24 +208,31 @@ describe("site shell composition", () => {
     );
 
     const nav = screen.getByRole("navigation", { name: "Primary" });
+    const publicDock = screen.getByRole("navigation", { name: "Public navigation" });
 
-    expect(within(nav).queryByTestId("notification-feed")).toBeNull();
+    expect(within(nav).queryByTestId("attention-inbox")).toBeNull();
     expect(within(nav).getByRole("link", { name: "Login" })).toHaveAttribute("href", "/login");
     expect(within(nav).getByRole("link", { name: "Register" })).toHaveAttribute("href", "/register");
+    expect(within(nav).getByRole("link", { name: "Offers" })).toHaveAttribute("href", "/offers");
+    expect(within(nav).getByRole("link", { name: "About" })).toHaveAttribute("href", "/about");
+    expect(within(publicDock).getByRole("link", { name: "Chat" })).toHaveAttribute("href", "/");
   });
 
-  it("keeps the home header on the unified utility cluster", () => {
+  it("keeps work utilities in the authenticated workspace rail", () => {
     pathname = "/";
 
     renderShell();
 
     const nav = screen.getByRole("navigation", { name: "Primary" });
+    const workRail = screen.getByRole("navigation", { name: "Workspace" });
 
-    expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).toBeNull();
+    expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).not.toBeNull();
     expect(nav.querySelector('[data-shell-nav-region="account-access"]')).not.toBeNull();
-    expect(within(nav).getByTestId("jobs-rail")).toBeInTheDocument();
-    expect(within(nav).getByTestId("notification-feed")).toBeInTheDocument();
-    expect(within(nav).getByTestId("workspace-menu")).toBeInTheDocument();
-    expect(within(nav).queryByTestId("account-menu")).toBeNull();
+    expect(within(nav).queryByTestId("jobs-rail")).toBeNull();
+    expect(within(nav).queryByTestId("attention-inbox")).toBeNull();
+    expect(within(workRail).queryByTestId("jobs-rail")).toBeNull();
+    expect(within(workRail).queryByTestId("attention-inbox")).toBeNull();
+    expect(within(nav).queryByTestId("workspace-menu")).toBeNull();
+    expect(within(nav).getByTestId("account-menu")).toBeInTheDocument();
   });
 });

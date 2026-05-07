@@ -89,6 +89,7 @@ describe("config loader — positive tests", () => {
     expect(config.identity.tagline).toBe("AI for dentists");
     expect(config.identity.domain).toBe("acmedental.com");
     expect(config.identity.logoPath).toBe("/acme-logo.png");
+    expect(config.identity.markPath).toBe(DEFAULT_IDENTITY.markPath);
     expect(config.identity.markText).toBe("A");
   });
 
@@ -229,6 +230,19 @@ describe("config validation — negative tests", () => {
       expect(e).toBeInstanceOf(ConfigValidationError);
       expect((e as ConfigValidationError).violations).toContainEqual(
         expect.stringContaining("must start with /"),
+      );
+    }
+  });
+
+  it("N5b: throws ConfigValidationError when identity.markPath missing leading slash", () => {
+    writeConfig("identity.json", { ...VALID_IDENTITY, markPath: "mark.png" });
+    try {
+      loadInstanceConfig();
+      expect.fail("should have thrown");
+    } catch (e) {
+      expect(e).toBeInstanceOf(ConfigValidationError);
+      expect((e as ConfigValidationError).violations).toContainEqual(
+        expect.stringContaining("identity.markPath: must start with /"),
       );
     }
   });

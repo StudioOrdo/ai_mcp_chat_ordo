@@ -8,6 +8,8 @@ import type {
   ActionLinkType,
 } from "../../core/entities/rich-content";
 import dynamic from "next/dynamic";
+import { OperationActionButton } from "@/frameworks/ui/operations/OperationActionButton";
+import { OperationCard } from "@/frameworks/ui/operations/OperationCard";
 
 const MermaidRenderer = dynamic(
   () =>
@@ -162,6 +164,9 @@ const blockRegistry: { [K in BlockNode["type"]]: React.FC<BlockProps<Extract<Blo
       onActionClick={onActionClick}
     />
   ),
+  "operation-card": ({ block, onActionClick }) => (
+    <OperationCard operation={block.operation} onActionClick={onActionClick} />
+  ),
   "code-block": ({ block }) => {
     if (block.language === "mermaid") {
       return (
@@ -240,16 +245,22 @@ const inlineRegistry: { [K in InlineNode["type"]]: React.FC<InlineProps<Extract<
       {node.slug.replace(/-/g, " ")}
     </button>
   ),
-  "action-link": ({ node, onActionClick }) => (
-    <button
-      onClick={() => onActionClick?.(node.actionType, node.value, node.params)}
-      className="inline-flex items-center gap-(--space-1) font-semibold text-accent-interactive underline decoration-accent-interactive/30 underline-offset-2 transition-colors hover:text-accent-interactive/80 hover:decoration-accent-interactive/50 focus-ring rounded-sm"
-      data-chat-action-link={node.actionType}
-      aria-label={`${node.label} (${node.actionType})`}
-    >
-      {node.label}
-    </button>
-  ),
+  "action-link": ({ node, onActionClick }) => {
+    if (node.actionType === "operation") {
+      return <OperationActionButton action={node} onActionClick={onActionClick} />;
+    }
+
+    return (
+      <button
+        onClick={() => onActionClick?.(node.actionType, node.value, node.params)}
+        className="inline-flex items-center gap-(--space-1) font-semibold text-accent-interactive underline decoration-accent-interactive/30 underline-offset-2 transition-colors hover:text-accent-interactive/80 hover:decoration-accent-interactive/50 focus-ring rounded-sm"
+        data-chat-action-link={node.actionType}
+        aria-label={`${node.label} (${node.actionType})`}
+      >
+        {node.label}
+      </button>
+    );
+  },
 };
 
 const InlineRenderer: React.FC<{

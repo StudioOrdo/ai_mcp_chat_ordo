@@ -36,6 +36,149 @@ export function runMigrations(db: Database.Database): void {
   addColumnIfNotExists(db, "users", "created_at", "TEXT");
   db.exec("UPDATE users SET created_at = datetime('now') WHERE created_at IS NULL");
 
+  addColumnIfNotExists(db, "system_commands", "payload_json", "TEXT NOT NULL DEFAULT '{}'");
+  addColumnIfNotExists(db, "system_commands", "result_payload", "TEXT DEFAULT NULL");
+  addColumnIfNotExists(db, "system_commands", "error_message", "TEXT DEFAULT NULL");
+  addColumnIfNotExists(db, "system_commands", "requested_by_user_id", "TEXT DEFAULT NULL");
+  addColumnIfNotExists(db, "system_commands", "requested_by_role", "TEXT DEFAULT NULL");
+  addColumnIfNotExists(db, "system_commands", "requested_from", "TEXT NOT NULL DEFAULT 'system'");
+  addColumnIfNotExists(db, "system_commands", "lease_owner", "TEXT DEFAULT NULL");
+  addColumnIfNotExists(db, "system_commands", "lease_expires_at", "TEXT DEFAULT NULL");
+  addColumnIfNotExists(db, "system_commands", "created_at", "TEXT NOT NULL DEFAULT (datetime('now'))");
+  addColumnIfNotExists(db, "system_commands", "updated_at", "TEXT NOT NULL DEFAULT (datetime('now'))");
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_system_commands_target_status_created ON system_commands(target, status, created_at)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_system_commands_requested_by_created ON system_commands(requested_by_user_id, created_at)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_system_commands_updated ON system_commands(updated_at)`);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS brief_read_models (
+      id TEXT PRIMARY KEY,
+      scope_key TEXT NOT NULL,
+      section_id TEXT NOT NULL,
+      object_kind TEXT DEFAULT NULL,
+      object_id TEXT DEFAULT NULL,
+      object_label TEXT DEFAULT NULL,
+      owner_user_id TEXT DEFAULT NULL,
+      visibility_policy TEXT NOT NULL,
+      status TEXT NOT NULL,
+      version INTEGER NOT NULL,
+      prior_brief_id TEXT DEFAULT NULL,
+      as_of TEXT NOT NULL,
+      generated_at TEXT NOT NULL,
+      generated_by TEXT NOT NULL,
+      title TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      bullets_json TEXT NOT NULL DEFAULT '[]',
+      recommended_action_json TEXT DEFAULT NULL,
+      evidence_refs_json TEXT NOT NULL DEFAULT '[]',
+      limitations_json TEXT NOT NULL DEFAULT '[]',
+      manifest_json TEXT NOT NULL DEFAULT '{}',
+      is_current INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_brief_read_models_scope_updated ON brief_read_models(scope_key, updated_at DESC)`);
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_brief_read_models_current_scope ON brief_read_models(scope_key) WHERE is_current = 1`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_brief_read_models_section_current ON brief_read_models(section_id, owner_user_id, visibility_policy, is_current)`);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS brief_events (
+      id TEXT PRIMARY KEY,
+      brief_id TEXT NOT NULL,
+      section_id TEXT NOT NULL,
+      object_kind TEXT DEFAULT NULL,
+      object_id TEXT DEFAULT NULL,
+      object_label TEXT DEFAULT NULL,
+      owner_user_id TEXT DEFAULT NULL,
+      event_type TEXT NOT NULL,
+      payload_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_brief_events_brief_created ON brief_events(brief_id, created_at)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_brief_events_scope_created ON brief_events(section_id, object_kind, object_id, created_at)`);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS brief_update_requests (
+      request_id TEXT PRIMARY KEY,
+      schema_version TEXT NOT NULL,
+      brief_type TEXT NOT NULL,
+      section_id TEXT DEFAULT NULL,
+      object_kind TEXT DEFAULT NULL,
+      object_id TEXT DEFAULT NULL,
+      object_label TEXT DEFAULT NULL,
+      owner_user_id TEXT NOT NULL,
+      evidence_window_json TEXT NOT NULL DEFAULT '{}',
+      visibility_policy TEXT NOT NULL,
+      prior_brief_id TEXT DEFAULT NULL,
+      executor_profile_json TEXT NOT NULL DEFAULT '{}',
+      status TEXT NOT NULL,
+      lease_owner TEXT DEFAULT NULL,
+      lease_expires_at TEXT DEFAULT NULL,
+      requested_by_user_id TEXT DEFAULT NULL,
+      requested_from TEXT NOT NULL DEFAULT 'system',
+      error_message TEXT DEFAULT NULL,
+      diagnostics_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_brief_update_requests_status_updated ON brief_update_requests(status, updated_at)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_brief_update_requests_scope_updated ON brief_update_requests(section_id, object_kind, object_id, owner_user_id, updated_at)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_brief_update_requests_lease ON brief_update_requests(status, lease_expires_at)`);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS brief_update_results (
+      request_id TEXT PRIMARY KEY,
+      schema_version TEXT NOT NULL,
+      status TEXT NOT NULL,
+      brief_id TEXT DEFAULT NULL,
+      prior_brief_id TEXT DEFAULT NULL,
+      summary TEXT NOT NULL,
+      brief_json TEXT DEFAULT NULL,
+      manifest_json TEXT DEFAULT NULL,
+      artifacts_json TEXT NOT NULL DEFAULT '[]',
+      metrics_json TEXT NOT NULL DEFAULT '{}',
+      warnings_json TEXT NOT NULL DEFAULT '[]',
+      error_json TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  addColumnIfNotExists(db, "factory_work_orders", "operation_id", "TEXT DEFAULT NULL");
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_factory_work_orders_operation ON factory_work_orders(operation_id)`);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS restore_plans (
+      id TEXT PRIMARY KEY,
+      snapshot_id TEXT NOT NULL,
+      status TEXT NOT NULL,
+      archive_path TEXT NOT NULL,
+      archive_hash TEXT NOT NULL,
+      archive_size_bytes INTEGER NOT NULL,
+      manifest_schema_version TEXT NOT NULL,
+      app_version TEXT NOT NULL,
+      restore_plan_version TEXT NOT NULL,
+      impact_json TEXT NOT NULL DEFAULT '{}',
+      validation_warnings_json TEXT NOT NULL DEFAULT '[]',
+      confirmation_phrase TEXT NOT NULL,
+      pre_restore_backup_command_id TEXT DEFAULT NULL,
+      pre_restore_backup_snapshot_id TEXT DEFAULT NULL,
+      restore_command_id TEXT DEFAULT NULL,
+      confirmed_by_user_id TEXT DEFAULT NULL,
+      confirmed_at TEXT DEFAULT NULL,
+      failure_message TEXT DEFAULT NULL,
+      created_by_user_id TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_restore_plans_snapshot_created ON restore_plans(snapshot_id, created_at)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_restore_plans_status_created ON restore_plans(status, created_at)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_restore_plans_pre_restore_command ON restore_plans(pre_restore_backup_command_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_restore_plans_pre_restore_backup ON restore_plans(pre_restore_backup_snapshot_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_restore_plans_restore_command ON restore_plans(restore_command_id)`);
+
   addColumnIfNotExists(
     db,
     "conversations",
@@ -358,6 +501,120 @@ export function runMigrations(db: Database.Database): void {
   addColumnIfNotExists(db, "lead_records", "follow_up_at", "TEXT DEFAULT NULL");
   addColumnIfNotExists(db, "deal_records", "follow_up_at", "TEXT DEFAULT NULL");
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS offers (
+      id TEXT PRIMARY KEY,
+      slug TEXT NOT NULL UNIQUE,
+      owner_user_id TEXT NOT NULL,
+      title TEXT NOT NULL DEFAULT '',
+      summary TEXT NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '',
+      audience TEXT NOT NULL DEFAULT '',
+      promise TEXT NOT NULL DEFAULT '',
+      price_cents INTEGER DEFAULT NULL,
+      currency TEXT NOT NULL DEFAULT 'USD',
+      billing_kind TEXT NOT NULL DEFAULT 'contact',
+      estimated_minutes INTEGER DEFAULT NULL,
+      status TEXT NOT NULL DEFAULT 'draft',
+      visibility TEXT NOT NULL DEFAULT 'private',
+      cta_label TEXT NOT NULL DEFAULT 'Start a conversation',
+      created_from_conversation_id TEXT DEFAULT NULL,
+      created_from_message_id TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      published_at TEXT DEFAULT NULL,
+      archived_at TEXT DEFAULT NULL,
+      FOREIGN KEY (owner_user_id) REFERENCES users(id),
+      FOREIGN KEY (created_from_conversation_id) REFERENCES conversations(id) ON DELETE SET NULL,
+      FOREIGN KEY (created_from_message_id) REFERENCES messages(id) ON DELETE SET NULL
+    );
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_offers_owner_updated ON offers(owner_user_id, updated_at DESC)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_offers_owner_status ON offers(owner_user_id, status)`);
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_offers_public_published
+      ON offers(status, visibility, published_at DESC)
+      WHERE status = 'published' AND visibility = 'public' AND archived_at IS NULL
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS offer_events (
+      id TEXT PRIMARY KEY,
+      offer_id TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      actor_user_id TEXT DEFAULT NULL,
+      person_ref TEXT DEFAULT NULL,
+      conversation_id TEXT DEFAULT NULL,
+      message_id TEXT DEFAULT NULL,
+      tracked_link_id TEXT DEFAULT NULL,
+      metadata_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (offer_id) REFERENCES offers(id) ON DELETE CASCADE,
+      FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE SET NULL,
+      FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE SET NULL
+    );
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_offer_events_offer_created ON offer_events(offer_id, created_at)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_offer_events_type_created ON offer_events(event_type, created_at)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_offer_events_person ON offer_events(person_ref, created_at)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_offer_events_tracked_link ON offer_events(tracked_link_id, created_at)`);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tracked_links (
+      id TEXT PRIMARY KEY,
+      code TEXT NOT NULL UNIQUE,
+      owner_user_id TEXT NOT NULL,
+      target_kind TEXT NOT NULL,
+      target_id TEXT NOT NULL,
+      destination_url TEXT NOT NULL,
+      label TEXT NOT NULL,
+      purpose TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active',
+      created_from_conversation_id TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      archived_at TEXT DEFAULT NULL,
+      FOREIGN KEY (owner_user_id) REFERENCES users(id),
+      FOREIGN KEY (created_from_conversation_id) REFERENCES conversations(id) ON DELETE SET NULL
+    )
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_tracked_links_owner_updated ON tracked_links(owner_user_id, updated_at DESC)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_tracked_links_target ON tracked_links(owner_user_id, target_kind, target_id, updated_at DESC)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_tracked_links_status ON tracked_links(status, updated_at DESC)`);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tracked_link_events (
+      id TEXT PRIMARY KEY,
+      tracked_link_id TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      anonymous_visit_id TEXT DEFAULT NULL,
+      session_id TEXT DEFAULT NULL,
+      conversation_id TEXT DEFAULT NULL,
+      user_id TEXT DEFAULT NULL,
+      referral_id TEXT DEFAULT NULL,
+      offer_id TEXT DEFAULT NULL,
+      idempotency_key TEXT DEFAULT NULL,
+      metadata_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (tracked_link_id) REFERENCES tracked_links(id) ON DELETE CASCADE,
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE SET NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY (referral_id) REFERENCES referrals(id) ON DELETE SET NULL,
+      FOREIGN KEY (offer_id) REFERENCES offers(id) ON DELETE SET NULL
+    )
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_tracked_link_events_link_created ON tracked_link_events(tracked_link_id, created_at)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_tracked_link_events_type_created ON tracked_link_events(event_type, created_at)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_tracked_link_events_conversation ON tracked_link_events(conversation_id, created_at)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_tracked_link_events_user ON tracked_link_events(user_id, created_at)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_tracked_link_events_offer ON tracked_link_events(offer_id, created_at)`);
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_tracked_link_events_dedupe
+      ON tracked_link_events(tracked_link_id, idempotency_key)
+      WHERE idempotency_key IS NOT NULL
+  `);
+
   addColumnIfNotExists(
     db,
     "users",
@@ -524,5 +781,153 @@ export function runMigrations(db: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_blog_post_revisions_post ON blog_post_revisions(post_id);
     CREATE INDEX IF NOT EXISTS idx_blog_post_revisions_created_at ON blog_post_revisions(created_at);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS operations (
+      id TEXT PRIMARY KEY,
+      kind TEXT NOT NULL,
+      revision INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      status TEXT NOT NULL,
+      risk_level TEXT NOT NULL,
+      conversation_id TEXT DEFAULT NULL,
+      origin_message_id TEXT DEFAULT NULL,
+      created_by_user_id TEXT DEFAULT NULL,
+      created_by_role TEXT NOT NULL,
+      visibility TEXT NOT NULL,
+      current_step_id TEXT DEFAULT NULL,
+      summary TEXT DEFAULT NULL,
+      input_json TEXT NOT NULL DEFAULT '{}',
+      result_json TEXT DEFAULT NULL,
+      error_json TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      completed_at TEXT DEFAULT NULL,
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE SET NULL,
+      FOREIGN KEY (origin_message_id) REFERENCES messages(id) ON DELETE SET NULL,
+      FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_operations_conversation_updated
+      ON operations(conversation_id, updated_at DESC, id DESC);
+    CREATE INDEX IF NOT EXISTS idx_operations_user_status_updated
+      ON operations(created_by_user_id, status, updated_at DESC, id DESC);
+    CREATE INDEX IF NOT EXISTS idx_operations_status_updated
+      ON operations(status, updated_at DESC, id DESC);
+    CREATE INDEX IF NOT EXISTS idx_operations_kind_status_updated
+      ON operations(kind, status, updated_at DESC, id DESC);
+    CREATE INDEX IF NOT EXISTS idx_operations_visibility_updated
+      ON operations(visibility, updated_at DESC, id DESC);
+
+    CREATE TABLE IF NOT EXISTS operation_steps (
+      id TEXT PRIMARY KEY,
+      operation_id TEXT NOT NULL,
+      sequence INTEGER NOT NULL,
+      kind TEXT NOT NULL,
+      status TEXT NOT NULL,
+      depends_on_step_ids_json TEXT NOT NULL DEFAULT '[]',
+      capability_name TEXT DEFAULT NULL,
+      job_id TEXT DEFAULT NULL,
+      system_command_id TEXT DEFAULT NULL,
+      resource_ref_json TEXT DEFAULT NULL,
+      input_json TEXT NOT NULL DEFAULT '{}',
+      output_json TEXT DEFAULT NULL,
+      error_json TEXT DEFAULT NULL,
+      retry_count INTEGER NOT NULL DEFAULT 0,
+      started_at TEXT DEFAULT NULL,
+      completed_at TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (operation_id) REFERENCES operations(id) ON DELETE CASCADE
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_operation_steps_operation_sequence
+      ON operation_steps(operation_id, sequence);
+    CREATE INDEX IF NOT EXISTS idx_operation_steps_operation_status
+      ON operation_steps(operation_id, status, sequence);
+    CREATE INDEX IF NOT EXISTS idx_operation_steps_job
+      ON operation_steps(job_id);
+    CREATE INDEX IF NOT EXISTS idx_operation_steps_system_command
+      ON operation_steps(system_command_id);
+
+    CREATE TABLE IF NOT EXISTS operation_events (
+      id TEXT PRIMARY KEY,
+      operation_id TEXT NOT NULL,
+      step_id TEXT DEFAULT NULL,
+      sequence INTEGER NOT NULL,
+      event_type TEXT NOT NULL,
+      actor_type TEXT NOT NULL,
+      actor_id TEXT DEFAULT NULL,
+      payload_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (operation_id) REFERENCES operations(id) ON DELETE CASCADE,
+      FOREIGN KEY (step_id) REFERENCES operation_steps(id) ON DELETE SET NULL
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_operation_events_operation_sequence
+      ON operation_events(operation_id, sequence);
+    CREATE INDEX IF NOT EXISTS idx_operation_events_operation_created
+      ON operation_events(operation_id, created_at, id);
+    CREATE INDEX IF NOT EXISTS idx_operation_events_step_created
+      ON operation_events(step_id, created_at, id);
+    CREATE INDEX IF NOT EXISTS idx_operation_events_type_created
+      ON operation_events(event_type, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS operation_actions (
+      id TEXT PRIMARY KEY,
+      operation_id TEXT NOT NULL,
+      operation_revision INTEGER NOT NULL,
+      action_type TEXT NOT NULL,
+      label TEXT NOT NULL,
+      risk_level TEXT NOT NULL,
+      confirm_policy TEXT NOT NULL,
+      allowed_roles_json TEXT NOT NULL DEFAULT '[]',
+      allowed_statuses_json TEXT NOT NULL DEFAULT '[]',
+      enabled INTEGER NOT NULL,
+      disabled_reason TEXT DEFAULT NULL,
+      idempotency_key TEXT NOT NULL,
+      expires_at TEXT DEFAULT NULL,
+      payload_json TEXT NOT NULL DEFAULT '{}',
+      payload_schema_key TEXT NOT NULL,
+      confirmation_text TEXT DEFAULT NULL,
+      accepted_at TEXT DEFAULT NULL,
+      accepted_by_user_id TEXT DEFAULT NULL,
+      accepted_by_role TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (operation_id) REFERENCES operations(id) ON DELETE CASCADE
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_operation_actions_idempotency
+      ON operation_actions(operation_id, idempotency_key);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_operation_actions_operation_action
+      ON operation_actions(operation_id, id);
+    CREATE INDEX IF NOT EXISTS idx_operation_actions_operation_revision
+      ON operation_actions(operation_id, operation_revision);
+    CREATE INDEX IF NOT EXISTS idx_operation_actions_operation_enabled
+      ON operation_actions(operation_id, enabled, expires_at);
+    CREATE INDEX IF NOT EXISTS idx_operation_actions_action_type
+      ON operation_actions(action_type, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS operation_artifacts (
+      id TEXT PRIMARY KEY,
+      operation_id TEXT NOT NULL,
+      step_id TEXT DEFAULT NULL,
+      kind TEXT NOT NULL,
+      uri TEXT NOT NULL,
+      label TEXT NOT NULL,
+      metadata_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (operation_id) REFERENCES operations(id) ON DELETE CASCADE,
+      FOREIGN KEY (step_id) REFERENCES operation_steps(id) ON DELETE SET NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_operation_artifacts_operation_created
+      ON operation_artifacts(operation_id, created_at DESC, id DESC);
+    CREATE INDEX IF NOT EXISTS idx_operation_artifacts_step_created
+      ON operation_artifacts(step_id, created_at DESC, id DESC);
+    CREATE INDEX IF NOT EXISTS idx_operation_artifacts_kind_created
+      ON operation_artifacts(kind, created_at DESC);
   `);
 }

@@ -636,6 +636,91 @@ describe("MessageList", () => {
     expect(onActionClick).toHaveBeenCalledWith("send", "Draft advisory offer", { text: "Draft advisory offer" });
   });
 
+  it("dispatches operation action chips by operationId and marks destructive intent", () => {
+    const onActionClick = vi.fn();
+    const params = {
+      operationId: "op_1",
+      actionId: "action_1",
+      idempotencyKey: "idem_1",
+      operationRevision: "4",
+      riskLevel: "destructive",
+    };
+    const messages = [
+      makeMessage({
+        id: "assistant-1",
+        role: "assistant",
+        rawContent: "Ready to execute.",
+        actions: [
+          { label: "Execute restore", action: "operation", params },
+        ],
+      }),
+    ];
+
+    const { container } = render(
+      <MessageList
+        messages={messages}
+        isSending={false}
+        dynamicSuggestions={[]}
+        isHeroState={false}
+        onSuggestionClick={vi.fn()}
+        onLinkClick={vi.fn()}
+        onActionClick={onActionClick}
+        searchQuery=""
+        isEmbedded
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: "Execute restore" });
+    expect(container.querySelector('[data-operation-action="true"]')).not.toBeNull();
+    expect(button).toHaveAttribute("data-action-intent", "danger");
+    fireEvent.click(button);
+    expect(onActionClick).toHaveBeenCalledWith("operation", "op_1", params);
+  });
+
+  it("disables stale operation action chips with a reason", () => {
+    const onActionClick = vi.fn();
+    const messages = [
+      makeMessage({
+        id: "assistant-1",
+        role: "assistant",
+        rawContent: "Expired action.",
+        actions: [
+          {
+            label: "Execute restore",
+            action: "operation",
+            params: {
+              operationId: "op_1",
+              actionId: "action_1",
+              idempotencyKey: "idem_1",
+              operationRevision: "4",
+              disabledReason: "Action has expired.",
+            },
+          },
+        ],
+      }),
+    ];
+
+    render(
+      <MessageList
+        messages={messages}
+        isSending={false}
+        dynamicSuggestions={[]}
+        isHeroState={false}
+        onSuggestionClick={vi.fn()}
+        onLinkClick={vi.fn()}
+        onActionClick={onActionClick}
+        searchQuery=""
+        isEmbedded
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: "Execute restore" });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute("title", "Action has expired.");
+    fireEvent.click(button);
+    expect(onActionClick).not.toHaveBeenCalled();
+  });
+
   it("disables action chips during streaming", () => {
     const messages = [
       makeMessage({

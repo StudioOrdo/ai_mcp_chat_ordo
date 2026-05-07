@@ -24,6 +24,7 @@ import type { WorkOrderStatus } from "@/core/entities/factory-constants";
 
 type FactoryWorkOrderRow = {
   id: string;
+  operation_id: string | null;
   user_id: string;
   conversation_id: string | null;
   status: WorkOrderStatus;
@@ -202,11 +203,12 @@ export class FactoryDataMapper implements FactoryRepository {
     const insert = this.db.transaction((entity: WorkOrder) => {
       this.db.prepare(
         `INSERT INTO factory_work_orders (
-          id, user_id, conversation_id, status, current_dag_id, current_stage_key,
+          id, operation_id, user_id, conversation_id, status, current_dag_id, current_stage_key,
           active_checkpoint_id, created_at, started_at, completed_at, paused_at, snapshot_json
-        ) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
       ).run(
         entity.id,
+        entity.operationId,
         entity.userId,
         entity.conversationId ?? null,
         entity.status,
@@ -235,6 +237,7 @@ export class FactoryDataMapper implements FactoryRepository {
       this.db.prepare(
         `UPDATE factory_work_orders
          SET user_id = ?,
+             operation_id = ?,
              conversation_id = ?,
              status = ?,
              current_dag_id = ?,
@@ -248,6 +251,7 @@ export class FactoryDataMapper implements FactoryRepository {
          WHERE id = ?`,
       ).run(
         entity.userId,
+        entity.operationId,
         entity.conversationId ?? null,
         entity.status,
         entity.currentDag.id,
@@ -272,6 +276,18 @@ export class FactoryDataMapper implements FactoryRepository {
     const row = this.db.prepare(
       `SELECT * FROM factory_work_orders WHERE id = ?`,
     ).get(id) as FactoryWorkOrderRow | undefined;
+
+    if (!row) {
+      return null;
+    }
+
+    return this.hydrateWorkOrderRow(row);
+  }
+
+  async findWorkOrderByOperationId(operationId: string): Promise<WorkOrder | null> {
+    const row = this.db.prepare(
+      `SELECT * FROM factory_work_orders WHERE operation_id = ?`,
+    ).get(operationId) as FactoryWorkOrderRow | undefined;
 
     if (!row) {
       return null;
@@ -678,6 +694,7 @@ export class FactoryDataMapper implements FactoryRepository {
 
     return {
       ...workOrder,
+      operationId: row.operation_id ?? workOrder.operationId,
       status: row.status,
       currentDag: currentDag ?? workOrder.currentDag,
       stageRuns,

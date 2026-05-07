@@ -2,6 +2,10 @@ import type { JobRequest } from "@/core/entities/job";
 import type { MediaCompositionClip, MediaCompositionPlan } from "@/core/entities/media-composition";
 import type { JobQueueRepository } from "@/core/use-cases/JobQueueRepository";
 import type { MaterializationRepository } from "@/core/use-cases/MaterializationRepository";
+import {
+  mediaWorkflowOperationStepId,
+  type MediaWorkflowJobOperationMetadata,
+} from "@/core/use-cases/operations/MediaWorkflowOperationActions";
 import { enqueueComposeMediaDeferredJob } from "@/lib/jobs/compose-media-deferred-job";
 
 import type { SqliteMediaWorkflowRepository } from "./sqlite-media-workflow-repository";
@@ -9,6 +13,32 @@ import type { MediaWorkflowSnapshot, MediaWorkflowStep, MediaWorkflowStepKind } 
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readOperationMetadataForStep(
+  snapshot: MediaWorkflowSnapshot,
+  step: MediaWorkflowStep,
+): MediaWorkflowJobOperationMetadata | undefined {
+  const operation = snapshot.workflow.request["operation"];
+  if (!isRecord(operation)) {
+    return undefined;
+  }
+  if (
+    typeof operation["operationId"] !== "string"
+    || typeof operation["actionId"] !== "string"
+    || operation["operationKind"] !== "media_workflow"
+  ) {
+    return undefined;
+  }
+
+  return {
+    operationId: operation["operationId"],
+    actionId: operation["actionId"],
+    operationKind: "media_workflow",
+    workflowId: snapshot.workflow.id,
+    workflowStepId: step.id,
+    stepId: mediaWorkflowOperationStepId(operation["operationId"], step.id),
+  };
 }
 
 function extractArtifactAssetId(resultPayload: unknown, kind: "audio" | "video"): string | null {
@@ -362,6 +392,7 @@ export class MediaWorkflowOrchestrator {
       plan,
       initiatorType: "system",
       priority: 5,
+      operation: readOperationMetadataForStep(snapshot, composeStep),
     });
 
     if (result.outcome === "exact_reuse" && result.materialization?.outputRefs.length) {

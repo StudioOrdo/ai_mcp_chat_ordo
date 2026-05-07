@@ -9,7 +9,6 @@ test.describe.configure({ timeout: 60_000 });
 
 const PNG_UPLOAD_FIXTURE_PATH = path.join(process.cwd(), "public", "ordo-avatar.png");
 const PLAYWRIGHT_BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:34123";
-const PLAYWRIGHT_COOKIE_DOMAIN = new URL(PLAYWRIGHT_BASE_URL).hostname;
 
 interface MediaSeedSpec {
   fileName: string;
@@ -170,16 +169,10 @@ function seedMediaFixtures(userId: string, specs: MediaSeedSpec[]) {
 }
 
 async function setSimulatedRole(page: Page, role: "STAFF" | "ADMIN") {
-  await page.context().addCookies([
-    {
-      name: "lms_mock_session_role",
-      value: role,
-      domain: PLAYWRIGHT_COOKIE_DOMAIN,
-      path: "/",
-      httpOnly: true,
-      sameSite: "Lax",
-    },
-  ]);
+  const response = await page.request.post(`${PLAYWRIGHT_BASE_URL}/api/auth/switch`, {
+    data: { role },
+  });
+  expect(response.ok()).toBe(true);
 }
 
 test("my media route shows quota messaging without leaking host-capacity metrics", async ({ page }) => {
@@ -197,13 +190,17 @@ test("my media route shows quota messaging without leaking host-capacity metrics
 
   await page.goto("/my/media");
 
-  await expect(page.getByRole("heading", { name: /Governed assets for Media Phase Four User/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Governed media", exact: true })).toBeVisible();
   await expect(page.getByText(/Storage budget/i)).toBeVisible();
   await expect(page.getByText(/of 10 GB used/i)).toBeVisible();
-  await expect(page.getByText(/Display-only budget for governed media in this phase/i)).toBeVisible();
+  await expect(page.getByText("Storage is healthy. Uploads are still available.", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("button", { name: fixture.fileName })).toBeVisible();
-  await expect(page.getByText(/Writable volume capacity/i)).toHaveCount(0);
+  await expect(page.getByText(/Storage volume capacity/i)).toHaveCount(0);
   await expect(page.getByText(/total on the writable media volume/i)).toHaveCount(0);
+
+  await page.getByRole("button", { name: fixture.fileName }).click();
+  await expect(page.getByRole("heading", { name: fixture.fileName })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Governed media", exact: true })).toHaveCount(0);
 });
 
 test("operations media route shows writable-volume capacity to staff viewers", async ({ page }) => {
@@ -224,7 +221,7 @@ test("operations media route shows writable-volume capacity to staff viewers", a
   await page.goto(`/operations/media?userId=${userId}`);
 
   await expect(page.getByRole("heading", { name: /Media inventory for Media Phase Four User/i })).toBeVisible();
-  await expect(page.getByText(/Writable volume capacity/i)).toBeVisible();
+  await expect(page.getByText(/Storage volume capacity/i)).toBeVisible();
   await expect(page.getByText(/Measured from the shared `.data` mount/i)).toBeVisible();
   await expect(page.getByText(/total on the writable media volume/i)).toBeVisible();
   await expect(page.getByText(/of the writable volume is consumed/i)).toBeVisible();

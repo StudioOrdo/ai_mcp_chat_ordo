@@ -114,6 +114,23 @@ const CONTINUITY_GENERATION_EXCLUDED_TOOLS = new Set([
   "generate_graph",
 ]);
 
+export const OPERATION_BACKED_CHAT_EXCLUDED_TOOLS = new Set([
+  "create_appliance_backup",
+  "list_appliance_backups",
+  "validate_appliance_backup",
+  "prepare_appliance_restore",
+  "request_pre_restore_backup",
+  "confirm_appliance_restore",
+  "execute_appliance_restore",
+  "cancel_appliance_restore",
+  "configure_backup_policy",
+  "produce_product",
+]);
+
+export function filterOperationBackedPromptTools<T extends { name: string }>(tools: readonly T[]): T[] {
+  return tools.filter((tool) => !OPERATION_BACKED_CHAT_EXCLUDED_TOOLS.has(tool.name));
+}
+
 function applyVideoFirstToolSelection(
   tools: Anthropic.Tool[],
   latestUserText?: string,
@@ -166,7 +183,9 @@ export function getRequestScopedToolSelection(
   latestUserText?: string,
   mediaContinuityHandoff?: MediaContinuityHandoff | null,
 ): RequestScopedToolSelection {
-  const tools = registry.getSchemasForRole(role) as Anthropic.Tool[];
+  const tools = filterOperationBackedPromptTools(registry.getPromptVisibleSchemasForRole(role, {
+    mode: role === "ADMIN" ? "operator_chat" : "default_chat",
+  }) as Anthropic.Tool[]);
 
   const applyRequestFilters = (candidateTools: Anthropic.Tool[]) => {
     const videoFirstTools = applyVideoFirstToolSelection(candidateTools, latestUserText);

@@ -114,7 +114,8 @@ describe("conversation refactor phase 00 baseline evidence", () => {
     const activeRouteSource = readSource("src/app/api/conversations/active/route.ts");
     const restoreHookSource = readSource("src/hooks/chat/useChatRestore.ts");
 
-    expect(pageSource).toContain("<ChatSurface mode=\"embedded\" />");
+    expect(pageSource).toContain("showConversationSelector={showConversationSelector}");
+    expect(pageSource).toContain("<ChatSurface mode=\"embedded\" showConversationSelector={showConversationSelector} />");
     expect(activeRouteSource).toContain("interactor.getActiveForUser(userId)");
     expect(activeRouteSource).toContain("conversation: result.conversation");
     expect(activeRouteSource).toContain("messages: result.messages");

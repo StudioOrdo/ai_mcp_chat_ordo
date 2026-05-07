@@ -84,7 +84,7 @@ describe("MediaOperationsWorkspace", () => {
     expect(screen.getAllByText("hero.png")).toHaveLength(2);
     expect(screen.getByRole("link", { name: /Open conversation detail/i })).toHaveAttribute("href", "/admin/conversations/conv_1");
     expect(screen.getByText(/Global storage leaders/i)).toBeInTheDocument();
-    expect(screen.getByText(/Writable volume capacity/i)).toBeInTheDocument();
+    expect(screen.getByText(/Storage volume capacity/i)).toBeInTheDocument();
     expect(screen.getByText(/50% of the writable volume is consumed/i)).toBeInTheDocument();
   });
 

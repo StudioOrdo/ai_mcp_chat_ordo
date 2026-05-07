@@ -86,6 +86,7 @@ describe("PlatformInteractionFacade", () => {
       workOrder: {
         id: "wo_1",
         schemaVersion: 1,
+        operationId: "op_wo_1",
         briefId: "brief_1",
         status: "paused",
         currentDag: { id: "dag_1", briefId: "brief_1", schemaVersion: 1, stages: [], createdAt: "2026-04-27T00:00:00.000Z" },

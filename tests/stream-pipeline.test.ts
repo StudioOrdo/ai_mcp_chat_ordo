@@ -8,6 +8,7 @@ import {
 } from "@/lib/chat/active-stream-registry";
 import type { ContextWindowGuardReason } from "@/lib/chat/context-window";
 import { SystemPromptBuilder } from "@/core/use-cases/SystemPromptBuilder";
+import type { SelectedIntelligenceRuntime } from "@/lib/ai/providers/selected-intelligence-runtime";
 
 function createContextWindowGuard(
   overrides: Partial<{
@@ -38,13 +39,25 @@ function createContextWindowGuard(
   };
 }
 
+function createMockIntelligenceRuntime(): Pick<SelectedIntelligenceRuntime, "client" | "policy"> {
+  return {
+    client: { messages: { stream: vi.fn() } },
+    policy: {
+      provider: "anthropic",
+      timeoutMs: 45_000,
+      retryAttempts: 1,
+      retryDelayMs: 0,
+      modelCandidates: ["claude-test"],
+    },
+  } as unknown as Pick<SelectedIntelligenceRuntime, "client" | "policy">;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Mocks — shared across pipeline method tests                        */
 /* ------------------------------------------------------------------ */
 
 const getSessionUserMock = vi.fn();
 const resolveUserIdMock = vi.fn();
-const setMockSessionMock = vi.fn();
 const getSessionMock = vi.fn();
 const resolveValidatedReferralVisitMock = vi.fn();
 const attachValidatedVisitToConversationMock = vi.fn();
@@ -52,8 +65,9 @@ const attachValidatedVisitToConversationMock = vi.fn();
 // Phase 7 Mock Density Exception: This file tests a complex composition root or integration pipeline and legitimately requires extensive boundary mocking for external services (auth, db, observability, etc.).
 vi.mock("@/lib/auth", () => ({
   getSessionUser: getSessionUserMock,
-  setMockSession: setMockSessionMock,
   getSession: getSessionMock,
+  resolveSessionAuthorizationRole: (user: { roles: string[]; realRoles?: string[] }) =>
+    [...(user.realRoles ?? []), ...user.roles].includes("ADMIN") ? "ADMIN" : user.roles[0],
 }));
 
 vi.mock("@/lib/referrals/referral-visit", () => ({
@@ -790,7 +804,7 @@ describe("Spec 10 — Stream Route Decomposition", () => {
     const { ChatStreamPipeline } = await import("@/lib/chat/stream-pipeline");
     const pipeline = new ChatStreamPipeline();
     const res = pipeline.createStreamResponse({
-      apiKey: "test",
+      intelligenceRuntime: createMockIntelligenceRuntime(),
       context: { requestId: "r1", route: "/test" } as never,
       conversationId: "c1",
       interactor: {
@@ -826,7 +840,7 @@ describe("Spec 10 — Stream Route Decomposition", () => {
     ]);
 
     const response = pipeline.createStreamResponse({
-      apiKey: "test",
+      intelligenceRuntime: createMockIntelligenceRuntime(),
       context: { requestId: "r1", route: "/test" } as never,
       conversationId: "c1",
       interactor: {
@@ -868,7 +882,7 @@ describe("Spec 10 — Stream Route Decomposition", () => {
     const { ChatStreamPipeline } = await import("@/lib/chat/stream-pipeline");
     const pipeline = new ChatStreamPipeline();
     const response = pipeline.createStreamResponse({
-      apiKey: "test",
+      intelligenceRuntime: createMockIntelligenceRuntime(),
       context: { requestId: "r1", route: "/test" } as never,
       conversationId: "c1",
       interactor: {
@@ -925,7 +939,7 @@ describe("Spec 10 — Stream Route Decomposition", () => {
     const { ChatStreamPipeline } = await import("@/lib/chat/stream-pipeline");
     const pipeline = new ChatStreamPipeline();
     const response = pipeline.createStreamResponse({
-      apiKey: "test",
+      intelligenceRuntime: createMockIntelligenceRuntime(),
       context: { requestId: "r1", route: "/test" } as never,
       conversationId: "c1",
       interactor: {
@@ -981,7 +995,7 @@ describe("Spec 10 — Stream Route Decomposition", () => {
     const { ChatStreamPipeline } = await import("@/lib/chat/stream-pipeline");
     const pipeline = new ChatStreamPipeline();
     const response = pipeline.createStreamResponse({
-      apiKey: "test",
+      intelligenceRuntime: createMockIntelligenceRuntime(),
       context: { requestId: "r1", route: "/test" } as never,
       conversationId: "c1",
       interactor: {

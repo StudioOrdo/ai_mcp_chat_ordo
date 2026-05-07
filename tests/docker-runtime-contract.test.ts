@@ -36,14 +36,33 @@ describe("docker runtime contract", () => {
     expect(startServer).toContain("await waitForChildExit(mediaWorkerProcess);");
   });
 
+  it("builds and supervises the Rust backup executor in the single-container path", () => {
+    const dockerfile = readWorkspaceFile("Dockerfile");
+    const startServer = readWorkspaceFile("scripts/start-server.mjs");
+
+    expect(dockerfile).toContain("FROM rust:1-alpine AS rust-builder");
+    expect(dockerfile).toContain("cargo build --release -p ordo-backup");
+    expect(dockerfile).toContain("/app/target/release/ordo-backup ./bin/ordo-backup");
+    expect(startServer).toContain("DISABLE_BACKUP_EXECUTOR");
+    expect(startServer).toContain("ORDO_BACKUP_EXECUTOR_PATH");
+    expect(startServer).toContain('"daemon"');
+    expect(startServer).toContain("await waitForChildExit(backupExecutorProcess);");
+  });
+
   it("routes default persistent storage through DATA_DIR", () => {
+    const dataBoundary = readWorkspaceFile("src/lib/appliance/data-boundary.ts");
     const db = readWorkspaceFile("src/lib/db/index.ts");
     const blogAssetStorage = readWorkspaceFile("src/lib/blog/blog-asset-storage.ts");
+    const userFiles = readWorkspaceFile("src/lib/user-files.ts");
 
-    expect(db).toContain("process.env.DATA_DIR");
-    expect(db).toContain('path.join(dataDir, "local.db")');
-    expect(blogAssetStorage).toContain("getDataRootPath");
-    expect(blogAssetStorage).toContain('path.join(getDataRootPath(), "blog-assets")');
+    expect(dataBoundary).toContain("resolveApplianceDataDir");
+    expect(dataBoundary).toContain("resolveApplianceSqlitePath");
+    expect(dataBoundary).toContain("resolveApplianceBlogAssetRoot");
+    expect(dataBoundary).toContain("resolveApplianceUserFileRoot");
+    expect(db).toContain("resolveApplianceSqlitePath");
+    expect(blogAssetStorage).toContain("resolveApplianceBlogAssetRoot");
+    expect(userFiles).toContain("resolveApplianceDataDir");
+    expect(userFiles).toContain("resolveApplianceUserFileRoot");
   });
 
   it("documents the supported docker run command", () => {
@@ -53,5 +72,19 @@ describe("docker runtime contract", () => {
     expect(readme).toContain("linux/amd64");
     expect(readme).toContain("linux/arm64");
     expect(readme).toContain("/app/.data");
+  });
+
+  it("keeps compose as a one-service wrapper around the app image", () => {
+    const compose = readWorkspaceFile("compose.yaml");
+    const readme = readWorkspaceFile("README.md");
+
+    expect(compose).toContain("services:");
+    expect(compose).toContain("  app:");
+    expect(compose).not.toContain("  media-worker:");
+    expect(compose).not.toContain("  admin-web-search-mcp:");
+    expect(compose).not.toContain("Dockerfile.media");
+    expect(compose).not.toContain("MEDIA_WORKER_URL");
+    expect(compose).not.toContain("depends_on:");
+    expect(readme).toContain("The Compose stack uses the same single app image");
   });
 });

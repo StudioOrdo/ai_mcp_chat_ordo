@@ -59,6 +59,18 @@ describe("media workflow architecture guardrails", () => {
     expect(offenders).toEqual([]);
   });
 
+  it("keeps user-facing catalog media tools on the operation launcher", () => {
+    const content = readFileSync(
+      join(REPO_ROOT, "src/core/capability-catalog/runtime-tool-binding.ts"),
+      "utf8",
+    );
+
+    expect(content).toContain("executeMediaWorkflowOperationTool");
+    expect(content).toContain("launchMediaWorkflowOperation");
+    expect(content).not.toContain("enqueueComposeMediaDeferredJob");
+    expect(content).not.toContain("enqueueGenerateAudioDeferredJob");
+  });
+
   it("keeps chat and jobs surfaces on the canonical workflow read projection", () => {
     const requiredReferences = new Map([
       ["src/adapters/ChatPresenter.ts", ["filterPrimaryJobSnapshotsForWorkflows", "CanonicalMediaWorkflowSnapshot"]],

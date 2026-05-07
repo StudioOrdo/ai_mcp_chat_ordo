@@ -47,7 +47,6 @@ describe("chat provider parity", () => {
         tools: [],
       }),
       runClaudeAgentLoopStream({
-        apiKey: "test-key",
         messages: [{ role: "user", content: "hello" }],
         callbacks: {},
         systemPrompt: "system",
@@ -92,7 +91,6 @@ describe("chat provider parity", () => {
         tools: [],
       }),
       runClaudeAgentLoopStream({
-        apiKey: "test-key",
         messages: [{ role: "user", content: "hello" }],
         callbacks: {},
         systemPrompt: "system",
@@ -140,10 +138,9 @@ describe("chat provider parity", () => {
         systemPrompt: "system",
         tools: [],
       }),
-    ).rejects.toThrow("Anthropic provider error: Provider request timed out.");
+    ).rejects.toThrow("Intelligence provider error: Provider request timed out.");
 
     const streamResponse = await runClaudeAgentLoopStream({
-      apiKey: "test-key",
       messages: [{ role: "user", content: "hello" }],
       callbacks: {},
       systemPrompt: "system",

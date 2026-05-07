@@ -1,4 +1,6 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { SystemSettingsDataMapper } from "@/adapters/SystemSettingsDataMapper";
+import * as RepositoryFactory from "@/adapters/RepositoryFactory";
 import {
   getAnthropicApiKey,
   getAnthropicModel,
@@ -9,10 +11,25 @@ import {
   validateRequiredRuntimeConfig,
 } from "@/lib/config/env";
 
+vi.mock("@/adapters/RepositoryFactory", async () => {
+  const { createMockRepositoryFactory } = await import("@/__test-utils__");
+  return {
+    ...createMockRepositoryFactory({
+      getSystemSettingsDataMapper: vi.fn(),
+    }),
+  };
+});
+
 describe("env config", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
+  });
+
+  beforeEach(() => {
+    vi.mocked(RepositoryFactory.getSystemSettingsDataMapper).mockReturnValue({
+      getSync: vi.fn(() => null),
+    } as Pick<SystemSettingsDataMapper, "getSync"> as SystemSettingsDataMapper);
   });
 
   it("reads ANTHROPIC_API_KEY first", () => {
@@ -27,6 +44,21 @@ describe("env config", () => {
     vi.stubEnv("API__ANTHROPIC_API_KEY", "legacy-key");
 
     expect(getAnthropicApiKey()).toBe("legacy-key");
+  });
+
+  it("falls back to SQLite for ANTHROPIC_API_KEY", () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    vi.mocked(RepositoryFactory.getSystemSettingsDataMapper).mockReturnValue({
+      getSync: vi.fn((key: string) => key === "ANTHROPIC_API_KEY"
+        ? {
+          key,
+          valueJson: JSON.stringify("sqlite-key"),
+          updatedAt: "2026-05-02T00:00:00.000Z",
+        }
+        : null),
+    } as Pick<SystemSettingsDataMapper, "getSync"> as SystemSettingsDataMapper);
+
+    expect(getAnthropicApiKey()).toBe("sqlite-key");
   });
 
   it("throws when no anthropic key is provided", () => {

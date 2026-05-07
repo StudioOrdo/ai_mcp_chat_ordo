@@ -1,0 +1,113 @@
+{
+  "phase": "05-docker-and-worker-verification-harness",
+  "mode": "local",
+  "status": "passed",
+  "startedAt": "2026-05-03T03:58:00.009Z",
+  "completedAt": "2026-05-03T03:58:01.558Z",
+  "durationMs": 1549,
+  "nodeVersion": "v22.22.2",
+  "rustVersion": "rustc 1.94.0 (4a4ef493e 2026-03-02) (Homebrew)",
+  "imageTag": null,
+  "gitRevision": "c99b37a",
+  "dataDirLabel": ".data",
+  "appPort": null,
+  "mediaPort": null,
+  "executorPath": "/Users/kwilliams/Projects/ordoSite/bin/ordo-backup",
+  "health": {
+    "status": "degraded",
+    "summary": {
+      "healthy": 6,
+      "degraded": 1,
+      "blocked": 0,
+      "disabled": 1,
+      "unknown": 1
+    },
+    "warnings": [
+      "Tool availability has 1 warning(s)."
+    ]
+  },
+  "backup": {
+    "manualBackupId": "backup_59c65f24-780f-49cf-8a0c-ce76d5d41abd",
+    "scheduledBackupId": "backup_02a49d06-d63b-4a63-83c4-35745184e28c",
+    "archiveSizeBytes": 32530,
+    "archiveHashPrefix": "sha256:c2658b91962ef"
+  },
+  "restore": {
+    "restorePlanId": "restore_95f3c29b-863d-4eab-af41-d0294a965883",
+    "restoredSeedFile": true
+  },
+  "scheduler": {
+    "commandId": "syscmd_eceea358-4187-4c2b-a94d-059302972f44",
+    "decision": "enqueue"
+  },
+  "restart": {
+    "verified": true
+  },
+  "steps": [
+    {
+      "name": "prepare temp data boundary",
+      "status": "passed",
+      "startedAt": "2026-05-03T03:58:00.078Z",
+      "completedAt": "2026-05-03T03:58:00.080Z",
+      "durationMs": 2,
+      "summary": "completed"
+    },
+    {
+      "name": "install Rust backup executor",
+      "status": "passed",
+      "startedAt": "2026-05-03T03:58:00.080Z",
+      "completedAt": "2026-05-03T03:58:00.499Z",
+      "durationMs": 419,
+      "summary": "executor available"
+    },
+    {
+      "name": "initialize SQLite schema",
+      "status": "passed",
+      "startedAt": "2026-05-03T03:58:00.499Z",
+      "completedAt": "2026-05-03T03:58:00.554Z",
+      "durationMs": 55,
+      "summary": "schema initialized"
+    },
+    {
+      "name": "read appliance health",
+      "status": "passed",
+      "startedAt": "2026-05-03T03:58:00.554Z",
+      "completedAt": "2026-05-03T03:58:01.153Z",
+      "durationMs": 599,
+      "summary": "completed"
+    },
+    {
+      "name": "create manual backup through Rust",
+      "status": "passed",
+      "startedAt": "2026-05-03T03:58:01.153Z",
+      "completedAt": "2026-05-03T03:58:01.447Z",
+      "durationMs": 294,
+      "summary": "completed"
+    },
+    {
+      "name": "verify restart-persistent seed data",
+      "status": "passed",
+      "startedAt": "2026-05-03T03:58:01.447Z",
+      "completedAt": "2026-05-03T03:58:01.448Z",
+      "durationMs": 1,
+      "summary": "seed file readable"
+    },
+    {
+      "name": "enqueue and complete scheduled backup",
+      "status": "passed",
+      "startedAt": "2026-05-03T03:58:01.448Z",
+      "completedAt": "2026-05-03T03:58:01.478Z",
+      "durationMs": 30,
+      "summary": "completed"
+    },
+    {
+      "name": "prepare and execute restore",
+      "status": "passed",
+      "startedAt": "2026-05-03T03:58:01.478Z",
+      "completedAt": "2026-05-03T03:58:01.558Z",
+      "durationMs": 80,
+      "summary": "completed"
+    }
+  ],
+  "warnings": []
+}

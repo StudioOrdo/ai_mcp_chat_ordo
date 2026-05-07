@@ -18,7 +18,7 @@ let mockMessages: ChatMessage[] = [
     id: "hero-1",
     role: "assistant" as const,
     content:
-      "Bring me the messy workflow, half-finished idea, or customer task. I can help you plan the work, search your library, turn it into assets, and keep it moving from one governed workspace.\n\n__suggestions__:[\"Plan this workflow\",\"Search my library\",\"Turn this into an asset\",\"What makes this different?\"]",
+      "Bring me the messy workflow, half-finished idea, or customer task. I can help you plan the work, find the right internal material, turn it into assets, and keep it moving from one governed workspace.\n\n__suggestions__:[\"Plan this workflow\",\"Find source material\",\"Turn this into an asset\",\"What makes this different?\"]",
     timestamp: new Date("2026-03-18T10:00:00.000Z"),
     parts: [{ type: "text" as const, text: "hero" }],
   },

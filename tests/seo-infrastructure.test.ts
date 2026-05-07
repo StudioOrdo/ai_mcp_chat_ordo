@@ -5,10 +5,14 @@
  * Plausible analytics conditional rendering, dead code removal, and
  * analytics config field.
  */
-import { describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { validateIdentity } from "@/lib/config/instance.schema";
+
+const { loadPublicShellNavigationContextMock } = vi.hoisted(() => ({
+  loadPublicShellNavigationContextMock: vi.fn(),
+}));
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
@@ -35,63 +39,48 @@ vi.mock("@/lib/config/instance", () => ({
   }),
 }));
 
-vi.mock("@/lib/corpus-library", () => ({
-  getDocuments: vi.fn().mockResolvedValue([
-    { slug: "software-engineering", title: "Software Engineering", number: "01" },
-    { slug: "ux-design", title: "UX Design", number: "02" },
-  ]),
-  getCorpusSummaries: vi.fn().mockResolvedValue([
-    {
-      id: "01",
-      title: "Software Engineering",
-      slug: "software-engineering",
-      sectionCount: 2,
-      sections: ["Intro", "Methods"],
-      sectionSlugs: ["ch01-intro", "ch02-methods"],
-      number: "01",
-      chapterCount: 2,
-      chapters: ["Intro", "Methods"],
-      chapterSlugs: ["ch01-intro", "ch02-methods"],
-    },
-    {
-      id: "02",
-      title: "UX Design",
-      slug: "ux-design",
-      sectionCount: 1,
-      sections: ["Fundamentals"],
-      sectionSlugs: ["ch01-fundamentals"],
-      number: "02",
-      chapterCount: 1,
-      chapters: ["Fundamentals"],
-      chapterSlugs: ["ch01-fundamentals"],
-    },
-  ]),
+vi.mock("@/lib/shell/public-shell-state", () => ({
+  loadPublicShellNavigationContext: loadPublicShellNavigationContextMock,
 }));
 
 import sitemap from "@/app/sitemap";
 import robots from "@/app/robots";
 
 describe("sitemap.xml generation", () => {
+  beforeEach(() => {
+    loadPublicShellNavigationContextMock.mockResolvedValue({
+      hasPublicFeedItems: false,
+    });
+  });
+
   it("P1: returns homepage entry", async () => {
     const entries = await sitemap();
     const home = entries.find((e) => e.url === "https://studioordo.com");
     expect(home).toBeDefined();
   });
 
-  it("P2: returns library index entry", async () => {
+  it("P2: returns target public route entries for empty feed state", async () => {
     const entries = await sitemap();
-    const lib = entries.find((e) => e.url === "https://studioordo.com/library");
-    expect(lib).toBeDefined();
+    expect(entries.map((entry) => entry.url)).toEqual([
+      "https://studioordo.com",
+      "https://studioordo.com/offers",
+      "https://studioordo.com/about",
+    ]);
   });
 
-  it("P3: returns chapter entries for all corpus chapters", async () => {
+  it("P2b: includes feed route when public feed content exists", async () => {
+    loadPublicShellNavigationContextMock.mockResolvedValue({
+      hasPublicFeedItems: true,
+    });
+
     const entries = await sitemap();
-    const chapterEntries = entries.filter((e) =>
-      /\/library\/[^/]+\/[^/]+$/.test(e.url),
-    );
-    // 2 chapters from software-engineering + 1 from ux-design = 3
-    expect(chapterEntries).toHaveLength(3);
-    expect(chapterEntries[0].url).toContain("/library/software-engineering/ch01-intro");
+
+    expect(entries.map((entry) => entry.url)).toEqual([
+      "https://studioordo.com",
+      "https://studioordo.com/feed",
+      "https://studioordo.com/offers",
+      "https://studioordo.com/about",
+    ]);
   });
 
   it("N1: excludes redirect routes", async () => {
@@ -100,7 +89,9 @@ describe("sitemap.xml generation", () => {
       expect(entry.url).not.toContain("/books/");
       expect(entry.url).not.toContain("/corpus/");
       expect(entry.url).not.toContain("/book/");
-      expect(entry.url).not.toContain("/library/section/");
+      expect(entry.url).not.toContain("/library");
+      expect(entry.url).not.toContain("/journal");
+      expect(entry.url).not.toContain("/blog");
     }
   });
 
@@ -134,14 +125,25 @@ describe("sitemap.xml generation", () => {
     expect(home?.priority).toBe(1.0);
   });
 
-  it("E4: chapter entries have priority 0.6", async () => {
+  it("E4: public route priorities match the route contract", async () => {
     const entries = await sitemap();
-    const chapterEntries = entries.filter((e) =>
-      /\/library\/[^/]+\/[^/]+$/.test(e.url),
-    );
-    for (const entry of chapterEntries) {
-      expect(entry.priority).toBe(0.6);
-    }
+    const offers = entries.find((e) => e.url === "https://studioordo.com/offers");
+    const about = entries.find((e) => e.url === "https://studioordo.com/about");
+
+    expect(entries.find((e) => e.url === "https://studioordo.com/feed")).toBeUndefined();
+    expect(offers?.priority).toBe(0.8);
+    expect(about?.priority).toBe(0.6);
+  });
+
+  it("E4b: published feed route keeps the public feed priority", async () => {
+    loadPublicShellNavigationContextMock.mockResolvedValue({
+      hasPublicFeedItems: true,
+    });
+
+    const entries = await sitemap();
+    const feed = entries.find((e) => e.url === "https://studioordo.com/feed");
+
+    expect(feed?.priority).toBe(0.7);
   });
 });
 
@@ -153,7 +155,10 @@ describe("robots.txt generation", () => {
     expect(result.rules).toBeDefined();
     const rule = Array.isArray(result.rules) ? result.rules[0] : result.rules;
     expect(rule.allow).toContain("/");
-    expect(rule.allow).toContain("/library");
+    expect(rule.allow).toContain("/feed");
+    expect(rule.allow).toContain("/offers");
+    expect(rule.allow).toContain("/about");
+    expect(rule.allow).not.toContain("/library");
   });
 
   it("P5: disallows API and auth routes", () => {
@@ -212,6 +217,13 @@ describe("analytics conditional rendering", () => {
   it("E8: Plausible script uses default src when plausibleSrc not configured", () => {
     const src = readSource("src/app/layout.tsx");
     expect(src).toContain("https://plausible.io/js/script.js");
+  });
+
+  it("E8b: root layout does not render next/script inside an explicit head element", () => {
+    const src = readSource("src/app/layout.tsx");
+
+    expect(src).toContain("id=\"theme-bootstrap\"");
+    expect(src).not.toMatch(/<head>[\s\S]*?<Script/);
   });
 });
 

@@ -21,6 +21,8 @@ sprints
 tests
 *.md
 !README.md
+!docs/_corpus/**/*.md
+!docs/_corpus/**/book.json
 .github
 vitest.config.ts
 lighthouse-prod.json

@@ -7,16 +7,15 @@ import { useCommandRegistry } from "@/hooks/useCommandRegistry";
 import {
   createCommandMentions,
   createShellCommands,
+  resolveShellCommandDefinitions,
+  resolveShellNavigationCommandDefinitions,
   SHELL_COMMAND_DEFINITIONS,
   SHELL_NAVIGATION_COMMAND_DEFINITIONS,
   SHELL_THEME_DEFINITIONS,
 } from "@/lib/shell/shell-commands";
 
-const pushMock = vi.fn();
-
-
-
 const setThemeSpy = vi.hoisted(() => vi.fn());
+const publishedFeedContext = { hasPublicFeedItems: true };
 
 vi.mock("@/components/ThemeProvider", () => ({
   useTheme: () => ({ setTheme: setThemeSpy }),
@@ -46,21 +45,61 @@ describe("shell command parity", () => {
     );
   });
 
-  it("uses canonical shell navigation ids and destinations", () => {
+  it("uses canonical empty-feed shell navigation ids and destinations", () => {
     expect(SHELL_NAVIGATION_COMMAND_DEFINITIONS).toEqual([
       {
-        id: "nav-corpus",
-        title: "Library",
+        id: "nav-home",
+        title: "Home",
         category: "Navigation",
         kind: "navigation",
-        href: "/library",
+        href: "/",
       },
       {
-        id: "nav-journal",
-        title: "Journal",
+        id: "nav-offers",
+        title: "Offers",
         category: "Navigation",
         kind: "navigation",
-        href: "/journal",
+        href: "/offers",
+      },
+      {
+        id: "nav-about",
+        title: "About",
+        category: "Navigation",
+        kind: "navigation",
+        href: "/about",
+      },
+    ]);
+  });
+
+  it("adds feed command definitions only when public feed content exists", () => {
+    expect(resolveShellNavigationCommandDefinitions(null, publishedFeedContext)).toEqual([
+      {
+        id: "nav-home",
+        title: "Home",
+        category: "Navigation",
+        kind: "navigation",
+        href: "/",
+      },
+      {
+        id: "nav-feed",
+        title: "Feed",
+        category: "Navigation",
+        kind: "navigation",
+        href: "/feed",
+      },
+      {
+        id: "nav-offers",
+        title: "Offers",
+        category: "Navigation",
+        kind: "navigation",
+        href: "/offers",
+      },
+      {
+        id: "nav-about",
+        title: "About",
+        category: "Navigation",
+        kind: "navigation",
+        href: "/about",
       },
     ]);
   });
@@ -77,6 +116,7 @@ describe("shell command parity", () => {
   it("does not reintroduce removed placeholder or dead-route commands", () => {
     const commandIds = SHELL_COMMAND_DEFINITIONS.map((command) => command.id);
 
+    expect(commandIds).not.toContain("nav-feed");
     expect(commandIds).not.toContain("training");
     expect(commandIds).not.toContain("studio");
     expect(commandIds).not.toContain("search");
@@ -143,7 +183,18 @@ describe("shell command parity", () => {
       setTheme: () => undefined,
     }));
 
-    expect(registry.resolveCommand("/nav-corpus")?.id).toBe("nav-corpus");
+    expect(registry.resolveCommand("/nav-offers")?.id).toBe("nav-offers");
     expect(registry.resolveCommand("/theme-bauhaus")?.id).toBe("theme-bauhaus");
+  });
+
+  it("keeps feed command execution available in published-feed context", () => {
+    const registry = CommandRegistry.create(createShellCommands({
+      navigate: () => undefined,
+      setTheme: () => undefined,
+      navigationContext: publishedFeedContext,
+    }));
+
+    expect(resolveShellCommandDefinitions({ navigationContext: publishedFeedContext }).map((command) => command.id)).toContain("nav-feed");
+    expect(registry.resolveCommand("/nav-feed")?.id).toBe("nav-feed");
   });
 });

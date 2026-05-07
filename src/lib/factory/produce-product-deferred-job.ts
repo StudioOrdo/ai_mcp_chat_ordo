@@ -10,6 +10,7 @@ import type { DAGPlanner } from "./dag-planner";
 import type { ProductionOrchestrator } from "./production-orchestrator";
 
 export interface ProduceProductRequestPayload {
+  operationId: string;
   brief: ProductBrief;
   previousWorkOrderIds?: readonly string[];
 }
@@ -46,7 +47,7 @@ export class ProduceProductDeferredJobHandler {
       idGenerator: () => `dag_${this.id()}`,
     });
 
-    const workOrder = await this.dependencies.repository.createWorkOrder(this.createWorkOrder(job, payload.brief, dag, payload.previousWorkOrderIds ?? []));
+    const workOrder = await this.dependencies.repository.createWorkOrder(this.createWorkOrder(job, payload, dag));
     await this.dependencies.repository.saveProductionDAG(workOrder.id, dag);
 
     const finalWorkOrder = await this.dependencies.orchestrator.execute({
@@ -98,6 +99,7 @@ export class ProduceProductDeferredJobHandler {
     }
 
     return {
+      operationId: this.requireOperationId(payload.operationId),
       brief,
       previousWorkOrderIds: Array.isArray(payload.previousWorkOrderIds)
         ? payload.previousWorkOrderIds.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
@@ -107,14 +109,14 @@ export class ProduceProductDeferredJobHandler {
 
   private createWorkOrder(
     job: JobRequest,
-    brief: ProductBrief,
+    payload: ProduceProductRequestPayload,
     dag: WorkOrder["currentDag"],
-    previousWorkOrderIds: readonly string[],
   ): WorkOrder {
     return {
       id: `wo_${this.id()}`,
       schemaVersion: 1,
-      briefId: brief.id,
+      operationId: payload.operationId,
+      briefId: payload.brief.id,
       status: "planned",
       currentDag: dag,
       stageRuns: [],
@@ -126,7 +128,7 @@ export class ProduceProductDeferredJobHandler {
         },
       ],
       revision: 1,
-      previousWorkOrderIds,
+      previousWorkOrderIds: payload.previousWorkOrderIds ?? [],
       createdAt: this.now(),
       userId: job.userId ?? "anonymous_factory_user",
       conversationId: job.conversationId,
@@ -140,5 +142,13 @@ export class ProduceProductDeferredJobHandler {
 
   private id(): string {
     return this.dependencies.idGenerator?.() ?? randomUUID();
+  }
+
+  private requireOperationId(value: unknown): string {
+    if (typeof value !== "string" || !value.trim()) {
+      throw new Error("ProduceProduct request payload must include an operationId.");
+    }
+
+    return value.trim();
   }
 }

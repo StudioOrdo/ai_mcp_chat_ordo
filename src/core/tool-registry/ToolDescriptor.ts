@@ -1,5 +1,6 @@
 import type { ToolCommand } from "./ToolCommand";
 import type { RoleName } from "@/core/entities/user";
+import type { CapabilityPromptExposureFacet } from "@/core/capability-catalog/capability-definition";
 
 export type ToolCategory = "content" | "ui" | "math" | "system" | (string & {});
 
@@ -31,4 +32,6 @@ export interface ToolDescriptor<TInput = unknown, TOutput = unknown> {
   executionMode?: ToolExecutionMode;
   /** Deferred execution policy metadata for queue-backed tools. */
   deferred?: DeferredExecutionConfig;
+  /** Controls whether an executable tool is visible in model prompt projections. */
+  promptExposure?: CapabilityPromptExposureFacet;
 }

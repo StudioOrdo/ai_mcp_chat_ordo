@@ -11,7 +11,7 @@ export default function NotFound() {
       title="That route is not available"
       description="The page or asset you requested is missing, moved, or no longer available in this workspace."
       primaryAction={{ href: "/", label: "Return home" }}
-      secondaryAction={{ href: "/library", label: "Open library" }}
+      secondaryAction={{ href: "/feed", label: "View feed" }}
     />
   );
 }

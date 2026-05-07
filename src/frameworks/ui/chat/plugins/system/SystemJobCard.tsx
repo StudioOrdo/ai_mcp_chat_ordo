@@ -40,6 +40,16 @@ function stringifySnapshot(value: unknown): string {
   return JSON.stringify(value, null, 2);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function shouldUseEnvelopeTitle(toolName: string, resultEnvelope: CapabilityResultEnvelope | null | undefined): boolean {
+  return toolName === "get_deferred_job_status"
+    && isRecord(resultEnvelope?.payload)
+    && isRecord(resultEnvelope.payload.systemCommand);
+}
+
 function buildArtifactItems(resultEnvelope: CapabilityResultEnvelope | null | undefined) {
   return (resultEnvelope?.artifacts ?? []).map((artifact, index) => ({
     id: artifact.assetId ?? artifact.uri ?? `${artifact.label}-${index}`,
@@ -76,7 +86,9 @@ export function SystemJobCard({
   const toolName = part?.toolName ?? toolCall?.name ?? "unknown_tool";
   const label = resolveCapabilityDisplayLabel({
     toolName,
-    explicitLabel: part?.label,
+    explicitLabel: shouldUseEnvelopeTitle(toolName, effectiveEnvelope)
+      ? effectiveEnvelope?.summary?.title
+      : part?.label,
     descriptorLabel: descriptor?.label,
     fallbackLabel: humanizeSystemToolName(toolName),
   });

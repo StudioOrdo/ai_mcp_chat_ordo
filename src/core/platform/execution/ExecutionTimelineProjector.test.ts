@@ -110,6 +110,7 @@ function createWorkOrder(overrides: Partial<WorkOrder> = {}): WorkOrder {
     conversationId: "conv_1",
     initiatedBy: "batch_automation",
     ...overrides,
+    operationId: overrides.operationId ?? "op_wo_1",
   };
 }
 
@@ -238,10 +239,7 @@ describe("ExecutionTimelineProjector", () => {
     expect(timeline.artifacts).toEqual([
       expect.objectContaining({ id: "asset_1", source: "factory_output", stageKey: "draft" }),
     ]);
-    expect(timeline.nextActions).toEqual([
-      expect.objectContaining({ key: "resume", kind: "factory" }),
-      expect.objectContaining({ key: "refine", kind: "factory" }),
-    ]);
+    expect(timeline.nextActions).toEqual([]);
   });
 
   it("projects limited tool support when a result envelope exists", () => {

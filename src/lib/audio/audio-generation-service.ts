@@ -8,6 +8,7 @@ import { estimateAudioDurationSeconds, estimateAudioGenerationSeconds } from "@/
 import { REASON_CODES } from "@/lib/observability/reason-codes";
 import { emitProviderEvent } from "@/lib/chat/provider-policy";
 import { AudioGenerationError } from "@/lib/audio/audio-generation-errors";
+import { assertProviderBackedToolAvailable } from "@/lib/tools/tool-provider-capability-policy";
 
 export const TTS_MAX_RESPONSE_BYTES = 10 * 1024 * 1024;
 export const TTS_MIME_TYPE = "audio/mpeg" as const;
@@ -63,6 +64,35 @@ function isTransientProviderStatus(status: number): boolean {
   return status === 408 || status === 409 || status === 425 || status === 429 || status >= 500;
 }
 
+async function readProviderFailureDetail(response: Response): Promise<string | null> {
+  try {
+    const text = await response.text();
+    const trimmed = text.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(trimmed) as unknown;
+      if (parsed && typeof parsed === "object" && "error" in parsed) {
+        const error = (parsed as { error?: unknown }).error;
+        if (error && typeof error === "object" && "message" in error) {
+          const message = (error as { message?: unknown }).message;
+          if (typeof message === "string" && message.trim()) {
+            return message.trim().slice(0, 500);
+          }
+        }
+      }
+    } catch {
+      // Fall back to the raw provider body below.
+    }
+
+    return trimmed.slice(0, 500);
+  } catch {
+    return null;
+  }
+}
+
 export async function generateStoredAudioArtifact(
   input: GenerateStoredAudioInput,
 ): Promise<StoredAudioArtifact> {
@@ -83,6 +113,7 @@ export async function generateStoredAudioArtifact(
     } catch {
       emitProviderEvent({
         kind: "attempt_failure",
+        provider: "openai",
         surface: "tts",
         model: "user-file-cache",
         attempt: 1,
@@ -93,6 +124,8 @@ export async function generateStoredAudioArtifact(
     }
   }
 
+  assertProviderBackedToolAvailable("generate_audio");
+
   const openaiApiKey = getOpenaiApiKey();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), getTtsFetchTimeoutMs());
@@ -101,6 +134,7 @@ export async function generateStoredAudioArtifact(
 
   emitProviderEvent({
     kind: "attempt_start",
+    provider: "openai",
     surface: "tts",
     model: ttsModel,
     attempt: 1,
@@ -137,17 +171,22 @@ export async function generateStoredAudioArtifact(
 
   if (!response.ok) {
     const failureClass = isTransientProviderStatus(response.status) ? "transient" : "terminal";
+    const providerDetail = await readProviderFailureDetail(response);
+    const failureMessage = providerDetail
+      ? `OpenAI TTS failed to generate audio with status ${response.status}: ${providerDetail}`
+      : `OpenAI TTS failed to generate audio with status ${response.status}.`;
     emitProviderEvent({
       kind: "attempt_failure",
+      provider: "openai",
       surface: "tts",
       model: ttsModel,
       attempt: 1,
       durationMs: Date.now() - providerStartedAt,
-      error: `OpenAI TTS returned ${response.status}`,
+      error: failureMessage,
       errorClassification: failureClass === "transient" ? "transient" : "fatal",
     });
     throw new AudioGenerationError(
-      `OpenAI TTS failed to generate audio with status ${response.status}.`,
+      failureMessage,
       failureClass,
       REASON_CODES.TTS_PROVIDER_FAILED,
       response.status,
@@ -156,6 +195,7 @@ export async function generateStoredAudioArtifact(
 
   emitProviderEvent({
     kind: "attempt_success",
+    provider: "openai",
     surface: "tts",
     model: ttsModel,
     attempt: 1,

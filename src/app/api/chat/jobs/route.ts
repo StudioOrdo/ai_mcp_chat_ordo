@@ -1,154 +1,19 @@
-import { createHash } from "node:crypto";
 import type { NextRequest } from "next/server";
-import { getJobQueueRepository, getJobStatusQuery, getMaterializationRepository, getMediaWorkflowReadModel, getPlatformInteractionFacade } from "@/adapters/RepositoryFactory";
+import { getMediaWorkflowReadModel, getPlatformInteractionFacade } from "@/adapters/RepositoryFactory";
 import { NotFoundError } from "@/core/use-cases/ConversationInteractor";
-import type { MaterializationRecord } from "@/core/entities/materialization";
 import { createConversationRouteServices } from "@/lib/chat/conversation-root";
 import { resolveUserId } from "@/lib/chat/resolve-user";
 import { errorJson, runRouteTemplate, successJson } from "@/lib/chat/http-facade";
-import { enqueueComposeMediaDeferredJob, InvalidComposeMediaDeferredJobError } from "@/lib/jobs/compose-media-deferred-job";
-import { enqueueGenerateAudioDeferredJob, InvalidGenerateAudioDeferredJobError } from "@/lib/jobs/generate-audio-deferred-job";
-import { buildCanonicalJobSnapshot } from "@/lib/jobs/job-read-model";
 import { getActiveJobStatuses } from "@/lib/jobs/job-read-model";
-import { isRegisteredJobCapability } from "@/lib/jobs/job-capability-registry";
+import {
+  launchMediaWorkflowOperation,
+  type MediaWorkflowOperationToolName,
+  summarizeMediaWorkflowOperationRequest,
+} from "@/lib/media/workflows/media-workflow-operation-launcher";
 import { logEvent } from "@/lib/observability/logger";
-import { recordPromptBindingFromSource } from "@/lib/prompts/prompt-binding-service";
 
-type SupportedMediaJobToolName = "compose_media" | "generate_audio";
-
-function buildReuseAliasMaterializationId(conversationId: string, materializationKey: string): string {
-  const suffix = createHash("sha1").update(materializationKey).digest("hex").slice(0, 12);
-  return `mat_reuse_${conversationId}_${suffix}`;
-}
-
-async function ensureConversationReuseMaterialization(
-  materialization: MaterializationRecord,
-  conversationId: string,
-  userId: string,
-): Promise<MaterializationRecord> {
-  if (materialization.conversationId === conversationId) {
-    return materialization;
-  }
-
-  const repository = getMaterializationRepository();
-  const now = new Date().toISOString();
-  const aliasId = buildReuseAliasMaterializationId(conversationId, materialization.materializationKey);
-  const existing = await repository.findById(aliasId);
-
-  return repository.upsert({
-    ...materialization,
-    id: aliasId,
-    userId,
-    conversationId,
-    evidenceRefs: [
-      ...materialization.evidenceRefs,
-      {
-        source: {
-          sourceKind: "materialization_record",
-          sourceId: materialization.id,
-          userId,
-          conversationId: materialization.conversationId,
-        },
-        observedAt: now,
-        summary: `Attached exact reuse of ${materialization.toolName} output to conversation ${conversationId}.`,
-      },
-    ],
-    createdAt: existing?.createdAt ?? now,
-    updatedAt: now,
-  });
-}
-
-function summarizeComposePlan(plan: unknown): Record<string, unknown> | null {
-  if (typeof plan !== "object" || plan === null) {
-    return null;
-  }
-
-  const raw = plan as {
-    id?: unknown;
-    conversationId?: unknown;
-    visualClips?: unknown;
-    audioClips?: unknown;
-    profile?: unknown;
-    outputFormat?: unknown;
-  };
-
-  const summarizeClip = (clip: unknown) => {
-    if (typeof clip !== "object" || clip === null) {
-      return { invalid: true };
-    }
-
-    const value = clip as { assetId?: unknown; kind?: unknown; sourceAssetId?: unknown };
-    return {
-      assetId: typeof value.assetId === "string" ? value.assetId : null,
-      kind: typeof value.kind === "string" ? value.kind : null,
-      sourceAssetId: typeof value.sourceAssetId === "string" ? value.sourceAssetId : null,
-    };
-  };
-
-  return {
-    id: typeof raw.id === "string" ? raw.id : null,
-    conversationId: typeof raw.conversationId === "string" ? raw.conversationId : null,
-    profile: typeof raw.profile === "string" ? raw.profile : null,
-    outputFormat: typeof raw.outputFormat === "string" ? raw.outputFormat : null,
-    visualClips: Array.isArray(raw.visualClips) ? raw.visualClips.map(summarizeClip) : [],
-    audioClips: Array.isArray(raw.audioClips) ? raw.audioClips.map(summarizeClip) : [],
-  };
-}
-
-function summarizeAudioRequest(input: unknown): Record<string, unknown> | null {
-  if (typeof input !== "object" || input === null) {
-    return null;
-  }
-
-  const raw = input as { title?: unknown; text?: unknown; assetId?: unknown };
-  return {
-    title: typeof raw.title === "string" ? raw.title : null,
-    textLength: typeof raw.text === "string" ? raw.text.length : null,
-    hasAssetId: typeof raw.assetId === "string" && raw.assetId.trim().length > 0,
-  };
-}
-
-type MediaJobEnqueueOptions = {
-  raw: Record<string, unknown>;
-  conversationId: string;
-  userId: string;
-  promptBindingId: string | null;
-};
-
-const MEDIA_JOB_ENQUEUE_STRATEGIES = {
-  compose_media: {
-    summarize: (raw: Record<string, unknown>) => ({ plan: summarizeComposePlan(raw["plan"]) }),
-    enqueue: (options: MediaJobEnqueueOptions) => enqueueComposeMediaDeferredJob({
-      repository: getJobQueueRepository(),
-      materializationRepository: getMaterializationRepository(),
-      conversationId: options.conversationId,
-      userId: options.userId,
-      plan: options.raw["plan"],
-      promptBindingId: options.promptBindingId,
-      initiatorType: "user",
-      priority: 5,
-    }),
-  },
-  generate_audio: {
-    summarize: (raw: Record<string, unknown>) => ({ audio: summarizeAudioRequest(raw["input"] ?? raw) }),
-    enqueue: (options: MediaJobEnqueueOptions) => enqueueGenerateAudioDeferredJob({
-      repository: getJobQueueRepository(),
-      materializationRepository: getMaterializationRepository(),
-      conversationId: options.conversationId,
-      userId: options.userId,
-      input: options.raw["input"] ?? options.raw,
-      promptBindingId: options.promptBindingId,
-      initiatorType: "user",
-      priority: 5,
-    }),
-  },
-} satisfies Record<SupportedMediaJobToolName, {
-  summarize: (raw: Record<string, unknown>) => Record<string, unknown>;
-  enqueue: (options: MediaJobEnqueueOptions) => ReturnType<typeof enqueueComposeMediaDeferredJob> | ReturnType<typeof enqueueGenerateAudioDeferredJob>;
-}>;
-
-function isSupportedMediaJobToolName(value: unknown): value is SupportedMediaJobToolName {
-  return typeof value === "string" && value in MEDIA_JOB_ENQUEUE_STRATEGIES;
+function isSupportedMediaJobToolName(value: unknown): value is MediaWorkflowOperationToolName {
+  return value === "compose_media" || value === "generate_audio";
 }
 
 function parsePositiveInteger(value: string | null, fallback: number): number {
@@ -253,17 +118,8 @@ export async function POST(request: NextRequest) {
         return errorJson(context, `Unsupported tool for media enqueue: ${String(toolName)}`, 400);
       }
 
-      const strategy = MEDIA_JOB_ENQUEUE_STRATEGIES[toolName];
-
-      if (!isRegisteredJobCapability(toolName)) {
-        return errorJson(context, `Tool is not a registered job capability: ${toolName}`, 400);
-      }
-
       const conversationId = typeof raw["conversationId"] === "string"
         ? raw["conversationId"].trim()
-        : null;
-      const promptBindingId = typeof raw["promptBindingId"] === "string"
-        ? raw["promptBindingId"].trim()
         : null;
 
       if (!conversationId) {
@@ -286,76 +142,36 @@ export async function POST(request: NextRequest) {
           conversationId,
           userId,
           toolName,
-          ...strategy.summarize(raw),
+          ...summarizeMediaWorkflowOperationRequest(toolName, raw),
+          mutationPath: "operation_kernel",
         });
 
-        const result = await strategy.enqueue({
-          raw,
+        const result = await launchMediaWorkflowOperation({
+          toolName,
           conversationId,
           userId,
-          promptBindingId,
+          role: "AUTHENTICATED",
+          request: raw,
+          sourceSurface: "/api/chat/jobs",
         });
-
-        if (result.outcome === "exact_reuse") {
-          const reusableMaterialization = result.materialization
-            ? await ensureConversationReuseMaterialization(result.materialization, conversationId, userId)
-            : null;
-          if (promptBindingId && reusableMaterialization) {
-            await recordPromptBindingFromSource({
-              userId,
-              conversationId,
-              sourcePromptBindingId: promptBindingId,
-              surface: "materialization_decision",
-              target: {
-                targetKind: "materialization_record",
-                targetId: reusableMaterialization.id,
-              },
-              decisionSourceRefs: [
-                {
-                  sourceKind: "materialization_record",
-                  sourceId: reusableMaterialization.id,
-                  userId,
-                  conversationId: reusableMaterialization.conversationId,
-                },
-              ],
-              evidenceRefs: [...reusableMaterialization.evidenceRefs],
-              createdAt: reusableMaterialization.updatedAt,
-            });
-          }
-          const reusedSnapshot = reusableMaterialization?.producedByJobId
-            ? await getJobStatusQuery().getJobSnapshot(reusableMaterialization.producedByJobId)
-            : null;
-
-          return successJson(
-            context,
-            {
-              ok: true,
-              exactReuse: true,
-              deduplicated: false,
-              materialization: reusableMaterialization,
-              jobId: reusedSnapshot?.jobId ?? reusableMaterialization?.producedByJobId ?? null,
-              job: reusedSnapshot,
-            },
-            { status: 200 },
-          );
-        }
 
         return successJson(
           context,
           {
             ok: true,
-            jobId: result.job?.id ?? null,
+            operation: result.operation,
+            snapshot: result.snapshot,
+            availableActions: result.availableActions,
+            workflow: result.workflow,
+            jobId: result.jobId,
+            job: result.job,
+            exactReuse: result.exactReuse,
             deduplicated: result.deduplicated,
-            exactReuse: false,
-            job: result.job && result.event ? buildCanonicalJobSnapshot(result.job, result.event) : null,
           },
-          { status: result.deduplicated ? 200 : 201 },
+          { status: 201 },
         );
       } catch (error) {
-        if (
-          error instanceof InvalidComposeMediaDeferredJobError
-          || error instanceof InvalidGenerateAudioDeferredJobError
-        ) {
+        if (error instanceof Error && /Invalid|required|requires/i.test(error.message)) {
           return errorJson(context, error.message, 400);
         }
 

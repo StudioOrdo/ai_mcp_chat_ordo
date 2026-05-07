@@ -100,6 +100,7 @@ export class OpenAiBlogImageProvider implements BlogImageProvider {
     const startedAt = Date.now();
     emitProviderEvent({
       kind: "attempt_start",
+      provider: "openai",
       surface: "image_generation",
       model: this.model,
       attempt: 1,
@@ -130,6 +131,7 @@ export class OpenAiBlogImageProvider implements BlogImageProvider {
 
       emitProviderEvent({
         kind: "attempt_success",
+        provider: "openai",
         surface: "image_generation",
         model: this.model,
         attempt: 1,
@@ -149,6 +151,7 @@ export class OpenAiBlogImageProvider implements BlogImageProvider {
     } catch (error) {
       emitProviderEvent({
         kind: "attempt_failure",
+        provider: "openai",
         surface: "image_generation",
         model: this.model,
         attempt: 1,

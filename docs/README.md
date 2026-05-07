@@ -1,55 +1,78 @@
-# Documentation Index
+# Ordo Docs
 
-This directory is organized by role so feature docs, operational docs, corpus content, and reference notes do not get mixed together.
+This directory has two jobs: help public readers understand Ordo, and help maintainers find current operating material without mistaking archive history for product truth.
 
-## Top-Level Structure
-
-| Folder | Purpose |
-| --- | --- |
-| `_specs/` | Feature specs, sprint plans, and feature-owned artifacts |
-| `_refactor/` | Cross-cutting remediation and refactor workstreams |
-| `_corpus/` | Canonical corpus source material and structured content manifests |
-| `_reference/` | External or ad hoc reference notes |
-| `operations/` | Runbooks and operational process docs |
+Start with the public front door. Go deeper when you need proof or process.
 
 ## Start Here
 
-If you are new to the repository, read these first:
+1. [Project README](../README.md): public front door.
+2. [State Of The Project](state-of-the-project.md): current truth ledger for implemented, active refactor, alpha-track, and vision claims.
+3. [Business Canon](./_business/README.md): product thesis, operating doctrine, and north star.
+4. [Contributing](../CONTRIBUTING.md): current issue-first contribution path.
 
-1. `../README.md`
-2. `operations/agentic-delivery-playbook.md`
-3. `operations/architecture-diagrams.md`
-4. `_specs/README.md`
+## Current Map
 
-## Organization Rules
+| Area | Use it for | Truth status |
+| --- | --- | --- |
+| [state-of-the-project.md](state-of-the-project.md) | Public implementation truth, claim labels, and current alpha direction | Current public ledger |
+| [_business](./_business/README.md) | Founding thesis, bottega model, governance, product doctrine, and architecture north star | Active doctrine; not every idea is shipped |
+| [_documentation_project](./_documentation_project/README.md) | The closing documentation manufacturing process that created the current public docs and GitHub templates | Closing public-doc governance |
+| [_refactor/ordo](./_refactor/ordo/prompts/next.md) | Active phase handoff prompt for this documentation project | Active operator handoff |
+| [_corpus](./_corpus) | Structured corpus manifests for architecture reference, field guide, operators handbook, thesis, and system docs | Source material; not the first public route |
+| [_archive](./_archive) | Historical audits, specs, refactors, QA notes, and prior business material | Archive/history only |
+| [_debug](./_debug) and [debug_info](debug_info) | Debug traces and local investigation material | Maintainer/debug context |
 
-1. Feature-specific evidence should live with the feature that owns it under `_specs/{feature}/`.
-2. Historical one-off notes should move into an `archive/` folder instead of staying mixed into active reference material.
-3. The `docs/` root should stay sparse. Avoid placing feature-specific standalone markdown files here.
+## Business Canon
 
-## Key Operational Docs
+The business canon is active because it explains the product thesis and operating doctrine:
 
-- `operations/agentic-delivery-playbook.md`: how this repo turns LLM work into a controlled engineering workflow
-- `operations/user-handbook.md`: user guide, feature overview, role model, setup notes, and MCP tool catalog
-- `operations/system-architecture.md`: textual architecture walkthrough for the application, tool system, storage, and MCP boundaries
-- `operations/architecture-diagrams.md`: visual maps for the delivery loop, runtime architecture, and tool orchestration
-- `operations/process-model.md`: runtime process and concurrency model
-- `operations/admin-runbook.md`: non-interactive operational commands
-- `operations/environment-matrix.md`: required environment templates and parity rules
-- `operations/release-gates-and-evidence.md`: current public release-verification ladder, machine-readable evidence artifacts, and Sprint 0 governance baseline
+- [01 Founding Thesis](./_business/01_founding_thesis.md)
+- [02 The Bottega Model](./_business/02_the_bottega_model.md)
+- [06 The Production Engine](./_business/06_the_production_engine.md)
+- [07 Governance And Process](./_business/07_governance_and_process.md)
+- [08 Software Manufacturing Loop](./_business/08_software_manufacturing_loop.md)
+- [Ordo Process](./_business/ordo_process.md)
+- [Message And Tone](./_business/ux/02-message-and-tone.md)
 
-## Technical Audits & Deep Dives
+Read it as north star and doctrine. For current implementation claims, use [State Of The Project](state-of-the-project.md) and current source code.
 
-- Search, RBAC, and Memory Deep-Dive: `_archive/_audit/search-rbac-memory-deep-dive.md`
+## Active Process Docs
 
-## Current Feature Artifacts
+- [Documentation Project](./_documentation_project/README.md): closes the old markdown-first documentation phase loop and records its evidence.
+- [Editorial Standard](./_documentation_project/editorial-standard.md): prose and claim discipline.
+- [Phase Plan](./_documentation_project/phase-plan.md): bounded phase sequence.
+- [Active Handoff Prompt](./_refactor/ordo/prompts/next.md): the prompt the operator can ask an agent to execute next at `docs/_refactor/ordo/prompts/next.md`.
+- [Software Manufacturing Loop](./_business/08_software_manufacturing_loop.md): the new GitHub-backed work-ledger direction for public issues and pull requests.
 
-- Browser UI hardening evidence: `_specs/browser-ui-hardening/artifacts/`
-- Homepage chat shell evidence: `_specs/homepage-chat-shell/artifacts/`
-- Runtime truthfulness and retrieval integrity workstream: `_refactor/agent-runtime-truthfulness-and-retrieval-integrity/`
-- Architecture unification workstream: `_refactor/unification/`
-- Architecture unification artifact set: `_refactor/unification/artifacts/`
+## Archive Boundary
 
-## Archived During Cleanup
+Archive material is useful history. It is not the current roadmap unless a current phase explicitly reactivates it.
 
-- Dated reference notes from `2026-03-07` moved to `_reference/archive/2026-03-07/`
+The archive currently includes historical audits, older specs, pre-factory refactors, QA notes, unification work, and legacy business material. Keep it discoverable, but do not send first-time readers there for current product truth.
+
+No files were moved during this index cleanup. Phase 00 identified stale paths and archive risk, but this phase did not prove enough ownership to relocate standalone root notes without churn.
+
+## Standalone Notes Needing Future Classification
+
+These files remain in `docs/` and should be classified in a later archive or reference pass:
+
+- [issue-resolution-tracker.md](issue-resolution-tracker.md)
+- [me.txt](me.txt)
+- [ordo_system_architecture_and_extensibility.md](ordo_system_architecture_and_extensibility.md)
+- [scrollcast-integration-letter.md](scrollcast-integration-letter.md)
+- [theme-brand-audit.md](theme-brand-audit.md)
+
+They are listed here so they are visible, not because they are all current public contracts.
+
+## Source Of Truth
+
+When docs disagree, use this order:
+
+1. Current source code, tests, and release evidence.
+2. [State Of The Project](state-of-the-project.md).
+3. [Project README](../README.md).
+4. Active business canon and current phase specs.
+5. Archive material as historical context only.
+
+Phase evidence for the public documentation project lives under [./_documentation_project/evidence](./_documentation_project/evidence).

@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import type Anthropic from "@anthropic-ai/sdk";
 import { createAbortTimeout } from "@/lib/chat/disposability";
 import { CHAT_CONFIG } from "@/lib/chat/chat-config";
 import {
@@ -7,6 +7,7 @@ import {
   isTransientProviderError,
   toErrorMessage,
 } from "@/lib/chat/provider-policy";
+import type { ProviderResiliencePolicy } from "@/lib/chat/provider-policy";
 import { ChatProviderError } from "@/lib/chat/provider-decorators";
 import {
   createProviderRuntime,
@@ -109,7 +110,8 @@ function resolveStreamErrorAction({
 }
 
 export async function runClaudeAgentLoopStream(options: {
-  apiKey: string;
+  client: Anthropic;
+  policy?: ProviderResiliencePolicy;
   messages: Anthropic.MessageParam[];
   callbacks: StreamCallbacks;
   maxToolRounds?: number;
@@ -117,15 +119,14 @@ export async function runClaudeAgentLoopStream(options: {
   systemPrompt: string;
   tools: Anthropic.Tool[];
   toolExecutor: (name: string, input: Record<string, unknown>, toolInvocationId: string) => Promise<unknown>;
-  client?: Anthropic;
   modelCandidates?: string[];
   retryAttempts?: number;
   retryDelayMs?: number;
   timeoutMs?: number;
 }): Promise<ClaudeAgentLoopResult> {
-  const basePolicy = providerRuntime.resolvePolicy("stream");
   const {
-    apiKey,
+    client,
+    policy = providerRuntime.resolvePolicy("stream"),
     messages,
     callbacks,
     maxToolRounds = CHAT_CONFIG.maxToolRounds,
@@ -133,21 +134,18 @@ export async function runClaudeAgentLoopStream(options: {
     systemPrompt,
     tools,
     toolExecutor,
-    client,
-    modelCandidates = basePolicy.modelCandidates,
-    retryAttempts = basePolicy.retryAttempts,
-    retryDelayMs = basePolicy.retryDelayMs,
-    timeoutMs = basePolicy.timeoutMs,
+    modelCandidates = policy.modelCandidates,
+    retryAttempts = policy.retryAttempts,
+    retryDelayMs = policy.retryDelayMs,
+    timeoutMs = policy.timeoutMs,
   } = options;
   const resolvedPolicy = {
-    ...basePolicy,
+    ...policy,
     modelCandidates,
     retryAttempts,
     retryDelayMs,
     timeoutMs,
   };
-
-  const anthropicClient = client ?? new Anthropic({ apiKey });
 
   const anthropicTools: Anthropic.Tool[] = (tools ?? []).map((t) => ({
     name: t.name,
@@ -198,9 +196,9 @@ export async function runClaudeAgentLoopStream(options: {
           ? AbortSignal.any([signal, timeout.controller.signal])
           : timeout.controller.signal;
 
-        let stream: ReturnType<typeof anthropicClient.messages.stream>;
+        let stream: ReturnType<typeof client.messages.stream>;
         try {
-          stream = anthropicClient.messages.stream(
+          stream = client.messages.stream(
             {
               model,
               max_tokens: 2048,

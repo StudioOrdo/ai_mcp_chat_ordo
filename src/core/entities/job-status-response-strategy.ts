@@ -56,7 +56,7 @@ class SignedInJobsPageStrategy implements JobStatusResponseStrategy {
   readonly id = "signed-in-jobs-page";
 
   buildDirectiveLines(): string[] {
-    return ["When useful, signed-in users can review the full operational view at /jobs."];
+    return ["When useful, signed-in users can review the full production view at /studio."];
   }
 }
 

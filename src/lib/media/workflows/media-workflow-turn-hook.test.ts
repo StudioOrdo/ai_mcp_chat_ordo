@@ -80,10 +80,10 @@ describe("MediaWorkflowTurnHook", () => {
     mocks.reconcileRunnableWorkflows.mockResolvedValue([]);
   });
 
-  it("reconciles immediately after creating a workflow so already-terminal audio jobs advance", async () => {
+  it("reconciles eligible turns without creating prose-derived workflows", async () => {
     await new MediaWorkflowTurnHook().afterTurnCompletion(createState());
 
-    expect(mocks.createWorkflow).toHaveBeenCalledOnce();
+    expect(mocks.createWorkflow).not.toHaveBeenCalled();
     expect(mocks.reconcileRunnableWorkflows).toHaveBeenCalledWith({
       conversationId: "conv_1",
       userId: "usr_1",

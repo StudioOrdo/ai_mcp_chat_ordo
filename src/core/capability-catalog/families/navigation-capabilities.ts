@@ -29,6 +29,10 @@ export const NAVIGATION_CAPABILITIES = {
       mode: "parse",
     },
     runtime: {},
+    promptExposure: {
+      exposure: "intent_gated",
+      rationale: "Page inspection should appear only when the user asks for navigation or current-page context.",
+    },
     presentation: {
       family: "system",
       cardKind: "fallback",
@@ -71,6 +75,10 @@ export const NAVIGATION_CAPABILITIES = {
       mode: "parse",
     },
     runtime: {},
+    promptExposure: {
+      exposure: "intent_gated",
+      rationale: "Runtime context is diagnostic metadata and should not be part of the default model prompt.",
+    },
     presentation: {
       family: "system",
       cardKind: "fallback",
@@ -103,6 +111,10 @@ export const NAVIGATION_CAPABILITIES = {
       mode: "parse",
     },
     runtime: {},
+    promptExposure: {
+      exposure: "intent_gated",
+      rationale: "Page listing should appear only for navigation intent.",
+    },
     presentation: {
       family: "system",
       cardKind: "fallback",
@@ -139,6 +151,10 @@ export const NAVIGATION_CAPABILITIES = {
       mode: "parse",
     },
     runtime: {},
+    promptExposure: {
+      exposure: "intent_gated",
+      rationale: "Navigation should be offered only when the user asks to move to another surface.",
+    },
     presentation: {
       family: "system",
       cardKind: "fallback",
@@ -195,6 +211,10 @@ export const NAVIGATION_CAPABILITIES = {
         "Shared admin entity-search logic exported through the operations MCP sidecar.",
     },
     runtime: {},
+    promptExposure: {
+      exposure: "operator_only",
+      rationale: "Administrative entity search is useful for operators but too broad for default chat prompts.",
+    },
     presentation: {
       family: "search",
       cardKind: "search_result",

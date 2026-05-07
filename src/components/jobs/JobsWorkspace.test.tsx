@@ -160,8 +160,8 @@ describe("JobsWorkspace", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "No jobs yet" })).toBeInTheDocument();
-    expect(screen.getByText(/Background jobs you own will appear here/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "No work for this view" })).toBeInTheDocument();
+    expect(screen.getByText(/New work appears here/i)).toBeInTheDocument();
   });
 
   it("renders selected job detail and durable history", () => {
@@ -175,6 +175,7 @@ describe("JobsWorkspace", () => {
       />,
     );
 
+    expect(screen.getByTestId("jobs-workspace-shell").querySelector("[data-work-index-layout='single-column']")).toBeTruthy();
     expect(screen.getByTestId("job-detail-panel")).toHaveTextContent("Launch Plan");
     expect(screen.getByTestId("job-history-timeline")).toHaveTextContent("Drafting the article.");
     expect(screen.getByRole("link", { name: "Open conversation" })).toHaveAttribute(
@@ -200,6 +201,144 @@ describe("JobsWorkspace", () => {
     expect(screen.getByTestId("job-card-job_audio")).toHaveTextContent("Audio dependency");
   });
 
+  it("keeps active work ahead of newer completed work in the operator list", () => {
+    const { container } = render(
+      <JobsWorkspace
+        workflows={[
+          makeWorkflow({
+            workflowId: "mwf_done",
+            title: "Published short",
+            status: "succeeded",
+            updatedAt: "2026-05-01T18:00:00.000Z",
+          }),
+        ]}
+        jobs={[
+          makeSnapshot({
+            jobId: "job_running",
+            title: "Current draft",
+            status: "running",
+            updatedAt: "2026-05-01T17:00:00.000Z",
+          }),
+        ]}
+        selectedJob={makeSnapshot({
+          jobId: "job_running",
+          title: "Current draft",
+          status: "running",
+          updatedAt: "2026-05-01T17:00:00.000Z",
+        })}
+        selectedJobHistory={[makeHistoryEntry({ jobId: "job_running" })]}
+        selectedJobId="job_running"
+        userName="Morgan"
+      />,
+    );
+
+    const cards = Array.from(container.querySelectorAll("[data-work-index-card]"));
+
+    expect(cards[0]).toHaveAttribute("data-testid", "job-card-job_running");
+    expect(cards[1]).toHaveAttribute("data-testid", "workflow-card-mwf_done");
+  });
+
+  it("keeps running work ahead of newer queued work in the operator list", () => {
+    const { container } = render(
+      <JobsWorkspace
+        jobs={[
+          makeSnapshot({
+            jobId: "job_running",
+            title: "Running article",
+            status: "running",
+            updatedAt: "2026-05-01T17:00:00.000Z",
+          }),
+          makeSnapshot({
+            jobId: "job_queued",
+            title: "Queued publish",
+            status: "queued",
+            updatedAt: "2026-05-01T18:00:00.000Z",
+          }),
+        ]}
+        selectedJob={makeSnapshot({
+          jobId: "job_running",
+          title: "Running article",
+          status: "running",
+          updatedAt: "2026-05-01T17:00:00.000Z",
+        })}
+        selectedJobHistory={[makeHistoryEntry({ jobId: "job_running" })]}
+        selectedJobId="job_running"
+        userName="Morgan"
+      />,
+    );
+
+    const cards = Array.from(container.querySelectorAll("[data-work-index-card]"));
+
+    expect(cards[0]).toHaveAttribute("data-testid", "job-card-job_running");
+    expect(cards[1]).toHaveAttribute("data-testid", "job-card-job_queued");
+  });
+
+  it("renders readable linked job chips and opens linked job details", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ job: makeSnapshot({ jobId: "job_audio", toolName: "generate_audio", title: "Audio dependency" }) }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ events: [makeHistoryEntry({ jobId: "job_audio", sequence: 3 })] }),
+      } as Response);
+
+    render(
+      <JobsWorkspace
+        workflows={[makeWorkflow({
+          linkedJobs: [makeSnapshot({ jobId: "job_audio", toolName: "generate_audio", title: "Audio dependency" })],
+        })]}
+        jobs={[makeSnapshot({ jobId: "job_other", title: "Other work" })]}
+        selectedJob={makeSnapshot({ jobId: "job_other", title: "Other work" })}
+        selectedJobHistory={[makeHistoryEntry({ jobId: "job_other" })]}
+        selectedJobId="job_other"
+        userName="Morgan"
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Open linked job Audio dependency" }));
+      await Promise.resolve();
+    });
+
+    expect(pushMock).toHaveBeenCalledWith("/jobs?jobId=job_audio");
+    expect(screen.getByTestId("job-card-job_audio")).toHaveTextContent("Audio dependency");
+  });
+
+  it("preserves search filters and renders page controls", () => {
+    render(
+      <JobsWorkspace
+        jobs={[makeSnapshot()]}
+        selectedJob={makeSnapshot()}
+        selectedJobHistory={[makeHistoryEntry()]}
+        selectedJobId="job_1"
+        userName="Morgan"
+        query={{
+          jobId: null,
+          sourceId: null,
+          status: null,
+          bucket: "running",
+          sourceKind: null,
+          q: "launch",
+          page: 2,
+          limit: 20,
+        }}
+        pageInfo={{
+          page: 2,
+          limit: 20,
+          total: 45,
+          hasNextPage: true,
+          hasPreviousPage: true,
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "Jobs" })).toHaveAttribute("href", "/jobs?sourceKind=job&q=launch");
+    expect(screen.getByRole("link", { name: "Previous" })).toHaveAttribute("href", "/jobs?bucket=running&q=launch");
+    expect(screen.getByRole("link", { name: "Next" })).toHaveAttribute("href", "/jobs?bucket=running&q=launch&page=3");
+  });
+
   it("navigates to a deep-linked selected job when another card is chosen", async () => {
     vi.mocked(fetch)
       .mockResolvedValueOnce({
@@ -222,7 +361,7 @@ describe("JobsWorkspace", () => {
     );
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId("job-card-job_2"));
+      fireEvent.click(screen.getByRole("button", { name: "Open details for Retry me" }));
       await Promise.resolve();
     });
 
@@ -320,6 +459,52 @@ describe("JobsWorkspace", () => {
       expect(screen.getByTestId("job-history-timeline")).toHaveTextContent("Sequence 8");
       expect(screen.getByTestId("jobs-sync-state")).toHaveTextContent("Live updates connected.");
     });
+  });
+
+  it("keeps filtered views stable when live events arrive outside the active filter", async () => {
+    render(
+      <JobsWorkspace
+        jobs={[makeSnapshot({ status: "succeeded", title: "Finished work" })]}
+        selectedJob={makeSnapshot({ status: "succeeded", title: "Finished work" })}
+        selectedJobHistory={[makeHistoryEntry()]}
+        selectedJobId="job_1"
+        userName="Morgan"
+        query={{
+          jobId: null,
+          sourceId: null,
+          status: null,
+          bucket: "completed",
+          sourceKind: null,
+          q: null,
+          page: 1,
+          limit: 20,
+        }}
+      />,
+    );
+
+    const source = MockEventSource.instances[0];
+
+    await act(async () => {
+      source?.onopen?.();
+      source?.onmessage?.({
+        data: JSON.stringify({
+          type: "job_progress",
+          jobId: "job_running",
+          conversationId: "conv_jobs",
+          sequence: 8,
+          toolName: "produce_blog_article",
+          label: "Produce Blog Article",
+          title: "Running work",
+          progressLabel: "Drafting",
+          progressPercent: 20,
+          updatedAt: "2026-03-30T09:05:00.000Z",
+        }),
+      } as MessageEvent<string>);
+      await Promise.resolve();
+    });
+
+    expect(screen.getByTestId("job-card-job_1")).toHaveTextContent("Finished work");
+    expect(screen.queryByTestId("job-card-job_running")).not.toBeInTheDocument();
   });
 
   it("surfaces API errors when a job action fails", async () => {

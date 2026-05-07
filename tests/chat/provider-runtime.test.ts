@@ -18,6 +18,7 @@ describe("provider-runtime", () => {
     const result = await runtime.runWithResilience({
       surface: "stream",
       policy: {
+        provider: "anthropic",
         timeoutMs: 1000,
         retryAttempts: 1,
         retryDelayMs: 0,
@@ -66,6 +67,7 @@ describe("provider-runtime", () => {
     const result = await runtime.runWithResilience({
       surface: "stream",
       policy: {
+        provider: "anthropic",
         timeoutMs: 1000,
         retryAttempts: 2,
         retryDelayMs: 0,
@@ -117,6 +119,7 @@ describe("provider-runtime", () => {
       runtime.runWithResilience({
         surface: "direct_turn",
         policy: {
+        provider: "anthropic",
           timeoutMs: 1000,
           retryAttempts: 1,
           retryDelayMs: 0,
@@ -158,6 +161,7 @@ describe("provider-runtime", () => {
       runtime.runWithResilience({
         surface: "stream",
         policy: {
+        provider: "anthropic",
           timeoutMs: 1000,
           retryAttempts: 1,
           retryDelayMs: 0,
@@ -182,6 +186,7 @@ describe("provider-runtime", () => {
       runtime.runWithResilience({
         surface: "stream",
         policy: {
+        provider: "anthropic",
           timeoutMs: 1000,
           retryAttempts: 1,
           retryDelayMs: 0,

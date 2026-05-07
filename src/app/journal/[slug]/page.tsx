@@ -1,6 +1,11 @@
-export const dynamic = "force-dynamic";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 
-export {
-  generatePublicJournalPostMetadata as generateMetadata,
-  renderPublicJournalPostPage as default,
-} from "@/components/journal/PublicJournalPages";
+export const metadata: Metadata = {
+  title: "Not found",
+  robots: { index: false, follow: false },
+};
+
+export default function JournalPostPage() {
+  notFound();
+}

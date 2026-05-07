@@ -114,7 +114,7 @@ describe("POST /api/chat", () => {
 
   it("returns 500 when direct-turn provider execution fails", async () => {
     executeDirectChatTurnMock.mockRejectedValueOnce(
-      new ChatProviderError("Anthropic provider error: Provider request timed out."),
+      new ChatProviderError("Intelligence provider error: Provider request timed out."),
     );
 
     const response = await POST(
@@ -131,7 +131,7 @@ describe("POST /api/chat", () => {
 
     expect(response.status).toBe(500);
     expect(payload.error).toContain(
-      "Anthropic provider error: Provider request timed out.",
+      "Intelligence provider error: Provider request timed out.",
     );
     expect(payload.errorCode).toBe("INTERNAL_ERROR");
     expect(payload.requestId).toBeTruthy();

@@ -23,6 +23,25 @@ describe("MarkdownProse default variant", () => {
     expect(container.querySelector("figure")).not.toBeNull();
     expect(container.querySelector("p figure")).toBeNull();
   });
+
+  it("drops raw HTML script and style tags from markdown content", () => {
+    const { container } = render(
+      <MarkdownProse
+        content={[
+          "Visible copy.",
+          "",
+          "<script>window.__bad = true</script>",
+          "<style>body { display: none; }</style>",
+        ].join("\n")}
+      />,
+    );
+
+    expect(screen.getByText("Visible copy.")).toBeInTheDocument();
+    expect(container.querySelector("script")).toBeNull();
+    expect(container.querySelector("style")).toBeNull();
+    expect(container).not.toHaveTextContent("window.__bad");
+    expect(container).not.toHaveTextContent("display: none");
+  });
 });
 
 describe("MarkdownProse journal variant", () => {

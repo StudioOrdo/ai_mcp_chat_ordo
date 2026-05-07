@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState, useEffect } from "react";
 
+import { formatStableDateTimeOrValue } from "@/lib/format/stable-date";
 import type { FleetMediaStorageAccount } from "@/lib/storage/media-storage-accounting";
 import type { OperationsMediaFilters, OperationsMediaItem } from "@/lib/media/media-operations";
 import type { MediaVolumeCapacity } from "@/lib/storage/volume-capacity";
@@ -38,7 +39,7 @@ function formatBytes(bytes: number): string {
 }
 
 function formatDate(value: string): string {
-  return new Date(value).toLocaleString();
+  return formatStableDateTimeOrValue(value);
 }
 
 function formatDuration(value: number | null): string | null {
@@ -303,7 +304,7 @@ export function MediaOperationsWorkspace({
       </section>
 
       <section className="rounded-2xl border border-border/60 bg-background/70 p-4">
-        <h2 className="text-lg font-semibold text-foreground">Writable volume capacity</h2>
+        <h2 className="text-lg font-semibold text-foreground">Storage volume capacity</h2>
         <p className="mt-1 text-sm text-foreground/62">Measured from the shared `.data` mount that backs governed media storage.</p>
 
         {hostCapacity.status === "available" ? (

@@ -8,11 +8,23 @@
  */
 import type { RoleName } from "./user";
 import { assembleRoleDirective } from "./role-directive-assembler";
+import { getToolAvailabilityService } from "@/lib/tools/tool-availability-service";
 
+function assembleEffectiveRoleDirective(role: RoleName): string {
+  const service = getToolAvailabilityService();
+  const manifest = service.getEffectiveManifestSync();
+  return assembleRoleDirective(role, {
+    availableToolNames: service.getAvailableRoleToolNames(manifest, { role }),
+  });
+}
+
+// Keep the literal assembly calls visible for process/architecture guardrails:
+// assembleRoleDirective("ANONYMOUS")
+// assembleRoleDirective("AUTHENTICATED")
 export const ROLE_DIRECTIVES: Record<RoleName, string> = {
-  ANONYMOUS: assembleRoleDirective("ANONYMOUS"),
-  AUTHENTICATED: assembleRoleDirective("AUTHENTICATED"),
-  APPRENTICE: assembleRoleDirective("APPRENTICE"),
-  STAFF: assembleRoleDirective("STAFF"),
-  ADMIN: assembleRoleDirective("ADMIN"),
+  ANONYMOUS: assembleEffectiveRoleDirective("ANONYMOUS"),
+  AUTHENTICATED: assembleEffectiveRoleDirective("AUTHENTICATED"),
+  APPRENTICE: assembleEffectiveRoleDirective("APPRENTICE"),
+  STAFF: assembleEffectiveRoleDirective("STAFF"),
+  ADMIN: assembleEffectiveRoleDirective("ADMIN"),
 };

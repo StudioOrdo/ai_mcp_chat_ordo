@@ -1,0 +1,57 @@
+name: Docs Feedback
+description: Report stale, confusing, broken, or overclaiming documentation.
+title: "[docs]: "
+labels:
+  - docs
+body:
+  - type: input
+    id: doc_path
+    attributes:
+      label: Document Or Link
+      description: Which doc, section, or link needs attention?
+      placeholder: docs/README.md, README.md#alpha-direction
+    validations:
+      required: true
+
+  - type: dropdown
+    id: issue_type
+    attributes:
+      label: Docs Issue Type
+      description: What kind of docs problem is this?
+      options:
+        - stale-path-or-broken-link
+        - confusing-explanation
+        - unsupported-claim
+        - missing-next-step
+        - too-much-cognitive-load
+        - typo-or-small-fix
+    validations:
+      required: true
+
+  - type: textarea
+    id: current_text
+    attributes:
+      label: Current Text Or Behavior
+      description: Paste the current text, broken link, or confusing section.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_text
+    attributes:
+      label: Expected Correction
+      description: What would make the doc more truthful, useful, or clear?
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Link to current code, tests, docs, screenshots, or command output that supports the correction.
+
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation
+      options:
+        - label: I identified the doc location and the kind of correction needed.
+          required: true

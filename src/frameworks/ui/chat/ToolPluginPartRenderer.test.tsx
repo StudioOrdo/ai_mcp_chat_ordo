@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
 import React from "react";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import { ToolPluginPartRenderer } from "./ToolPluginPartRenderer";
 import { ToolPluginRegistryProvider } from "./registry/ToolPluginContext";
@@ -11,6 +11,97 @@ import { createDefaultToolRegistry } from "./registry/default-tool-registry";
 const registry = createDefaultToolRegistry();
 
 describe("ToolPluginPartRenderer", () => {
+  it("renders appliance restore operation actions from structured results", () => {
+    const onActionClick = vi.fn();
+
+    render(
+      <ToolPluginRegistryProvider registry={registry}>
+        <ToolPluginPartRenderer
+          toolCall={{
+            name: "prepare_appliance_restore",
+            args: { snapshot_id: "backup_eb0d5a66" },
+            result: {
+              status: "confirmation_required",
+              summary: "Restore plan is ready for confirmation.",
+              restorePlan: {
+                id: "restore_4bb1532c-edfe-4884-a85e-c59a1f8ef314",
+                status: "confirmation_required",
+                confirmationPhrase: "RESTORE restore_4bb1532c",
+                archiveSizeBytes: 2547353,
+              },
+              actions: [
+                {
+                  type: "action-link",
+                  label: "Confirm Restore",
+                  actionType: "operation",
+                  value: "op_restore_1",
+                  params: {
+                    operationId: "op_restore_1",
+                    actionId: "act_confirm",
+                    idempotencyKey: "idem_confirm",
+                    operationRevision: "3",
+                    riskLevel: "destructive",
+                  },
+                },
+              ],
+            },
+          }}
+          isStreaming={false}
+          onActionClick={onActionClick}
+        />
+      </ToolPluginRegistryProvider>,
+    );
+
+    expect(screen.getByText("Prepare Appliance Restore")).toBeInTheDocument();
+    expect(screen.getAllByText(/restore_4bb1532c/).length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirm Restore (operation)" }));
+    expect(onActionClick).toHaveBeenCalledWith(
+      "operation",
+      "op_restore_1",
+      {
+        operationId: "op_restore_1",
+        actionId: "act_confirm",
+        idempotencyKey: "idem_confirm",
+        operationRevision: "3",
+        riskLevel: "destructive",
+      },
+    );
+  });
+
+  it("omits legacy per-backup mutation actions from list appliance backup results", () => {
+    const onActionClick = vi.fn();
+
+    render(
+      <ToolPluginRegistryProvider registry={registry}>
+        <ToolPluginPartRenderer
+          toolCall={{
+            name: "list_appliance_backups",
+            args: {},
+            result: {
+              summary: "Backup dashboard is healthy.",
+              recentBackups: [
+                {
+                  id: "backup_eb0d5a66-6f1e-479f-bd3c-f18c1fb6ba75",
+                  status: "succeeded",
+                  archiveSizeBytes: 2547353,
+                  actions: [],
+                },
+              ],
+              actions: [],
+            },
+          }}
+          isStreaming={false}
+          onActionClick={onActionClick}
+        />
+      </ToolPluginRegistryProvider>,
+    );
+
+    expect(screen.getByText("List Appliance Backups")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Prepare Restore/ })).not.toBeInTheDocument();
+    expect(onActionClick).not.toHaveBeenCalled();
+  });
+
   it("renders a custom card from completed job-status payloads", () => {
     render(
       <ToolPluginRegistryProvider registry={registry}>

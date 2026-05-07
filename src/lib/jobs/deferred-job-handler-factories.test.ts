@@ -1,8 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { JobRequest } from "@/core/entities/job";
 import type { AudioGenerationProvider } from "@/lib/audio/audio-generation-provider";
-import { createGenerateAudioDeferredJobHandler } from "./deferred-job-handler-factories";
+import {
+  createCatalogBoundDeferredJobHandler,
+  createGenerateAudioDeferredJobHandler,
+} from "./deferred-job-handler-factories";
 
 function createAudioJob(overrides: Partial<JobRequest> = {}): JobRequest {
   return {
@@ -43,6 +46,12 @@ function createAudioJob(overrides: Partial<JobRequest> = {}): JobRequest {
 }
 
 describe("deferred job handler factories", () => {
+  const originalEnv = process.env;
+
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
   it("builds generate_audio envelopes through the injected audio provider", async () => {
     const provider: AudioGenerationProvider = {
       generate: vi.fn(async () => ({
@@ -152,5 +161,30 @@ describe("deferred job handler factories", () => {
       progressPercent: 10,
       progressLabel: "Preparing audio generation",
     }));
+  });
+
+  it("fails catalog-bound provider-backed jobs before execution when capability is disabled", async () => {
+    process.env = {
+      ...originalEnv,
+      OPENAI_API_KEY: "sk-test",
+      WEB_SEARCH_PROVIDER: "disabled",
+    };
+
+    const handler = createCatalogBoundDeferredJobHandler(
+      "admin_web_search",
+      {} as never,
+    );
+
+    await expect(handler(createAudioJob({
+      toolName: "admin_web_search",
+      requestPayload: {
+        query: "ordo architecture",
+      },
+    }), {
+      reportProgress: vi.fn(async () => undefined),
+      abortSignal: new AbortController().signal,
+    })).rejects.toMatchObject({
+      name: "ProviderCapabilityUnavailableError",
+    });
   });
 });

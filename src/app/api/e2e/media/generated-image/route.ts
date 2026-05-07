@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import OpenAI from "openai";
 
 import { getUserFileDataMapper } from "@/adapters/RepositoryFactory";
 import { getSessionUser } from "@/lib/auth";
-import { getOpenaiApiKey } from "@/lib/config/env";
 import { OpenAiBlogImageProvider } from "@/adapters/OpenAiBlogImageProvider";
+import { ProviderClientFactory } from "@/lib/ai/providers/provider-client-factory";
+import { ProviderConfigService } from "@/lib/ai/providers/provider-config-service";
+import { assertProviderBackedToolAvailable } from "@/lib/tools/tool-provider-capability-policy";
 import { UserFileSystem } from "@/lib/user-files";
 
 const HARNESS_ENABLED = process.env.ORDO_ENABLE_MEDIA_E2E_HARNESS === "1";
@@ -47,8 +48,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "prompt and altText are required." }, { status: 400 });
     }
 
+    assertProviderBackedToolAvailable("generate_blog_image");
     const provider = new OpenAiBlogImageProvider(
-      new OpenAI({ apiKey: getOpenaiApiKey() }),
+      ProviderClientFactory.createOpenAiClient(
+        ProviderConfigService.resolveOpenAiApiKey().value,
+      ),
     );
     const generated = await provider.generate({
       prompt,

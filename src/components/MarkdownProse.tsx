@@ -96,6 +96,7 @@ export function MarkdownProse({
     <div className={resolvedClassName}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        skipHtml
         components={{
           h1: ({ node: _node, ...props }) => <h1 {...props} />,
           h2: ({ node: _node, ...props }) => <h2 {...props} />,
@@ -165,6 +166,8 @@ export function MarkdownProse({
           ),
           th: ({ node: _node, ...props }) => <th {...props} />,
           td: ({ node: _node, ...props }) => <td {...props} />,
+          script: () => null,
+          style: () => null,
         }}
       >
         {content}

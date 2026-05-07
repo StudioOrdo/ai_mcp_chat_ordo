@@ -66,6 +66,21 @@ export interface CapabilityPromptHintFacet {
 }
 
 // ---------------------------------------------------------------------------
+// Prompt exposure facet — controls model-visible schema projection
+// ---------------------------------------------------------------------------
+
+export type CapabilityPromptExposure =
+  | "default_prompt"
+  | "intent_gated"
+  | "operator_only"
+  | "internal_only";
+
+export interface CapabilityPromptExposureFacet {
+  exposure: CapabilityPromptExposure;
+  rationale?: string;
+}
+
+// ---------------------------------------------------------------------------
 // MCP export intent facet
 // ---------------------------------------------------------------------------
 
@@ -178,6 +193,8 @@ export interface CapabilityDefinition {
   browser?: Omit<BrowserCapabilityDescriptor, "capabilityId">;
   /** Absent = no special prompt directive for this tool. */
   promptHint?: CapabilityPromptHintFacet;
+  /** Absent = default prompt-visible for compatibility during rollout. */
+  promptExposure?: CapabilityPromptExposureFacet;
   /** Absent = no MCP export intent. */
   mcpExport?: CapabilityMcpExportFacet;
   /** Canonical catalog-owned tool schema for all capability projections. */

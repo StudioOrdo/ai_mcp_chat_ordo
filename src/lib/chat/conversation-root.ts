@@ -16,9 +16,9 @@ import { TriageConsultationRequestInteractor } from "../../core/use-cases/Triage
 import { CreateDealFromWorkflowInteractor } from "../../core/use-cases/CreateDealFromWorkflowInteractor";
 import { CreateTrainingPathFromWorkflowInteractor } from "../../core/use-cases/CreateTrainingPathFromWorkflowInteractor";
 import { SummarizationInteractor } from "../../core/use-cases/SummarizationInteractor";
-import { AnthropicSummarizer } from "../../adapters/AnthropicSummarizer";
+import { AnthropicSummarizer as SelectedProviderSummarizerAdapter } from "../../adapters/AnthropicSummarizer";
 import { createRelationshipMemoryProjectionService } from "@/core/platform/relationship-memory/RelationshipMemoryProjectionService";
-import { getAnthropicApiKey, getModelFallbacks } from "../config/env";
+import { createSelectedIntelligenceRuntime } from "@/lib/ai/providers/selected-intelligence-runtime";
 import { getReferralLedgerService } from "@/lib/referrals/referral-ledger";
 import type { RelationshipMemoryReader } from "@/core/use-cases/RelationshipMemoryRepository";
 import {
@@ -72,10 +72,12 @@ function createWorkflowRepositories(): WorkflowRepositories {
   };
 }
 
-function createConversationSummarizer(): AnthropicSummarizer {
-  return new AnthropicSummarizer(
-    getAnthropicApiKey(),
-    getModelFallbacks()[0] ?? "",
+function createConversationSummarizer(): SelectedProviderSummarizerAdapter {
+  const runtime = createSelectedIntelligenceRuntime();
+  return new SelectedProviderSummarizerAdapter(
+    runtime.client,
+    runtime.provider,
+    runtime.model,
   );
 }
 

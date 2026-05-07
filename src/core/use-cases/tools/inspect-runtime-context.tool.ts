@@ -6,7 +6,10 @@ import {
   resolveCurrentPageDetails,
   type CurrentPageDetails,
 } from "@/lib/chat/current-page-context";
-import { getRuntimeToolManifestForRole } from "@/lib/chat/runtime-manifest";
+import {
+  getEffectiveToolAvailabilityForRole,
+  getRuntimeToolManifestForRole,
+} from "@/lib/chat/runtime-manifest";
 import { compactProvenance } from "@/lib/prompts/prompt-provenance-store";
 
 interface PromptRuntimeInspectionResult {
@@ -33,6 +36,7 @@ interface InspectRuntimeContextOutput {
     description: string;
     category: string;
   }>;
+  effectiveTools?: ReturnType<typeof getEffectiveToolAvailabilityForRole>;
   toolCount: number;
   promptRuntime?: PromptRuntimeInspectionResult | null;
 }
@@ -79,6 +83,11 @@ export async function executeInspectRuntimeContext(
     : getRuntimeToolManifestForRole(registry, role, {
       allowedToolNames: context?.allowedToolNames,
     });
+  const effectiveTools = input.includeTools === false
+    ? undefined
+    : getEffectiveToolAvailabilityForRole(role, {
+      allowedToolNames: context?.allowedToolNames,
+    });
 
   return {
     action: "inspect_runtime_context",
@@ -86,6 +95,7 @@ export async function executeInspectRuntimeContext(
     currentPathname,
     currentPage,
     availableTools,
+    ...(effectiveTools ? { effectiveTools } : {}),
     toolCount: availableTools.length,
     ...(input.includePrompt === true
       ? {

@@ -1,6 +1,6 @@
 import { getUserFileDataMapper } from "@/adapters/RepositoryFactory";
 import type { MediaAssetRetentionClass, MediaAssetSource } from "@/core/entities/media-asset";
-import type { UserFileType } from "@/core/entities/user-file";
+import type { UserFile, UserFileType } from "@/core/entities/user-file";
 import type { UserFileStorageSummary } from "@/core/entities/user-file-storage";
 import { resolveUserFileRetentionClass, resolveUserFileSource } from "@/lib/media/media-asset-projection";
 import { getUserMediaStorageAccount } from "@/lib/storage/media-storage-accounting";
@@ -102,6 +102,27 @@ export function parseUserMediaFilters(
   };
 }
 
+export function projectUserFileToUserMediaItem(item: UserFile): UserMediaItem {
+  return {
+    id: item.id,
+    fileName: item.fileName,
+    mimeType: item.mimeType,
+    fileType: item.fileType,
+    fileSize: item.fileSize,
+    createdAt: item.createdAt,
+    previewUrl: `/api/user-files/${item.id}`,
+    conversationId: item.conversationId,
+    source: resolveUserFileSource(item),
+    retentionClass: resolveUserFileRetentionClass(item),
+    width: typeof item.metadata.width === "number" ? item.metadata.width : null,
+    height: typeof item.metadata.height === "number" ? item.metadata.height : null,
+    durationSeconds: typeof item.metadata.durationSeconds === "number"
+      ? item.metadata.durationSeconds
+      : null,
+    canDelete: item.conversationId === null,
+  };
+}
+
 export async function loadUserMediaWorkspace(
   userId: string,
   rawSearchParams: Record<string, string | string[] | undefined> = {},
@@ -123,24 +144,7 @@ export async function loadUserMediaWorkspace(
 
   return {
     filters,
-    items: page.items.map((item) => ({
-      id: item.id,
-      fileName: item.fileName,
-      mimeType: item.mimeType,
-      fileType: item.fileType,
-      fileSize: item.fileSize,
-      createdAt: item.createdAt,
-      previewUrl: `/api/user-files/${item.id}`,
-      conversationId: item.conversationId,
-      source: resolveUserFileSource(item),
-      retentionClass: resolveUserFileRetentionClass(item),
-      width: typeof item.metadata.width === "number" ? item.metadata.width : null,
-      height: typeof item.metadata.height === "number" ? item.metadata.height : null,
-      durationSeconds: typeof item.metadata.durationSeconds === "number"
-        ? item.metadata.durationSeconds
-        : null,
-      canDelete: item.conversationId === null,
-    })),
+    items: page.items.map(projectUserFileToUserMediaItem),
     summary,
     quota: buildMediaQuotaSnapshot(summary.totalBytes),
     hasMore: page.nextCursor !== null,

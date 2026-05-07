@@ -3,6 +3,51 @@ import { CATALOG_INPUT_SCHEMAS } from "../catalog-input-schemas";
 import { SIGNED_IN_ROLES } from "./shared";
 
 export const PROFILE_CAPABILITIES = {
+  create_offer: {
+    core: {
+      name: "create_offer",
+      label: "Create Offer",
+      description:
+        "Create a durable draft offer from conversation so the owner can govern price, visibility, and publishing in the Offers surface.",
+      category: "system",
+      roles: [...SIGNED_IN_ROLES],
+    },
+    schema: {
+      inputSchema: CATALOG_INPUT_SCHEMAS.create_offer,
+    },
+    runtime: {},
+    executorBinding: {
+      bundleId: "profile",
+      executorId: "create_offer",
+      executionSurface: "internal",
+    },
+    validationBinding: {
+      validatorId: "create_offer",
+      mode: "parse",
+    },
+    presentation: {
+      family: "profile",
+      cardKind: "profile_summary",
+      executionMode: "inline",
+    },
+    promptHint: {
+      roleDirectiveLines: {
+        AUTHENTICATED: [
+          "- **create_offer**: When the owner describes something they want to sell, create a durable draft offer. Chat starts the work; the Offers UI governs price, visibility, and publishing.",
+        ],
+        APPRENTICE: [
+          "- **create_offer**: Use for draft offer creation only when the signed-in user asks to package or sell something.",
+        ],
+        STAFF: [
+          "- **create_offer**: Staff may help create a draft offer, but publication remains governed through the Offers surface.",
+        ],
+        ADMIN: [
+          "- **create_offer**: Create durable draft offers for owner-governed review. Do not treat admin_prioritize_offer as offer creation.",
+        ],
+      },
+    },
+  },
+
   get_my_profile: {
     core: {
       name: "get_my_profile",

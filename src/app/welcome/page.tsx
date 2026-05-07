@@ -10,11 +10,11 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-import { ConfigurationService } from "@/lib/config/ConfigurationService";
+import { resolveInstallState } from "@/lib/appliance/install/install-state";
 
 export default async function WelcomePage() {
-  const isInstalled = ConfigurationService.isSystemInitialized();
-  if (!isInstalled) {
+  const installState = resolveInstallState();
+  if (!installState.ownerConfigured) {
     redirect("/install");
   }
 

@@ -43,7 +43,7 @@ describe("RevisionProjector", () => {
     ]);
   });
 
-  it("projects advanced pause, refine, and resume ownership for paused work orders", () => {
+  it("projects advanced paused work-order ownership without legacy factory mutation actions", () => {
     const revision = projectWorkOrderRevision({
       workOrder: {
         id: "wo_1",
@@ -87,10 +87,7 @@ describe("RevisionProjector", () => {
       supportLevel: "advanced",
       state: "paused",
     }));
-    expect(revision.actions).toEqual(expect.arrayContaining([
-      expect.objectContaining({ operation: "refine", transportKind: "factory" }),
-      expect.objectContaining({ operation: "resume", transportKind: "factory" }),
-    ]));
+    expect(revision.actions).toEqual([]);
     expect(revision.checkpoints).toEqual([
       expect.objectContaining({ checkpointId: "checkpoint_1", stageKey: "release" }),
     ]);

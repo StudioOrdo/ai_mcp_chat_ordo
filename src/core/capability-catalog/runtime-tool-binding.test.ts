@@ -2,7 +2,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { execFileSync } from "node:child_process";
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type * as AudioGenerationServiceModule from "@/lib/audio/audio-generation-service";
 
 const {
   executeComposeMediaJobMock,
@@ -23,7 +24,7 @@ const {
 }));
 
 vi.mock("@/lib/audio/audio-generation-service", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/audio/audio-generation-service")>();
+  const actual = await importOriginal<typeof AudioGenerationServiceModule>();
   return {
     ...actual,
     generateStoredAudioArtifact: generateStoredAudioArtifactMock,
@@ -50,6 +51,7 @@ vi.mock("@/lib/media/server/media-worker-client", () => ({
 
 import type { BlogPost } from "@/core/entities/blog";
 import type { JobEvent, JobEventSeed, JobRequest, JobRequestSeed } from "@/core/entities/job";
+import type { Offer } from "@/core/entities/offer";
 import type { UserPreferencesRepository } from "@/core/ports/UserPreferencesRepository";
 import type { VectorStore } from "@/core/search/ports/VectorStore";
 import { ToolRegistry } from "@/core/tool-registry/ToolRegistry";
@@ -73,10 +75,13 @@ import type { BlogArticleProductionService } from "@/lib/blog/blog-article-produ
 import type { BlogImageGenerationService } from "@/lib/blog/blog-image-generation-service";
 import type { WebSearchToolDeps } from "@/lib/capabilities/shared/web-search-tool";
 import type { UserProfileViewModel } from "@/lib/profile/types";
+import type { OfferService } from "@/lib/offers/offer-service";
 import type { AdminReferralAnalyticsService } from "@/lib/referrals/admin-referral-analytics";
 import type { ReferralAnalyticsService } from "@/lib/referrals/referral-analytics";
 import * as adminSearchToolModule from "@/core/use-cases/tools/admin-search.tool";
 import { projectAllCapabilityRuntimeStatics } from "@/core/platform/capability-runtime/CapabilityRuntime";
+import type { MediaWorkflowOperationLauncher } from "@/lib/media/workflows/media-workflow-operation-launcher";
+import type { FactoryWorkOrderOperationLauncher } from "@/lib/factory/factory-work-order-operation-launcher";
 
 import { CAPABILITY_CATALOG } from "./catalog";
 import {
@@ -206,6 +211,7 @@ function createBlogRepoMock(overrides: Partial<BlogPostRepository> = {}): BlogPo
     findById: vi.fn(async () => null),
     findBySlug: vi.fn(async () => null),
     listPublished: vi.fn(async () => []),
+    countPublished: vi.fn(async () => 0),
     listForAdmin: vi.fn(async () => []),
     countForAdmin: vi.fn(async () => 0),
     updateDraftContent: vi.fn(async () => { throw new Error("unused"); }),
@@ -352,6 +358,50 @@ function createProfileServiceMock(overrides?: {
   };
 }
 
+function createOffer(overrides: Partial<Offer> = {}): Offer {
+  return {
+    id: "offer_1",
+    slug: "strategy-call",
+    ownerUserId: "user-1",
+    title: "Strategy Call",
+    summary: "Turn messy work into a repeatable process.",
+    description: "Turn messy work into a repeatable process.",
+    audience: "Solopreneurs",
+    promise: "A clear process.",
+    priceCents: 50_000,
+    currency: "USD",
+    billingKind: "fixed",
+    estimatedMinutes: 90,
+    status: "draft",
+    visibility: "private",
+    ctaLabel: "Start a conversation",
+    createdFromConversationId: "conv_1",
+    createdFromMessageId: "msg_1",
+    createdAt: "2026-05-05T12:00:00.000Z",
+    updatedAt: "2026-05-05T12:00:00.000Z",
+    publishedAt: null,
+    archivedAt: null,
+    ...overrides,
+  };
+}
+
+function createOfferServiceMock(overrides: Partial<OfferService> = {}): OfferService {
+  return {
+    createDraft: vi.fn(async () => createOffer()),
+    updateOffer: vi.fn(async () => createOffer()),
+    publishOffer: vi.fn(async () => createOffer({ status: "published", visibility: "public" })),
+    archiveOffer: vi.fn(async () => createOffer({ status: "archived", visibility: "private" })),
+    recordPrivateSend: vi.fn(async () => { throw new Error("unused"); }),
+    recordOfferChoice: vi.fn(async () => { throw new Error("unused"); }),
+    recordSimulatedPurchase: vi.fn(async () => { throw new Error("unused"); }),
+    listOwnerOffers: vi.fn(async () => []),
+    listPublicOffers: vi.fn(async () => []),
+    findPublicOfferBySlug: vi.fn(async () => null),
+    listOfferEvents: vi.fn(async () => []),
+    ...overrides,
+  } as unknown as OfferService;
+}
+
 function createVectorStoreMock(overrides: Partial<VectorStore> = {}): VectorStore {
   return {
     upsert: vi.fn(() => undefined),
@@ -428,6 +478,7 @@ function createSharedDeps(registry = new ToolRegistry()) {
     registry,
     userPreferencesRepo: createUserPreferencesRepoMock(),
     profileService: createProfileServiceMock(),
+    offerService: createOfferServiceMock(),
     analyticsService: {} as unknown as ReferralAnalyticsService,
     adminAnalyticsService: {} as unknown as AdminReferralAnalyticsService,
     vectorStore: createVectorStoreMock(),
@@ -436,6 +487,191 @@ function createSharedDeps(registry = new ToolRegistry()) {
     userFileRepository: createUserFileRepositoryMock(),
   };
 }
+
+function createMediaWorkflowOperationLauncherMock(
+  overrides: Partial<Awaited<ReturnType<MediaWorkflowOperationLauncher>>> = {},
+): MediaWorkflowOperationLauncher {
+  return vi.fn(async (input) => {
+    const base = {
+      operation: {
+        id: "op_media_1",
+        kind: "media_workflow",
+        title: input.toolName === "generate_audio" ? "Generate audio" : "Compose media",
+        summary: "Media workflow requested from a user-facing media tool surface.",
+        status: "queued",
+        riskLevel: "medium",
+        conversationId: input.conversationId,
+        createdByUserId: input.userId,
+        createdByRole: input.role,
+        visibility: "user",
+        input: {
+          request: input.request,
+          migration: {
+            sourceSurface: input.sourceSurface,
+            toolName: input.toolName,
+          },
+        },
+        actorType: "user",
+        actorId: input.userId,
+        createdAt: "2026-04-13T12:00:00.000Z",
+        updatedAt: "2026-04-13T12:00:00.000Z",
+        revision: 2,
+      },
+      snapshot: {
+        operation: {
+          id: "op_media_1",
+          kind: "media_workflow",
+          title: input.toolName === "generate_audio" ? "Generate audio" : "Compose media",
+          summary: "Media workflow requested from a user-facing media tool surface.",
+          status: "queued",
+          riskLevel: "medium",
+          conversationId: input.conversationId,
+          createdByUserId: input.userId,
+          createdByRole: input.role,
+          visibility: "user",
+          input: input.request,
+          actorType: "user",
+          actorId: input.userId,
+          createdAt: "2026-04-13T12:00:00.000Z",
+          updatedAt: "2026-04-13T12:00:00.000Z",
+          revision: 2,
+        },
+        steps: [],
+        events: [],
+        actions: [],
+        artifacts: [],
+      },
+      availableActions: [],
+      workflow: {
+        workflow: {
+          id: "mwf_media_1",
+          conversationId: input.conversationId,
+          userId: input.userId,
+          status: "queued",
+          template: input.toolName === "generate_audio" ? "generated_audio" : "compose_media",
+          requestedDeliverable: input.toolName === "generate_audio" ? "audio" : "video",
+          operationId: "op_media_1",
+          operationRevision: 2,
+          idempotencyKey: `${input.toolName}:idem`,
+          sourceJobId: null,
+          finalArtifactId: null,
+          failureReason: null,
+          createdAt: "2026-04-13T12:00:00.000Z",
+          updatedAt: "2026-04-13T12:00:00.000Z",
+          completedAt: null,
+        },
+        steps: [],
+        events: [],
+        linkedJobIds: [`job_${input.toolName}_1`],
+        linkedJobs: [{
+          jobId: `job_${input.toolName}_1`,
+          toolName: input.toolName,
+          status: "queued",
+          progressPercent: null,
+          progressLabel: null,
+          failureClass: null,
+          errorMessage: null,
+          resultPayload: null,
+        }],
+        finalArtifact: null,
+        operation: null,
+        availableActions: [],
+        derivedStatus: "queued",
+      },
+      jobId: `job_${input.toolName}_1`,
+      job: {
+        jobId: `job_${input.toolName}_1`,
+        toolName: input.toolName,
+        status: "queued",
+        progressPercent: null,
+        progressLabel: null,
+        failureClass: null,
+        errorMessage: null,
+        resultPayload: null,
+      },
+      exactReuse: false,
+      deduplicated: false,
+    };
+
+    return {
+      ...base,
+      ...overrides,
+    } as unknown as Awaited<ReturnType<MediaWorkflowOperationLauncher>>;
+  }) as MediaWorkflowOperationLauncher;
+}
+
+function createFactoryWorkOrderOperationLauncherMock(
+  overrides: Partial<Awaited<ReturnType<FactoryWorkOrderOperationLauncher>>> = {},
+): FactoryWorkOrderOperationLauncher {
+  return vi.fn(async (input) => {
+    const base = {
+      operation: {
+        id: "op_factory_1",
+        kind: "factory_work_order",
+        title: `Produce ${input.request.brief.title}`,
+        summary: "Software factory work order requested from a user-facing capability surface.",
+        status: "running",
+        riskLevel: "medium",
+        conversationId: input.conversationId,
+        createdByUserId: input.userId,
+        createdByRole: input.role,
+        visibility: "staff",
+        input: {
+          request: input.request,
+          migration: {
+            sourceSurface: input.sourceSurface,
+            toolName: "produce_product",
+          },
+        },
+        createdAt: "2026-05-03T12:00:00.000Z",
+        updatedAt: "2026-05-03T12:00:00.000Z",
+        completedAt: null,
+        revision: 2,
+      },
+      snapshot: {
+        operation: {
+          id: "op_factory_1",
+          kind: "factory_work_order",
+          title: `Produce ${input.request.brief.title}`,
+          summary: "Software factory work order requested from a user-facing capability surface.",
+          status: "running",
+          riskLevel: "medium",
+          conversationId: input.conversationId,
+          createdByUserId: input.userId,
+          createdByRole: input.role,
+          visibility: "staff",
+          input: input.request,
+          actorType: "user",
+          actorId: input.userId,
+          createdAt: "2026-05-03T12:00:00.000Z",
+          updatedAt: "2026-05-03T12:00:00.000Z",
+          completedAt: null,
+          revision: 2,
+        },
+        steps: [],
+        events: [],
+        actions: [],
+        artifacts: [],
+      },
+      availableActions: [],
+      workOrderId: "wo_factory_1",
+      exactReuse: false,
+      deduplicated: false,
+    };
+
+    return {
+      ...base,
+      ...overrides,
+    } as unknown as Awaited<ReturnType<FactoryWorkOrderOperationLauncher>>;
+  }) as FactoryWorkOrderOperationLauncher;
+}
+
+beforeEach(() => {
+  process.env.OPENAI_API_KEY = "test-key";
+  process.env.TTS_PROVIDER = "openai";
+  process.env.IMAGE_PROVIDER = "openai";
+  process.env.WEB_SEARCH_PROVIDER = "openai";
+});
 
 afterEach(async () => {
   executeComposeMediaJobMock.mockReset();
@@ -658,6 +894,52 @@ describe("Sprint 23 — Catalog runtime binding", () => {
         model: "gpt-5",
       });
     } finally {
+      if (previousFixture === undefined) {
+        delete process.env.ORDO_MCP_ADMIN_WEB_SEARCH_RESULT_FIXTURE;
+      } else {
+        process.env.ORDO_MCP_ADMIN_WEB_SEARCH_RESULT_FIXTURE = previousFixture;
+      }
+    }
+  });
+
+  it("fails planned admin_web_search dispatch before MCP execution when provider capability is disabled", async () => {
+    const create = vi.fn(async () => ({
+      output: [],
+    }));
+    const depsFactory = vi.fn(createWebSearchDeps(create));
+    const descriptor = projectCatalogBoundToolDescriptor("admin_web_search", {
+      userFileRepository: {} as UserFileRepository,
+      adminWebSearchDepsFactory: depsFactory,
+    });
+    const previousOpenAiKey = process.env.OPENAI_API_KEY;
+    const previousWebSearchProvider = process.env.WEB_SEARCH_PROVIDER;
+    const previousFixture = process.env.ORDO_MCP_ADMIN_WEB_SEARCH_RESULT_FIXTURE;
+
+    process.env.OPENAI_API_KEY = "test-key";
+    process.env.WEB_SEARCH_PROVIDER = "disabled";
+    delete process.env.ORDO_MCP_ADMIN_WEB_SEARCH_RESULT_FIXTURE;
+
+    try {
+      await expect(descriptor.command.execute(
+        { query: "latest referral guidance", allowed_domains: ["example.com"] },
+        { role: "ADMIN", userId: "admin-1" },
+      )).rejects.toMatchObject({
+        name: "ProviderCapabilityUnavailableError",
+      });
+
+      expect(depsFactory).not.toHaveBeenCalled();
+      expect(create).not.toHaveBeenCalled();
+    } finally {
+      if (previousOpenAiKey === undefined) {
+        delete process.env.OPENAI_API_KEY;
+      } else {
+        process.env.OPENAI_API_KEY = previousOpenAiKey;
+      }
+      if (previousWebSearchProvider === undefined) {
+        delete process.env.WEB_SEARCH_PROVIDER;
+      } else {
+        process.env.WEB_SEARCH_PROVIDER = previousWebSearchProvider;
+      }
       if (previousFixture === undefined) {
         delete process.env.ORDO_MCP_ADMIN_WEB_SEARCH_RESULT_FIXTURE;
       } else {
@@ -1173,12 +1455,14 @@ describe("Sprint 23 — Catalog runtime binding", () => {
     DOCKER_TEST_TIMEOUT_MS,
   );
 
-  it("routes compose_media through deferred_job when browser execution is unavailable", async () => {
+  it("routes compose_media through a media workflow operation when browser execution is unavailable", async () => {
     const jobQueueRepository = createJobQueueRepositoryMock();
+    const mediaWorkflowOperationLauncher = createMediaWorkflowOperationLauncherMock();
     const descriptor = projectCatalogBoundToolDescriptor("compose_media", {
       jobQueueRepository,
       materializationRepository: createMaterializationRepositoryMock(),
       userFileRepository: createUserFileRepositoryMock(),
+      mediaWorkflowOperationLauncher,
     });
 
     const result = await descriptor.command.execute(
@@ -1205,22 +1489,91 @@ describe("Sprint 23 — Catalog runtime binding", () => {
       },
     ) as Record<string, unknown>;
 
-    expect(jobQueueRepository.createJob).toHaveBeenCalledTimes(1);
-    expect(jobQueueRepository.appendEvent).toHaveBeenCalledTimes(1);
+    expect(jobQueueRepository.createJob).not.toHaveBeenCalled();
+    expect(jobQueueRepository.appendEvent).not.toHaveBeenCalled();
+    expect(mediaWorkflowOperationLauncher).toHaveBeenCalledWith(expect.objectContaining({
+      toolName: "compose_media",
+      conversationId: "conv_media_1",
+      userId: "user-1",
+      role: "AUTHENTICATED",
+      sourceSurface: "capability_catalog",
+      request: expect.objectContaining({
+        plan: expect.objectContaining({
+          id: "plan_media_1",
+          conversationId: "conv_media_1",
+        }),
+      }),
+    }));
     expect(result).toMatchObject({
-      deferred_job: {
-        jobId: "job_media_1",
+      action: "compose_media",
+      outcome: "operation_created",
+      operationId: "op_media_1",
+      jobId: "job_compose_media_1",
+      job: expect.objectContaining({
+        jobId: "job_compose_media_1",
         toolName: "compose_media",
         status: "queued",
-        resultEnvelope: expect.objectContaining({
-          toolName: "compose_media",
-          executionMode: "deferred",
-        }),
-      },
+      }),
     });
   });
 
-  it("returns a renderable exact reuse payload for completed compose materializations", async () => {
+  it("routes produce_product through a factory work-order operation instead of enqueueing the legacy factory job", async () => {
+    const jobQueueRepository = createJobQueueRepositoryMock();
+    const factoryWorkOrderOperationLauncher = createFactoryWorkOrderOperationLauncherMock();
+    const descriptor = projectCatalogBoundToolDescriptor("produce_product", {
+      jobQueueRepository,
+      factoryWorkOrderOperationLauncher,
+    });
+    const brief = {
+      id: "brief_factory_1",
+      schemaVersion: 1,
+      title: "Factory launch page",
+      topic: "Launching a solopreneur product",
+      assetKinds: ["chart"],
+      qaCriteria: ["accuracy"],
+      targetChannels: ["blog"],
+      executionPreferences: {
+        autoRetryOnFailure: true,
+        parallelizeAssets: true,
+      },
+      createdAt: "2026-05-03T12:00:00.000Z",
+      createdBy: "user-1",
+      sourceConversationId: "conv_factory_1",
+    };
+
+    const result = await descriptor.command.execute(
+      { brief, previousWorkOrderIds: ["wo_prior"] },
+      {
+        role: "ADMIN",
+        userId: "user-1",
+        conversationId: "conv_factory_1",
+        executionPlanning: {
+          enabledTargetKinds: ["deferred_job", "host_ts"],
+          preferredTargetKinds: ["deferred_job", "host_ts"],
+        },
+      },
+    ) as Record<string, unknown>;
+
+    expect(jobQueueRepository.createJob).not.toHaveBeenCalled();
+    expect(factoryWorkOrderOperationLauncher).toHaveBeenCalledWith(expect.objectContaining({
+      conversationId: "conv_factory_1",
+      userId: "user-1",
+      role: "ADMIN",
+      sourceSurface: "capability_catalog",
+      request: expect.objectContaining({
+        brief: expect.objectContaining({ id: "brief_factory_1" }),
+        previousWorkOrderIds: ["wo_prior"],
+      }),
+    }));
+    expect(result).toMatchObject({
+      action: "produce_product",
+      outcome: "operation_created",
+      operationId: "op_factory_1",
+      workOrderId: "wo_factory_1",
+    });
+  });
+
+  it("returns a renderable operation payload for completed compose materialization reuse", async () => {
     const jobQueueRepository = createJobQueueRepositoryMock();
     const materializationRepository = createMaterializationRepositoryMock({
       findReusableSuccess: vi.fn(async () => ({
@@ -1250,6 +1603,12 @@ describe("Sprint 23 — Catalog runtime binding", () => {
       jobQueueRepository,
       materializationRepository,
       userFileRepository: createUserFileRepositoryMock(),
+      mediaWorkflowOperationLauncher: createMediaWorkflowOperationLauncherMock({
+        exactReuse: true,
+        jobId: null,
+        job: null,
+        workflow: null,
+      }),
     });
 
     const result = await descriptor.command.execute(
@@ -1272,23 +1631,25 @@ describe("Sprint 23 — Catalog runtime binding", () => {
     ) as Record<string, unknown>;
 
     expect(jobQueueRepository.createJob).not.toHaveBeenCalled();
+    expect(materializationRepository.findReusableSuccess).not.toHaveBeenCalled();
     expect(result).toMatchObject({
       action: "compose_media",
-      outcome: "exact_reuse",
-      materializationId: "mat_compose_1",
-      producedByJobId: "job_completed_1",
-      primaryAssetId: "uf_video_reused_1",
-      mimeType: "video/mp4",
-      retentionClass: "conversation",
+      outcome: "operation_created",
+      operationId: "op_media_1",
+      exactReuse: true,
+      jobId: null,
+      job: null,
     });
   });
 
   it("ignores direct native_process overrides for user compose_media requests", async () => {
     const jobQueueRepository = createJobQueueRepositoryMock();
+    const mediaWorkflowOperationLauncher = createMediaWorkflowOperationLauncherMock();
     const descriptor = projectCatalogBoundToolDescriptor("compose_media", {
       jobQueueRepository,
       materializationRepository: createMaterializationRepositoryMock(),
       userFileRepository: createUserFileRepositoryMock(),
+      mediaWorkflowOperationLauncher,
     });
     const previousFixture = process.env.ORDO_NATIVE_COMPOSE_MEDIA_RESULT_FIXTURE;
     process.env.ORDO_NATIVE_COMPOSE_MEDIA_RESULT_FIXTURE = JSON.stringify({
@@ -1354,10 +1715,13 @@ describe("Sprint 23 — Catalog runtime binding", () => {
         },
       ) as Record<string, unknown>;
 
-      expect(jobQueueRepository.createJob).toHaveBeenCalledTimes(1);
+      expect(jobQueueRepository.createJob).not.toHaveBeenCalled();
+      expect(mediaWorkflowOperationLauncher).toHaveBeenCalledTimes(1);
       expect(result).toMatchObject({
-        deferred_job: {
-          jobId: "job_media_1",
+        action: "compose_media",
+        outcome: "operation_created",
+        job: {
+          jobId: "job_compose_media_1",
           toolName: "compose_media",
           status: "queued",
         },
@@ -1493,7 +1857,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
     });
   });
 
-  it("routes generate_audio through the canonical deferred job path", async () => {
+  it("routes generate_audio through a media workflow operation", async () => {
     const jobQueueRepository = createJobQueueRepositoryMock({
       createJob: vi.fn(async (seed: JobRequestSeed) => createJobRequest({
         id: "job_audio_1",
@@ -1508,10 +1872,12 @@ describe("Sprint 23 — Catalog runtime binding", () => {
         payload: seed.payload,
       })),
     });
+    const mediaWorkflowOperationLauncher = createMediaWorkflowOperationLauncherMock();
     const descriptor = projectCatalogBoundToolDescriptor("generate_audio", {
       jobQueueRepository,
       materializationRepository: createMaterializationRepositoryMock(),
       userFileRepository: createUserFileRepositoryMock(),
+      mediaWorkflowOperationLauncher,
     });
 
     const result = await descriptor.command.execute(
@@ -1528,25 +1894,26 @@ describe("Sprint 23 — Catalog runtime binding", () => {
     ) as Record<string, unknown>;
 
     expect(result).toMatchObject({
-      deferred_job: {
-        jobId: "job_audio_1",
+      action: "generate_audio",
+      outcome: "operation_created",
+      job: {
+        jobId: "job_generate_audio_1",
         toolName: "generate_audio",
-        toolInvocationId: "toolu_audio_1",
         status: "queued",
       },
     });
-    expect(jobQueueRepository.createJob).toHaveBeenCalledWith(
-      expect.objectContaining({
-        toolName: "generate_audio",
-        conversationId: "conv_audio_1",
-        toolInvocationId: "toolu_audio_1",
-        requestPayload: expect.objectContaining({
-          title: "Founder memo",
-          text: "This is the founder memo for the weekly review.",
-          materializationKey: expect.stringContaining("generate_audio:"),
-        }),
+    expect(mediaWorkflowOperationLauncher).toHaveBeenCalledWith(expect.objectContaining({
+      toolName: "generate_audio",
+      conversationId: "conv_audio_1",
+      userId: "user-1",
+      role: "AUTHENTICATED",
+      sourceSurface: "capability_catalog",
+      request: expect.objectContaining({
+        title: "Founder memo",
+        text: "This is the founder memo for the weekly review.",
       }),
-    );
+    }));
+    expect(jobQueueRepository.createJob).not.toHaveBeenCalled();
     expect(generateStoredAudioArtifactMock).not.toHaveBeenCalled();
   });
 
@@ -1610,7 +1977,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
     );
   });
 
-  it("keeps generate_audio on deferred_job when browser planner availability is explicitly disabled", async () => {
+  it("keeps generate_audio on media workflow operations when browser planner availability is explicitly disabled", async () => {
     const jobQueueRepository = createJobQueueRepositoryMock({
       createJob: vi.fn(async (seed: JobRequestSeed) => createJobRequest({
         id: "job_audio_2",
@@ -1624,10 +1991,12 @@ describe("Sprint 23 — Catalog runtime binding", () => {
         payload: seed.payload,
       })),
     });
+    const mediaWorkflowOperationLauncher = createMediaWorkflowOperationLauncherMock();
     const descriptor = projectCatalogBoundToolDescriptor("generate_audio", {
       jobQueueRepository,
       materializationRepository: createMaterializationRepositoryMock(),
       userFileRepository: createUserFileRepositoryMock(),
+      mediaWorkflowOperationLauncher,
     });
 
     const result = await descriptor.command.execute(
@@ -1646,13 +2015,16 @@ describe("Sprint 23 — Catalog runtime binding", () => {
     ) as Record<string, unknown>;
 
     expect(result).toMatchObject({
-      deferred_job: {
-        jobId: "job_audio_2",
+      action: "generate_audio",
+      outcome: "operation_created",
+      job: {
+        jobId: "job_generate_audio_1",
         toolName: "generate_audio",
         status: "queued",
       },
     });
-    expect(jobQueueRepository.createJob).toHaveBeenCalledTimes(1);
+    expect(mediaWorkflowOperationLauncher).toHaveBeenCalledTimes(1);
+    expect(jobQueueRepository.createJob).not.toHaveBeenCalled();
     expect(generateStoredAudioArtifactMock).not.toHaveBeenCalled();
   });
 
@@ -1804,6 +2176,50 @@ describe("Sprint 23 — Catalog runtime binding", () => {
     });
   });
 
+  it("uses the catalog-backed create_offer executor with offer service deps", async () => {
+    const offerService = createOfferServiceMock();
+    const descriptor = projectCatalogBoundToolDescriptor("create_offer", { offerService });
+
+    const result = await descriptor.command.execute(
+      {
+        title: "Strategy Call",
+        summary: "Turn messy work into a repeatable process.",
+        price_cents: 50_000,
+        billing_kind: "fixed",
+      },
+      {
+        role: "AUTHENTICATED",
+        userId: "user-1",
+        conversationId: "conv_1",
+        userMessageId: "msg_1",
+        toolInvocationId: "tool_call_1",
+      },
+    ) as Record<string, unknown>;
+
+    expect(offerService.createDraft).toHaveBeenCalledWith(
+      { userId: "user-1", role: "AUTHENTICATED" },
+      expect.objectContaining({
+        title: "Strategy Call",
+        priceCents: 50_000,
+        billingKind: "fixed",
+        createdFromConversationId: "conv_1",
+        createdFromMessageId: "msg_1",
+      }),
+    );
+    expect(result).toMatchObject({
+      action: "create_offer",
+      offer: {
+        id: "offer_1",
+        manage_url: "/offers",
+        public_url: null,
+      },
+      card: {
+        kind: "offer",
+        title: "Strategy Call",
+      },
+    });
+  });
+
   it("derives full tool membership from catalog bundle ids", () => {
     const runtimeCatalogBoundToolNames = projectAllCapabilityRuntimeStatics()
       .filter((runtime) => runtime.binding !== null && runtime.binding.validatorId !== null)
@@ -1813,15 +2229,25 @@ describe("Sprint 23 — Catalog runtime binding", () => {
     expect(CATALOG_BOUND_TOOL_NAMES).toEqual(
       runtimeCatalogBoundToolNames,
     );
-    expect(CATALOG_BOUND_TOOL_NAMES).toHaveLength(59);
+    expect(CATALOG_BOUND_TOOL_NAMES).toHaveLength(70);
 
     expect(getCatalogBoundToolNamesForBundle("admin")).toEqual([
       "admin_prioritize_leads",
       "admin_prioritize_offer",
       "admin_triage_routing_risk",
       "admin_web_search",
+      "cancel_appliance_restore",
+      "configure_backup_policy",
+      "configure_tool_availability",
+      "confirm_appliance_restore",
+      "create_appliance_backup",
+      "execute_appliance_restore",
       "inspect_runtime_logs",
+      "list_appliance_backups",
+      "prepare_appliance_restore",
       "produce_product",
+      "request_pre_restore_backup",
+      "validate_appliance_backup",
     ]);
     expect(getCatalogBoundToolNamesForBundle("affiliate")).toEqual([
       "get_admin_affiliate_summary",
@@ -1884,6 +2310,7 @@ describe("Sprint 23 — Catalog runtime binding", () => {
       "navigate_to_page",
     ]);
     expect(getCatalogBoundToolNamesForBundle("profile")).toEqual([
+      "create_offer",
       "get_my_job_status",
       "get_my_profile",
       "get_my_referral_qr",

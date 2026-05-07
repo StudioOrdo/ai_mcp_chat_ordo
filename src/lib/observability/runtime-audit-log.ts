@@ -1,5 +1,6 @@
 import { mkdir, appendFile } from "node:fs/promises";
 import path from "node:path";
+import { redactSecrets } from "@/lib/observability/secret-redaction";
 
 export type RuntimeAuditCategory = "deferred_job" | "native_process" | "remote_service" | "mcp_process";
 
@@ -78,7 +79,7 @@ export async function appendRuntimeAuditLog(
       timestamp: new Date().toISOString(),
       category,
       event,
-      context: normalizeValue(context) as Record<string, unknown>,
+      context: redactSecrets(normalizeValue(context)).value as Record<string, unknown>,
     };
 
     await appendFile(getLogFilePath(logDir, category), `${JSON.stringify(record)}\n`, "utf8");

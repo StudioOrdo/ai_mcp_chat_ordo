@@ -10,6 +10,9 @@ describe("process-deferred-jobs entrypoint", () => {
     );
 
     expect(source).toContain('import { loadLocalEnv } from "./load-local-env"');
-    expect(source).toMatch(/loadLocalEnv\(\);\s*\n\s*async function main\(/);
+    expect(source).toMatch(/loadLocalEnv\(\);[\s\S]*async function main\(/);
+    expect(source.indexOf("loadLocalEnv();")).toBeLessThan(
+      source.indexOf("await runDeferredJobRuntime"),
+    );
   });
 });

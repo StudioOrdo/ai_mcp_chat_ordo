@@ -20,6 +20,14 @@ import type {
   PromptAssemblyBuilder,
   PromptRuntimeResult,
 } from "@/lib/chat/prompt-runtime";
+import type { RoleName } from "@/core/entities/user";
+import {
+  DEFAULT_OPERATION_PROMPT_GROUNDING_BUDGET,
+  isOperationGroundingQuestion,
+  type OperationPromptGroundingSnapshot,
+} from "@/core/use-cases/operations/OperationPromptGrounding";
+import { buildOperationPromptGroundingSection } from "@/lib/operations/operation-prompt-grounding";
+import { buildOperationPromptGroundingForConversation } from "@/lib/operations/operation-prompt-grounding-root";
 import {
   buildTaskOriginContextBlock,
   type TaskOriginHandoff,
@@ -60,6 +68,7 @@ export type PreparedStreamContext = {
   contextMessages: ContextMessage[];
   guard: ContextWindowGuard;
   routingSnapshot: ConversationRoutingSnapshot;
+  operationGrounding?: OperationPromptGroundingSnapshot | null;
 };
 
 export type FinalizedStreamPreparation = PreparedStreamContext & {
@@ -153,6 +162,7 @@ export async function prepareStreamContext(options: {
   relationshipMemoryReader: ReturnType<typeof createConversationRuntimeServices>["relationshipMemoryReader"];
   conversationId: string;
   userId: string;
+  role?: RoleName;
   incomingMessages: ChatMessage[];
   latestUserText: string;
   latestUserContent: string;
@@ -190,6 +200,18 @@ export async function prepareStreamContext(options: {
   const contextWindow = buildContextWindow(allMessages.messages);
   options.builder.withConversationSummary(contextWindow.summaryText);
   applyContextWindowGuard(options.builder, contextWindow.guard);
+  const operationGrounding = await buildOperationPromptGroundingForConversation({
+    conversationId: options.conversationId,
+    userId: options.userId,
+    role: options.role ?? "AUTHENTICATED",
+    latestUserText: options.latestUserText,
+    messages: allMessages.messages,
+    contextWindowGuard: contextWindow.guard,
+    now: new Date().toISOString(),
+  });
+  if (operationGrounding.section) {
+    options.builder.withSection(operationGrounding.section);
+  }
   const activeRelationshipMemory = await options.relationshipMemoryReader.listActiveByConversation(options.conversationId);
   const relationshipMemoryBlock = buildRelationshipMemoryContextBlock(activeRelationshipMemory);
   if (relationshipMemoryBlock) {
@@ -224,6 +246,7 @@ export async function prepareStreamContext(options: {
     contextMessages: contextWindow.contextMessages,
     guard: contextWindow.guard,
     routingSnapshot,
+    operationGrounding: operationGrounding.snapshot,
   };
 }
 
@@ -245,6 +268,13 @@ export async function prepareFallbackContext(options: {
   const routingSnapshot = createConversationRoutingSnapshot();
 
   applyContextWindowGuard(options.builder, contextWindow.guard);
+  const operationGrounding = buildFallbackOperationGrounding(options.latestUserContent);
+  if (operationGrounding) {
+    const section = buildOperationPromptGroundingSection(operationGrounding);
+    if (section) {
+      options.builder.withSection(section);
+    }
+  }
   options.builder.withRoutingContext(routingSnapshot);
   applyMediaContinuityHandoff(options.builder, options.mediaContinuityHandoff);
   if (options.mediaContinuityHandoff) {
@@ -262,6 +292,33 @@ export async function prepareFallbackContext(options: {
     contextMessages: contextWindow.contextMessages,
     guard: contextWindow.guard,
     routingSnapshot,
+    operationGrounding,
+  };
+}
+
+function buildFallbackOperationGrounding(
+  latestUserContent: string,
+): OperationPromptGroundingSnapshot | null {
+  if (!isOperationGroundingQuestion(latestUserContent)) {
+    return null;
+  }
+
+  return {
+    generatedAt: new Date().toISOString(),
+    conversationId: "fallback",
+    status: "unavailable",
+    includeInPrompt: true,
+    operations: [],
+    toolEvidence: [],
+    budget: {
+      ...DEFAULT_OPERATION_PROMPT_GROUNDING_BUDGET,
+      operationsDropped: 0,
+      eventsDropped: 0,
+      artifactsDropped: 0,
+      actionsDropped: 0,
+      toolEvidenceDropped: 0,
+    },
+    warnings: ["fallback_context_has_no_server_operation_grounding"],
   };
 }
 
@@ -319,6 +376,7 @@ export async function finalizePreparedStreamContext(options: {
     contextMessages: result.contextMessages,
     guard: result.guard,
     routingSnapshot: result.routingSnapshot,
+    operationGrounding: options.preparedContext.operationGrounding ?? null,
     systemPrompt: result.systemPrompt,
     promptRuntimeResult: result.promptRuntimeResult,
   };

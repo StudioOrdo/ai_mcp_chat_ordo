@@ -579,6 +579,23 @@ const LIST_CONVERSATION_MEDIA_ASSETS_INPUT_SCHEMA = {
 } as const satisfies InputSchema;
 
 export const CATALOG_INPUT_SCHEMAS = {
+  create_offer: {
+    type: "object",
+    properties: {
+      title: { type: "string", description: "Short offer name." },
+      summary: { type: "string", description: "One-sentence buyer-facing summary." },
+      description: { type: "string", description: "Detailed buyer-facing description." },
+      audience: { type: "string", description: "Who this offer helps." },
+      promise: { type: "string", description: "The outcome the buyer can expect." },
+      price_cents: { type: ["number", "null"], description: "Price in cents for fixed/hourly offers." },
+      currency: { type: "string", description: "Three-letter currency code, default USD." },
+      billing_kind: { type: "string", enum: ["fixed", "hourly", "free", "contact"] },
+      estimated_minutes: { type: ["number", "null"], description: "Optional estimated time in minutes." },
+      visibility: { type: "string", enum: ["private", "public"], description: "Draft visibility before publishing." },
+      cta_label: { type: "string", description: "Public CTA label." },
+    },
+    required: ["title"],
+  },
   admin_search: {
     type: "object",
     properties: {
@@ -629,6 +646,99 @@ export const CATALOG_INPUT_SCHEMAS = {
       change_note: { type: "string", description: "Optional revision note for the workflow transition" },
     },
     required: ["post_id"],
+  },
+  configure_tool_availability: {
+    type: "object",
+    properties: {
+      action: {
+        type: "string",
+        enum: [
+          "enable_tool",
+          "disable_tool",
+          "enable_bundle",
+          "disable_bundle",
+          "explain_tool",
+          "list_protected_tools",
+          "summarize_manifest",
+        ],
+        description: "The tool availability action to perform.",
+      },
+      tool_name: {
+        type: "string",
+        description: "Tool name for tool-level actions.",
+      },
+      bundle_id: {
+        type: "string",
+        description: "Bundle id for bundle-level actions.",
+      },
+    },
+    required: ["action"],
+  },
+  create_appliance_backup: emptyObjectSchema(),
+  list_appliance_backups: {
+    type: "object",
+    properties: {
+      limit: { type: "number", description: "Optional number of recent backups to summarize." },
+    },
+  },
+  validate_appliance_backup: {
+    type: "object",
+    properties: {
+      snapshot_id: { type: "string", description: "The backup snapshot id to validate." },
+    },
+    required: ["snapshot_id"],
+  },
+  prepare_appliance_restore: {
+    type: "object",
+    properties: {
+      snapshot_id: { type: "string", description: "The backup snapshot id to prepare for restore." },
+    },
+    required: ["snapshot_id"],
+  },
+  request_pre_restore_backup: {
+    type: "object",
+    properties: {
+      restore_plan_id: { type: "string", description: "The restore plan id that needs a safety backup." },
+    },
+    required: ["restore_plan_id"],
+  },
+  confirm_appliance_restore: {
+    type: "object",
+    properties: {
+      restore_plan_id: { type: "string", description: "The restore plan id to confirm." },
+      confirmation_phrase: { type: "string", description: "Exact confirmation phrase shown by the restore plan." },
+    },
+    required: ["restore_plan_id", "confirmation_phrase"],
+  },
+  execute_appliance_restore: {
+    type: "object",
+    properties: {
+      restore_plan_id: { type: "string", description: "The confirmed restore plan id to execute." },
+    },
+    required: ["restore_plan_id"],
+  },
+  cancel_appliance_restore: {
+    type: "object",
+    properties: {
+      restore_plan_id: { type: "string", description: "The restore plan id to cancel." },
+    },
+    required: ["restore_plan_id"],
+  },
+  configure_backup_policy: {
+    type: "object",
+    properties: {
+      enabled: { type: "boolean", description: "Whether automatic scheduled backups are enabled." },
+      interval: {
+        type: "string",
+        enum: ["disabled", "6h", "12h", "daily", "weekly"],
+        description: "Automatic backup interval.",
+      },
+      retention_count: {
+        type: "number",
+        description: "Number of scheduled backups to retain.",
+      },
+    },
+    required: ["enabled", "interval", "retention_count"],
   },
   compose_blog_article: {
     type: "object",
@@ -855,7 +965,7 @@ export const CATALOG_INPUT_SCHEMAS = {
     properties: {
       brief: {
         type: "object",
-        description: "Validated ProductBrief payload for the factory orchestration pipeline.",
+        description: "Validated ProductBrief payload used to create a governed factory work-order operation.",
         properties: {
           id: { type: "string", description: "Unique product brief identifier." },
           schemaVersion: { type: "number", enum: [1] },
@@ -910,7 +1020,7 @@ export const CATALOG_INPUT_SCHEMAS = {
       },
       previousWorkOrderIds: {
         type: "array",
-        description: "Optional prior work order ids that this run supersedes or continues.",
+        description: "Optional prior work order ids that the operation supersedes or continues.",
         items: { type: "string" },
       },
     },

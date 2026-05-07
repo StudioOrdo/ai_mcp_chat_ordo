@@ -338,6 +338,92 @@
     align-items: flex-start;
   }
 
+  .profile-page-shell[data-profile-page="true"] {
+    min-block-size: calc(var(--viewport-block-size) - 4.25rem);
+  }
+
+  .profile-account-column {
+    min-width: 0;
+  }
+
+  .profile-account-main {
+    min-width: 0;
+  }
+
+  .profile-account-content {
+    width: min(100%, 56rem);
+  }
+
+  .profile-account-section-link {
+    position: relative;
+    display: block;
+    min-height: 4.25rem;
+    border-radius: 0.85rem;
+    border: 1px solid transparent;
+    color: color-mix(in oklab, var(--foreground) 72%, transparent);
+    padding: var(--space-inset-compact) var(--space-inset-default);
+    text-decoration: none;
+    transition:
+      background-color 160ms ease,
+      border-color 160ms ease,
+      color 160ms ease;
+  }
+
+  .profile-account-section-link::before {
+    content: "";
+    position: absolute;
+    inset-block: 0.75rem;
+    inset-inline-start: 0;
+    width: 2px;
+    border-radius: 9999px;
+    background: transparent;
+    transition: background-color 160ms ease;
+  }
+
+  .profile-account-section-link:hover {
+    border-color: color-mix(in oklab, var(--foreground) 8%, transparent);
+    background: color-mix(in oklab, var(--surface) 58%, transparent);
+    color: var(--foreground);
+  }
+
+  .profile-account-section-link[data-profile-section-active="true"] {
+    border-color: color-mix(in oklab, var(--foreground) 8%, transparent);
+    background: color-mix(in oklab, var(--accent-interactive) 4%, var(--surface));
+    color: var(--foreground);
+  }
+
+  .profile-account-section-link[data-profile-section-active="true"]::before {
+    background: color-mix(in oklab, var(--accent-interactive) 70%, var(--foreground));
+  }
+
+  .profile-page-shell[data-profile-page="true"] .profile-panel-surface,
+  .profile-page-shell[data-profile-page="true"] .profile-feature-surface {
+    border-radius: 1rem;
+    background: color-mix(in oklab, var(--surface) 82%, var(--background));
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .profile-page-shell[data-profile-page="true"] .input-field {
+    border-radius: 0.72rem;
+    background: color-mix(in oklab, var(--background) 84%, var(--surface));
+  }
+
+  .profile-form-actions-compact {
+    flex-wrap: wrap;
+    border-block-start: 1px solid color-mix(in oklab, var(--foreground) 7%, transparent);
+    margin-block-start: var(--space-2);
+    padding-block-start: var(--space-3);
+  }
+
+  .profile-save-action {
+    width: auto;
+    min-width: 9.5rem;
+    border-radius: 9999px;
+    padding-inline: var(--space-inset-default);
+  }
+
   .profile-form-actions {
     align-items: center;
   }

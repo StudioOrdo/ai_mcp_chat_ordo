@@ -24,7 +24,7 @@ export default async function JobsPage({
   }
 
   const rawSearchParams = searchParams ? await searchParams : {};
-  const workspace = await loadUserJobsWorkspace(user.id, rawSearchParams.jobId);
+  const workspace = await loadUserJobsWorkspace(user.id, rawSearchParams);
 
   return (
     <JobsWorkspace
@@ -34,6 +34,8 @@ export default async function JobsPage({
       selectedJobId={workspace.selectedJobId}
       selectedJob={workspace.selectedJob}
       selectedJobHistory={workspace.selectedJobHistory}
+      query={workspace.query}
+      pageInfo={workspace.pageInfo}
     />
   );
 }

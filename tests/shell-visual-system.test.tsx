@@ -127,23 +127,24 @@ describe("shell visual system", () => {
       container.querySelectorAll<HTMLElement>('[data-shell-brand-mark="true"]'),
     );
 
-    expect(brandMarks).toHaveLength(1);
+    expect(brandMarks).toHaveLength(2);
     for (const mark of brandMarks) {
       expect(mark.className).toContain("shell-brand-mark");
     }
 
     const nav = screen.getByRole("navigation", { name: "Primary" });
     const primaryLinksRegion = nav.querySelector('[data-shell-nav-region="primary-links"]');
-    const workspaceMenuTrigger = within(nav).getByRole("button", { name: "Open workspace menu" });
 
     expect(within(nav).getByRole("link", { name: /studio ordo home/i }).className).toContain("whitespace-nowrap");
-    expect(primaryLinksRegion).toBeNull();
-    expect(workspaceMenuTrigger.className).toContain("shell-nav-icon-button");
+    expect(primaryLinksRegion).not.toBeNull();
+    expect(within(nav).getByRole("link", { name: "Offers" }).className).toContain("shell-nav-public-link");
+    expect(within(nav).getByRole("link", { name: "About" }).className).toContain("shell-nav-public-link");
+    expect(within(nav).queryByRole("button", { name: "Open workspace menu" })).toBeNull();
     expect(nav.firstElementChild?.className).toContain("shell-nav-frame");
 
     const footer = screen.getByRole("contentinfo");
     expect(within(footer).getByText("Information").className).toContain("shell-section-heading");
-    expect(within(footer).getByRole("link", { name: "Library" }).className).toContain("shell-nav-label");
+    expect(within(footer).getByRole("link", { name: "Offers" }).className).toContain("shell-nav-label");
     expect(within(footer).getByText(/© 2026 Studio Ordo/i).className).toContain("shell-micro-text");
   });
 
@@ -152,21 +153,26 @@ describe("shell visual system", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /test user/i }));
 
-    const legibilityToggle = await screen.findByRole("button", { name: "System Legibility" });
     expect(screen.getByRole("button", { name: /test user/i }).className).toContain("shell-account-trigger");
-    expect(legibilityToggle.className).toContain("shell-account-label");
-    expect(screen.getByRole("link", { name: "Jobs" })).toHaveAttribute("href", "/jobs");
-    expect(screen.getByRole("link", { name: "Jobs" }).className).toContain("shell-account-label");
-    expect(screen.getByRole("link", { name: "Profile" })).toHaveAttribute("href", "/profile");
-    expect(screen.getByRole("link", { name: "Profile" }).className).toContain("shell-account-label");
+    expect(screen.getAllByText("Owner").some((node) => node.className.includes("shell-meta-text"))).toBe(true);
+    expect(screen.getByRole("link", { name: "My Account" })).toHaveAttribute("href", "/profile");
+    expect(screen.getAllByRole("link", { name: "My Account" })).toHaveLength(1);
+    expect(screen.getByRole("link", { name: "My Account" }).className).toContain("shell-account-label");
+    expect(screen.queryByRole("link", { name: "Change Password" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Affiliate Dashboard" })).toHaveAttribute("href", "/referrals");
+    expect(screen.queryByRole("link", { name: ["My", "media"].join(" ") })).toBeNull();
+    expect(screen.queryByRole("link", { name: ["My", "Referrals"].join(" ") })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Preferences" })).toBeNull();
+    expect(screen.getByRole("button", { name: /Theme: light/i })).toHaveAttribute("data-shell-theme-toggle", "true");
+    expect(screen.queryByRole("link", { name: ["My", "conversations"].join(" ") })).toBeNull();
+    expect(screen.queryByRole("link", { name: ["My", "offers"].join(" ") })).toBeNull();
+    expect(screen.queryByRole("link", { name: ["My", "content"].join(" ") })).toBeNull();
+    expect(screen.queryByRole("link", { name: "System" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Jobs" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Library" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Dashboard" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Profile Settings" })).toBeNull();
-
-    fireEvent.click(legibilityToggle);
-
-    expect(screen.getByText("Type Scale").className).toContain("shell-micro-text");
-    expect(screen.getByRole("button", { name: "Sign Out" }).className).toContain("shell-section-heading");
+    expect(screen.queryByRole("link", { name: "Today" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Profile" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Sign out" }).className).toContain("shell-section-heading");
   });
 
   it("applies shared shell heading and meta roles in the real chat header", () => {
@@ -195,16 +201,15 @@ describe("shell visual system", () => {
     expect(screen.getByRole("link", { name: "Register" }).className).toContain("shell-account-label");
   });
 
-  it("lets anonymous users toggle dark mode from the account rail", async () => {
+  it("keeps anonymous account rail limited to access links", async () => {
     await renderWithTheme(<AccountMenu user={anonymousUser} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Open account menu" }));
 
-    const toggle = screen.getByRole("button", { name: "Toggle dark mode" });
-    fireEvent.click(toggle);
-
-    expect(document.documentElement.classList.contains("dark")).toBe(true);
-    expect(screen.getByRole("button", { name: "Toggle dark mode" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Login" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Register" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "User info" })).toBeNull();
+    expect(screen.getByRole("button", { name: /Theme: light/i })).toHaveAttribute("data-shell-theme-toggle", "true");
   });
 
   it("applies shared shell meta roles in the floating chat header variant", () => {

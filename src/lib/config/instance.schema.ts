@@ -104,6 +104,13 @@ export function validateIdentity(raw: unknown): InstanceIdentity | string[] {
     pattern: /^\//,
     patternMsg: "must start with /",
   });
+  if (raw.markPath !== undefined) {
+    checkString(raw, "markPath", "identity", errors, {
+      required: false,
+      pattern: /^\//,
+      patternMsg: "must start with /",
+    });
+  }
   checkString(raw, "markText", "identity", errors, { maxLength: 5 });
 
   // Optional fields

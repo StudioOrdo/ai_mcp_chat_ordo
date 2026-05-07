@@ -337,6 +337,17 @@ export class SqliteMediaWorkflowRepository {
     return row ? this.findWorkflowById(row.workflow_id) : null;
   }
 
+  findWorkflowByOperationId(operationId: string): MediaWorkflowSnapshot | null {
+    const row = this.db.prepare(`
+      SELECT id
+      FROM media_workflows
+      WHERE json_extract(request_json, '$.operation.operationId') = ?
+      ORDER BY created_at DESC, id DESC
+      LIMIT 1
+    `).get(operationId) as { id: string } | undefined;
+    return row ? this.findWorkflowById(row.id) : null;
+  }
+
   updateStep(input: {
     stepId: string;
     status?: MediaWorkflowStepStatus;
@@ -438,6 +449,47 @@ export class SqliteMediaWorkflowRepository {
     return updated;
   }
 
+  resetWorkflowForRetry(input: {
+    workflowId: string;
+    reason: string;
+    updatedAt?: string;
+  }): MediaWorkflowSnapshot {
+    const existing = this.findWorkflowById(input.workflowId);
+    if (!existing) {
+      throw new Error(`Media workflow ${input.workflowId} was not found.`);
+    }
+
+    if (existing.workflow.status === "succeeded" || existing.workflow.status === "canceled") {
+      return existing;
+    }
+
+    const updatedAt = input.updatedAt ?? new Date().toISOString();
+    this.db.prepare(`
+      UPDATE media_workflows
+      SET status = 'queued',
+          failure_code = NULL,
+          failure_message = NULL,
+          completed_at = NULL,
+          updated_at = ?
+      WHERE id = ?
+    `).run(updatedAt, input.workflowId);
+
+    this.appendEventInternal({
+      workflowId: input.workflowId,
+      stepId: null,
+      eventType: "workflow_retry_queued",
+      payload: { reason: input.reason },
+      createdAt: updatedAt,
+    });
+
+    const updated = this.findWorkflowById(input.workflowId);
+    if (!updated) {
+      throw new Error(`Media workflow ${input.workflowId} disappeared after retry reset.`);
+    }
+
+    return updated;
+  }
+
   markWorkflowFailed(input: {
     workflowId: string;
     failureCode: string;
@@ -479,6 +531,47 @@ export class SqliteMediaWorkflowRepository {
     const updated = this.findWorkflowById(input.workflowId);
     if (!updated) {
       throw new Error(`Media workflow ${input.workflowId} disappeared after failure transition.`);
+    }
+
+    return updated;
+  }
+
+  markWorkflowCanceled(input: {
+    workflowId: string;
+    reason: string;
+    completedAt?: string;
+  }): MediaWorkflowSnapshot {
+    const existing = this.findWorkflowById(input.workflowId);
+    if (!existing) {
+      throw new Error(`Media workflow ${input.workflowId} was not found.`);
+    }
+
+    if (existing.workflow.status === "succeeded" || existing.workflow.status === "canceled") {
+      return existing;
+    }
+
+    const completedAt = input.completedAt ?? new Date().toISOString();
+    this.db.prepare(`
+      UPDATE media_workflows
+      SET status = 'canceled',
+          failure_code = NULL,
+          failure_message = NULL,
+          completed_at = ?,
+          updated_at = ?
+      WHERE id = ?
+    `).run(completedAt, completedAt, input.workflowId);
+
+    this.appendEventInternal({
+      workflowId: input.workflowId,
+      stepId: null,
+      eventType: "workflow_canceled",
+      payload: { reason: input.reason },
+      createdAt: completedAt,
+    });
+
+    const updated = this.findWorkflowById(input.workflowId);
+    if (!updated) {
+      throw new Error(`Media workflow ${input.workflowId} disappeared after cancellation.`);
     }
 
     return updated;

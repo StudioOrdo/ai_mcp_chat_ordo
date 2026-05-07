@@ -102,22 +102,29 @@ describe("ShellWorkspaceMenu", () => {
     expect(screen.queryByRole("link", { name: "Sign In" })).toBeNull();
   });
 
-  it("shows canonical workspace links for signed-in users including referrals", () => {
+  it("shows canonical owner-surface links for signed-in users", () => {
     render(<ShellWorkspaceMenu user={authenticatedUser} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Open workspace menu" }));
 
-    expect(screen.getByRole("link", { name: /My Jobs/i })).toHaveAttribute("href", "/jobs");
-    expect(screen.getByRole("link", { name: /My Media/i })).toHaveAttribute("href", "/my/media");
-    expect(screen.getByRole("link", { name: /Referrals/i })).toHaveAttribute("href", "/referrals");
-    expect(screen.getByRole("link", { name: /Profile/i })).toHaveAttribute("href", "/profile");
+    expect(screen.getByRole("link", { name: /Conversations/i })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: /Today/i })).toHaveAttribute("href", "/workspace");
+    expect(screen.getByRole("link", { name: /Studio/i })).toHaveAttribute("href", "/studio");
+    expect(screen.getByRole("link", { name: /People/i })).toHaveAttribute("href", "/business");
+    expect(screen.getAllByRole("link", { name: /Offers/i }).some((link) => link.getAttribute("href") === "/offers")).toBe(true);
+    expect(screen.getAllByRole("link", { name: /About/i }).some((link) => link.getAttribute("href") === "/about")).toBe(true);
+    expect(screen.queryByRole("link", { name: /My Jobs/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /My Media/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /Referrals/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /Profile/i })).toBeNull();
   });
 
-  it("uses the Ordo mark trigger and opens a left-anchored drawer", () => {
+  it("uses a neutral menu trigger and opens a left-anchored drawer", () => {
     const { container } = render(<ShellWorkspaceMenu user={authenticatedUser} />);
 
     const trigger = screen.getByRole("button", { name: "Open workspace menu" });
-    expect(trigger.querySelector('img[src="/ordo_icon.png"]')).not.toBeNull();
+    expect(trigger.querySelector('[data-shell-workspace-menu-trigger-glyph="true"]')).not.toBeNull();
+    expect(trigger.querySelector('img[src="/ordo_icon.png"]')).toBeNull();
 
     fireEvent.click(trigger);
 

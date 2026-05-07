@@ -5,6 +5,8 @@ import { buildSystemPrompt } from "@/lib/chat/policy";
 import type { PromptRuntimeResult } from "@/lib/chat/prompt-runtime";
 import { getPromptRuntime } from "@/lib/chat/prompt-runtime";
 import { runClaudeAgentLoopStream, type ClaudeAgentLoopResult } from "@/lib/chat/anthropic-stream";
+import { ProviderClientFactory } from "@/lib/ai/providers/provider-client-factory";
+import { resolveProviderPolicy } from "@/lib/chat/provider-policy";
 import type { ToolExecutionContext } from "@/core/tool-registry/ToolExecutionContext";
 import type { CurrentPageSnapshot } from "@/lib/chat/current-page-context";
 import { getAgentPlatformFacade } from "@/lib/platform/agent-platform-facade-root";
@@ -55,7 +57,9 @@ export async function executeLiveEvalRuntime(
     });
   }
 
-  const tools = request.tools ?? (registry.getSchemasForRole(request.role) as Anthropic.Tool[]);
+  const tools = request.tools ?? (registry.getPromptVisibleSchemasForRole(request.role, {
+    mode: request.role === "ADMIN" ? "operator_chat" : "default_chat",
+  }) as Anthropic.Tool[]);
   const execContext: ToolExecutionContext = {
     role: request.role,
     userId: request.userId,
@@ -66,9 +70,17 @@ export async function executeLiveEvalRuntime(
   const toolExecutor = request.toolExecutor
     ?? ((name: string, input: Record<string, unknown>) => executor(name, input, execContext));
   const invokeStream = request.invokeStream ?? runClaudeAgentLoopStream;
+  const client = request.invokeStream
+    ? ({ messages: { stream: () => { throw new Error("Injected live eval stream did not use the SDK client."); } } } as never)
+    : ProviderClientFactory.createAnthropicCompatibleClient({
+      provider: "anthropic",
+      apiKey: request.apiKey,
+      baseUrl: null,
+    });
 
   const result = await invokeStream({
-    apiKey: request.apiKey,
+    client,
+    policy: resolveProviderPolicy(),
     messages: request.messages,
     callbacks: {},
     maxToolRounds: request.maxToolRounds,

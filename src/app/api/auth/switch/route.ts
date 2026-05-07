@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
-import { getSessionUser, setMockSession, type RoleName } from "@/lib/auth";
+import {
+  clearMockSession,
+  getSessionUser,
+  resolveSessionAuthorizationRole,
+  switchSessionUserRole,
+  type RoleName,
+} from "@/lib/auth";
 import { AuthSwitchRequestSchema } from "./schema";
 import { logEvent, logFailure } from "@/lib/observability/logger";
 import { REASON_CODES } from "@/lib/observability/reason-codes";
@@ -16,8 +22,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // ADMIN (real or simulated) or dev mode for local role simulation
-    const isAdmin = user.roles.includes("ADMIN");
+    // ADMIN or development mode may mutate the signed-in test account role.
+    const isAdmin = resolveSessionAuthorizationRole(user) === "ADMIN";
     const env = getEnvConfig();
     const isDevMode = env.NODE_ENV === "development";
 
@@ -38,17 +44,19 @@ export async function POST(req: Request) {
     }
     const { role } = parseResult.data;
 
-    await setMockSession(role as RoleName);
+    await switchSessionUserRole(user.id, role as RoleName);
+    await clearMockSession();
 
     logEvent("warn", "ROLE_SWITCH", {
       userId: user.id,
       previousRole: user.roles,
       targetRole: role,
+      persisted: true,
       isAdmin,
       isDevMode,
     });
 
-    return NextResponse.json({ success: true, activeRole: role });
+    return NextResponse.json({ success: true, activeRole: role, roles: [role], persisted: true });
   } catch (error) {
     logFailure(REASON_CODES.UNKNOWN_ROUTE_ERROR, "Role switch failed", {}, error);
     return NextResponse.json(

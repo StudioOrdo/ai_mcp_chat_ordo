@@ -85,6 +85,44 @@ describe("job-publication", () => {
       expect(pub.resolvedEvent.id).toMatch(/^synthetic_/);
     });
 
+    it("uses persisted job state when the latest renderable event is stale", () => {
+      const job = makeJobRequest({
+        status: "running",
+        progressPercent: 18,
+        progressLabel: "Generating outline",
+        updatedAt: "2026-01-01T00:00:05Z",
+      });
+      const staleQueuedEvent = makeJobEvent({
+        eventType: "queued",
+        createdAt: "2026-01-01T00:00:01Z",
+      });
+      const pub = buildJobPublication(job, staleQueuedEvent);
+
+      expect(pub.resolvedEvent.id).toMatch(/^synthetic_/);
+      expect(pub.part.status).toBe("running");
+      expect(pub.part.progressPercent).toBe(18);
+      expect(pub.part.progressLabel).toBe("Generating outline");
+    });
+
+    it("uses persisted job state when stale event and job update timestamps match", () => {
+      const job = makeJobRequest({
+        status: "running",
+        progressPercent: 24,
+        progressLabel: "Rendering preview",
+        updatedAt: "2026-01-01T00:00:01Z",
+      });
+      const staleQueuedEvent = makeJobEvent({
+        eventType: "queued",
+        createdAt: "2026-01-01T00:00:01Z",
+      });
+      const pub = buildJobPublication(job, staleQueuedEvent);
+
+      expect(pub.resolvedEvent.id).toMatch(/^synthetic_/);
+      expect(pub.part.status).toBe("running");
+      expect(pub.part.progressPercent).toBe(24);
+      expect(pub.part.progressLabel).toBe("Rendering preview");
+    });
+
     it("uses renderable event over audit-only event", () => {
       const job = makeJobRequest();
       const auditEvent = makeJobEvent({ eventType: "notification_sent", sequence: 5 });

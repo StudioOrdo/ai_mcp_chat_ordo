@@ -33,6 +33,16 @@ vi.mock("@/adapters/RepositoryFactory", () => ({
     findLatestRenderableEventForJob: vi.fn(),
     cancelJob: vi.fn(),
   })),
+  getBackupSystemCommandDataMapper: vi.fn(() => ({
+    findById: vi.fn(),
+    listRecentBackupRestore: vi.fn(() => []),
+    listBySnapshotId: vi.fn(() => []),
+    listByRestorePlanId: vi.fn(() => []),
+    countByStatusForRustDaemon: vi.fn(() => ({})),
+    hasActiveBackupOrRestoreCommand: vi.fn(() => false),
+    findLatestScheduledCommand: vi.fn(() => null),
+    listSucceededScheduledBackupCommands: vi.fn(() => []),
+  })),
   getUserFileDataMapper: vi.fn(() => ({
     findById: vi.fn(),
     listForUser: vi.fn(() => []),

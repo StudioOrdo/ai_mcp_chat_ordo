@@ -1,5 +1,6 @@
 import type { CreditStatus } from "@/core/entities/Referral";
 import type { FeedNotification } from "@/lib/notifications/feed-notification";
+import { businessReferralDetailHref } from "@/lib/ordo-details/ordo-detail-routes";
 
 export type ReferralNotificationMilestone =
   | "validated_visit"
@@ -217,7 +218,7 @@ export function toReferralActivityItem(
     title: buildReferralActivityTitle(record, milestone),
     description: buildReferralActivityDescription(record, milestone),
     occurredAt: record.createdAt,
-    href: "/referrals",
+    href: businessReferralDetailHref(record.referralCode),
   };
 }
 

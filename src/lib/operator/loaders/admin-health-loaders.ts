@@ -26,13 +26,23 @@ export async function loadSystemHealthBlock(
     missingReferrerPromptVerified: true,
     warnings: [],
   };
-  const healthSweep = getHealthSweepReport();
+  const healthSweep = await getHealthSweepReport();
   const envValidation = getEnvValidationReport();
   const releaseManifest = getReleaseManifestReport();
   const warnings: string[] = [];
 
   if (healthSweep.status === "error") {
     warnings.push(healthSweep.readiness.details ?? "Readiness checks are degraded.");
+  }
+
+  for (const component of healthSweep.appliance?.components ?? []) {
+    if (
+      component.status === "degraded"
+      || component.status === "blocked"
+      || (component.status === "unknown" && component.impact !== "informational")
+    ) {
+      warnings.push(`${component.component}: ${component.summary}`);
+    }
   }
 
   if (envValidation.status === "error") {

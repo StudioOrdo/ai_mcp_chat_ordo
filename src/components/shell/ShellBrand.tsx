@@ -57,6 +57,7 @@ export function ShellBrand({
   className,
 }: ShellBrandProps) {
   const identity = useInstanceIdentity();
+  const markPath = identity.markPath ?? identity.logoPath;
   const classes = [
     "shell-brand-row flex shrink-0 items-center whitespace-nowrap",
     className,
@@ -76,12 +77,13 @@ export function ShellBrand({
           className="shell-brand-mark overflow-hidden rounded-[0.58rem]"
           aria-hidden="true"
           data-shell-brand-mark="true"
+          data-shell-brand-mark-source={markPath}
         >
-          <Image src={identity.logoPath} alt="" width={40} height={40} className="h-full w-full object-cover" />
+          <Image src={markPath} alt="" width={40} height={40} className="h-full w-full object-contain" />
         </div>
       ) : null}
       {showWordmark ? (
-        <span className={`theme-display font-semibold tracking-[-0.06em] text-foreground ${compactOnMobile ? "hidden sm:inline" : ""}`.trim()} data-shell-brand-wordmark="true">{identity.name}</span>
+        <span className={`shell-brand-wordmark font-semibold text-foreground ${compactOnMobile ? "hidden sm:inline" : ""}`.trim()} data-shell-brand-wordmark="true">{identity.name}</span>
       ) : (
         <span className="sr-only">{identity.name}</span>
       )}

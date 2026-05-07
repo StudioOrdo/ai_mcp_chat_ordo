@@ -107,15 +107,15 @@ describe("ChatSurface", () => {
   });
 
   it("P4: mode='floating' renders launcher when closed", () => {
-    usePathnameMock.mockReturnValue("/library");
+    usePathnameMock.mockReturnValue("/offers");
     render(<ChatSurface mode="floating" />);
     expect(
       screen.getByLabelText("Open Studio Ordo chat"),
     ).toBeInTheDocument();
   });
 
-  it("P4b: mode='floating' quiets the launcher on journal routes", () => {
-    usePathnameMock.mockReturnValue("/blog");
+  it("P4b: mode='floating' quiets the launcher on feed routes", () => {
+    usePathnameMock.mockReturnValue("/feed");
     render(<ChatSurface mode="floating" />);
 
     expect(screen.getByLabelText("Open Studio Ordo chat")).toHaveAttribute(
@@ -125,7 +125,7 @@ describe("ChatSurface", () => {
   });
 
   it("P5: mode='floating' opens on launcher click", () => {
-    usePathnameMock.mockReturnValue("/library");
+    usePathnameMock.mockReturnValue("/offers");
     const { container } = render(<ChatSurface mode="floating" />);
     fireEvent.click(screen.getByLabelText("Open Studio Ordo chat"));
     expect(
@@ -134,7 +134,7 @@ describe("ChatSurface", () => {
   });
 
   it("P6: mode='floating' renders fullscreen toggle", () => {
-    usePathnameMock.mockReturnValue("/library");
+    usePathnameMock.mockReturnValue("/offers");
     render(<ChatSurface mode="floating" />);
     fireEvent.click(screen.getByLabelText("Open Studio Ordo chat"));
     expect(
@@ -143,14 +143,14 @@ describe("ChatSurface", () => {
   });
 
   it("P7: mode='floating' renders minimize button", () => {
-    usePathnameMock.mockReturnValue("/library");
+    usePathnameMock.mockReturnValue("/offers");
     render(<ChatSurface mode="floating" />);
     fireEvent.click(screen.getByLabelText("Open Studio Ordo chat"));
     expect(screen.getByLabelText("Minimize Chat")).toBeInTheDocument();
   });
 
   it("P8: mode='floating' minimizes on button click", () => {
-    usePathnameMock.mockReturnValue("/library");
+    usePathnameMock.mockReturnValue("/offers");
     render(<ChatSurface mode="floating" />);
     fireEvent.click(screen.getByLabelText("Open Studio Ordo chat"));
     expect(screen.getByLabelText("Minimize Chat")).toBeInTheDocument();
@@ -161,7 +161,7 @@ describe("ChatSurface", () => {
   });
 
   it("P9: mode='floating' toggles fullscreen", () => {
-    usePathnameMock.mockReturnValue("/library");
+    usePathnameMock.mockReturnValue("/offers");
     const { container } = render(<ChatSurface mode="floating" />);
     fireEvent.click(screen.getByLabelText("Open Studio Ordo chat"));
     expect(
@@ -175,7 +175,7 @@ describe("ChatSurface", () => {
   });
 
   it("P10: mode='floating' opens via OPEN_GLOBAL_CHAT_EVENT", () => {
-    usePathnameMock.mockReturnValue("/library");
+    usePathnameMock.mockReturnValue("/offers");
     render(<ChatSurface mode="floating" />);
     act(() => {
       window.dispatchEvent(new Event("studio-ordo:open-chat"));
@@ -183,8 +183,8 @@ describe("ChatSurface", () => {
     expect(screen.getByLabelText("Minimize Chat")).toBeInTheDocument();
   });
 
-  it("P10b: mode='floating' keeps the quiet tone when a journal route opens the panel", () => {
-    usePathnameMock.mockReturnValue("/blog/systems-essay");
+  it("P10b: mode='floating' keeps the quiet tone when a feed route opens the panel", () => {
+    usePathnameMock.mockReturnValue("/feed/systems-essay");
     const { container } = render(<ChatSurface mode="floating" />);
 
     act(() => {
@@ -222,7 +222,7 @@ describe("ChatSurface", () => {
   });
 
   it("N3: minimize resets fullscreen state", () => {
-    usePathnameMock.mockReturnValue("/library");
+    usePathnameMock.mockReturnValue("/offers");
     const { container } = render(<ChatSurface mode="floating" />);
     fireEvent.click(screen.getByLabelText("Open Studio Ordo chat"));
     fireEvent.click(screen.getByLabelText("Enter Full Screen"));
@@ -238,7 +238,7 @@ describe("ChatSurface", () => {
   });
 
   it("E2: OPEN_GLOBAL_CHAT_EVENT listener cleanup on unmount", () => {
-    usePathnameMock.mockReturnValue("/library");
+    usePathnameMock.mockReturnValue("/offers");
     const addSpy = vi.spyOn(window, "addEventListener");
     const removeSpy = vi.spyOn(window, "removeEventListener");
     const { unmount } = render(<ChatSurface mode="floating" />);
@@ -289,7 +289,7 @@ describe("ChatSurface", () => {
   });
 
   it("E3: floating panel preserves input during fullscreen toggle", () => {
-    usePathnameMock.mockReturnValue("/library");
+    usePathnameMock.mockReturnValue("/offers");
     render(<ChatSurface mode="floating" />);
     fireEvent.click(screen.getByLabelText("Open Studio Ordo chat"));
     // Type into the chat input

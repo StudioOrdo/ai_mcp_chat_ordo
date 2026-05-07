@@ -39,7 +39,10 @@ describe("/ page", () => {
     render(await Home());
 
     expect(redirectMock).not.toHaveBeenCalled();
-    expect(chatSurfaceMock).toHaveBeenCalledWith({ mode: "embedded" }, undefined);
+    expect(chatSurfaceMock).toHaveBeenCalledWith(
+      { mode: "embedded", showConversationSelector: true },
+      undefined,
+    );
     expect(screen.getByTestId("chat-surface")).toBeInTheDocument();
   });
 
@@ -54,7 +57,10 @@ describe("/ page", () => {
     render(await Home());
 
     expect(redirectMock).not.toHaveBeenCalled();
-    expect(chatSurfaceMock).toHaveBeenCalledWith({ mode: "embedded" }, undefined);
+    expect(chatSurfaceMock).toHaveBeenCalledWith(
+      { mode: "embedded", showConversationSelector: false },
+      undefined,
+    );
     expect(screen.getByTestId("chat-surface")).toBeInTheDocument();
   });
 });

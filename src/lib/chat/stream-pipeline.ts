@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 
 import type { RoleName, User } from "@/core/entities/user";
 import type { JobStatusQuery } from "@/core/use-cases/JobStatusQuery";
-import { getSessionUser } from "@/lib/auth";
+import { getSessionUser, resolveSessionAuthorizationRole } from "@/lib/auth";
 import type { createConversationRuntimeServices } from "@/lib/chat/conversation-root";
 import type { RouteContext } from "@/lib/chat/http-facade";
 import type { MediaContinuityHandoff } from "@/lib/chat/media-continuity-handoff";
@@ -46,6 +46,14 @@ import {
   checkMathShortCircuit as checkMathShortCircuitStage,
   maybeHandleSlashCommand as maybeHandleSlashCommandStage,
 } from "@/lib/chat/stream-short-circuits";
+import {
+  appendShortCircuitAssistantMessage,
+  createShortCircuitStreamResponse,
+} from "@/lib/chat/stream-response-helpers";
+import {
+  buildOperationIntentCompilerInput,
+  createOperationIntentIngress,
+} from "@/lib/operations/operation-intent-root";
 
 export class ChatStreamPipeline {
   private readonly runtimeHookRunner;
@@ -64,7 +72,7 @@ export class ChatStreamPipeline {
 
     const result = await this.runtimeHookRunner.runInboundClaim(state, async (hookState) => {
       const user = await getSessionUser();
-      const role = user.roles[0] as RoleName;
+      const role = resolveSessionAuthorizationRole(user);
       const { userId, isAnonymous } = await resolveUserId();
 
       return {
@@ -135,6 +143,7 @@ export class ChatStreamPipeline {
     latestUserContent: string,
     taskOriginHandoff: TaskOriginHandoff | null,
     mediaContinuityHandoff: MediaContinuityHandoff | null,
+    role?: RoleName,
   ): Promise<PreparedStreamContext> {
     return prepareStreamContextStage({
       builder,
@@ -143,6 +152,7 @@ export class ChatStreamPipeline {
       relationshipMemoryReader,
       conversationId,
       userId,
+      role,
       incomingMessages,
       latestUserText,
       latestUserContent,
@@ -223,6 +233,52 @@ export class ChatStreamPipeline {
       context,
       userMessageId,
     });
+  }
+
+  async maybeHandleOperationIntent(options: {
+    latestUserText: string;
+    latestUserContent: string;
+    conversationId: string;
+    userId: string;
+    role: RoleName;
+    interactor: ReturnType<typeof createConversationRuntimeServices>["interactor"];
+    preparedContext: PreparedStreamContext;
+    incomingAttachments: AttachmentPart[];
+    taskOriginHandoff: TaskOriginHandoff | null;
+    mediaContinuityHandoff: MediaContinuityHandoff | null;
+    context: RouteContext;
+    userMessageId: string | null;
+  }): Promise<Response | null> {
+    const compilerInput = await buildOperationIntentCompilerInput({
+      conversationId: options.conversationId,
+      originMessageId: options.userMessageId,
+      userId: options.userId,
+      role: options.role,
+      latestUserText: options.latestUserText,
+      latestUserContent: options.latestUserContent,
+      routingSnapshot: options.preparedContext.routingSnapshot,
+      attachments: options.incomingAttachments,
+      taskOriginHandoff: options.taskOriginHandoff,
+      mediaContinuityHandoff: options.mediaContinuityHandoff,
+      operationGrounding: options.preparedContext.operationGrounding ?? null,
+    });
+    const result = await createOperationIntentIngress().handle(compilerInput);
+    if (!result.handled || !result.replyText) {
+      return null;
+    }
+
+    await appendShortCircuitAssistantMessage(
+      options.interactor,
+      options.conversationId,
+      options.userId,
+      result.replyText,
+    );
+
+    return createShortCircuitStreamResponse(
+      options.context,
+      options.conversationId,
+      result.replyText,
+    );
   }
 
   async createDeferredToolExecutor(options: DeferredToolExecutorOptions) {

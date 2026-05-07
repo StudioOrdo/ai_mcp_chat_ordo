@@ -96,6 +96,29 @@ describe("MarkdownParserService", () => {
       });
     });
 
+    it("should parse operation action links only when durable params are present", () => {
+      const result = parser.parse("[Execute restore](?operation=op_1&operationId=op_1&actionId=action_1&idempotencyKey=idem_1&operationRevision=3)");
+      const p = result.blocks[0] as Extract<BlockNode, { type: "paragraph" }>;
+      expect(p.content[0]).toMatchObject({
+        type: INLINE_TYPES.ACTION_LINK,
+        label: "Execute restore",
+        actionType: "operation",
+        value: "op_1",
+        params: {
+          operationId: "op_1",
+          actionId: "action_1",
+          idempotencyKey: "idem_1",
+          operationRevision: "3",
+        },
+      });
+    });
+
+    it("should leave operation action links without durable params as plain text", () => {
+      const result = parser.parse("[Execute restore](?operation=op_1)");
+      const p = result.blocks[0] as Extract<BlockNode, { type: "paragraph" }>;
+      expect(p.content).toEqual([{ type: "text", text: "[Execute restore](?operation=op_1)" }]);
+    });
+
     it("should parse action links alongside bold and code", () => {
       const result = parser.parse("**bold** then [Go](?route=/home) then `code`");
       const p = result.blocks[0] as Extract<BlockNode, { type: "paragraph" }>;

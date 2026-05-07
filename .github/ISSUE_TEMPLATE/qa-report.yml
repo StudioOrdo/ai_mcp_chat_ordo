@@ -1,0 +1,67 @@
+name: QA Report
+description: Submit QA evidence that can become a deterministic test, reproduction, or work order.
+title: "[qa]: "
+labels:
+  - qa
+body:
+  - type: dropdown
+    id: qa_area
+    attributes:
+      label: QA Area
+      description: What kind of evidence are you reporting?
+      options:
+        - install-or-runtime
+        - chat-or-agent-behavior
+        - jobs-or-workflows
+        - media-or-assets
+        - search-or-citations
+        - docs-or-public-claims
+        - accessibility-or-mobile
+        - other
+    validations:
+      required: true
+
+  - type: input
+    id: surface
+    attributes:
+      label: Route, Command, File, Or Surface
+      description: Where should maintainers look first?
+      placeholder: /jobs, npm run build, README.md, src/lib/jobs/deferred-job-runtime.ts
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence_summary
+    attributes:
+      label: Evidence Summary
+      description: Summarize what you verified or what failed verification.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction_or_check
+    attributes:
+      label: Reproduction Or Check
+      description: Describe the command, browser path, manual check, or test that produced this evidence.
+    validations:
+      required: true
+
+  - type: textarea
+    id: artifacts
+    attributes:
+      label: Artifacts
+      description: Paste logs, screenshots, test output, file paths, links, or release evidence.
+
+  - type: textarea
+    id: proposed_gate
+    attributes:
+      label: Proposed Gate
+      description: What test, checklist item, or docs correction should this become?
+
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation
+      options:
+        - label: I included enough evidence to support a deterministic follow-up.
+          required: true

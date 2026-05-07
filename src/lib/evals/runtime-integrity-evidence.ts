@@ -7,7 +7,11 @@ import {
   getRuntimeToolManifestForRole,
 } from "@/lib/chat/runtime-manifest";
 import { getToolComposition } from "@/lib/chat/tool-composition-root";
-import { SHELL_ROUTES } from "@/lib/shell/shell-navigation";
+import {
+  DEFAULT_SHELL_NAVIGATION_CONTEXT,
+  SHELL_ROUTES,
+  getShellRouteVisibilitySnapshot,
+} from "@/lib/shell/shell-navigation";
 import type { RoleName } from "@/core/entities/user";
 import { MCP_PROCESS_METADATA } from "@/core/capability-catalog/mcp-process-metadata";
 import {
@@ -167,12 +171,11 @@ function uniqueNonEmpty(values: string[] | undefined): string[] {
 }
 
 function isRouteVisibleToRole(route: typeof SHELL_ROUTES[number], role: RoleName): boolean {
-  const visibility = route.accountVisibility ?? route.headerVisibility ?? "all";
-  if (visibility === "all") {
-    return true;
-  }
-
-  return visibility.includes(role);
+  return getShellRouteVisibilitySnapshot(
+    route,
+    { roles: [role] },
+    DEFAULT_SHELL_NAVIGATION_CONTEXT,
+  ).any;
 }
 
 function createRoleRecord<T>(factory: (role: RoleName) => T): Record<RoleName, T> {

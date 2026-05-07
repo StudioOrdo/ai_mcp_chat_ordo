@@ -2,8 +2,6 @@ import type { MessagePart } from "@/core/entities/message-parts";
 import { getMediaWorkflowOrchestrator, getMediaWorkflowRepository } from "@/adapters/RepositoryFactory";
 import type { ChatRuntimeHook, TurnCompletionSuccessHookState } from "@/lib/chat/runtime-hooks";
 
-import { createChartAudioVideoWorkflowDraft } from "./factory";
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -32,26 +30,6 @@ function getChartAssetId(parts: readonly MessagePart[]): string | null {
     const result = getPartResult(part);
     if (typeof result?.["assetId"] === "string") {
       return result["assetId"];
-    }
-  }
-
-  return null;
-}
-
-function getChartTitle(parts: readonly MessagePart[]): string | null {
-  for (const part of parts) {
-    if (getPartName(part) !== "generate_chart") {
-      continue;
-    }
-
-    const result = getPartResult(part);
-    if (typeof result?.["title"] === "string") {
-      return result["title"];
-    }
-
-    const args = getPartArgs(part);
-    if (typeof args?.["title"] === "string") {
-      return args["title"];
     }
   }
 
@@ -132,26 +110,6 @@ export class MediaWorkflowTurnHook implements ChatRuntimeHook {
       });
       return;
     }
-
-    repository.createWorkflow(createChartAudioVideoWorkflowDraft({
-      userId: state.userId,
-      conversationId: state.conversationId,
-      originMessageId: state.persistedMessageId,
-      originTurnId: state.streamId,
-      title: getChartTitle(state.assistantParts) ?? audio.title,
-      chart: {
-        assetId: chartAssetId,
-        title: getChartTitle(state.assistantParts) ?? undefined,
-      },
-      audio: {
-        ...audio,
-        jobId: audioJobId,
-      },
-      request: {
-        source: "assistant_turn_media_dependency_detection",
-        streamId: state.streamId,
-      },
-    }));
 
     await getMediaWorkflowOrchestrator().reconcileRunnableWorkflows({
       conversationId: state.conversationId,

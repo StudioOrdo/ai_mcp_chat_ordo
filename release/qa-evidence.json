@@ -1,21 +1,21 @@
 {
   "version": 1,
-  "generatedAt": "2026-04-29T22:13:14.939Z",
-  "status": "approved",
+  "generatedAt": "2026-05-06T23:45:14.883Z",
+  "status": "blocked",
   "manifest": {
     "present": true,
     "manifest": {
       "appName": "studio-ordo",
       "version": "0.1.0",
-      "gitSha": "ab94b2e",
+      "gitSha": "c99b37a",
       "gitBranch": "main",
-      "builtAt": "2026-03-25T18:38:15.306Z",
-      "nodeVersion": "v25.1.0"
+      "builtAt": "2026-05-06T23:45:08.724Z",
+      "nodeVersion": "v22.22.2"
     }
   },
   "health": {
     "status": "ok",
-    "generatedAt": "2026-04-29T22:13:14.938Z",
+    "generatedAt": "2026-05-06T23:45:14.883Z",
     "liveness": {
       "status": "ok",
       "checks": {
@@ -28,7 +28,839 @@
       "checks": {
         "config": "ok",
         "model": "ok"
+      },
+      "details": "Core intelligence readiness is ok; optional capability providers are degraded.",
+      "intelligence": {
+        "provider": "anthropic",
+        "model": "claude-sonnet-4-6",
+        "apiKeyConfigured": true
+      },
+      "optionalCapabilities": [
+        {
+          "slot": "image",
+          "provider": "openai",
+          "state": "available",
+          "impactedTools": [
+            "generate_blog_image"
+          ]
+        },
+        {
+          "slot": "stt",
+          "provider": "disabled",
+          "state": "disabled",
+          "impactedTools": []
+        },
+        {
+          "slot": "tts",
+          "provider": "openai",
+          "state": "available",
+          "impactedTools": [
+            "generate_audio"
+          ]
+        },
+        {
+          "slot": "web_search",
+          "provider": "openai",
+          "state": "available",
+          "impactedTools": [
+            "admin_web_search"
+          ]
+        }
+      ],
+      "warnings": [
+        "stt capability is disabled.",
+        "Internal runtime service token is using the development default.",
+        "Writable data volume free space is low.",
+        "Tool availability has 1 warning(s).",
+        "fetch failed",
+        "Automatic backup is overdue."
+      ],
+      "appliance": {
+        "status": "degraded",
+        "generatedAt": "2026-05-06T23:45:14.851Z",
+        "profile": {
+          "profileId": "single_image",
+          "processRole": "app",
+          "nodeEnv": "production",
+          "isDocker": false,
+          "isCompose": false,
+          "dataDir": "/Users/kwilliams/Projects/ordoSite/.data",
+          "sqlitePath": "/Users/kwilliams/Projects/ordoSite/.data/local.db",
+          "sqliteInsideDataDir": true,
+          "mediaWorker": {
+            "mode": "supervised_child",
+            "url": null,
+            "port": 3101,
+            "disabled": false
+          },
+          "deferredWorker": {
+            "mode": "supervised_child",
+            "disabled": false,
+            "workerId": null
+          },
+          "warnings": []
+        },
+        "dataBoundary": {
+          "dataDir": "/Users/kwilliams/Projects/ordoSite/.data",
+          "sqlitePath": "/Users/kwilliams/Projects/ordoSite/.data/local.db",
+          "sqliteWalPath": "/Users/kwilliams/Projects/ordoSite/.data/local.db-wal",
+          "sqliteShmPath": "/Users/kwilliams/Projects/ordoSite/.data/local.db-shm",
+          "sqliteInsideDataDir": true,
+          "defaultSqlitePath": "/Users/kwilliams/Projects/ordoSite/.data/local.db",
+          "blogAssetRoot": "/Users/kwilliams/Projects/ordoSite/.data/blog-assets",
+          "blogAssetRootInsideDataDir": true,
+          "userFileRoot": "/Users/kwilliams/Projects/ordoSite/.data/user-files",
+          "userFileRootInsideDataDir": true,
+          "requiredIncludePaths": [
+            "/Users/kwilliams/Projects/ordoSite/.data",
+            "/Users/kwilliams/Projects/ordoSite/.data/local.db",
+            "/Users/kwilliams/Projects/ordoSite/.data/local.db-wal",
+            "/Users/kwilliams/Projects/ordoSite/.data/local.db-shm",
+            "/Users/kwilliams/Projects/ordoSite/.data/blog-assets",
+            "/Users/kwilliams/Projects/ordoSite/.data/user-files"
+          ],
+          "defaultExcludePaths": [
+            "/Users/kwilliams/Projects/ordoSite/.data/.server.lock",
+            "/Users/kwilliams/Projects/ordoSite/.runtime-logs",
+            "/Users/kwilliams/Projects/ordoSite/.next/cache",
+            "/Users/kwilliams/Projects/ordoSite/.next",
+            "/Users/kwilliams/Projects/ordoSite/out",
+            "/Users/kwilliams/Projects/ordoSite/dist",
+            "/Users/kwilliams/Projects/ordoSite/tmp",
+            "/Users/kwilliams/Projects/ordoSite/temp"
+          ],
+          "warnings": []
+        },
+        "providerDiagnostics": {
+          "intelligence": {
+            "provider": "anthropic",
+            "providerSource": "default",
+            "model": "claude-sonnet-4-6",
+            "modelSource": "env",
+            "apiKeyConfigured": true,
+            "apiKeySource": "env",
+            "baseUrlConfigured": false,
+            "baseUrlSource": "missing",
+            "warningCodes": []
+          },
+          "capabilities": [
+            {
+              "slot": "image",
+              "provider": "openai",
+              "state": "available",
+              "reason": "provider_configured",
+              "model": "gpt-image-1",
+              "requiredKeyConfigured": true,
+              "requiredKeySource": "env",
+              "impactedTools": [
+                "generate_blog_image"
+              ]
+            },
+            {
+              "slot": "stt",
+              "provider": "disabled",
+              "state": "disabled",
+              "reason": "provider_disabled",
+              "model": null,
+              "requiredKeyConfigured": null,
+              "requiredKeySource": null,
+              "impactedTools": []
+            },
+            {
+              "slot": "tts",
+              "provider": "openai",
+              "state": "available",
+              "reason": "provider_configured",
+              "model": "tts-1",
+              "requiredKeyConfigured": true,
+              "requiredKeySource": "env",
+              "impactedTools": [
+                "generate_audio"
+              ]
+            },
+            {
+              "slot": "web_search",
+              "provider": "openai",
+              "state": "available",
+              "reason": "provider_configured",
+              "model": "gpt-5",
+              "requiredKeyConfigured": true,
+              "requiredKeySource": "env",
+              "impactedTools": [
+                "admin_web_search"
+              ]
+            }
+          ],
+          "toolSummary": {
+            "total": 70,
+            "byState": {
+              "enabled": 70
+            },
+            "protectedCount": 6,
+            "staticLockedCount": 0,
+            "providerGatedCount": 3,
+            "warnings": 1
+          }
+        },
+        "components": [
+          {
+            "component": "runtime",
+            "status": "healthy",
+            "impact": "required",
+            "summary": "Runtime profile is single_image.",
+            "remediation": null,
+            "metadata": {
+              "profileId": "single_image",
+              "processRole": "app",
+              "nodeEnv": "production",
+              "isDocker": false,
+              "isCompose": false,
+              "mediaWorkerMode": "supervised_child",
+              "deferredWorkerMode": "supervised_child"
+            },
+            "checkedAt": "2026-05-06T23:45:14.851Z",
+            "warnings": []
+          },
+          {
+            "component": "data",
+            "status": "healthy",
+            "impact": "required",
+            "summary": "Durable data paths resolve inside DATA_DIR.",
+            "remediation": null,
+            "metadata": {
+              "dataDir": "/Users/kwilliams/Projects/ordoSite/.data",
+              "sqlitePath": "/Users/kwilliams/Projects/ordoSite/.data/local.db",
+              "blogAssetRoot": "/Users/kwilliams/Projects/ordoSite/.data/blog-assets",
+              "userFileRoot": "/Users/kwilliams/Projects/ordoSite/.data/user-files",
+              "requiredIncludeCount": 6,
+              "defaultExcludeCount": 8,
+              "sqliteInsideDataDir": true,
+              "blogAssetRootInsideDataDir": true,
+              "userFileRootInsideDataDir": true
+            },
+            "checkedAt": "2026-05-06T23:45:14.851Z",
+            "warnings": []
+          },
+          {
+            "component": "sqlite",
+            "status": "healthy",
+            "impact": "required",
+            "summary": "SQLite schema is reachable.",
+            "remediation": null,
+            "metadata": {
+              "sqlitePath": "/Users/kwilliams/Projects/ordoSite/.data/local.db",
+              "sqliteInsideDataDir": true
+            },
+            "checkedAt": "2026-05-06T23:45:14.851Z",
+            "warnings": []
+          },
+          {
+            "component": "provider",
+            "status": "healthy",
+            "impact": "required",
+            "summary": "Provider configuration is ready.",
+            "remediation": null,
+            "metadata": {
+              "provider": "anthropic",
+              "model": "claude-sonnet-4-6",
+              "apiKeyConfigured": true,
+              "optionalCapabilitiesAvailable": 3,
+              "optionalCapabilitiesDisabled": 1,
+              "optionalCapabilitiesMissingKey": 0,
+              "optionalCapabilitiesUnsupported": 0,
+              "providerBackedToolsUnavailable": 0,
+              "toolSummary": {
+                "total": 70,
+                "byState": {
+                  "enabled": 70
+                },
+                "protectedCount": 6,
+                "staticLockedCount": 0,
+                "providerGatedCount": 3,
+                "warnings": 1
+              }
+            },
+            "checkedAt": "2026-05-06T23:45:14.851Z",
+            "warnings": []
+          },
+          {
+            "component": "network",
+            "status": "healthy",
+            "impact": "required",
+            "summary": "Network mode is local.",
+            "remediation": null,
+            "metadata": {
+              "mode": "local",
+              "origin": "http://localhost:3000",
+              "source": "development_localhost",
+              "trustProxyHeaders": false,
+              "allowedOriginCount": 0
+            },
+            "checkedAt": "2026-05-06T23:45:14.851Z",
+            "warnings": []
+          },
+          {
+            "component": "security",
+            "status": "degraded",
+            "impact": "required",
+            "summary": "Local runtime is using the development internal service token.",
+            "remediation": null,
+            "metadata": {
+              "internalRuntimeServiceToken": {
+                "configured": false,
+                "source": "default",
+                "unsafeDefault": true
+              }
+            },
+            "checkedAt": "2026-05-06T23:45:14.851Z",
+            "warnings": [
+              "Internal runtime service token is using the development default."
+            ]
+          },
+          {
+            "component": "resources",
+            "status": "degraded",
+            "impact": "required",
+            "summary": "Writable data volume free space is below the appliance warning threshold.",
+            "remediation": "Plan disk cleanup or volume expansion before large backups, restores, or media renders.",
+            "metadata": {
+              "totalBytes": 494384795648,
+              "freeBytes": 44479721472,
+              "usedBytes": 449905074176,
+              "percentUsed": 91.00301589702015,
+              "percentFree": 8.996984102979855,
+              "warnFreeBytes": 2147483648,
+              "warnFreePercent": 15,
+              "blockFreeBytes": 536870912,
+              "blockFreePercent": 5,
+              "requiredFreeBytes": 536870912,
+              "reason": "free_percent_below_warn",
+              "dockerDefaults": {
+                "tmpSize": "512m",
+                "runtimeLogTmpfsSize": "64m",
+                "nextCacheTmpfsSize": "256m",
+                "pidsLimit": 256,
+                "memoryReservation": "512m",
+                "memoryLimit": "2g",
+                "cpus": "2.0",
+                "logMaxSize": "10m",
+                "logMaxFile": 5
+              },
+              "workerRestartPolicy": {
+                "maxRestarts": 3,
+                "restartWindowMs": 60000
+              }
+            },
+            "checkedAt": "2026-05-06T23:45:14.851Z",
+            "warnings": [
+              "Writable data volume free space is low."
+            ]
+          },
+          {
+            "component": "tools",
+            "status": "degraded",
+            "impact": "optional",
+            "summary": "Some tools are unavailable through provider or policy configuration.",
+            "remediation": "Review provider capability keys and admin tool availability settings.",
+            "metadata": {
+              "total": 70,
+              "byState": {
+                "enabled": 70
+              },
+              "protectedCount": 6,
+              "staticLockedCount": 0,
+              "providerGatedCount": 3,
+              "warnings": 1
+            },
+            "checkedAt": "2026-05-06T23:45:14.851Z",
+            "warnings": [
+              "Tool availability has 1 warning(s)."
+            ]
+          },
+          {
+            "component": "media_worker",
+            "status": "degraded",
+            "impact": "optional",
+            "summary": "fetch failed",
+            "remediation": "Check media worker process, compose service health, and MEDIA_WORKER_URL.",
+            "metadata": {
+              "mode": "supervised_child",
+              "url": "http://127.0.0.1:3101",
+              "statusCode": null
+            },
+            "checkedAt": "2026-05-06T23:45:14.851Z",
+            "warnings": [
+              "fetch failed"
+            ]
+          },
+          {
+            "component": "deferred_worker",
+            "status": "healthy",
+            "impact": "optional",
+            "summary": "Deferred worker runtime contracts are valid.",
+            "remediation": null,
+            "metadata": {
+              "mode": "supervised_child",
+              "workerId": null,
+              "liveHeartbeatAvailable": false
+            },
+            "checkedAt": "2026-05-06T23:45:14.851Z",
+            "warnings": []
+          },
+          {
+            "component": "search",
+            "status": "unknown",
+            "impact": "optional",
+            "summary": "Search index health reader is not configured.",
+            "remediation": "Wire a SearchIndexHealthReader around vector/BM25 stats when search health should be reported.",
+            "metadata": {},
+            "checkedAt": "2026-05-06T23:45:14.851Z",
+            "warnings": []
+          },
+          {
+            "component": "backup_restore",
+            "status": "degraded",
+            "impact": "informational",
+            "summary": "Automatic backup is overdue.",
+            "remediation": "Review failed rust_daemon system_commands and backup/restore audit events.",
+            "metadata": {
+              "executorConfigured": true,
+              "executorDisabled": false,
+              "executorPath": "/Users/kwilliams/Projects/ordoSite/bin/ordo-backup",
+              "executorAvailable": true,
+              "executorExecutable": true,
+              "pendingCommands": 0,
+              "runningCommands": 0,
+              "failedCommands": 0,
+              "policy": {
+                "enabled": true,
+                "interval": "daily",
+                "retentionCount": 7,
+                "latestSuccessfulBackupId": null,
+                "lastScheduledAt": null,
+                "nextScheduledAt": null
+              },
+              "schedulingEnabled": true,
+              "automaticBackupOverdue": true,
+              "latestScheduledAttemptStatus": "never",
+              "validatedBackupCount": 0,
+              "lastFailureMessage": null,
+              "latestSuccessfulBackup": null
+            },
+            "checkedAt": "2026-05-06T23:45:14.851Z",
+            "warnings": [
+              "Automatic backup is overdue."
+            ]
+          }
+        ],
+        "summary": {
+          "healthy": 6,
+          "degraded": 5,
+          "blocked": 0,
+          "disabled": 0,
+          "unknown": 1
+        },
+        "warnings": [
+          "Internal runtime service token is using the development default.",
+          "Writable data volume free space is low.",
+          "Tool availability has 1 warning(s).",
+          "fetch failed",
+          "Automatic backup is overdue."
+        ]
       }
+    },
+    "appliance": {
+      "status": "degraded",
+      "generatedAt": "2026-05-06T23:45:14.851Z",
+      "profile": {
+        "profileId": "single_image",
+        "processRole": "app",
+        "nodeEnv": "production",
+        "isDocker": false,
+        "isCompose": false,
+        "dataDir": "/Users/kwilliams/Projects/ordoSite/.data",
+        "sqlitePath": "/Users/kwilliams/Projects/ordoSite/.data/local.db",
+        "sqliteInsideDataDir": true,
+        "mediaWorker": {
+          "mode": "supervised_child",
+          "url": null,
+          "port": 3101,
+          "disabled": false
+        },
+        "deferredWorker": {
+          "mode": "supervised_child",
+          "disabled": false,
+          "workerId": null
+        },
+        "warnings": []
+      },
+      "dataBoundary": {
+        "dataDir": "/Users/kwilliams/Projects/ordoSite/.data",
+        "sqlitePath": "/Users/kwilliams/Projects/ordoSite/.data/local.db",
+        "sqliteWalPath": "/Users/kwilliams/Projects/ordoSite/.data/local.db-wal",
+        "sqliteShmPath": "/Users/kwilliams/Projects/ordoSite/.data/local.db-shm",
+        "sqliteInsideDataDir": true,
+        "defaultSqlitePath": "/Users/kwilliams/Projects/ordoSite/.data/local.db",
+        "blogAssetRoot": "/Users/kwilliams/Projects/ordoSite/.data/blog-assets",
+        "blogAssetRootInsideDataDir": true,
+        "userFileRoot": "/Users/kwilliams/Projects/ordoSite/.data/user-files",
+        "userFileRootInsideDataDir": true,
+        "requiredIncludePaths": [
+          "/Users/kwilliams/Projects/ordoSite/.data",
+          "/Users/kwilliams/Projects/ordoSite/.data/local.db",
+          "/Users/kwilliams/Projects/ordoSite/.data/local.db-wal",
+          "/Users/kwilliams/Projects/ordoSite/.data/local.db-shm",
+          "/Users/kwilliams/Projects/ordoSite/.data/blog-assets",
+          "/Users/kwilliams/Projects/ordoSite/.data/user-files"
+        ],
+        "defaultExcludePaths": [
+          "/Users/kwilliams/Projects/ordoSite/.data/.server.lock",
+          "/Users/kwilliams/Projects/ordoSite/.runtime-logs",
+          "/Users/kwilliams/Projects/ordoSite/.next/cache",
+          "/Users/kwilliams/Projects/ordoSite/.next",
+          "/Users/kwilliams/Projects/ordoSite/out",
+          "/Users/kwilliams/Projects/ordoSite/dist",
+          "/Users/kwilliams/Projects/ordoSite/tmp",
+          "/Users/kwilliams/Projects/ordoSite/temp"
+        ],
+        "warnings": []
+      },
+      "providerDiagnostics": {
+        "intelligence": {
+          "provider": "anthropic",
+          "providerSource": "default",
+          "model": "claude-sonnet-4-6",
+          "modelSource": "env",
+          "apiKeyConfigured": true,
+          "apiKeySource": "env",
+          "baseUrlConfigured": false,
+          "baseUrlSource": "missing",
+          "warningCodes": []
+        },
+        "capabilities": [
+          {
+            "slot": "image",
+            "provider": "openai",
+            "state": "available",
+            "reason": "provider_configured",
+            "model": "gpt-image-1",
+            "requiredKeyConfigured": true,
+            "requiredKeySource": "env",
+            "impactedTools": [
+              "generate_blog_image"
+            ]
+          },
+          {
+            "slot": "stt",
+            "provider": "disabled",
+            "state": "disabled",
+            "reason": "provider_disabled",
+            "model": null,
+            "requiredKeyConfigured": null,
+            "requiredKeySource": null,
+            "impactedTools": []
+          },
+          {
+            "slot": "tts",
+            "provider": "openai",
+            "state": "available",
+            "reason": "provider_configured",
+            "model": "tts-1",
+            "requiredKeyConfigured": true,
+            "requiredKeySource": "env",
+            "impactedTools": [
+              "generate_audio"
+            ]
+          },
+          {
+            "slot": "web_search",
+            "provider": "openai",
+            "state": "available",
+            "reason": "provider_configured",
+            "model": "gpt-5",
+            "requiredKeyConfigured": true,
+            "requiredKeySource": "env",
+            "impactedTools": [
+              "admin_web_search"
+            ]
+          }
+        ],
+        "toolSummary": {
+          "total": 70,
+          "byState": {
+            "enabled": 70
+          },
+          "protectedCount": 6,
+          "staticLockedCount": 0,
+          "providerGatedCount": 3,
+          "warnings": 1
+        }
+      },
+      "components": [
+        {
+          "component": "runtime",
+          "status": "healthy",
+          "impact": "required",
+          "summary": "Runtime profile is single_image.",
+          "remediation": null,
+          "metadata": {
+            "profileId": "single_image",
+            "processRole": "app",
+            "nodeEnv": "production",
+            "isDocker": false,
+            "isCompose": false,
+            "mediaWorkerMode": "supervised_child",
+            "deferredWorkerMode": "supervised_child"
+          },
+          "checkedAt": "2026-05-06T23:45:14.851Z",
+          "warnings": []
+        },
+        {
+          "component": "data",
+          "status": "healthy",
+          "impact": "required",
+          "summary": "Durable data paths resolve inside DATA_DIR.",
+          "remediation": null,
+          "metadata": {
+            "dataDir": "/Users/kwilliams/Projects/ordoSite/.data",
+            "sqlitePath": "/Users/kwilliams/Projects/ordoSite/.data/local.db",
+            "blogAssetRoot": "/Users/kwilliams/Projects/ordoSite/.data/blog-assets",
+            "userFileRoot": "/Users/kwilliams/Projects/ordoSite/.data/user-files",
+            "requiredIncludeCount": 6,
+            "defaultExcludeCount": 8,
+            "sqliteInsideDataDir": true,
+            "blogAssetRootInsideDataDir": true,
+            "userFileRootInsideDataDir": true
+          },
+          "checkedAt": "2026-05-06T23:45:14.851Z",
+          "warnings": []
+        },
+        {
+          "component": "sqlite",
+          "status": "healthy",
+          "impact": "required",
+          "summary": "SQLite schema is reachable.",
+          "remediation": null,
+          "metadata": {
+            "sqlitePath": "/Users/kwilliams/Projects/ordoSite/.data/local.db",
+            "sqliteInsideDataDir": true
+          },
+          "checkedAt": "2026-05-06T23:45:14.851Z",
+          "warnings": []
+        },
+        {
+          "component": "provider",
+          "status": "healthy",
+          "impact": "required",
+          "summary": "Provider configuration is ready.",
+          "remediation": null,
+          "metadata": {
+            "provider": "anthropic",
+            "model": "claude-sonnet-4-6",
+            "apiKeyConfigured": true,
+            "optionalCapabilitiesAvailable": 3,
+            "optionalCapabilitiesDisabled": 1,
+            "optionalCapabilitiesMissingKey": 0,
+            "optionalCapabilitiesUnsupported": 0,
+            "providerBackedToolsUnavailable": 0,
+            "toolSummary": {
+              "total": 70,
+              "byState": {
+                "enabled": 70
+              },
+              "protectedCount": 6,
+              "staticLockedCount": 0,
+              "providerGatedCount": 3,
+              "warnings": 1
+            }
+          },
+          "checkedAt": "2026-05-06T23:45:14.851Z",
+          "warnings": []
+        },
+        {
+          "component": "network",
+          "status": "healthy",
+          "impact": "required",
+          "summary": "Network mode is local.",
+          "remediation": null,
+          "metadata": {
+            "mode": "local",
+            "origin": "http://localhost:3000",
+            "source": "development_localhost",
+            "trustProxyHeaders": false,
+            "allowedOriginCount": 0
+          },
+          "checkedAt": "2026-05-06T23:45:14.851Z",
+          "warnings": []
+        },
+        {
+          "component": "security",
+          "status": "degraded",
+          "impact": "required",
+          "summary": "Local runtime is using the development internal service token.",
+          "remediation": null,
+          "metadata": {
+            "internalRuntimeServiceToken": {
+              "configured": false,
+              "source": "default",
+              "unsafeDefault": true
+            }
+          },
+          "checkedAt": "2026-05-06T23:45:14.851Z",
+          "warnings": [
+            "Internal runtime service token is using the development default."
+          ]
+        },
+        {
+          "component": "resources",
+          "status": "degraded",
+          "impact": "required",
+          "summary": "Writable data volume free space is below the appliance warning threshold.",
+          "remediation": "Plan disk cleanup or volume expansion before large backups, restores, or media renders.",
+          "metadata": {
+            "totalBytes": 494384795648,
+            "freeBytes": 44479721472,
+            "usedBytes": 449905074176,
+            "percentUsed": 91.00301589702015,
+            "percentFree": 8.996984102979855,
+            "warnFreeBytes": 2147483648,
+            "warnFreePercent": 15,
+            "blockFreeBytes": 536870912,
+            "blockFreePercent": 5,
+            "requiredFreeBytes": 536870912,
+            "reason": "free_percent_below_warn",
+            "dockerDefaults": {
+              "tmpSize": "512m",
+              "runtimeLogTmpfsSize": "64m",
+              "nextCacheTmpfsSize": "256m",
+              "pidsLimit": 256,
+              "memoryReservation": "512m",
+              "memoryLimit": "2g",
+              "cpus": "2.0",
+              "logMaxSize": "10m",
+              "logMaxFile": 5
+            },
+            "workerRestartPolicy": {
+              "maxRestarts": 3,
+              "restartWindowMs": 60000
+            }
+          },
+          "checkedAt": "2026-05-06T23:45:14.851Z",
+          "warnings": [
+            "Writable data volume free space is low."
+          ]
+        },
+        {
+          "component": "tools",
+          "status": "degraded",
+          "impact": "optional",
+          "summary": "Some tools are unavailable through provider or policy configuration.",
+          "remediation": "Review provider capability keys and admin tool availability settings.",
+          "metadata": {
+            "total": 70,
+            "byState": {
+              "enabled": 70
+            },
+            "protectedCount": 6,
+            "staticLockedCount": 0,
+            "providerGatedCount": 3,
+            "warnings": 1
+          },
+          "checkedAt": "2026-05-06T23:45:14.851Z",
+          "warnings": [
+            "Tool availability has 1 warning(s)."
+          ]
+        },
+        {
+          "component": "media_worker",
+          "status": "degraded",
+          "impact": "optional",
+          "summary": "fetch failed",
+          "remediation": "Check media worker process, compose service health, and MEDIA_WORKER_URL.",
+          "metadata": {
+            "mode": "supervised_child",
+            "url": "http://127.0.0.1:3101",
+            "statusCode": null
+          },
+          "checkedAt": "2026-05-06T23:45:14.851Z",
+          "warnings": [
+            "fetch failed"
+          ]
+        },
+        {
+          "component": "deferred_worker",
+          "status": "healthy",
+          "impact": "optional",
+          "summary": "Deferred worker runtime contracts are valid.",
+          "remediation": null,
+          "metadata": {
+            "mode": "supervised_child",
+            "workerId": null,
+            "liveHeartbeatAvailable": false
+          },
+          "checkedAt": "2026-05-06T23:45:14.851Z",
+          "warnings": []
+        },
+        {
+          "component": "search",
+          "status": "unknown",
+          "impact": "optional",
+          "summary": "Search index health reader is not configured.",
+          "remediation": "Wire a SearchIndexHealthReader around vector/BM25 stats when search health should be reported.",
+          "metadata": {},
+          "checkedAt": "2026-05-06T23:45:14.851Z",
+          "warnings": []
+        },
+        {
+          "component": "backup_restore",
+          "status": "degraded",
+          "impact": "informational",
+          "summary": "Automatic backup is overdue.",
+          "remediation": "Review failed rust_daemon system_commands and backup/restore audit events.",
+          "metadata": {
+            "executorConfigured": true,
+            "executorDisabled": false,
+            "executorPath": "/Users/kwilliams/Projects/ordoSite/bin/ordo-backup",
+            "executorAvailable": true,
+            "executorExecutable": true,
+            "pendingCommands": 0,
+            "runningCommands": 0,
+            "failedCommands": 0,
+            "policy": {
+              "enabled": true,
+              "interval": "daily",
+              "retentionCount": 7,
+              "latestSuccessfulBackupId": null,
+              "lastScheduledAt": null,
+              "nextScheduledAt": null
+            },
+            "schedulingEnabled": true,
+            "automaticBackupOverdue": true,
+            "latestScheduledAttemptStatus": "never",
+            "validatedBackupCount": 0,
+            "lastFailureMessage": null,
+            "latestSuccessfulBackup": null
+          },
+          "checkedAt": "2026-05-06T23:45:14.851Z",
+          "warnings": [
+            "Automatic backup is overdue."
+          ]
+        }
+      ],
+      "summary": {
+        "healthy": 6,
+        "degraded": 5,
+        "blocked": 0,
+        "disabled": 0,
+        "unknown": 1
+      },
+      "warnings": [
+        "Internal runtime service token is using the development default.",
+        "Writable data volume free space is low.",
+        "Tool availability has 1 warning(s).",
+        "fetch failed",
+        "Automatic backup is overdue."
+      ]
     }
   },
   "referralDiagnostics": {
@@ -45,11 +877,11 @@
     "artifactPath": "release/runtime-integrity-evidence.json",
     "evidence": {
       "version": 1,
-      "generatedAt": "2026-04-17T03:05:48.408Z",
+      "generatedAt": "2026-04-29T22:55:25.087Z",
       "bundleId": "agent-runtime-truthfulness-and-retrieval-integrity",
-      "status": "passed",
+      "status": "failed",
       "inventory": {
-        "generatedAt": "2026-04-17T03:05:44.621Z",
+        "generatedAt": "2026-04-29T22:55:19.635Z",
         "corpus": {
           "name": "Second Renaissance Knowledge System",
           "documentCount": 11,
@@ -59,10 +891,10 @@
         "tools": {
           "countsByRole": {
             "ANONYMOUS": 16,
-            "AUTHENTICATED": 27,
-            "APPRENTICE": 27,
-            "STAFF": 27,
-            "ADMIN": 56
+            "AUTHENTICATED": 28,
+            "APPRENTICE": 28,
+            "STAFF": 28,
+            "ADMIN": 59
           },
           "manifestsByRole": {
             "ANONYMOUS": [
@@ -265,7 +1097,12 @@
               },
               {
                 "name": "search_my_conversations",
-                "description": "Search your own conversation history to recall past discussions.",
+                "description": "Search your own conversation transcript history to recall past discussion turns.",
+                "category": "system"
+              },
+              {
+                "name": "search_relationship_memory",
+                "description": "Search active relationship memory to recall goals, preferences, decisions, commitments, milestones, and unresolved questions.",
                 "category": "system"
               },
               {
@@ -402,7 +1239,12 @@
               },
               {
                 "name": "search_my_conversations",
-                "description": "Search your own conversation history to recall past discussions.",
+                "description": "Search your own conversation transcript history to recall past discussion turns.",
+                "category": "system"
+              },
+              {
+                "name": "search_relationship_memory",
+                "description": "Search active relationship memory to recall goals, preferences, decisions, commitments, milestones, and unresolved questions.",
                 "category": "system"
               },
               {
@@ -539,7 +1381,12 @@
               },
               {
                 "name": "search_my_conversations",
-                "description": "Search your own conversation history to recall past discussions.",
+                "description": "Search your own conversation transcript history to recall past discussion turns.",
+                "category": "system"
+              },
+              {
+                "name": "search_relationship_memory",
+                "description": "Search active relationship memory to recall goals, preferences, decisions, commitments, milestones, and unresolved questions.",
                 "category": "system"
               },
               {
@@ -705,6 +1552,11 @@
                 "category": "system"
               },
               {
+                "name": "inspect_runtime_logs",
+                "description": "Inspect system runtime logs for debugging issues with deferred jobs, MCP processes, and remote services. Output should be summarized as a Markdown report so the admin can copy it to GitHub if needed.",
+                "category": "system"
+              },
+              {
                 "name": "inspect_theme",
                 "description": "Inspect the active theme configuration and return machine-readable design tokens.",
                 "category": "ui"
@@ -770,6 +1622,11 @@
                 "category": "content"
               },
               {
+                "name": "produce_product",
+                "description": "Run the factory orchestration pipeline from validated brief through release persistence.",
+                "category": "content"
+              },
+              {
                 "name": "publish_content",
                 "description": "Publish a draft journal article, making it publicly visible in the journal. Accepts either the post ID or the article slug.",
                 "category": "content"
@@ -801,7 +1658,12 @@
               },
               {
                 "name": "search_my_conversations",
-                "description": "Search your own conversation history to recall past discussions.",
+                "description": "Search your own conversation transcript history to recall past discussion turns.",
+                "category": "system"
+              },
+              {
+                "name": "search_relationship_memory",
+                "description": "Search active relationship memory to recall goals, preferences, decisions, commitments, milestones, and unresolved questions.",
                 "category": "system"
               },
               {
@@ -845,10 +1707,10 @@
         "navigation": {
           "countsByRole": {
             "ANONYMOUS": 7,
-            "AUTHENTICATED": 10,
-            "APPRENTICE": 10,
-            "STAFF": 12,
-            "ADMIN": 20
+            "AUTHENTICATED": 11,
+            "APPRENTICE": 11,
+            "STAFF": 14,
+            "ADMIN": 22
           },
           "routesByRole": {
             "ANONYMOUS": [
@@ -935,6 +1797,11 @@
                 "description": "View profile, referral, and personal settings."
               },
               {
+                "label": "Referrals",
+                "href": "/referrals",
+                "description": "Open referral sharing, activity, and trust-distribution next actions."
+              },
+              {
                 "label": "Register",
                 "href": "/register",
                 "description": null
@@ -987,6 +1854,11 @@
                 "description": "View profile, referral, and personal settings."
               },
               {
+                "label": "Referrals",
+                "href": "/referrals",
+                "description": "Open referral sharing, activity, and trust-distribution next actions."
+              },
+              {
                 "label": "Register",
                 "href": "/register",
                 "description": null
@@ -1002,6 +1874,11 @@
                 "label": "Journal",
                 "href": "/admin/journal",
                 "description": "Manage journal inventory, workflow, and preview states."
+              },
+              {
+                "label": "Training",
+                "href": "/admin/training",
+                "description": "Access internal training references and operator playbooks."
               },
               {
                 "label": "Legacy Book Chapter Redirect",
@@ -1047,6 +1924,11 @@
                 "label": "Profile",
                 "href": "/profile",
                 "description": "View profile, referral, and personal settings."
+              },
+              {
+                "label": "Referrals",
+                "href": "/referrals",
+                "description": "Open referral sharing, activity, and trust-distribution next actions."
               },
               {
                 "label": "Register",
@@ -1101,6 +1983,11 @@
                 "description": "Inspect feature flags, model policy, and runtime status."
               },
               {
+                "label": "Training",
+                "href": "/admin/training",
+                "description": "Access internal training references and operator playbooks."
+              },
+              {
                 "label": "Users",
                 "href": "/admin/users",
                 "description": "Review people, roles, and account context."
@@ -1151,6 +2038,11 @@
                 "description": "View profile, referral, and personal settings."
               },
               {
+                "label": "Referrals",
+                "href": "/referrals",
+                "description": "Open referral sharing, activity, and trust-distribution next actions."
+              },
+              {
                 "label": "Register",
                 "href": "/register",
                 "description": null
@@ -1159,7 +2051,7 @@
           }
         },
         "mcp": {
-          "processCount": 3,
+          "processCount": 4,
           "processes": [
             {
               "id": "admin-web-search",
@@ -1183,6 +2075,17 @@
               ]
             },
             {
+              "id": "generate-audio",
+              "serverName": "generate-audio-mcp-server",
+              "entrypoint": "mcp/generate-audio-server.ts",
+              "canonicalCommand": "npm run mcp:generate-audio",
+              "compatibilityAliases": [],
+              "capabilityGroups": [
+                "media",
+                "audio"
+              ]
+            },
+            {
               "id": "operations",
               "serverName": "operations-mcp-server",
               "entrypoint": "mcp/operations-server.ts",
@@ -1201,7 +2104,7 @@
       },
       "eliteOps": {
         "version": 1,
-        "generatedAt": "2026-04-17T03:05:48.408Z",
+        "generatedAt": "2026-04-29T22:55:25.087Z",
         "status": "passed",
         "architectureDrift": {
           "status": "passed",
@@ -1220,8 +2123,8 @@
               "id": "mcp_transport_boundary_canonical",
               "label": "mcp/ stays transport-only",
               "status": "passed",
-              "expected": "[\"admin-web-search-server.ts\",\"calculator-server.ts\",\"operations-server.ts\"]",
-              "observed": "[\"admin-web-search-server.ts\",\"calculator-server.ts\",\"operations-server.ts\"]",
+              "expected": "[\"admin-web-search-server.ts\",\"calculator-server.ts\",\"generate-audio-server.ts\",\"operations-server.ts\"]",
+              "observed": "[\"admin-web-search-server.ts\",\"calculator-server.ts\",\"generate-audio-server.ts\",\"operations-server.ts\"]",
               "sources": [
                 "mcp",
                 "src/core/capability-catalog/mcp-process-metadata.ts"
@@ -1245,8 +2148,8 @@
               "id": "runtime_inventory_tracks_mcp_process_metadata",
               "label": "Runtime inventory MCP processes match canonical process metadata",
               "status": "passed",
-              "expected": "[{\"id\":\"admin-web-search\",\"serverName\":\"admin-web-search-mcp-server\",\"entrypoint\":\"mcp/admin-web-search-server.ts\",\"canonicalCommand\":\"npm run mcp:admin-web-search\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"admin\",\"web-search\"]},{\"id\":\"calculator\",\"serverName\":\"calculator-mcp-server\",\"entrypoint\":\"mcp/calculator-server.ts\",\"canonicalCommand\":\"npm run mcp:calculator\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"math\"]},{\"id\":\"operations\",\"serverName\":\"operations-mcp-server\",\"entrypoint\":\"mcp/operations-server.ts\",\"canonicalCommand\":\"npm run mcp:operations\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"admin-intelligence\",\"analytics\",\"corpus\",\"embeddings\",\"prompt\"]}]",
-              "observed": "[{\"id\":\"admin-web-search\",\"serverName\":\"admin-web-search-mcp-server\",\"entrypoint\":\"mcp/admin-web-search-server.ts\",\"canonicalCommand\":\"npm run mcp:admin-web-search\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"admin\",\"web-search\"]},{\"id\":\"calculator\",\"serverName\":\"calculator-mcp-server\",\"entrypoint\":\"mcp/calculator-server.ts\",\"canonicalCommand\":\"npm run mcp:calculator\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"math\"]},{\"id\":\"operations\",\"serverName\":\"operations-mcp-server\",\"entrypoint\":\"mcp/operations-server.ts\",\"canonicalCommand\":\"npm run mcp:operations\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"admin-intelligence\",\"analytics\",\"corpus\",\"embeddings\",\"prompt\"]}]",
+              "expected": "[{\"id\":\"admin-web-search\",\"serverName\":\"admin-web-search-mcp-server\",\"entrypoint\":\"mcp/admin-web-search-server.ts\",\"canonicalCommand\":\"npm run mcp:admin-web-search\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"admin\",\"web-search\"]},{\"id\":\"calculator\",\"serverName\":\"calculator-mcp-server\",\"entrypoint\":\"mcp/calculator-server.ts\",\"canonicalCommand\":\"npm run mcp:calculator\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"math\"]},{\"id\":\"generate-audio\",\"serverName\":\"generate-audio-mcp-server\",\"entrypoint\":\"mcp/generate-audio-server.ts\",\"canonicalCommand\":\"npm run mcp:generate-audio\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"audio\",\"media\"]},{\"id\":\"operations\",\"serverName\":\"operations-mcp-server\",\"entrypoint\":\"mcp/operations-server.ts\",\"canonicalCommand\":\"npm run mcp:operations\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"admin-intelligence\",\"analytics\",\"corpus\",\"embeddings\",\"prompt\"]}]",
+              "observed": "[{\"id\":\"admin-web-search\",\"serverName\":\"admin-web-search-mcp-server\",\"entrypoint\":\"mcp/admin-web-search-server.ts\",\"canonicalCommand\":\"npm run mcp:admin-web-search\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"admin\",\"web-search\"]},{\"id\":\"calculator\",\"serverName\":\"calculator-mcp-server\",\"entrypoint\":\"mcp/calculator-server.ts\",\"canonicalCommand\":\"npm run mcp:calculator\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"math\"]},{\"id\":\"generate-audio\",\"serverName\":\"generate-audio-mcp-server\",\"entrypoint\":\"mcp/generate-audio-server.ts\",\"canonicalCommand\":\"npm run mcp:generate-audio\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"audio\",\"media\"]},{\"id\":\"operations\",\"serverName\":\"operations-mcp-server\",\"entrypoint\":\"mcp/operations-server.ts\",\"canonicalCommand\":\"npm run mcp:operations\",\"compatibilityAliases\":[],\"capabilityGroups\":[\"admin-intelligence\",\"analytics\",\"corpus\",\"embeddings\",\"prompt\"]}]",
               "sources": [
                 "src/lib/evals/runtime-integrity-evidence.ts",
                 "src/core/capability-catalog/mcp-process-metadata.ts"
@@ -2468,7 +3371,7 @@
               "id": "retrieval_preparation",
               "label": "Retrieval preparation",
               "budgetMs": 250,
-              "observedMs": 0.3306250000023283,
+              "observedMs": 0.4495829999941634,
               "status": "passed",
               "notes": [
                 "vectorTokens=9",
@@ -2480,7 +3383,7 @@
               "id": "prompt_assembly",
               "label": "Prompt assembly",
               "budgetMs": 1500,
-              "observedMs": 1.6316659999999956,
+              "observedMs": 2.0277499999997417,
               "status": "passed",
               "notes": [
                 "Measures the governed ADMIN prompt assembly path with the live tool manifest."
@@ -2490,7 +3393,7 @@
               "id": "first_tool_execution",
               "label": "First tool execution",
               "budgetMs": 1500,
-              "observedMs": 1.8346670000000813,
+              "observedMs": 6.771624999999858,
               "status": "passed",
               "notes": [
                 "Measures the first governed calculator execution through the composition root."
@@ -2500,7 +3403,7 @@
               "id": "representative_mcp_round_trip",
               "label": "Representative MCP stdio round trip",
               "budgetMs": 8000,
-              "observedMs": 1009.1859590000001,
+              "observedMs": 1314.976333,
               "status": "passed",
               "notes": [
                 "Measures calculator MCP stdio startup, call, and teardown as the representative export path."
@@ -2551,7 +3454,7 @@
               "id": "mcp_startup_failure_diagnostics",
               "label": "MCP process startup failure diagnostics",
               "status": "passed",
-              "diagnostic": "node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '/Users/kwilliams/Projects/ordoSite/mcp/does-not-exist.ts' imported from /Users/kwilliams/Projects/ordoSite/\n    at finalizeResolution (node:internal/modules/esm/resolve:271:11)\n    at moduleResolve (node:internal/modules/esm/resolve:861:10)\n    at defaultResolve (node:internal/modules/esm/resolve:988:11)\n    at nextResolve (node:internal/modules/esm/hooks:769:28)\n    at resolveBase (file:///Users/kwilliams/Projects/ordoSite/node_modules/tsx/dist/esm/index.mjs?1776395148303:2:3744)\n    at async resolveDirectory (file:///Users/kwilliams/Projects/ordoSite/node_modules/tsx/dist/esm/index.mjs?1776395148303:2:4237)\n    at async resolve (file:///Users/kwilliams/Projects/ordoSite/node_modules/tsx/dist/esm/index.mjs?1776395148303:2:5355)\n    at async nextResolve (node:internal/modules/esm/hooks:769:22)\n    at async AsyncLoaderHooksOnLoaderHookWorker.resolve (node:internal/modules/esm/hooks:265:24)\n    at async handleMessage (node:internal/modules/esm/worker:251:18) {\n  code: 'ERR_MODULE_NOT_FOUND',\n  url: 'file:///Users/kwilliams/Projects/ordoSite/mcp/does-not-exist.ts'\n}\n\nNode.js v25.9.0",
+              "diagnostic": "node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '/Users/kwilliams/Projects/ordoSite/mcp/does-not-exist.ts' imported from /Users/kwilliams/Projects/ordoSite/\n    at finalizeResolution (node:internal/modules/esm/resolve:271:11)\n    at moduleResolve (node:internal/modules/esm/resolve:861:10)\n    at defaultResolve (node:internal/modules/esm/resolve:988:11)\n    at nextResolve (node:internal/modules/esm/hooks:769:28)\n    at resolveBase (file:///Users/kwilliams/Projects/ordoSite/node_modules/tsx/dist/esm/index.mjs?1777503324947:2:3744)\n    at async resolveDirectory (file:///Users/kwilliams/Projects/ordoSite/node_modules/tsx/dist/esm/index.mjs?1777503324947:2:4237)\n    at async resolve (file:///Users/kwilliams/Projects/ordoSite/node_modules/tsx/dist/esm/index.mjs?1777503324947:2:5355)\n    at async nextResolve (node:internal/modules/esm/hooks:769:22)\n    at async AsyncLoaderHooksOnLoaderHookWorker.resolve (node:internal/modules/esm/hooks:265:24)\n    at async handleMessage (node:internal/modules/esm/worker:251:18) {\n  code: 'ERR_MODULE_NOT_FOUND',\n  url: 'file:///Users/kwilliams/Projects/ordoSite/mcp/does-not-exist.ts'\n}\n\nNode.js v25.9.0",
               "expectedSignal": "A broken MCP entrypoint fails fast with an explicit missing-module diagnostic.",
               "evidenceSources": [
                 "tests/mcp/transport/stdio-harness.ts",
@@ -2637,7 +3540,10 @@
         "mappingDocumentPath": "docs/_refactor/agent-runtime-truthfulness-and-retrieval-integrity/spec.md"
       },
       "review": {
-        "blockingReasons": [],
+        "blockingReasons": [
+          "Failed step: production build.",
+          "QA step failed: production build."
+        ],
         "warnings": [
           "Budgets are intentionally generous and rely on representative local samples so the gate catches order-of-magnitude regressions rather than incidental variance."
         ]
@@ -2651,7 +3557,7 @@
         {
           "label": "production build",
           "command": "npm run build",
-          "status": "passed"
+          "status": "failed"
         }
       ]
     }
@@ -2752,7 +3658,7 @@
     "classification": "historical_baseline",
     "evidence": {
       "version": 1,
-      "generatedAt": "2026-04-29T02:15:33.290Z",
+      "generatedAt": "2026-04-29T22:47:14.629Z",
       "bundleId": "conversation-refactor-phase-00-02b-operator-transition-and-trust-distribution",
       "phase": "00-02B",
       "status": "passed",
@@ -3711,7 +4617,9 @@
     }
   },
   "review": {
-    "blockingReasons": [],
+    "blockingReasons": [
+      "Runtime integrity QA evidence contains blockers."
+    ],
     "warnings": [],
     "manualChecks": []
   }

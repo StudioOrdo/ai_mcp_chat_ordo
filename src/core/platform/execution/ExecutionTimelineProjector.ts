@@ -231,43 +231,8 @@ function toFactoryCheckpoints(activeCheckpoint?: FactoryCheckpointRecord | null)
   }];
 }
 
-function toFactoryNextActions(input: WorkOrderExecutionTimelineProjectionInput): ExecutionTimelineNextAction[] {
-  const actions: ExecutionTimelineNextAction[] = [];
-
-  if (input.workOrder.status === "running") {
-    actions.push({
-      key: "pause",
-      label: "Pause",
-      kind: "factory",
-      value: input.workOrder.id,
-      available: true,
-      params: { operation: "pause" },
-    });
-  }
-
-  if (input.workOrder.status === "paused" && input.activeCheckpoint) {
-    actions.push({
-      key: "resume",
-      label: "Resume",
-      kind: "factory",
-      value: input.workOrder.id,
-      available: true,
-      params: { operation: "resume", checkpointId: input.activeCheckpoint.checkpointId },
-    });
-  }
-
-  if (input.workOrder.status === "paused") {
-    actions.push({
-      key: "refine",
-      label: "Refine",
-      kind: "factory",
-      value: input.workOrder.id,
-      available: true,
-      params: { operation: "refine" },
-    });
-  }
-
-  return actions;
+function toFactoryNextActions(_input: WorkOrderExecutionTimelineProjectionInput): ExecutionTimelineNextAction[] {
+  return [];
 }
 
 export function projectJobExecutionTimeline(input: JobExecutionTimelineProjectionInput): ExecutionTimeline {

@@ -6,6 +6,7 @@ import { BcryptHasher } from "../adapters/BcryptHasher";
 import { RegisterUserInteractor } from "../core/use-cases/RegisterUserInteractor";
 import { AuthenticateUserInteractor } from "../core/use-cases/AuthenticateUserInteractor";
 import { ValidateSessionInteractor } from "../core/use-cases/ValidateSessionInteractor";
+import { VALID_ROLE_IDS } from "../core/use-cases/UserAdminInteractor";
 import { LoggingDecorator } from "../core/common/LoggingDecorator";
 import type { RoleName, User as SessionUser } from "../core/entities/user";
 import type { AuthResult } from "../core/use-cases/RegisterUserInteractor";
@@ -109,36 +110,27 @@ function clearStaleAuthCookies(
 /**
  * Resolves the current user from the session.
  * 1. Try real session token (lms_session_token cookie → ValidateSessionInteractor)
- * 2. Optionally overlay a simulated role on a validated real session
+ * 2. Clear any stale legacy mock-role cookie
  * 3. Default to ANONYMOUS
  */
 export async function getSessionUser(): Promise<SessionUser> {
   const cookieStore = await cookies();
-
-  // Check for simulation role override (set via /api/auth/switch)
-  const mockRole = cookieStore.get(MOCK_SESSION_COOKIE_NAME)?.value as
-    | RoleName
-    | undefined;
 
   // 1. Try real session token first
   const sessionToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
   if (sessionToken) {
     try {
       const realUser = await validateSession(sessionToken);
+      tryDeleteCookie(cookieStore, MOCK_SESSION_COOKIE_NAME);
 
-      // If a simulation role is active, overlay it onto the real identity
-      if (mockRole && mockRole !== realUser.roles[0]) {
-        return { ...realUser, roles: [mockRole] };
-      }
-
-      return realUser;
+      return { ...realUser, realRoles: realUser.roles, simulatedRole: null };
     } catch {
       clearStaleAuthCookies(cookieStore);
       return ANONYMOUS_USER;
     }
   }
 
-  if (mockRole) {
+  if (cookieStore.get(MOCK_SESSION_COOKIE_NAME)?.value) {
     tryDeleteCookie(cookieStore, MOCK_SESSION_COOKIE_NAME);
   }
 
@@ -146,18 +138,61 @@ export async function getSessionUser(): Promise<SessionUser> {
   return ANONYMOUS_USER;
 }
 
-/**
- * Sets a mock session cookie for the role simulation system.
- * This is only a role overlay and never a standalone auth mechanism.
- */
-export async function setMockSession(role: RoleName) {
+export async function clearMockSession() {
   const cookieStore = await cookies();
-  cookieStore.set(MOCK_SESSION_COOKIE_NAME, role, {
-    path: "/",
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-  });
+  tryDeleteCookie(cookieStore, MOCK_SESSION_COOKIE_NAME);
+}
+
+/**
+ * Updates the role that is actually persisted on the signed-in account.
+ *
+ * Local testing depends on prompt assembly, tool manifests, operation audit
+ * roles, and admin surfaces all seeing the same role. A cookie overlay creates
+ * a split-brain session, so role switching is intentionally DB-backed.
+ */
+export async function switchSessionUserRole(userId: string, role: RoleName): Promise<void> {
+  const roleId = VALID_ROLE_IDS[role];
+  if (!roleId) {
+    throw new Error(`Invalid role: ${role}`);
+  }
+
+  await getUserDataMapper().updateRole(userId, roleId);
+}
+
+const ROLE_AUTHORITY_ORDER: RoleName[] = [
+  "ADMIN",
+  "STAFF",
+  "APPRENTICE",
+  "AUTHENTICATED",
+  "ANONYMOUS",
+];
+
+/**
+ * Selects the role used for server-side authorization.
+ *
+ * The role switcher now persists to user_roles, so real database roles are the
+ * canonical source. `realRoles` is retained for older call sites that pass both
+ * fields during a request, but it should mirror `roles`.
+ */
+export function resolveSessionAuthorizationRole(
+  user: Pick<SessionUser, "roles" | "realRoles">,
+): RoleName {
+  const realRoles = user.realRoles?.length ? user.realRoles : [];
+  const candidateRoles = realRoles.length > 0
+    ? [...realRoles, ...user.roles]
+    : user.roles;
+
+  return ROLE_AUTHORITY_ORDER.find((role) => candidateRoles.includes(role))
+    ?? user.roles[0]
+    ?? "ANONYMOUS";
+}
+
+export function sessionHasRole(
+  user: Pick<SessionUser, "roles" | "realRoles">,
+  allowedRoles: RoleName[],
+): boolean {
+  const roles = new Set([...(user.realRoles ?? []), ...user.roles]);
+  return allowedRoles.some((role) => roles.has(role));
 }
 
 /**
@@ -165,7 +200,7 @@ export async function setMockSession(role: RoleName) {
  */
 export async function requireRole(allowedRoles: RoleName[]) {
   const user = await getSessionUser();
-  const hasAccess = user.roles.some((role) => allowedRoles.includes(role));
+  const hasAccess = sessionHasRole(user, allowedRoles);
 
   if (!hasAccess) {
     throw new Error(

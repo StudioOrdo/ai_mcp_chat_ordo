@@ -4,14 +4,17 @@ import { getHealthSweepReport } from "../src/lib/admin/processes";
 loadLocalEnv();
 
 function main() {
-  const report = getHealthSweepReport();
+  return getHealthSweepReport().then((report) => {
+    if (report.status === "error") {
+      process.stderr.write(`${JSON.stringify(report)}\n`);
+      process.exit(1);
+    }
 
-  if (report.status === "error") {
-    process.stderr.write(`${JSON.stringify(report)}\n`);
-    process.exit(1);
-  }
-
-  process.stdout.write(`${JSON.stringify(report)}\n`);
+    process.stdout.write(`${JSON.stringify(report)}\n`);
+  });
 }
 
-main();
+main().catch((error) => {
+  process.stderr.write(`${error instanceof Error ? error.stack : String(error)}\n`);
+  process.exit(1);
+});

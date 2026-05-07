@@ -13,12 +13,13 @@ export const ADMIN_BUNDLE = createCatalogBoundToolBundle(
 
 export function registerAdminTools(registry: ToolRegistry): void {
   registerCatalogBoundToolBundle(registry, "admin", {
+    registry,
     userFileRepository: getUserFileDataMapper(),
   }, (toolName, deps) => {
     if (toolName === "admin_web_search") {
-      return { userFileRepository: deps.userFileRepository };
+      return { registry: deps.registry, userFileRepository: deps.userFileRepository };
     }
 
-    return {};
+    return { registry: deps.registry };
   });
 }

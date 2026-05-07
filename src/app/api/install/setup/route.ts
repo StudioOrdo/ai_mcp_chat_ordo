@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
-import { ConfigurationService } from "@/lib/config/ConfigurationService";
+import {
+  parseLegacyProviderSettingsInput,
+  parseProviderSettingsUpdateInput,
+  providerSettingsService,
+  isProviderSettingsFailure,
+} from "@/lib/ai/providers/provider-settings-service";
+import { guardInstallMutation } from "@/lib/appliance/install/install-token";
 import { getUserDataMapper } from "@/adapters/RepositoryFactory";
 import { BcryptHasher } from "@/adapters/BcryptHasher";
 import { ensureDbSchema } from "@/lib/db";
@@ -8,31 +14,49 @@ import { markOnboardedWithoutEmission } from "@/lib/lifecycle/onboarded";
 
 export async function POST(request: Request) {
   try {
-    const isInitialized = ConfigurationService.isSystemInitialized();
-    if (isInitialized) {
+    const body = await request.json() as unknown;
+    const guard = guardInstallMutation(request, body);
+    if (!guard.ok) {
+      return guard.response;
+    }
+
+    if (typeof body !== "object" || body === null || Array.isArray(body)) {
       return NextResponse.json(
-        { error: "System is already initialized." },
+        { error: "Request body must be an object." },
         { status: 400 }
       );
     }
+    const { adminEmail, adminPassword } = body as {
+      adminEmail?: string;
+      adminPassword?: string;
+    };
 
-    const body = await request.json();
-    const { anthropicKey, openAiKey, adminEmail, adminPassword } = body;
-
-    if (!anthropicKey || !adminEmail || !adminPassword) {
+    if (!adminEmail || !adminPassword) {
       return NextResponse.json(
         { error: "Missing required fields." },
         { status: 400 }
       );
     }
 
+    const providerSettings = parseLegacyProviderSettingsInput(body)
+      ?? parseProviderSettingsUpdateInput(body);
+    if (isProviderSettingsFailure(providerSettings)) {
+      return NextResponse.json(
+        { error: providerSettings.error.message },
+        { status: providerSettings.error.status }
+      );
+    }
+
     // 1. Ensure DB schema exists
     ensureDbSchema();
 
-    // 2. Save API Keys to SQLite
-    ConfigurationService.setString("ANTHROPIC_API_KEY", anthropicKey);
-    if (openAiKey) {
-      ConfigurationService.setString("OPENAI_API_KEY", openAiKey);
+    // 2. Validate and save provider settings to SQLite
+    const providerResult = await providerSettingsService.applyInstallSettings(providerSettings);
+    if (!providerResult.ok) {
+      return NextResponse.json(
+        { error: providerResult.error.message },
+        { status: providerResult.error.status }
+      );
     }
 
     // 3. Create initial Admin User
@@ -51,6 +75,13 @@ export async function POST(request: Request) {
 
       // Update role to ADMIN
       await userDataMapper.updateRole(user.id, "role_admin");
+    } else {
+      if (!existingUser.passwordHash) {
+        await userDataMapper.updatePasswordHash(existingUser.id, passwordHash);
+      }
+      if (!existingUser.roles.includes("ADMIN")) {
+        await userDataMapper.updateRole(existingUser.id, "role_admin");
+      }
     }
 
     // 4. Log the new admin user in

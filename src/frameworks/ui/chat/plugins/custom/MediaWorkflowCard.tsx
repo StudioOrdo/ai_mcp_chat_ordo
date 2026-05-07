@@ -1,12 +1,16 @@
 "use client";
 
 import type { CapabilityResultEnvelope } from "@/core/entities/capability-result";
+import type { ActionLinkType } from "@/core/entities/rich-content";
 import type { CanonicalMediaWorkflowSnapshot } from "@/lib/media/workflows/media-workflow-read-model";
+import { operationActionsToActionLinks } from "@/lib/operations/operation-action-view-model";
 
+import { CapabilityActionRail } from "../../primitives/CapabilityActionRail";
 import { MediaRenderCard } from "./MediaRenderCard";
 
 interface MediaWorkflowCardProps {
   workflow: CanonicalMediaWorkflowSnapshot;
+  onActionClick?: (actionType: ActionLinkType, value: string, params?: Record<string, string>) => void;
 }
 
 const STATUS_LABELS: Record<CanonicalMediaWorkflowSnapshot["status"], string> = {
@@ -98,12 +102,15 @@ function StepRow({ step }: { step: CanonicalMediaWorkflowSnapshot["steps"][numbe
   );
 }
 
-export function MediaWorkflowCard({ workflow }: MediaWorkflowCardProps) {
+export function MediaWorkflowCard({ workflow, onActionClick }: MediaWorkflowCardProps) {
   if (workflow.status === "succeeded" && workflow.finalArtifact?.kind === "video") {
     return <MediaRenderCard envelope={buildWorkflowEnvelope(workflow)} />;
   }
 
   const isFailure = workflow.status === "failed" || workflow.status === "blocked" || workflow.status === "canceled";
+  const operationActions = workflow.operation?.availableActions.length
+    ? operationActionsToActionLinks(workflow.operation.availableActions)
+    : [];
 
   return (
     <div
@@ -151,6 +158,12 @@ export function MediaWorkflowCard({ workflow }: MediaWorkflowCardProps) {
         >
           Open {workflow.finalArtifact.kind}
         </a>
+      ) : null}
+
+      {operationActions.length > 0 ? (
+        <div className="mt-3 border-t border-border/40 pt-3">
+          <CapabilityActionRail actions={operationActions} onActionClick={onActionClick} />
+        </div>
       ) : null}
     </div>
   );

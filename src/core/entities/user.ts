@@ -6,5 +6,7 @@ export interface User {
   email: string;
   name: string;
   roles: RoleName[];
+  realRoles?: RoleName[];
+  simulatedRole?: RoleName | null;
   tier?: UserTier;
 }

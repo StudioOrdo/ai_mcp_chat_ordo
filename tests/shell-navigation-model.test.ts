@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  DEFAULT_SHELL_NAVIGATION_CONTEXT,
   SHELL_FOOTER_GROUPS,
   SHELL_ROUTES,
+  getShellRouteById,
+  getShellRouteVisibilitySnapshot,
   resolveAccountMenuRoutes,
+  resolveAuthenticatedWorkRailRoutes,
   resolveFooterGroups,
   resolveFooterGroupRoutes,
   resolvePrimaryNavRoutes,
@@ -15,11 +19,16 @@ import type { User } from "@/core/entities/user";
 const allowedInternalRoutes = new Set([
   "/",
   "/profile",
+  "/profile?section=password",
+  "/profile?section=preferences",
   "/login",
   "/register",
-  "/library",
-  "/journal",
+  "/feed",
+  "/offers",
+  "/about",
   "/workspace",
+  "/studio",
+  "/business",
   "/jobs",
   "/my/media",
   "/referrals",
@@ -50,6 +59,8 @@ const apprenticeUser: User = {
   roles: ["APPRENTICE"],
 };
 
+const publishedFeedContext = { hasPublicFeedItems: true };
+
 describe("shell navigation model", () => {
   it("keeps anonymous primary nav routes inside the verified route surface", () => {
     const invalidRoutes = resolvePrimaryNavRoutes(anonymousUser).filter(
@@ -57,8 +68,14 @@ describe("shell navigation model", () => {
     );
 
     expect(invalidRoutes).toEqual([]);
-    expect(resolvePrimaryNavRoutes(anonymousUser).map((route) => route.id)).toEqual(["corpus", "journal"]);
-    expect(resolvePrimaryNavRoutes(authenticatedUser).map((route) => route.id)).toEqual(["corpus", "journal"]);
+    expect(resolvePrimaryNavRoutes(anonymousUser).map((route) => route.id)).toEqual(["home", "offers", "about"]);
+    expect(resolvePrimaryNavRoutes(authenticatedUser).map((route) => route.id)).toEqual(["home", "offers", "about"]);
+    expect(resolvePrimaryNavRoutes(anonymousUser, publishedFeedContext).map((route) => route.id)).toEqual([
+      "home",
+      "feed",
+      "offers",
+      "about",
+    ]);
   });
 
   it("keeps footer group routes inside the verified route surface for each audience", () => {
@@ -84,24 +101,62 @@ describe("shell navigation model", () => {
       "workspace",
     ]);
     expect(resolveAccountMenuRoutes(authenticatedUser).map((route) => route.id)).toEqual([
-      "workspace-overview",
-      "jobs",
-      "my-media",
-      "referrals",
       "profile",
+      "referrals",
+    ]);
+    expect(resolveAuthenticatedWorkRailRoutes(authenticatedUser).map((route) => route.id)).toEqual([
+      "ordo-chat",
+      "workspace-overview",
+      "studio",
+      "business",
+      "offers",
+      "business-about",
     ]);
     expect(resolveAccountMenuRoutes(apprenticeUser).map((route) => route.id)).toEqual([
-      "workspace-overview",
-      "jobs",
-      "my-media",
-      "referrals",
       "profile",
+      "referrals",
     ]);
     expect(resolveRailMenuRoutes(anonymousUser).map((route) => route.id)).toEqual([
-      "corpus",
-      "journal",
+      "home",
+      "offers",
+      "about",
+    ]);
+    expect(resolveRailMenuRoutes(anonymousUser, publishedFeedContext).map((route) => route.id)).toEqual([
+      "home",
+      "feed",
+      "offers",
+      "about",
     ]);
     expect(resolveShellHomeHref()).toBe("/");
+  });
+
+  it("hides feed discovery until public feed content exists", () => {
+    const informationGroup = SHELL_FOOTER_GROUPS.find((group) => group.id === "information");
+    expect(informationGroup).toBeDefined();
+    const feedRoute = getShellRouteById("feed");
+
+    expect(resolveFooterGroupRoutes(informationGroup!, anonymousUser).map((route) => route.id)).toEqual([
+      "home",
+      "offers",
+      "about",
+    ]);
+    expect(resolveFooterGroupRoutes(informationGroup!, anonymousUser, publishedFeedContext).map((route) => route.id)).toEqual([
+      "home",
+      "feed",
+      "offers",
+      "about",
+    ]);
+    expect(getShellRouteVisibilitySnapshot(feedRoute, anonymousUser)).toMatchObject({
+      command: false,
+      footer: false,
+      any: false,
+    });
+    expect(getShellRouteVisibilitySnapshot(feedRoute, anonymousUser, publishedFeedContext)).toMatchObject({
+      command: true,
+      footer: true,
+      any: true,
+    });
+    expect(DEFAULT_SHELL_NAVIGATION_CONTEXT.hasPublicFeedItems).toBe(false);
   });
 
   it("marks legacy compatibility routes without exposing them in primary navigation", () => {

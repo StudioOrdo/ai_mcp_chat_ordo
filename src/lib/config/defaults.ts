@@ -16,6 +16,7 @@ export interface InstanceIdentity {
   domain: string;
   linkedInUrl?: string;
   logoPath: string;
+  markPath?: string;
   markText: string;
   accentColor?: string;
   copyright?: string;
@@ -85,6 +86,7 @@ export const DEFAULT_IDENTITY: InstanceIdentity = {
     "A governed all-in-one AI workspace for solopreneurs who want chat, search, workflows, and publishing in one easy-to-host system.",
   domain: "studioordo.com",
   logoPath: "/logo_with_words.png",
+  markPath: "/ordo-mark.png",
   markText: "O",
   copyright: "© 2026 Studio Ordo. All rights reserved.",
   serviceChips: [
@@ -110,14 +112,14 @@ export const DEFAULT_PROMPTS: InstancePrompts = {
       "Welcome — {{referrer.name}} sent you here for a reason. I can show you how {{brand.name}} helps a solo operator run research, workflows, and publishing from one place.",
   },
   defaultSuggestions: [
-    "Search my materials",
-    "Draft a publishable page",
+    "Ask a business question",
+    "Draft a public update",
     "Plan a customer workflow",
     "Turn notes into an offer",
   ],
   referralSuggestions: [
     "Why is this different?",
-    "Show me the library",
+    "View the current offers",
     "How do the workflows work?",
     "What unlocks after I register?",
   ],

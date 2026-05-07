@@ -23,7 +23,7 @@ import {
 // ---------------------------------------------------------------------------
 
 export interface ProviderRuntime {
-  /** Resolve the canonical provider resilience policy from environment config. */
+  /** Resolve the canonical provider resilience policy from selected provider config. */
   resolvePolicy(surface?: ProviderSurface): ProviderResiliencePolicy;
 
   /** Emit a structured provider lifecycle event. */
@@ -74,11 +74,11 @@ export interface ProviderAttemptRunnerOptions<T> {
 
 /**
  * Create the default ProviderRuntime backed by the shared provider-policy
- * functions and environment configuration.
+ * functions and selected provider configuration.
  */
 export function createProviderRuntime(): ProviderRuntime {
   return {
-    resolvePolicy: resolveProviderPolicy,
+    resolvePolicy: () => resolveProviderPolicy(),
     emitEvent: emitProviderEvent,
     classifyError: classifyProviderError,
     async runWithResilience<T>({
@@ -98,7 +98,13 @@ export function createProviderRuntime(): ProviderRuntime {
       for (const model of policy.modelCandidates) {
         for (let attempt = 1; attempt <= policy.retryAttempts; attempt += 1) {
           const startedAt = Date.now();
-          emitProviderEvent({ kind: "attempt_start", surface, model, attempt });
+          emitProviderEvent({
+            kind: "attempt_start",
+            provider: policy.provider,
+            surface,
+            model,
+            attempt,
+          });
 
           try {
             const result = await runAttempt({
@@ -110,6 +116,7 @@ export function createProviderRuntime(): ProviderRuntime {
 
             emitProviderEvent({
               kind: "attempt_success",
+              provider: policy.provider,
               surface,
               model,
               attempt,
@@ -133,6 +140,7 @@ export function createProviderRuntime(): ProviderRuntime {
               lastError = error;
               emitProviderEvent({
                 kind: "model_fallback",
+                provider: policy.provider,
                 surface,
                 model,
                 attempt,
@@ -147,6 +155,7 @@ export function createProviderRuntime(): ProviderRuntime {
               lastError = error;
               emitProviderEvent({
                 kind: "attempt_retry",
+                provider: policy.provider,
                 surface,
                 model,
                 attempt,
@@ -160,6 +169,7 @@ export function createProviderRuntime(): ProviderRuntime {
 
             emitProviderEvent({
               kind: "attempt_failure",
+              provider: policy.provider,
               surface,
               model,
               attempt,

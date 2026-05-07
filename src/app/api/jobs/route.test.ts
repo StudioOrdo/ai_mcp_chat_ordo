@@ -6,10 +6,11 @@ import {
   createRouteRequest,
 } from "../../../../tests/helpers/workflow-route-fixture";
 
-const { getSessionUserMock, listUserJobInteractionsMock, listUserWorkflowsMock } = vi.hoisted(() => ({
+const { getSessionUserMock, listUserJobInteractionsMock, listUserWorkflowsMock, loadUserJobsWorkspaceMock } = vi.hoisted(() => ({
   getSessionUserMock: vi.fn(),
   listUserJobInteractionsMock: vi.fn(),
   listUserWorkflowsMock: vi.fn(),
+  loadUserJobsWorkspaceMock: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -23,6 +24,10 @@ vi.mock("@/adapters/RepositoryFactory", () => ({
   getPlatformInteractionFacade: () => ({
     listUserJobInteractions: listUserJobInteractionsMock,
   }),
+}));
+
+vi.mock("@/lib/jobs/load-user-jobs-workspace", () => ({
+  loadUserJobsWorkspace: loadUserJobsWorkspaceMock,
 }));
 
 describe("GET /api/jobs", () => {
@@ -74,5 +79,30 @@ describe("GET /api/jobs", () => {
       status: "running",
       progressLabel: "Publishing",
     });
+  });
+
+  it("uses the filtered work-index contract for jobs workspace queries", async () => {
+    getSessionUserMock.mockResolvedValue(createAuthenticatedSessionUser({ id: "usr_owner" }));
+    loadUserJobsWorkspaceMock.mockResolvedValue({
+      jobs: [{ jobId: "job_1", status: "running" }],
+      workflows: [],
+      selectedJobId: "job_1",
+      selectedJob: null,
+      selectedJobHistory: [],
+      query: { q: "launch", bucket: "running" },
+      pageInfo: { total: 1 },
+    });
+
+    const response = await GET(createRouteRequest("/api/jobs?bucket=running&q=launch&limit=50"));
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(loadUserJobsWorkspaceMock).toHaveBeenCalledWith("usr_owner", {
+      bucket: "running",
+      q: "launch",
+      limit: "50",
+    });
+    expect(payload.jobs).toEqual([{ jobId: "job_1", status: "running" }]);
+    expect(listUserJobInteractionsMock).not.toHaveBeenCalled();
   });
 });

@@ -6,6 +6,7 @@ import type {
 import type { MaterializationRecord } from "@/core/entities/materialization";
 import type { JobQueueRepository } from "@/core/use-cases/JobQueueRepository";
 import type { MaterializationRepository } from "@/core/use-cases/MaterializationRepository";
+import type { MediaWorkflowJobOperationMetadata } from "@/core/use-cases/operations/MediaWorkflowOperationActions";
 import { parseGenerateAudioInput } from "@/core/use-cases/tools/generate-audio.tool";
 import { appendRuntimeAuditLog } from "@/lib/observability/runtime-audit-log";
 import { recordPromptBindingFromSource } from "@/lib/prompts/prompt-binding-service";
@@ -32,6 +33,7 @@ export interface EnqueueGenerateAudioDeferredJobOptions {
   priority?: number;
   promptBindingId?: string | null;
   toolInvocationId?: string;
+  operation?: MediaWorkflowJobOperationMetadata;
 }
 
 export interface EnqueueGenerateAudioDeferredJobResult {
@@ -153,6 +155,7 @@ export async function enqueueGenerateAudioDeferredJob(
       materializationKey,
       executionTarget: "deferred_remote",
       ...(options.promptBindingId ? { promptBindingId: options.promptBindingId } : {}),
+      ...(options.operation ? { operation: options.operation } : {}),
     },
     promptBindingId: options.promptBindingId,
     toolInvocationId: options.toolInvocationId,

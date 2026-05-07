@@ -22,4 +22,15 @@ describe("dev stack entrypoint", () => {
     expect(source).toContain("waitForChildExit(mediaWorkerProcess)");
     expect(source).toContain("[dev] media worker failed readiness check");
   });
+
+  it("supervises the local Rust backup executor when the binary is installed", () => {
+    const source = readFileSync(join(process.cwd(), "scripts/dev.mjs"), "utf-8");
+
+    expect(source).toContain("DISABLE_BACKUP_EXECUTOR");
+    expect(source).toContain("ORDO_BACKUP_EXECUTOR_PATH");
+    expect(source).toContain("scripts/install-backup-executor.mjs");
+    expect(source).toContain('"daemon"');
+    expect(source).toContain("backup_executor_dev_${port}");
+    expect(source).toContain("waitForChildExit(backupExecutorProcess)");
+  });
 });

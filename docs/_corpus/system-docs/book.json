@@ -1,0 +1,9 @@
+{
+  "slug": "system-docs",
+  "title": "Studio Ordo System Handbook",
+  "number": "00",
+  "sortOrder": 0,
+  "description": "Role-governed product and operator documentation for Studio Ordo. It explains public help, member workflows, apprenticeship practice, staff operations, and admin appliance controls.",
+  "domain": ["reference", "internal"],
+  "tags": ["system", "operations", "help", "onboarding", "backup", "restore", "agentos"]
+}

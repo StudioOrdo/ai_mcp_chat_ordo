@@ -4,18 +4,20 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { AccountMenu } from "@/components/AccountMenu";
 import { ShellBrand } from "@/components/shell/ShellBrand";
-import { NotificationFeed } from "@/components/NotificationFeed";
-import { ShellWorkspaceMenu } from "@/components/ShellWorkspaceMenu";
-import { JobsRail } from "@/frameworks/ui/jobs-rail/JobsRail";
-import { useJobsRailController } from "@/frameworks/ui/jobs-rail/useJobsRailController";
+import { ShellMobileMainMenu } from "@/components/shell/ShellMobileMainMenu";
+import { PublicRouteLinks } from "@/components/public/PublicRouteLinks";
 import {
+  DEFAULT_SHELL_NAVIGATION_CONTEXT,
   resolveShellHomeHref,
+  type ShellNavigationContext,
 } from "@/lib/shell/shell-navigation";
 import type { User as SessionUser } from "@/core/entities/user";
 
 interface SiteNavProps {
   user: SessionUser;
+  navigationContext?: ShellNavigationContext;
 }
 
 const GUEST_ACCESS_LINKS = [
@@ -23,25 +25,17 @@ const GUEST_ACCESS_LINKS = [
   { href: "/register", label: "Register" },
 ] as const;
 
-function AuthenticatedJobsRail() {
-  const jobsRail = useJobsRailController();
-
-  return (
-    <JobsRail
-      model={jobsRail.model}
-      utilityActions={jobsRail.utilityActions}
-      onAction={jobsRail.onAction}
-    />
-  );
-}
-
-export function SiteNav({ user }: SiteNavProps) {
+export function SiteNav({
+  user,
+  navigationContext = DEFAULT_SHELL_NAVIGATION_CONTEXT,
+}: SiteNavProps) {
   const pathname = usePathname();
-  const isJournalRoute = pathname === "/journal"
-    || pathname.startsWith("/journal/");
-  const navTone = isJournalRoute ? "quiet" : "default";
+  const isFeedRoute = pathname === "/feed"
+    || pathname.startsWith("/feed/");
+  const navTone = isFeedRoute ? "quiet" : "default";
   const homeHref = resolveShellHomeHref();
   const isAnonymous = user.roles.every((role) => role === "ANONYMOUS");
+  const isAuthenticated = !isAnonymous;
 
   return (
     <nav
@@ -49,6 +43,7 @@ export function SiteNav({ user }: SiteNavProps) {
       aria-label="Primary"
       data-shell-nav-rail="true"
       data-shell-nav-tone={navTone}
+      data-shell-nav-authenticated={isAuthenticated ? "true" : undefined}
     >
       <div
         className="site-container relative mx-auto w-full shell-nav-frame"
@@ -59,17 +54,16 @@ export function SiteNav({ user }: SiteNavProps) {
           data-shell-nav-band="true"
         >
           <div className="shell-nav-brand-region" data-shell-nav-region="brand">
-            <div className="shell-action-row">
-              <ShellWorkspaceMenu user={user} tone={navTone} />
-              <ShellBrand href={homeHref} showMark={false} compactOnMobile />
-            </div>
+            {isAuthenticated ? <ShellMobileMainMenu user={user} /> : null}
+            <ShellBrand href={homeHref} compactOnMobile={false} />
           </div>
+
+          <PublicRouteLinks user={user} navigationContext={navigationContext} />
 
           <div
             className="shell-nav-actions"
             data-shell-nav-region="account-access"
           >
-            {isAnonymous ? null : <AuthenticatedJobsRail />}
             {isAnonymous ? (
               <div className="shell-action-row" data-shell-nav-guest-access="true">
                 {GUEST_ACCESS_LINKS.map((item) => (
@@ -83,7 +77,9 @@ export function SiteNav({ user }: SiteNavProps) {
                 ))}
               </div>
             ) : (
-              <NotificationFeed user={user} />
+              <div className="shell-action-row" data-shell-nav-authenticated-access="true">
+                <AccountMenu user={user} />
+              </div>
             )}
           </div>
         </div>

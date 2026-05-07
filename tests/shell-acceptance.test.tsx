@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppShell } from "@/components/AppShell";
@@ -44,6 +44,8 @@ const anonymousUser: User = {
   roles: ["ANONYMOUS"],
 };
 
+const publishedFeedContext = { hasPublicFeedItems: true };
+
 vi.mock("next/navigation", () => ({
   usePathname: () => pathname,
   useRouter: () => ({ push: pushMock }),
@@ -55,6 +57,10 @@ vi.mock("@/hooks/useMockAuth", () => ({
     switchRole: switchRoleMock,
     logout: logoutMock,
   }),
+}));
+
+vi.mock("@/components/AttentionInbox", () => ({
+  AttentionInbox: () => <button type="button" aria-label="Open attention inbox" data-testid="attention-inbox" />,
 }));
 
 vi.mock("@/frameworks/ui/jobs-rail/JobsRail", () => ({
@@ -95,13 +101,15 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-async function renderShellAcceptance() {
+async function renderShellAcceptance(
+  navigationContext = { hasPublicFeedItems: false },
+) {
   let view: ReturnType<typeof render> | undefined;
 
   await act(async () => {
     view = render(
       <ThemeProvider>
-        <AppShell user={authenticatedUser}>
+        <AppShell user={authenticatedUser} navigationContext={navigationContext}>
           <div>Acceptance Content</div>
         </AppShell>
       </ThemeProvider>,
@@ -112,13 +120,15 @@ async function renderShellAcceptance() {
   return view as ReturnType<typeof render>;
 }
 
-async function renderAnonymousShellAcceptance() {
+async function renderAnonymousShellAcceptance(
+  navigationContext = { hasPublicFeedItems: false },
+) {
   let view: ReturnType<typeof render> | undefined;
 
   await act(async () => {
     view = render(
       <ThemeProvider>
-        <AppShell user={anonymousUser}>
+        <AppShell user={anonymousUser} navigationContext={navigationContext}>
           <div>Acceptance Content</div>
         </AppShell>
       </ThemeProvider>,
@@ -136,29 +146,50 @@ function getLinkNames(container: HTMLElement) {
 }
 
 describe("shell acceptance", () => {
-  it("renders only the canonical primary navigation contract in the shell header", async () => {
+  it("renders visible public navigation plus signed-in governance access in the left rail", async () => {
     await renderShellAcceptance();
 
     const nav = screen.getByRole("navigation", { name: "Primary" });
+    const workRail = screen.getByRole("navigation", { name: "Workspace" });
     const navLinks = getLinkNames(nav);
 
-    expect(navLinks).toEqual(["Studio Ordo home"]);
+    expect(navLinks).toEqual(["Studio Ordo home", "Offers", "About"]);
     expect(nav).toHaveAttribute("data-shell-nav-rail", "true");
     expect(nav.querySelector('[data-shell-nav-region="brand"]')).not.toBeNull();
     expect(nav.querySelector('[data-shell-nav-region="account-access"]')).not.toBeNull();
-    expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).toBeNull();
-    expect(within(nav).getByTestId("jobs-rail")).toBeInTheDocument();
+    expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).not.toBeNull();
+    expect(within(nav).queryByTestId("jobs-rail")).toBeNull();
+    expect(within(nav).queryByRole("button", { name: "Open attention inbox" })).toBeNull();
+    expect(within(nav).getByRole("button", { name: /test user account menu/i })).toBeInTheDocument();
+    expect(within(workRail).queryByTestId("jobs-rail")).toBeNull();
+    expect(within(workRail).queryByRole("button", { name: "Open attention inbox" })).toBeNull();
+    expect(within(workRail).getByRole("link", { name: "Today" })).toHaveAttribute("href", "/workspace");
+    expect(within(workRail).getByRole("link", { name: "Studio" })).toHaveAttribute("href", "/studio");
+    expect(within(workRail).getByRole("link", { name: "People" })).toHaveAttribute("href", "/business");
+    expect(within(workRail).getByRole("link", { name: "Offers" })).toHaveAttribute("href", "/offers");
+    expect(within(workRail).getByRole("link", { name: "About" })).toHaveAttribute("href", "/about");
+    expect(within(workRail).queryByRole("link", { name: "Jobs" })).toBeNull();
+    expect(within(workRail).queryByRole("link", { name: "Activity" })).toBeNull();
+    expect(within(workRail).queryByRole("link", { name: "My Media" })).toBeNull();
+    expect(within(workRail).queryByRole("link", { name: "Referrals" })).toBeNull();
+    expect(within(workRail).queryByRole("link", { name: "Profile" })).toBeNull();
+    expect(within(workRail).queryByRole("link", { name: "My profile" })).toBeNull();
     expect(within(nav).getByRole("link", { name: /studio ordo home/i })).toHaveAttribute("href", "/");
-    fireEvent.click(within(nav).getByRole("button", { name: "Open workspace menu" }));
-
-    const drawer = screen.getByRole("dialog", { name: "Workspace menu" });
-
-    expect(within(drawer).queryByRole("link", { name: "Home" })).toBeNull();
-    expect(within(drawer).getByRole("link", { name: /^Library/i })).toHaveAttribute("href", "/library");
-    expect(within(drawer).getByRole("link", { name: /^Journal/i })).toHaveAttribute("href", "/journal");
-    expect(within(drawer).getByRole("link", { name: "My Jobs" })).toHaveAttribute("href", "/jobs");
+    expect(within(nav).getByRole("link", { name: "Offers" })).toHaveAttribute("href", "/offers");
+    expect(within(nav).getByRole("link", { name: "About" })).toHaveAttribute("href", "/about");
+    expect(within(nav).queryByRole("link", { name: "Feed" })).toBeNull();
+    expect(within(nav).queryByRole("button", { name: "Open workspace menu" })).toBeNull();
     expect(within(nav).queryByRole("link", { name: "Training" })).toBeNull();
     expect(within(nav).queryByRole("link", { name: "Studio" })).toBeNull();
+  });
+
+  it("adds feed to public discovery when public feed content exists without restoring the drawer", async () => {
+    await renderShellAcceptance(publishedFeedContext);
+
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+
+    expect(within(nav).getByRole("link", { name: "Feed" })).toHaveAttribute("href", "/feed");
+    expect(within(nav).queryByRole("button", { name: "Open workspace menu" })).toBeNull();
   });
 
   it("renders only canonical grouped footer links and reuses the shared brand primitive", async () => {
@@ -171,15 +202,24 @@ describe("shell acceptance", () => {
 
     expect(footerLinks).toEqual([
       "Studio Ordo home",
-      "Library",
-      "Journal",
-      "Current Work",
-      "Referrals",
-      "Profile",
+      "Home",
+      "Offers",
+      "About",
+      "Today",
+      "Studio",
+      "People",
     ]);
     expect(within(footer).getByRole("link", { name: /studio ordo home/i })).toHaveAttribute("href", "/");
     expect(within(footer).getByText("Information")).toBeInTheDocument();
     expect(within(footer).getByText("Workspace")).toBeInTheDocument();
+  });
+
+  it("adds feed to footer discovery when public feed content exists", async () => {
+    await renderShellAcceptance(publishedFeedContext);
+
+    const footer = screen.getByRole("contentinfo");
+
+    expect(within(footer).getByRole("link", { name: "Feed" })).toHaveAttribute("href", "/feed");
   });
 
   it("renders anonymous footer access links without signed-in workspace destinations", async () => {
@@ -187,10 +227,31 @@ describe("shell acceptance", () => {
 
     const footer = screen.getByRole("contentinfo");
     const footerLinks = getLinkNames(footer);
+    const publicDock = screen.getByRole("navigation", { name: "Public navigation" });
 
-    expect(footerLinks).toEqual(["Studio Ordo home", "Library", "Journal", "Login", "Register"]);
+    expect(screen.queryByRole("navigation", { name: "Workspace" })).toBeNull();
+    expect(footerLinks).toEqual([
+      "Studio Ordo home",
+      "Home",
+      "Offers",
+      "About",
+      "Login",
+      "Register",
+    ]);
     expect(within(footer).getByText("Information")).toBeInTheDocument();
     expect(within(footer).getByText("Access")).toBeInTheDocument();
     expect(within(footer).queryByText("Workspace")).toBeNull();
+    expect(within(publicDock).getByRole("link", { name: "Chat" })).toHaveAttribute("href", "/");
+    expect(within(publicDock).getByRole("link", { name: "Offers" })).toHaveAttribute("href", "/offers");
+    expect(within(publicDock).getByRole("link", { name: "About" })).toHaveAttribute("href", "/about");
+    expect(within(publicDock).queryByRole("link", { name: "Feed" })).toBeNull();
+  });
+
+  it("adds feed to anonymous mobile dock when public feed content exists", async () => {
+    await renderAnonymousShellAcceptance(publishedFeedContext);
+
+    const publicDock = screen.getByRole("navigation", { name: "Public navigation" });
+
+    expect(within(publicDock).getByRole("link", { name: "Feed" })).toHaveAttribute("href", "/feed");
   });
 });

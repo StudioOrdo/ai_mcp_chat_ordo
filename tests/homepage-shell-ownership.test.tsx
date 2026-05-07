@@ -11,7 +11,7 @@ let mockMessages = [
     id: "hero-1",
     role: "assistant" as const,
     content:
-      "Bring me the messy workflow, half-finished idea, or customer task. I can help you plan the work, search your library, turn it into assets, and keep it moving from one governed workspace.\n\n__suggestions__:[\"Plan this workflow\",\"Search my library\",\"Turn this into an asset\",\"What makes this different?\"]",
+      "Bring me the messy workflow, half-finished idea, or customer task. I can help you plan the work, find the right internal material, turn it into assets, and keep it moving from one governed workspace.\n\n__suggestions__:[\"Plan this workflow\",\"Find source material\",\"Turn this into an asset\",\"What makes this different?\"]",
     timestamp: new Date("2026-03-18T10:00:00.000Z"),
     parts: [{ type: "text" as const, text: "hero" }],
   },
@@ -38,8 +38,8 @@ vi.mock("@/components/ShellWorkspaceMenu", () => ({
   ShellWorkspaceMenu: () => <div data-testid="workspace-menu" />,
 }));
 
-vi.mock("@/components/NotificationFeed", () => ({
-  NotificationFeed: () => <div data-testid="notification-feed" />,
+vi.mock("@/components/AttentionInbox", () => ({
+  AttentionInbox: () => <div data-testid="attention-inbox" />,
 }));
 
 vi.mock("@/frameworks/ui/jobs-rail/JobsRail", () => ({
@@ -113,7 +113,7 @@ describe("homepage shell ownership", () => {
         id: "hero-1",
         role: "assistant",
         content:
-          "Bring me the messy workflow, half-finished idea, or customer task. I can help you plan the work, search your library, turn it into assets, and keep it moving from one governed workspace.\n\n__suggestions__:[\"Plan this workflow\",\"Search my library\",\"Turn this into an asset\",\"What makes this different?\"]",
+          "Bring me the messy workflow, half-finished idea, or customer task. I can help you plan the work, find the right internal material, turn it into assets, and keep it moving from one governed workspace.\n\n__suggestions__:[\"Plan this workflow\",\"Find source material\",\"Turn this into an asset\",\"What makes this different?\"]",
         timestamp: new Date("2026-03-18T10:00:00.000Z"),
         parts: [{ type: "text", text: "hero" }],
       },
@@ -167,7 +167,7 @@ describe("homepage shell ownership", () => {
     expect(viewportStage).not.toContainElement(footer);
   });
 
-  it("renders the canonical homepage nav contract with the shared utility rail", () => {
+  it("renders the canonical homepage nav contract with a separate workspace utility rail", () => {
     render(
       <AppShell user={baseUser}>
         <div>Homepage Stage</div>
@@ -175,16 +175,23 @@ describe("homepage shell ownership", () => {
     );
 
     const nav = screen.getByRole("navigation", { name: "Primary" });
+    const workRail = screen.getByRole("navigation", { name: "Workspace" });
     expect(within(nav).getByRole("link", { name: /studio ordo home/i })).toBeInTheDocument();
-    expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).toBeNull();
+    expect(nav.querySelector('[data-shell-nav-region="primary-links"]')).not.toBeNull();
     expect(nav.querySelector('[data-shell-nav-region="account-access"]')).not.toBeNull();
     expect(within(nav).queryByRole("link", { name: "Library" })).toBeNull();
-    expect(within(nav).queryByRole("link", { name: "Home" })).toBeNull();
-    expect(within(nav).queryByRole("link", { name: "Dashboard" })).toBeNull();
-    expect(within(nav).queryByTestId("account-menu")).toBeNull();
-    expect(within(nav).getByTestId("jobs-rail")).toBeInTheDocument();
-    expect(within(nav).getByTestId("notification-feed")).toBeInTheDocument();
-    expect(within(nav).getByTestId("workspace-menu")).toBeInTheDocument();
+    expect(within(nav).getByRole("link", { name: "Offers" })).toHaveAttribute("href", "/offers");
+    expect(within(nav).getByRole("link", { name: "About" })).toHaveAttribute("href", "/about");
+    expect(within(nav).queryByRole("link", { name: "Feed" })).toBeNull();
+    expect(within(nav).queryByRole("link", { name: "Today" })).toBeNull();
+    expect(within(nav).getByTestId("account-menu")).toBeInTheDocument();
+    expect(within(nav).queryByTestId("jobs-rail")).toBeNull();
+    expect(within(nav).queryByTestId("attention-inbox")).toBeNull();
+    expect(within(workRail).queryByTestId("jobs-rail")).toBeNull();
+    expect(within(workRail).queryByTestId("attention-inbox")).toBeNull();
+    expect(within(workRail).getByRole("link", { name: "Today" })).toHaveAttribute("href", "/workspace");
+    expect(within(workRail).getByRole("link", { name: "People" })).toHaveAttribute("href", "/business");
+    expect(within(nav).queryByTestId("workspace-menu")).toBeNull();
   });
 
   it("shows login and register links instead of notifications for anonymous users", () => {
@@ -202,11 +209,15 @@ describe("homepage shell ownership", () => {
     );
 
     const nav = screen.getByRole("navigation", { name: "Primary" });
+    const publicDock = screen.getByRole("navigation", { name: "Public navigation" });
 
-    expect(within(nav).queryByTestId("notification-feed")).toBeNull();
+    expect(within(nav).queryByTestId("attention-inbox")).toBeNull();
     expect(within(nav).getByRole("link", { name: "Login" })).toHaveAttribute("href", "/login");
     expect(within(nav).getByRole("link", { name: "Register" })).toHaveAttribute("href", "/register");
-    expect(within(nav).getByTestId("workspace-menu")).toBeInTheDocument();
+    expect(within(nav).getByRole("link", { name: "Offers" })).toHaveAttribute("href", "/offers");
+    expect(within(nav).getByRole("link", { name: "About" })).toHaveAttribute("href", "/about");
+    expect(within(nav).queryByTestId("workspace-menu")).toBeNull();
+    expect(within(publicDock).getByRole("link", { name: "Chat" })).toHaveAttribute("href", "/");
   });
 
   it("does not render a footer substitute inside the embedded chat container", () => {

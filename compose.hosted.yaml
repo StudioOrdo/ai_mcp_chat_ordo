@@ -1,0 +1,108 @@
+services:
+  app:
+    image: kaw393939/studioordo:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NODE_VERSION: ${ORDO_NODE_VERSION:-22.22.2}
+    restart: unless-stopped
+    stop_grace_period: 15s
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: ${ORDO_PIDS_LIMIT:-256}
+    mem_reservation: ${ORDO_MEMORY_RESERVATION:-512m}
+    mem_limit: ${ORDO_MEMORY_LIMIT:-2g}
+    cpus: ${ORDO_CPUS:-2.0}
+    logging:
+      driver: json-file
+      options:
+        max-size: ${ORDO_LOG_MAX_SIZE:-10m}
+        max-file: ${ORDO_LOG_MAX_FILE:-5}
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=${ORDO_TMP_SIZE:-512m}
+      - /app/.runtime-logs:rw,noexec,nosuid,nodev,size=${ORDO_RUNTIME_LOG_TMPFS_SIZE:-64m}
+      - /app/.next/cache:rw,noexec,nosuid,nodev,size=${ORDO_NEXT_CACHE_TMPFS_SIZE:-256m}
+    volumes:
+      - ${ORDO_DATA_DIR:-./.data}:/app/.data
+      - ${ORDO_CONFIG_DIR:-./config}:/app/config:ro
+    expose:
+      - "3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: "0.0.0.0"
+      ORDO_HOSTED_MODE: ${ORDO_HOSTED_MODE:-reverse_proxy}
+      ORDO_PUBLIC_ORIGIN: ${ORDO_PUBLIC_ORIGIN:-}
+      TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-0}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      DATA_DIR: /app/.data
+      STUDIO_ORDO_DB_PATH: /app/.data/local.db
+      STUDIO_ORDO_BLOG_ASSET_ROOT: /app/.data/blog-assets
+      AI_PROVIDER: ${AI_PROVIDER:-anthropic}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_API_KEY_FILE: ${ANTHROPIC_API_KEY_FILE:-/run/secrets/anthropic_api_key}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-}
+      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
+      ANTHROPIC_REQUEST_TIMEOUT_MS: ${ANTHROPIC_REQUEST_TIMEOUT_MS:-10000}
+      ANTHROPIC_RETRY_ATTEMPTS: ${ANTHROPIC_RETRY_ATTEMPTS:-2}
+      ANTHROPIC_RETRY_DELAY_MS: ${ANTHROPIC_RETRY_DELAY_MS:-150}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_API_KEY_FILE: ${DEEPSEEK_API_KEY_FILE:-/run/secrets/deepseek_api_key}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-}
+      DEEPSEEK_REQUEST_TIMEOUT_MS: ${DEEPSEEK_REQUEST_TIMEOUT_MS:-10000}
+      DEEPSEEK_RETRY_ATTEMPTS: ${DEEPSEEK_RETRY_ATTEMPTS:-2}
+      DEEPSEEK_RETRY_DELAY_MS: ${DEEPSEEK_RETRY_DELAY_MS:-150}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_API_KEY_FILE: ${OPENAI_API_KEY_FILE:-/run/secrets/openai_api_key}
+      IMAGE_PROVIDER: ${IMAGE_PROVIDER:-disabled}
+      IMAGE_MODEL: ${IMAGE_MODEL:-}
+      TTS_PROVIDER: ${TTS_PROVIDER:-disabled}
+      TTS_MODEL: ${TTS_MODEL:-}
+      STT_PROVIDER: ${STT_PROVIDER:-disabled}
+      STT_MODEL: ${STT_MODEL:-}
+      WEB_SEARCH_PROVIDER: ${WEB_SEARCH_PROVIDER:-disabled}
+      WEB_SEARCH_MODEL: ${WEB_SEARCH_MODEL:-}
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      ELEVENLABS_API_KEY_FILE: ${ELEVENLABS_API_KEY_FILE:-/run/secrets/elevenlabs_api_key}
+      ELEVENLABS_VOICE_ID: ${ELEVENLABS_VOICE_ID:-}
+      MEDIA_WORKER_SHARED_SECRET: ${MEDIA_WORKER_SHARED_SECRET:-}
+      MEDIA_WORKER_SHARED_SECRET_FILE: ${MEDIA_WORKER_SHARED_SECRET_FILE:-/run/secrets/media_worker_shared_secret}
+      ORDO_INSTALL_TOKEN: ${ORDO_INSTALL_TOKEN:-}
+      ORDO_INSTALL_TOKEN_FILE: ${ORDO_INSTALL_TOKEN_FILE:-/run/secrets/ordo_install_token}
+      ORDO_INTERNAL_RUNTIME_SERVICE_TOKEN: ${ORDO_INTERNAL_RUNTIME_SERVICE_TOKEN:-}
+      ORDO_INTERNAL_RUNTIME_SERVICE_TOKEN_FILE: ${ORDO_INTERNAL_RUNTIME_SERVICE_TOKEN_FILE:-/run/secrets/ordo_internal_runtime_service_token}
+      SHUTDOWN_TIMEOUT_MS: ${SHUTDOWN_TIMEOUT_MS:-10000}
+    secrets:
+      - anthropic_api_key
+      - deepseek_api_key
+      - openai_api_key
+      - elevenlabs_api_key
+      - media_worker_shared_secret
+      - ordo_install_token
+      - ordo_internal_runtime_service_token
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health/live >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+secrets:
+  anthropic_api_key:
+    external: true
+  deepseek_api_key:
+    external: true
+  openai_api_key:
+    external: true
+  elevenlabs_api_key:
+    external: true
+  media_worker_shared_secret:
+    external: true
+  ordo_install_token:
+    external: true
+  ordo_internal_runtime_service_token:
+    external: true

@@ -4,16 +4,6 @@ const { createMessageMock } = vi.hoisted(() => ({
   createMessageMock: vi.fn(),
 }));
 
-vi.mock("@anthropic-ai/sdk", () => ({
-  default: class Anthropic {
-    messages = {
-      create: createMessageMock,
-    };
-
-    constructor(_: { apiKey: string }) {}
-  },
-}));
-
 import { AnthropicSummarizer } from "./AnthropicSummarizer";
 
 describe("AnthropicSummarizer", () => {
@@ -26,7 +16,11 @@ describe("AnthropicSummarizer", () => {
       content: [{ type: "text", text: "Topic: Search\n- User asked about recall" }],
     });
 
-    const summarizer = new AnthropicSummarizer("test-key", "claude-test");
+    const summarizer = new AnthropicSummarizer({
+      messages: {
+        create: createMessageMock,
+      },
+    } as never, "anthropic", "claude-test");
 
     const result = await summarizer.summarize([
       {
@@ -77,11 +71,15 @@ describe("AnthropicSummarizer", () => {
     );
   });
 
-  it("fails fast when no Anthropic model is configured", async () => {
-    const summarizer = new AnthropicSummarizer("test-key", "");
+  it("fails fast when no intelligence provider model is configured", async () => {
+    const summarizer = new AnthropicSummarizer({
+      messages: {
+        create: createMessageMock,
+      },
+    } as never, "anthropic", "");
 
     await expect(summarizer.summarize([])).rejects.toThrow(
-      "No valid Anthropic model configured.",
+      "No valid intelligence provider model configured.",
     );
     expect(createMessageMock).not.toHaveBeenCalled();
   });

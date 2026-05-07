@@ -27,6 +27,7 @@ const {
   getActiveReferralSnapshotMock,
   getTrustedReferrerContextMock,
   attachValidatedVisitToConversationMock,
+  createSelectedIntelligenceRuntimeMock,
 } = vi.hoisted(() => ({
   getAnthropicApiKeyMock: vi.fn(),
   getSessionUserMock: vi.fn(),
@@ -39,6 +40,7 @@ const {
   getActiveReferralSnapshotMock: vi.fn(),
   getTrustedReferrerContextMock: vi.fn(),
   attachValidatedVisitToConversationMock: vi.fn(),
+  createSelectedIntelligenceRuntimeMock: vi.fn(),
 }));
 
 // Phase 7 Mock Density Exception: This file tests a complex composition root or integration pipeline and legitimately requires extensive boundary mocking for external services (auth, db, observability, etc.).
@@ -48,6 +50,8 @@ vi.mock("@/lib/config/env", () => ({
 
 vi.mock("@/lib/auth", () => ({
   getSessionUser: getSessionUserMock,
+  resolveSessionAuthorizationRole: (user: { roles: string[]; realRoles?: string[] }) =>
+    [...(user.realRoles ?? []), ...user.roles].includes("ADMIN") ? "ADMIN" : user.roles[0],
 }));
 
 vi.mock("@/lib/chat/resolve-user", () => ({
@@ -70,6 +74,10 @@ vi.mock("@/lib/platform/agent-platform-facade-root", () => ({
 
 vi.mock("@/lib/chat/anthropic-stream", () => ({
   runClaudeAgentLoopStream: runClaudeAgentLoopStreamMock,
+}));
+
+vi.mock("@/lib/ai/providers/selected-intelligence-runtime", () => ({
+  createSelectedIntelligenceRuntime: createSelectedIntelligenceRuntimeMock,
 }));
 
 vi.mock("@/adapters/SystemPromptDataMapper", () => ({
@@ -126,6 +134,62 @@ vi.mock("@/adapters/RepositoryFactory", () => ({
     listByConversation: vi.fn(async () => []),
     listBySourcePromptBinding: vi.fn(async () => []),
   }),
+  getOperationRepository: vi.fn(() => {
+    let latestSnapshot: {
+      operation: Record<string, unknown>;
+      steps: unknown[];
+      actions: unknown[];
+      events: unknown[];
+      artifacts: unknown[];
+    } | null = null;
+    const createSnapshot = (input: Record<string, unknown>) => {
+      const now = String(input.now ?? "2026-03-25T03:00:00.000Z");
+      latestSnapshot = {
+        operation: {
+          id: input.id,
+          kind: input.kind,
+          revision: 1,
+          title: input.title,
+          status: input.status ?? "draft",
+          riskLevel: input.riskLevel ?? "medium",
+          conversationId: input.conversationId ?? null,
+          originMessageId: input.originMessageId ?? null,
+          createdByUserId: input.createdByUserId ?? null,
+          createdByRole: input.createdByRole ?? "ADMIN",
+          visibility: input.visibility ?? "conversation",
+          currentStepId: input.currentStepId ?? null,
+          createdAt: now,
+          updatedAt: now,
+          completedAt: null,
+          summary: input.summary ?? null,
+          input: input.input ?? {},
+          result: input.result ?? null,
+          error: input.error ?? null,
+        },
+        steps: [],
+        actions: [],
+        events: [],
+        artifacts: [],
+      };
+      return latestSnapshot;
+    };
+
+    return {
+      createOperation: vi.fn(async (input: Record<string, unknown>) => createSnapshot(input)),
+      replaceActions: vi.fn(async ({ actions }: { actions: unknown[] }) => ({
+        ...(latestSnapshot ?? createSnapshot({
+          id: "op_test",
+          kind: "help_flow",
+          title: "Test Operation",
+          createdByRole: "ADMIN",
+        })),
+        actions,
+      })),
+      findOperationById: vi.fn(async () => null),
+      listOperationsByConversation: vi.fn(async () => []),
+      listAvailableActions: vi.fn(async () => []),
+    };
+  }),
 }));
 
 function parseSsePayloads(body: string): Array<Record<string, unknown>> {
@@ -167,6 +231,26 @@ describe("chat stream route prompt-runtime seam", () => {
     clearActiveStreamsForTests();
 
     getAnthropicApiKeyMock.mockReturnValue("test-key");
+    createSelectedIntelligenceRuntimeMock.mockReturnValue({
+      provider: "anthropic",
+      client: {},
+      model: "claude-haiku-4-5",
+      baseUrl: null,
+      policy: {
+        provider: "anthropic",
+        timeoutMs: 10000,
+        retryAttempts: 1,
+        retryDelayMs: 0,
+        modelCandidates: ["claude-haiku-4-5"],
+      },
+      metadata: {
+        providerSource: "default",
+        apiKeySource: "env",
+        apiKeyConfigured: true,
+        modelSource: "default",
+        baseUrlSource: "default",
+      },
+    });
     getSessionUserMock.mockResolvedValue({
       id: "usr_admin",
       email: "admin@example.com",

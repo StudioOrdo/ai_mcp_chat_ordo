@@ -1,6 +1,8 @@
 import type { ActionLinkType } from "@/core/entities/rich-content";
 import type { JobFailureClass, JobStatus } from "@/core/entities/job";
 import type { JobStateEntry } from "@/hooks/chat/useJobStateStore";
+import type { CanonicalMediaWorkflowSnapshot } from "@/lib/media/workflows/media-workflow-read-model";
+import { operationActionToActionLink } from "@/lib/operations/operation-action-view-model";
 
 export type JobsRailItemState =
   | "running"
@@ -30,7 +32,7 @@ export type JobsRailActionKind =
 export interface JobsRailAction {
   kind: JobsRailActionKind;
   label: string;
-  actionType: Extract<ActionLinkType, "route" | "job" | "send">;
+  actionType: Extract<ActionLinkType, "route" | "job" | "send" | "operation">;
   value: string;
   params?: Record<string, string>;
   primary: boolean;
@@ -64,6 +66,7 @@ export interface JobsRailModel {
 
 export interface ResolveJobsRailOptions {
   entries: readonly JobStateEntry[];
+  workflows?: readonly CanonicalMediaWorkflowSnapshot[];
   syncState?: JobsRailSyncState;
   conversationId: string | null;
   canExportDiagnostics: boolean;
@@ -203,6 +206,50 @@ function buildActions(entry: JobStateEntry): JobsRailAction[] {
   ];
 }
 
+function workflowState(status: CanonicalMediaWorkflowSnapshot["status"]): JobsRailItemState {
+  if (status === "queued" || status === "running") return "running";
+  if (status === "succeeded") return "completed";
+  if (status === "failed" || status === "blocked") return "needs_input";
+  return "history";
+}
+
+function workflowStatusLabel(status: CanonicalMediaWorkflowSnapshot["status"]): string {
+  switch (status) {
+    case "queued":
+      return "Queued";
+    case "running":
+      return "Running";
+    case "blocked":
+      return "Needs attention";
+    case "failed":
+      return "Failed";
+    case "succeeded":
+      return "Done";
+    case "canceled":
+      return "Canceled";
+  }
+}
+
+function buildWorkflowActions(workflow: CanonicalMediaWorkflowSnapshot): JobsRailAction[] {
+  const operationActions = workflow.operation?.availableActions.map((operationAction): JobsRailAction => {
+    const link = operationActionToActionLink(operationAction);
+    const lower = operationAction.label.toLowerCase();
+    return {
+      kind: lower.includes("cancel") ? "cancel" : lower.includes("retry") ? "retry" : "open",
+      label: operationAction.label,
+      actionType: "operation",
+      value: link.value,
+      params: link.params,
+      primary: !lower.includes("cancel"),
+    };
+  }) ?? [];
+
+  return [
+    ...operationActions,
+    action("open", "Open jobs workspace", "route", "/jobs", operationActions.length === 0),
+  ];
+}
+
 function resolveSyncLabel(syncState: JobsRailSyncState): string {
   switch (syncState) {
     case "live":
@@ -223,7 +270,7 @@ export function resolveJobsRail(options: ResolveJobsRailOptions): JobsRailModel 
     .filter((entry) => !entry.failure.supersededByJobId)
     .filter((entry) => entry.status !== "canceled");
 
-  const items = visibleEntries
+  const jobItems = visibleEntries
     .map((entry): JobsRailItem => {
       const snapshot = entry;
       const failureClass = snapshot.failure.failureClass;
@@ -245,6 +292,31 @@ export function resolveJobsRail(options: ResolveJobsRailOptions): JobsRailModel 
         actions: buildActions(entry),
       };
     })
+    .sort(compareItems);
+
+  const workflowItems = (options.workflows ?? [])
+    .filter((workflow) => workflow.status !== "canceled")
+    .map((workflow): JobsRailItem => {
+      const state = workflowState(workflow.status);
+      return {
+        jobId: workflow.workflowId,
+        conversationId: workflow.conversationId || options.conversationId,
+        toolName: "media_workflow",
+        title: workflow.title,
+        subtitle: workflow.failure.message ?? workflow.stage.label,
+        state,
+        statusLabel: workflowStatusLabel(workflow.status),
+        progressLabel: workflow.stage.label,
+        progressPercent: workflow.status === "queued" || workflow.status === "running"
+          ? workflow.stage.progressPercent
+          : null,
+        updatedAt: workflow.updatedAt,
+        failureClass: workflow.status === "failed" || workflow.status === "blocked" ? "unknown" : null,
+        actions: buildWorkflowActions(workflow),
+      };
+    });
+
+  const items = [...workflowItems, ...jobItems]
     .sort(compareItems)
     .slice(0, maxVisibleItems);
 

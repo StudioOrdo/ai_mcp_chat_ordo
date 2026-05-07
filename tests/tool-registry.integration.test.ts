@@ -44,7 +44,7 @@ describe("Tool Registry Integration", () => {
   // TEST-REG-01
   it("registry has the full Sprint 3 tool surface after composition", () => {
     const { registry } = buildStack();
-    expect(registry.getToolNames()).toHaveLength(59);
+    expect(registry.getToolNames()).toHaveLength(66);
   });
 
   // TEST-REG-02
@@ -67,7 +67,6 @@ describe("Tool Registry Integration", () => {
     expect(names).toEqual([
       "adjust_ui",
       "calculator",
-      "generate_audio",
       "generate_chart",
       "generate_graph",
       "get_checklist",
@@ -88,7 +87,7 @@ describe("Tool Registry Integration", () => {
   it("AUTHENTICATED gets all member tools", () => {
     const { registry } = buildStack();
     const schemas = registry.getSchemasForRole("AUTHENTICATED");
-    expect(schemas).toHaveLength(28);
+    expect(schemas).toHaveLength(27);
   });
 
   it("ADMIN gets the journal wrapper tools alongside compatibility-safe blog tools", () => {

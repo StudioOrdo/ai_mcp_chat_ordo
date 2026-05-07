@@ -19,7 +19,7 @@ describe("TD-C — job visibility SRP", () => {
     expect(page).not.toContain("findLatestEventForJob");
   });
 
-  it("P2: user and chat job read routes delegate snapshot assembly to the read query", () => {
+  it("P2: user and chat job read routes delegate snapshot assembly to read facades", () => {
     const userListRoute = readSource("src/app/api/jobs/route.ts");
     const userDetailRoute = readSource("src/app/api/jobs/[jobId]/route.ts");
     const chatListRoute = readSource("src/app/api/chat/jobs/route.ts");
@@ -28,7 +28,8 @@ describe("TD-C — job visibility SRP", () => {
     expect(userListRoute).toContain("getPlatformInteractionFacade");
     expect(userDetailRoute).toContain("getPlatformInteractionFacade");
     expect(chatDetailRoute).toContain("getPlatformInteractionFacade");
-    expect(chatListRoute).toContain("getJobStatusQuery");
+    expect(chatListRoute).toContain("getPlatformInteractionFacade");
+    expect(chatListRoute).toContain("listConversationJobInteractions");
 
     for (const source of [userListRoute, userDetailRoute, chatListRoute, chatDetailRoute]) {
       expect(source).not.toContain("findLatestEventForJob");
@@ -59,11 +60,12 @@ describe("TD-C — job visibility DIP and ISP", () => {
 });
 
 describe("TD-C — job visibility OCP", () => {
-  it("P5: Jobs remains a data-driven shell route and account-menu extension", () => {
+  it("P5: Jobs remains a data-driven diagnostic route under the Studio owner surface", () => {
     const shellNavigation = readSource("src/lib/shell/shell-navigation.ts");
 
     expect(shellNavigation).toContain('id: "jobs"');
-    expect(shellNavigation).toContain('ACCOUNT_MENU_ROUTE_IDS = ["workspace-overview", "jobs", "my-media", "referrals", "operations-media", "profile"]');
+    expect(shellNavigation).toContain('AUTHENTICATED_WORK_RAIL_ROUTE_IDS = [');
+    expect(shellNavigation).not.toContain('"jobs",\n] as const');
     expect(shellNavigation).not.toContain('if (route.id === "jobs")');
   });
 
@@ -73,7 +75,7 @@ describe("TD-C — job visibility OCP", () => {
 
     expect(directives).toContain('const jobAudience = role === "ANONYMOUS" ? "anonymous" : "signed-in"');
     expect(directives).toContain("getJobStatusDirectiveLines(jobAudience)");
-    expect(jobStatusStrategy).toContain('When useful, signed-in users can review the full operational view at /jobs.');
+    expect(jobStatusStrategy).toContain('When useful, signed-in users can review the full production view at /studio.');
     expect(jobStatusStrategy).toContain('If the user asks about job status, keep the answer chat-native and sign-in-aware. Do not send them to /jobs because that route is only useful after sign-in.');
   });
 });

@@ -120,19 +120,24 @@ const CRITICAL_TOOL_EXPECTATIONS: readonly CriticalToolExpectation[] = [
 
 const CRITICAL_ROUTE_EXPECTATIONS: readonly CriticalRouteExpectation[] = [
   {
-    routeId: "corpus",
+    routeId: "home",
     allowedRoles: ALL_ROLES,
-    rationale: "The library remains visible to every role.",
+    rationale: "The conversational homepage remains visible to every role.",
   },
   {
-    routeId: "journal",
+    routeId: "offers",
     allowedRoles: ALL_ROLES,
-    rationale: "The public journal remains visible to every role.",
+    rationale: "The public offers surface remains visible to every role.",
   },
   {
-    routeId: "jobs",
+    routeId: "studio",
     allowedRoles: SIGNED_IN_ROLES,
-    rationale: "Job history stays scoped to signed-in users.",
+    rationale: "The Studio owner surface stays scoped to signed-in users.",
+  },
+  {
+    routeId: "business",
+    allowedRoles: SIGNED_IN_ROLES,
+    rationale: "The Business owner surface stays scoped to signed-in users.",
   },
   {
     routeId: "profile",

@@ -1,29 +1,72 @@
-# Contributing to Studio Ordo
+# Contributing To Ordo
 
-First, thank you for your interest in contributing! We appreciate you taking the time to help make this project better.
+Thank you for helping make Ordo clearer, sturdier, and more useful.
 
-## At This Stage: Issues Only, No Code PRs Please
+Ordo is in active development toward a July 31, 2026 alpha. The most useful help right now is evidence-rich QA: clear reports, reproducible failures, screenshots, command output, broken links, confusing docs, and examples where the project claims too much.
 
-To maintain the architectural integrity of the system and maximize development velocity, **we are currently ONLY collecting bug reports and issue submissions.**
+The public work process is becoming GitHub-native: issues are the visible
+intake and accepted-work ledger, and pull requests are evidence-bearing
+implementation packages.
 
-Studio Ordo was built from the ground up using rigorous AI-assisted project management controls (detailed in `docs/_corpus/system-docs/chapters/06-ai-project-management.md`). The maintainer pays for the AI tokens to implement fixes and feature requests directly from well-written issues.
+## Current Contribution Posture
 
-**This means we kindly ask that you do not submit Pull Requests containing code fixes or feature additions.**
+At this stage, Ordo is issue-first.
 
-Instead, please write a comprehensive issue outlining the bug or the requested improvement.
+Please do not open code pull requests for fixes or features unless the maintainer has asked for that specific change. The architecture is still being shaped around governed capabilities, durable jobs, QA reports, local persistence, and a Rust/TypeScript boundary. Broad code changes can create more review work than they remove.
 
-### How to file an issue
+That is a quality gate, not a closed door. Good issues give the maintainer and agents enough evidence to turn a report into a deterministic test, reproduction, docs correction, or scoped implementation issue.
 
-When filing a bug or reporting drift in the framework:
+## What To File
 
-1. Provide concrete evidence of the issue (e.g. failing assertion, missing path, UI drift).
-2. Note the role you were using when the bug occurred (e.g. `ANONYMOUS`, `ADMIN`).
-3. Note any recent tools/actions executed out of the MCP catalog when the issue emerged.
-4. Attach deterministic command output when relevant, especially `npm run test`, `npm run build`, `npm run scan:secrets`, `npm run qa:runtime-integrity`, or `npm run release:evidence`.
-5. Reference the affected files or docs directly when the issue is architectural or documentation drift.
+Use the issue template that matches what you found:
 
-We use the standard GitHub issue templates. The more descriptive the bug, the faster the AI agents can process it!
+- **Alpha Feedback**: use when you tried Ordo, watched a demo, or discussed the alpha path and have concrete feedback.
+- **Bug Report**: use when a product surface, command, install path, or workflow fails.
+- **QA Report**: use when you have structured evidence that can become a test, reproduction, or work order.
+- **Docs Feedback**: use when a public doc is stale, confusing, broken, or overclaiming.
+- **Runtime Integrity Regression**: use when prompt/runtime truth drifts, retrieval or citation is wrong, or a rendered output violates its contract.
 
-For the current release-verification ladder and evidence artifacts, see [docs/operations/release-gates-and-evidence.md](docs/operations/release-gates-and-evidence.md).
+## Good Evidence
 
-Thank you for contributing to our operations layer.
+A useful issue usually includes:
+
+1. What you tried.
+2. The route, command, file, or surface involved.
+3. Your role or runtime context, if relevant.
+4. Expected behavior.
+5. Actual behavior.
+6. Screenshots, logs, command output, failing assertions, or links to affected docs.
+7. Enough detail to turn the report into a deterministic reproduction or docs correction.
+
+Reports do not need to be polished. They do need to be concrete.
+
+## Current Truth Boundaries
+
+The project has real foundations: durable jobs, factory/work-order orchestration, structured QA reports, browser/WASM media execution, hybrid local search, SQLite persistence, and backup/native command boundaries.
+
+GitHub automation is not a shipped product claim. During alpha, Ordo is shaping QA reports into the intake layer for GitHub issues and agent-assisted triage. Good reports include enough evidence for a human and agent to validate the issue before implementation.
+
+For the current public truth ledger, see [docs/state-of-the-project.md](docs/state-of-the-project.md). For the docs map, see [docs/README.md](docs/README.md).
+
+## Code Contributions
+
+Code contributions may become easier later. For now, architecture-sensitive implementation work is handled through small, governed GitHub issues and pull requests with evidence, QA, and maintainer review.
+
+If you believe a code change is necessary, open an issue first and include the smallest useful reproduction or proof. The maintainer can then decide whether to ask for a patch, write the fix directly, or route the work through an agent-assisted implementation issue.
+
+Accepted implementation issues should name the goal, governing docs, current
+code anchors, non-goals, tests, visual QA expectations when relevant, and
+closeout evidence required.
+
+Pull requests should link the accepted issue and include:
+
+- files changed;
+- tests and commands run;
+- QA pass 1 findings and fixes;
+- QA pass 2 findings and fixes;
+- screenshots or visual QA status when relevant;
+- remaining explicit risks.
+
+## Conduct
+
+Be direct, specific, and respectful. Ordo is built around human authority plus machine follow-through; the public contribution surface should follow the same standard.

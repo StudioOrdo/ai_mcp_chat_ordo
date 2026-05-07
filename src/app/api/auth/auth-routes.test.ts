@@ -622,7 +622,7 @@ describe("Auth API routes — full lifecycle", () => {
     authTestState.testDb?.close();
   });
 
-  it("keeps role simulation as an overlay on a validated real session", async () => {
+  it("ignores and clears stale role simulation cookies on a validated real session", async () => {
     const regRes = await registerRoute(
       jsonRequest({ email: "overlay@test.com", password: "password123", name: "Overlay User" }),
     );
@@ -632,7 +632,36 @@ describe("Auth API routes — full lifecycle", () => {
     const user = await getSessionUser();
 
     expect(user.id).toBe(regBody.user.id);
+    expect(user.roles).toEqual(["AUTHENTICATED"]);
+    expect(user.realRoles).toEqual(["AUTHENTICATED"]);
+    expect(user.simulatedRole).toBe(null);
+    expect(authTestState.cookieJar.has("lms_mock_session_role")).toBe(false);
+
+    authTestState.testDb?.close();
+  });
+
+  it("keeps real admin authority visible when a stale role simulation cookie is present", async () => {
+    const regRes = await registerRoute(
+      jsonRequest({ email: "real-admin@test.com", password: "password123", name: "Real Admin" }),
+    );
+    const regBody = await regRes.json();
+    getTestDb()
+      .prepare(`DELETE FROM user_roles WHERE user_id = ?`)
+      .run(regBody.user.id);
+    getTestDb()
+      .prepare(`INSERT INTO user_roles (user_id, role_id) VALUES (?, 'role_admin')`)
+      .run(regBody.user.id);
+    authTestState.cookieJar.set("lms_mock_session_role", "AUTHENTICATED");
+
+    const user = await getSessionUser();
+    const { resolveSessionAuthorizationRole, sessionHasRole } = await import("@/lib/auth");
+
     expect(user.roles).toEqual(["ADMIN"]);
+    expect(user.realRoles).toEqual(["ADMIN"]);
+    expect(user.simulatedRole).toBe(null);
+    expect(resolveSessionAuthorizationRole(user)).toBe("ADMIN");
+    expect(sessionHasRole(user, ["ADMIN"])).toBe(true);
+    expect(authTestState.cookieJar.has("lms_mock_session_role")).toBe(false);
 
     authTestState.testDb?.close();
   });

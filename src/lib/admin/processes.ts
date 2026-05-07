@@ -1,11 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
-import {
-  getOpenaiApiKey,
-  validateRequiredRuntimeConfig,
-  getAnthropicModel,
-} from "@/lib/config/env";
+import { validateRequiredRuntimeConfig } from "@/lib/config/env";
+import { getProviderDiagnosticsReportSync } from "@/lib/ai/providers/provider-diagnostics";
 import { getLivenessProbe, getReadinessProbe } from "@/lib/health/probes";
+import { getApplianceHealthReport } from "@/lib/appliance/health-facade";
+import { getApplianceRuntimeProfile } from "@/lib/appliance/runtime-profile";
+import { getApplianceDataBoundary } from "@/lib/appliance/data-boundary";
 import { getMetricsSnapshot } from "@/lib/observability/metrics";
 import {
   resolveRuntimeAuditLogDir,
@@ -13,12 +13,6 @@ import {
 } from "@/lib/observability/runtime-audit-log";
 import { buildReferralContextBlock } from "@/lib/chat/referral-context";
 import { resolveReferralPublicOrigin, type ReferralOriginSource } from "@/lib/referrals/referral-origin";
-
-export interface FeatureIntegrationDiagnostics {
-  status: AdminStatus;
-  configured: boolean;
-  summary: string;
-}
 
 export type AdminStatus = "ok" | "error";
 
@@ -43,26 +37,6 @@ export interface ReferralOperationalDiagnostics {
   knownReferrerPromptVerified: boolean;
   missingReferrerPromptVerified: boolean;
   warnings: string[];
-}
-
-export function getOpenAiFeatureDiagnostics(): FeatureIntegrationDiagnostics {
-  try {
-    getOpenaiApiKey();
-    return {
-      status: "ok",
-      configured: true,
-      summary: "OPENAI_API_KEY available for TTS and other OpenAI-backed features.",
-    };
-  } catch (error) {
-    return {
-      status: "error",
-      configured: false,
-      summary:
-        error instanceof Error
-          ? error.message
-          : "OPENAI_API_KEY is not configured.",
-    };
-  }
 }
 
 export function getReleaseManifestReport(): ReleaseManifestReport {
@@ -122,8 +96,27 @@ export function getDiagnosticsReport() {
     name?: string;
   };
   const referral = getReferralOperationalDiagnostics();
-  const openai = getOpenAiFeatureDiagnostics();
   const runtimeAuditLogDir = resolveRuntimeAuditLogDir();
+  const providerDiagnostics = getProviderDiagnosticsReportSync();
+  const runtimeProfile = getApplianceRuntimeProfile();
+  const dataBoundary = getApplianceDataBoundary();
+  const appliance = {
+    runtimeProfile: {
+      profileId: runtimeProfile.profileId,
+      processRole: runtimeProfile.processRole,
+      mediaWorkerMode: runtimeProfile.mediaWorker.mode,
+      deferredWorkerMode: runtimeProfile.deferredWorker.mode,
+      warnings: runtimeProfile.warnings,
+    },
+    dataBoundary: {
+      dataDir: dataBoundary.dataDir,
+      sqlitePath: dataBoundary.sqlitePath,
+      sqliteInsideDataDir: dataBoundary.sqliteInsideDataDir,
+      blogAssetRoot: dataBoundary.blogAssetRoot,
+      userFileRoot: dataBoundary.userFileRoot,
+      warnings: dataBoundary.warnings,
+    },
+  };
 
   return {
     status: "ok" as const,
@@ -132,7 +125,9 @@ export function getDiagnosticsReport() {
     appVersion: packageJson.version ?? "unknown",
     nodeVersion: process.version,
     nodeEnv: process.env.NODE_ENV ?? "development",
-    anthropicModel: getAnthropicModel(),
+    providerDiagnostics,
+    intelligenceProvider: providerDiagnostics.intelligence,
+    appliance,
     releaseManifestPresent: fs.existsSync(releaseManifestPath),
     metrics: getMetricsSnapshot(),
     runtimeAudit: {
@@ -143,9 +138,6 @@ export function getDiagnosticsReport() {
         remoteService: resolveRuntimeAuditLogFilePath("remote_service"),
         mcpProcess: resolveRuntimeAuditLogFilePath("mcp_process"),
       },
-    },
-    integrations: {
-      openai,
     },
     referral,
   };
@@ -196,18 +188,20 @@ export function getReferralOperationalDiagnostics(): ReferralOperationalDiagnost
   };
 }
 
-export function getHealthSweepReport() {
+export async function getHealthSweepReport() {
   const liveness = getLivenessProbe();
-  const readiness = getReadinessProbe();
+  const readiness = await getReadinessProbe();
+  const appliance = readiness.appliance ?? await getApplianceHealthReport();
 
   return {
     status:
-      readiness.status === "ok" && liveness.status === "ok"
+      readiness.status === "ok" && liveness.status === "ok" && appliance.status !== "blocked"
         ? ("ok" as const)
         : ("error" as const),
     generatedAt: new Date().toISOString(),
     liveness,
     readiness,
+    appliance,
   };
 }
 

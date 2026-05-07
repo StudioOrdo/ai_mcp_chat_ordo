@@ -264,6 +264,51 @@ describe("RichContentRenderer", () => {
     expect(screen.getByText(/Drafting\s+60%/)).toBeInTheDocument();
   });
 
+  it("renders operation-card blocks as first-class operation cards", () => {
+    const onActionClick = vi.fn();
+    const content: RichContent = {
+      blocks: [
+        {
+          type: "operation-card",
+          operation: {
+            operationId: "op_1",
+            title: "Open Help",
+            kind: "help_flow",
+            status: "draft",
+            statusLabel: "draft",
+            statusTone: "neutral",
+            riskLevel: "info",
+            riskLabel: "info",
+            summary: "Open governed help.",
+            progressPercent: null,
+            updatedAt: "2026-05-03T12:00:00.000Z",
+            latestEventLabel: null,
+            artifactCount: 0,
+            actionCount: 1,
+            actions: [{
+              type: "action-link",
+              label: "Search Help",
+              actionType: "operation",
+              value: "op_1",
+              params: {
+                operationId: "op_1",
+                actionId: "act_1",
+                idempotencyKey: "idem_1",
+                operationRevision: "1",
+              },
+            }],
+          },
+        },
+      ],
+    };
+
+    render(<RichContentRenderer content={content} onActionClick={onActionClick} />);
+
+    expect(screen.getByText("Open Help")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Search Help (operation)" }));
+    expect(onActionClick).toHaveBeenCalledWith("operation", "op_1", expect.objectContaining({ actionId: "act_1" }));
+  });
+
   it("renders job-status actions and dispatches them", () => {
     const onActionClick = vi.fn();
     const content: RichContent = {
@@ -276,7 +321,7 @@ describe("RichContentRenderer", () => {
           status: "succeeded",
           summary: "Draft ready.",
           actions: [
-            { type: "action-link", label: "Open draft", actionType: "route", value: "/journal/launch-plan" },
+            { type: "action-link", label: "Open feed item", actionType: "route", value: "/feed/launch-plan" },
             { type: "action-link", label: "Publish", actionType: "send", value: "Publish the draft post." },
           ],
         },
@@ -285,10 +330,10 @@ describe("RichContentRenderer", () => {
 
     render(<RichContentRenderer content={content} onActionClick={onActionClick} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Open draft (route)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open feed item (route)" }));
     fireEvent.click(screen.getByRole("button", { name: "Publish (send)" }));
 
-    expect(onActionClick).toHaveBeenNthCalledWith(1, "route", "/journal/launch-plan", undefined);
+    expect(onActionClick).toHaveBeenNthCalledWith(1, "route", "/feed/launch-plan", undefined);
     expect(onActionClick).toHaveBeenNthCalledWith(2, "send", "Publish the draft post.", undefined);
   });
 
@@ -329,6 +374,72 @@ describe("RichContentRenderer", () => {
     render(<RichContentRenderer content={content} onActionClick={onActionClick} />);
     fireEvent.click(screen.getByRole("button", { name: "Send offer (send)" }));
     expect(onActionClick).toHaveBeenCalledWith("send", "Draft offer", { tone: "formal" });
+  });
+
+  it("renders operation actions as durable buttons with danger styling", () => {
+    const onActionClick = vi.fn();
+    const params = {
+      operationId: "op_1",
+      actionId: "action_1",
+      idempotencyKey: "idem_1",
+      operationRevision: "3",
+      riskLevel: "destructive",
+      confirmPolicy: "phrase",
+    };
+    const content: RichContent = {
+      blocks: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "action-link", label: "Execute restore", actionType: "operation", value: "op_1", params },
+          ],
+        },
+      ],
+    };
+
+    render(<RichContentRenderer content={content} onActionClick={onActionClick} />);
+    const button = screen.getByRole("button", { name: "Execute restore (operation)" });
+    expect(button).toHaveAttribute("data-chat-action-link", "operation");
+    expect(button).toHaveAttribute("data-operation-action", "true");
+    expect(button).toHaveAttribute("data-action-intent", "danger");
+    expect(button.className).toContain("ui-operation-action-button");
+
+    fireEvent.click(button);
+    expect(onActionClick).toHaveBeenCalledWith("operation", "op_1", params);
+  });
+
+  it("renders disabled operation actions with a reason and blocks dispatch", () => {
+    const onActionClick = vi.fn();
+    const content: RichContent = {
+      blocks: [
+        {
+          type: "paragraph",
+          content: [
+            {
+              type: "action-link",
+              label: "Execute restore",
+              actionType: "operation",
+              value: "op_1",
+              params: {
+                operationId: "op_1",
+                actionId: "action_1",
+                idempotencyKey: "idem_1",
+                operationRevision: "3",
+                disabledReason: "Action has expired.",
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    render(<RichContentRenderer content={content} onActionClick={onActionClick} />);
+    const button = screen.getByRole("button", { name: "Execute restore (operation)" });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute("title", "Action has expired.");
+
+    fireEvent.click(button);
+    expect(onActionClick).not.toHaveBeenCalled();
   });
 
   it("should render external action links and dispatch them on click", () => {
@@ -425,7 +536,7 @@ describe("RichContentRenderer", () => {
           items: [
             [
               { type: "text", text: "Step 1: " },
-              { type: "action-link", label: "Open library", actionType: "route", value: "/library" },
+              { type: "action-link", label: "Open feed", actionType: "route", value: "/feed" },
             ],
           ],
         },
@@ -433,10 +544,10 @@ describe("RichContentRenderer", () => {
     };
 
     render(<RichContentRenderer content={content} onActionClick={onActionClick} />);
-    const button = screen.getByRole("button", { name: "Open library (route)" });
+    const button = screen.getByRole("button", { name: "Open feed (route)" });
     expect(button.closest("li")).not.toBeNull();
     fireEvent.click(button);
-    expect(onActionClick).toHaveBeenCalledWith("route", "/library", undefined);
+    expect(onActionClick).toHaveBeenCalledWith("route", "/feed", undefined);
   });
 
   it("should render action link inside operator brief card", () => {

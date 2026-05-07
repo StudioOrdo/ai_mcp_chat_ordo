@@ -84,6 +84,7 @@ function createWorkOrder(brief: ProductBrief, dag: ProductionDAG, overrides: Par
     conversationId: "conv_factory",
     initiatedBy: "batch_automation",
     ...overrides,
+    operationId: overrides.operationId ?? "op_wo_1",
   };
 }
 

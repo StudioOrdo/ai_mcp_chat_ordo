@@ -9,7 +9,7 @@ import {
 import { createRouteRequest } from "../../../../../tests/helpers/workflow-route-fixture";
 
 const {
-  getAnthropicApiKeyMock,
+  createSelectedIntelligenceRuntimeMock,
   createSystemPromptBuilderMock,
   getAgentPlatformFacadeMock,
   getSessionUserMock,
@@ -23,10 +23,13 @@ const {
   getUserPreferencesDataMapperMock,
   recordPromptTurnProvenanceMock,
   recordPromptBindingMock,
+  buildOperationIntentCompilerInputMock,
+  createOperationIntentIngressMock,
+  operationIntentIngressHandleMock,
   runtimeInteractorMock,
   summarizationInteractorMock,
 } = vi.hoisted(() => ({
-  getAnthropicApiKeyMock: vi.fn(),
+  createSelectedIntelligenceRuntimeMock: vi.fn(),
   createSystemPromptBuilderMock: vi.fn(),
   getAgentPlatformFacadeMock: vi.fn(),
   getSessionUserMock: vi.fn(),
@@ -40,6 +43,9 @@ const {
   getUserPreferencesDataMapperMock: vi.fn(),
   recordPromptTurnProvenanceMock: vi.fn(),
   recordPromptBindingMock: vi.fn(),
+  buildOperationIntentCompilerInputMock: vi.fn(),
+  createOperationIntentIngressMock: vi.fn(),
+  operationIntentIngressHandleMock: vi.fn(),
   runtimeInteractorMock: {
     archiveActive: vi.fn(),
     ensureActive: vi.fn(),
@@ -58,8 +64,8 @@ const {
 }));
 
 // Phase 7 Mock Density Exception: This file tests a complex composition root or integration pipeline and legitimately requires extensive boundary mocking for external services (auth, db, observability, etc.).
-vi.mock("@/lib/config/env", () => ({
-  getAnthropicApiKey: getAnthropicApiKeyMock,
+vi.mock("@/lib/ai/providers/selected-intelligence-runtime", () => ({
+  createSelectedIntelligenceRuntime: createSelectedIntelligenceRuntimeMock,
 }));
 
 vi.mock("@/lib/chat/policy", () => ({
@@ -72,6 +78,8 @@ vi.mock("@/lib/platform/agent-platform-facade-root", () => ({
 
 vi.mock("@/lib/auth", () => ({
   getSessionUser: getSessionUserMock,
+  resolveSessionAuthorizationRole: (user: { roles: string[]; realRoles?: string[] }) =>
+    [...(user.realRoles ?? []), ...user.roles].includes("ADMIN") ? "ADMIN" : user.roles[0],
 }));
 
 vi.mock("@/lib/chat/resolve-user", () => ({
@@ -106,6 +114,11 @@ vi.mock("@/lib/prompts/prompt-provenance-service", () => ({
 
 vi.mock("@/lib/prompts/prompt-binding-service", () => ({
   recordPromptBinding: recordPromptBindingMock,
+}));
+
+vi.mock("@/lib/operations/operation-intent-root", () => ({
+  buildOperationIntentCompilerInput: buildOperationIntentCompilerInputMock,
+  createOperationIntentIngress: createOperationIntentIngressMock,
 }));
 
 import { POST } from "@/app/api/chat/stream/route";
@@ -228,12 +241,24 @@ describe("POST /api/chat/stream", () => {
     runtimeInteractorMock.recordGenerationLifecycleEvent.mockResolvedValue(undefined);
     summarizationInteractorMock.summarizeIfNeeded.mockResolvedValue(undefined);
 
-    getAnthropicApiKeyMock.mockReturnValue("test-key");
+    createSelectedIntelligenceRuntimeMock.mockReturnValue({
+      provider: "anthropic",
+      client: { messages: { stream: vi.fn() } },
+      model: "claude-haiku-4-5",
+      policy: {
+        provider: "anthropic",
+        timeoutMs: 45_000,
+        retryAttempts: 1,
+        retryDelayMs: 0,
+        modelCandidates: ["claude-haiku-4-5"],
+      },
+    });
     createSystemPromptBuilderMock.mockResolvedValue(builder);
     getAgentPlatformFacadeMock.mockReturnValue({
       getExecutionSurface: () => ({
         registry: {
           getSchemasForRole: vi.fn(() => []),
+          getPromptVisibleSchemasForRole: vi.fn(() => []),
           getDescriptor: vi.fn(() => null),
         },
         executor: vi.fn(),
@@ -301,6 +326,31 @@ describe("POST /api/chat/stream", () => {
       decisionSourceRefs: [],
       evidenceRefs: [],
       createdAt: "2026-03-25T10:00:00.000Z",
+    });
+    buildOperationIntentCompilerInputMock.mockImplementation(async (input: Record<string, unknown>) => ({
+      conversationId: input.conversationId,
+      originMessageId: input.originMessageId,
+      userId: input.userId,
+      role: input.role,
+      latestUserText: input.latestUserText,
+      latestUserContent: input.latestUserContent,
+      routingSnapshot: input.routingSnapshot,
+      attachments: input.attachments ?? [],
+      taskOriginHandoff: input.taskOriginHandoff ?? null,
+      mediaContinuityHandoff: input.mediaContinuityHandoff ?? null,
+      effectiveToolManifestVersion: "manifest_test",
+      availableToolNames: [],
+      providerCapabilitySummary: {},
+      gateSnapshot: { generatedAt: "2026-05-03T00:00:00.000Z", gates: [] },
+      now: "2026-05-03T00:00:00.000Z",
+    }));
+    operationIntentIngressHandleMock.mockResolvedValue({
+      handled: false,
+      replyText: null,
+      routeResult: { kind: "pass_through", confidence: 0.99 },
+    });
+    createOperationIntentIngressMock.mockReturnValue({
+      handle: operationIntentIngressHandleMock,
     });
     executeDirectChatTurnMock.mockResolvedValue("4.");
     runClaudeAgentLoopStreamMock.mockImplementation(async ({ signal }: { signal?: AbortSignal }) => {
@@ -511,6 +561,7 @@ describe("POST /api/chat/stream", () => {
     ]);
     expect(executeDirectChatTurnMock).toHaveBeenCalledTimes(1);
     expect(runClaudeAgentLoopStreamMock).not.toHaveBeenCalled();
+    expect(buildOperationIntentCompilerInputMock).not.toHaveBeenCalled();
     expect(runtimeInteractorMock.appendMessage).toHaveBeenLastCalledWith(
       {
         conversationId: "conv_stream_1",
@@ -520,6 +571,70 @@ describe("POST /api/chat/stream", () => {
       },
       "anon_stream_owner",
     );
+
+    await drainReader(reader);
+  });
+
+  it("short-circuits operation-backed admin backup requests before tool exposure and model streaming", async () => {
+    const builder = createBuilder();
+    const reply = "**Operation Draft Created:** Create Appliance Backup\n\nStatus: `blocked`";
+    createSystemPromptBuilderMock.mockResolvedValueOnce(builder);
+    getSessionUserMock.mockResolvedValueOnce({
+      id: "usr_admin",
+      email: "admin@example.com",
+      name: "Admin",
+      roles: ["ADMIN"],
+    });
+    resolveUserIdMock.mockResolvedValueOnce({ userId: "usr_admin", isAnonymous: false });
+    operationIntentIngressHandleMock.mockResolvedValueOnce({
+      handled: true,
+      replyText: reply,
+      routeResult: {
+        kind: "blocked_operation",
+        snapshot: null,
+        actions: [],
+        blockingGates: [],
+        compilerOutput: null,
+      },
+    });
+
+    const response = await POST(
+      createRouteRequest("http://localhost:3000/api/chat/stream", "POST", {
+        messages: [{ role: "user", content: "create an appliance backup now" }],
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error("Expected a response body reader for operation short-circuit");
+    }
+
+    const payloads = await readSsePayloads(reader, 2);
+    expect(payloads).toEqual([
+      { conversation_id: "conv_stream_1" },
+      { delta: reply },
+    ]);
+    expect(buildOperationIntentCompilerInputMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: "conv_stream_1",
+        originMessageId: "msg_user_1",
+        userId: "usr_admin",
+        latestUserText: "create an appliance backup now",
+      }),
+    );
+    expect(runtimeInteractorMock.appendMessage).toHaveBeenLastCalledWith(
+      {
+        conversationId: "conv_stream_1",
+        role: "assistant",
+        content: reply,
+        parts: [{ type: "text", text: reply }],
+      },
+      "usr_admin",
+    );
+    expect(builder.withToolManifest).not.toHaveBeenCalled();
+    expect(recordPromptTurnProvenanceMock).not.toHaveBeenCalled();
+    expect(runClaudeAgentLoopStreamMock).not.toHaveBeenCalled();
 
     await drainReader(reader);
   });
@@ -590,6 +705,28 @@ describe("POST /api/chat/stream", () => {
       getExecutionSurface: () => ({
         registry: {
           getSchemasForRole: vi.fn(() => [
+            {
+              name: "generate_audio",
+              description: "",
+              input_schema: { type: "object", properties: {} },
+            },
+            {
+              name: "generate_chart",
+              description: "",
+              input_schema: { type: "object", properties: {} },
+            },
+            {
+              name: "list_conversation_media_assets",
+              description: "",
+              input_schema: { type: "object", properties: {} },
+            },
+            {
+              name: "compose_media",
+              description: "",
+              input_schema: { type: "object", properties: {} },
+            },
+          ]),
+          getPromptVisibleSchemasForRole: vi.fn(() => [
             {
               name: "generate_audio",
               description: "",

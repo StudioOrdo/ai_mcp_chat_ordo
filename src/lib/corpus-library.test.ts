@@ -100,4 +100,120 @@ describe("corpus-library", () => {
       book: "3. The Archetype Atlas",
     });
   });
+
+  it("filters system handbook search and full-section reads by every role through the facade", async () => {
+    const documents: Document[] = [
+      { slug: "system-docs", title: "Studio Ordo System Handbook", number: "00", audience: "public" },
+    ];
+    const sections = [
+      new Section(
+        "system-docs",
+        "00-public-chief-of-staff",
+        "Public Chief of Staff",
+        "The public assistant explains Ordo without private authority.",
+        [],
+        [],
+        [],
+        "public",
+      ),
+      new Section(
+        "system-docs",
+        "02-member-workspace-basics",
+        "Member Workspace Basics",
+        "Members use operation cards for personal workspace tasks.",
+        [],
+        [],
+        [],
+        "member",
+      ),
+      new Section(
+        "system-docs",
+        "03-apprentice-guided-practice",
+        "Apprentice Guided Practice",
+        "Apprentices learn guided practice with safe operation evidence.",
+        [],
+        [],
+        [],
+        "apprentice",
+      ),
+      new Section(
+        "system-docs",
+        "05-staff-operations-workspace",
+        "Staff Operations Workspace",
+        "Staff use operations workspace triage and tooling evidence.",
+        [],
+        [],
+        [],
+        "staff",
+      ),
+      new Section(
+        "system-docs",
+        "06-admin-appliance-operations",
+        "Admin Appliance Operations",
+        "Admins manage restore safety and provider controls.",
+        [],
+        [],
+        [],
+        "admin",
+      ),
+    ];
+
+    getCorpusRepositoryMock.mockReturnValue(createRepository(sections, documents));
+
+    const { searchCorpus, getSectionFull } = await import("./corpus-library");
+
+    const anonymousResults = await searchCorpus("assistant operations workspace apprentice restore provider", 10, {
+      role: "ANONYMOUS",
+    });
+    const memberResults = await searchCorpus("assistant operations workspace apprentice restore provider", 10, {
+      role: "AUTHENTICATED",
+    });
+    const apprenticeResults = await searchCorpus("assistant operations workspace apprentice restore provider", 10, {
+      role: "APPRENTICE",
+    });
+    const staffResults = await searchCorpus("assistant operations workspace apprentice restore provider", 10, {
+      role: "STAFF",
+    });
+    const adminResults = await searchCorpus("assistant operations workspace apprentice restore provider", 10, {
+      role: "ADMIN",
+    });
+
+    expect(new Set(anonymousResults.map((result) => result.sectionSlug))).toEqual(new Set([
+      "00-public-chief-of-staff",
+    ]));
+    expect(new Set(memberResults.map((result) => result.sectionSlug))).toEqual(new Set([
+      "02-member-workspace-basics",
+      "00-public-chief-of-staff",
+    ]));
+    expect(new Set(apprenticeResults.map((result) => result.sectionSlug))).toEqual(new Set([
+      "03-apprentice-guided-practice",
+      "02-member-workspace-basics",
+      "00-public-chief-of-staff",
+    ]));
+    expect(new Set(staffResults.map((result) => result.sectionSlug))).toEqual(new Set([
+      "05-staff-operations-workspace",
+      "03-apprentice-guided-practice",
+      "02-member-workspace-basics",
+      "00-public-chief-of-staff",
+    ]));
+    expect(new Set(adminResults.map((result) => result.sectionSlug))).toEqual(new Set([
+      "06-admin-appliance-operations",
+      "05-staff-operations-workspace",
+      "03-apprentice-guided-practice",
+      "02-member-workspace-basics",
+      "00-public-chief-of-staff",
+    ]));
+
+    await expect(getSectionFull("system-docs", "06-admin-appliance-operations", { role: "ANONYMOUS" })).resolves.toBeNull();
+    await expect(getSectionFull("system-docs", "05-staff-operations-workspace", { role: "AUTHENTICATED" })).resolves.toBeNull();
+    await expect(getSectionFull("system-docs", "03-apprentice-guided-practice", { role: "APPRENTICE" })).resolves.toMatchObject({
+      title: "Apprentice Guided Practice",
+    });
+    await expect(getSectionFull("system-docs", "05-staff-operations-workspace", { role: "STAFF" })).resolves.toMatchObject({
+      title: "Staff Operations Workspace",
+    });
+    await expect(getSectionFull("system-docs", "06-admin-appliance-operations", { role: "ADMIN" })).resolves.toMatchObject({
+      title: "Admin Appliance Operations",
+    });
+  });
 });

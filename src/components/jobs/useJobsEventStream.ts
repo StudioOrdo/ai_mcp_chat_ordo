@@ -26,6 +26,7 @@ interface JobsReconcilePayload {
 interface UseJobsEventStreamOptions {
   initialAfterSequence: number;
   selectedJobId: string | null;
+  reconcileSearch?: string;
   onEvent: (event: JobsWorkspaceStreamEvent) => void;
   onReconciled: (payload: JobsReconcilePayload) => void;
 }
@@ -59,8 +60,13 @@ function isJobsWorkspaceStreamEvent(value: unknown): value is JobsWorkspaceStrea
     && typeof record.label === "string";
 }
 
-async function reconcileJobsWorkspace(selectedJobId: string | null): Promise<JobsReconcilePayload> {
-  const jobsResponse = await fetch(`/api/jobs?limit=${JOBS_RECONCILE_LIMIT}`, {
+async function reconcileJobsWorkspace(
+  selectedJobId: string | null,
+  reconcileSearch?: string,
+): Promise<JobsReconcilePayload> {
+  const params = new URLSearchParams(reconcileSearch);
+  params.set("limit", String(JOBS_RECONCILE_LIMIT));
+  const jobsResponse = await fetch(`/api/jobs?${params.toString()}`, {
     credentials: "same-origin",
   });
 
@@ -121,6 +127,7 @@ async function reconcileJobsWorkspace(selectedJobId: string | null): Promise<Job
 export function useJobsEventStream({
   initialAfterSequence,
   selectedJobId,
+  reconcileSearch,
   onEvent,
   onReconciled,
 }: UseJobsEventStreamOptions): JobsSyncState {
@@ -128,23 +135,25 @@ export function useJobsEventStream({
     typeof EventSource === "undefined" ? "fallback" : "reconnecting"
   ));
   const selectedJobIdRef = useRef(selectedJobId);
+  const reconcileSearchRef = useRef(reconcileSearch);
   const onEventRef = useRef(onEvent);
   const onReconciledRef = useRef(onReconciled);
   const lastSequenceRef = useRef(initialAfterSequence);
 
   useEffect(() => {
     selectedJobIdRef.current = selectedJobId;
+    reconcileSearchRef.current = reconcileSearch;
     onEventRef.current = onEvent;
     onReconciledRef.current = onReconciled;
     lastSequenceRef.current = Math.max(lastSequenceRef.current, initialAfterSequence);
-  }, [initialAfterSequence, onEvent, onReconciled, selectedJobId]);
+  }, [initialAfterSequence, onEvent, onReconciled, reconcileSearch, selectedJobId]);
 
   useEffect(() => {
     let disposed = false;
 
     const reconcile = async () => {
       try {
-        const payload = await reconcileJobsWorkspace(selectedJobIdRef.current);
+        const payload = await reconcileJobsWorkspace(selectedJobIdRef.current, reconcileSearchRef.current);
         if (disposed) {
           return;
         }

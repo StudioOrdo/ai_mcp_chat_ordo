@@ -59,6 +59,7 @@ function createWorkOrder(overrides: Partial<WorkOrder> = {}): WorkOrder {
     userId: "user_1",
     initiatedBy: "batch_automation",
     ...overrides,
+    operationId: overrides.operationId ?? "op_wo_1",
   };
 }
 

@@ -1,5 +1,4 @@
 import type OpenAI from "openai";
-import { getOpenaiApiKey } from "@/lib/config/env";
 
 export interface WebSearchToolDeps {
   openai: OpenAI;
@@ -50,13 +49,6 @@ export async function adminWebSearch(
   const validationError = validateAdminWebSearchArgs(args);
   if (validationError) {
     return validationError;
-  }
-
-  // 1b. Pre-flight API key check [WEBSEARCH-080]
-  try {
-    getOpenaiApiKey();
-  } catch {
-    return { error: "OPENAI_API_KEY environment variable is not set" };
   }
 
   const model = args.model || "gpt-5";

@@ -17,6 +17,7 @@ function createTool(name: string): Anthropic.Tool {
 function createRegistry(tools: Anthropic.Tool[]): ToolRegistry {
   return {
     getSchemasForRole: () => tools,
+    getPromptVisibleSchemasForRole: () => tools,
   } as unknown as ToolRegistry;
 }
 

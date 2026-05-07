@@ -13,6 +13,8 @@ import {
   getCreditExhaustionStatusLabel,
   isProviderCreditExhaustionMessage,
 } from "@/lib/chat/stream-error-classification";
+import { OperationActionButton } from "@/frameworks/ui/operations/OperationActionButton";
+import { resolveOperationActionIntent } from "@/frameworks/ui/operations/operation-ui-intent";
 
 const ACTION_VALUE_KEY: Record<string, string> = {
   conversation: "id",
@@ -21,7 +23,17 @@ const ACTION_VALUE_KEY: Record<string, string> = {
   corpus: "slug",
   external: "url",
   job: "jobId",
+  operation: "operationId",
 };
+
+function resolveMessageActionIntent(action: MessageAction): "primary" | "danger" | "secondary" {
+  return resolveOperationActionIntent({
+    actionType: action.action,
+    label: action.label,
+    value: action.params[ACTION_VALUE_KEY[action.action] ?? ""] ?? "",
+    params: action.params,
+  });
+}
 
 export const MessageActionChips: React.FC<{
   actions: MessageAction[];
@@ -33,14 +45,35 @@ export const MessageActionChips: React.FC<{
     <div role="group" aria-label="Message actions" className="flex flex-wrap gap-(--space-2)" data-chat-action-chips="true">
       {displayed.map((action, i) => {
         const primaryValue = action.params[ACTION_VALUE_KEY[action.action] ?? ""] ?? "";
+        const disabledReason = action.action === "operation" ? action.params.disabledReason : undefined;
+        const isDisabled = disabled || Boolean(disabledReason);
+        if (action.action === "operation") {
+          return (
+            <OperationActionButton
+              key={i}
+              label={action.label}
+              actionType={action.action}
+              value={primaryValue}
+              params={action.params}
+              disabled={disabled}
+              includeActionTypeInLabel={false}
+              onActionClick={onActionClick}
+            />
+          );
+        }
         return (
           <button
             key={i}
             type="button"
-            disabled={disabled}
-            onClick={() => onActionClick?.(action.action, primaryValue, action.params)}
-            className={`ui-chat-action-chip inline-flex items-center gap-(--space-2) rounded-full px-(--space-inset-compact) py-(--space-1) text-[0.8rem] font-semibold transition-colors focus-ring ${disabled ? "cursor-wait opacity-55" : "hover:bg-accent-interactive/14 hover:border-accent-interactive/30 active:scale-[0.98]"}`}
+            disabled={isDisabled}
+            onClick={() => {
+              if (isDisabled) return;
+              onActionClick?.(action.action, primaryValue, action.params);
+            }}
+            className={`ui-chat-action-chip inline-flex items-center gap-(--space-2) rounded-full px-(--space-inset-compact) py-(--space-1) text-[0.8rem] font-semibold transition-colors focus-ring ${isDisabled ? "cursor-not-allowed opacity-55" : "hover:bg-accent-interactive/14 hover:border-accent-interactive/30 active:scale-[0.98]"}`}
             data-chat-action-chip={action.action}
+            data-action-intent={resolveMessageActionIntent(action)}
+            title={disabledReason}
           >
             {action.label}
           </button>
@@ -241,7 +274,7 @@ export const AssistantBubbleContent: React.FC<AssistantBubbleSharedProps & {
           group.kind === "media-gallery" ? (
             <MediaGalleryCard key={group.key} entries={group.entries} />
           ) : group.entry.kind === "workflow-status" ? (
-            <MediaWorkflowCard key={group.key} workflow={group.entry.workflow} />
+            <MediaWorkflowCard key={group.key} workflow={group.entry.workflow} onActionClick={onActionClick} />
           ) : group.entry.kind === "job-status" ? (
             <ToolPluginPartRenderer
               key={group.key}

@@ -1,12 +1,12 @@
-import OpenAI from "openai";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 
 import { CAPABILITY_CATALOG } from "@/core/capability-catalog/catalog";
-import { executeAdminWebSearch } from "@/core/use-cases/tools/admin-web-search.tool";
-import type { WebSearchToolDeps } from "@/lib/capabilities/shared/web-search-tool";
-import { getOpenaiApiKey } from "@/lib/config/env";
+import {
+  createAdminWebSearchDeps,
+  executeAdminWebSearch,
+} from "@/core/use-cases/tools/admin-web-search.tool";
 import {
   sanitizeAdminWebSearchInput,
   toAdminWebSearchPayload,
@@ -28,12 +28,6 @@ function readFixtureResult(): WebSearchResultData | WebSearchErrorData | null {
   return JSON.parse(raw) as WebSearchResultData | WebSearchErrorData;
 }
 
-function createDepsFactory(): () => WebSearchToolDeps {
-  return () => ({
-    openai: new OpenAI({ apiKey: getOpenaiApiKey() }),
-  });
-}
-
 async function executeServerAdminWebSearch(args: unknown) {
   const input = sanitizeAdminWebSearchInput(args);
   const fixture = readFixtureResult();
@@ -42,7 +36,7 @@ async function executeServerAdminWebSearch(args: unknown) {
     return toAdminWebSearchPayload(input, fixture);
   }
 
-  return executeAdminWebSearch(input, createDepsFactory());
+  return executeAdminWebSearch(input, createAdminWebSearchDeps);
 }
 
 const server = new Server(

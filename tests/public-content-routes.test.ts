@@ -1,224 +1,273 @@
-/**
- * Sprint 5 — Public Content Routes
- * 25 tests: P1–P10, N1–N4, E1–E11
- */
-
-import { describe, it, expect, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-// ── Unit under test: extractDescription ─────────────────────────────
+import { render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { extractDescription } from "@/lib/seo/extract-description";
-
-// ── §6.1 Description extraction tests ───────────────────────────────
-
-describe("extractDescription", () => {
-  it("P1: returns first paragraph from markdown", () => {
-    const md = "# Title\n\n## Abstract\n\nFirst paragraph here.\n\nSecond paragraph.";
-    expect(extractDescription(md)).toBe("First paragraph here.");
-  });
-
-  it("P2: strips bold and italic formatting", () => {
-    const md = "# T\n\n**Bold** and *italic* text.";
-    expect(extractDescription(md)).toBe("Bold and italic text.");
-  });
-
-  it("P3: strips markdown links", () => {
-    const md = "# T\n\n[Link text](https://example.com) and more.";
-    expect(extractDescription(md)).toBe("Link text and more.");
-  });
-
-  it("P4: truncates to maxLength at word boundary", () => {
-    const longParagraph = "# T\n\n" + "The quick brown fox jumps over the lazy dog. ".repeat(10);
-    const result = extractDescription(longParagraph, 160);
-    expect(result.length).toBeLessThanOrEqual(161); // 160 + ellipsis char
-    expect(result).toMatch(/…$/);
-  });
-
-  it("N1: returns empty string for empty input", () => {
-    expect(extractDescription("")).toBe("");
-  });
-
-  it("N2: handles markdown with only headings", () => {
-    expect(extractDescription("# Title\n## Section\n## Another")).toBe("");
-  });
-
-  it("N3: strips image markdown", () => {
-    const md = "# T\n\n![alt](img.png) Some text.";
-    expect(extractDescription(md)).toBe("Some text.");
-  });
-
-  it("E1: skips horizontal rules between title and content", () => {
-    const md = "# Title\n---\n## Abstract\n\n---\n\nActual content.";
-    expect(extractDescription(md)).toBe("Actual content.");
-  });
-
-  it("E2: preserves inline code content", () => {
-    const md = "# T\n\nUse `getDocuments()` to load.";
-    expect(extractDescription(md)).toBe("Use getDocuments() to load.");
-  });
-
-  it("E8: handles content starting immediately after title", () => {
-    const md = "# Title\n\nDirect content paragraph.";
-    expect(extractDescription(md)).toBe("Direct content paragraph.");
-  });
-});
-
-// ── §6.2 Metadata builder tests ─────────────────────────────────────
+const {
+  getSessionUserMock,
+  loadPublicFeedItemsMock,
+  loadOwnerOffersWorkspaceMock,
+  loadPublicOffersPageDataMock,
+} = vi.hoisted(() => ({
+  getSessionUserMock: vi.fn(),
+  loadPublicFeedItemsMock: vi.fn(),
+  loadOwnerOffersWorkspaceMock: vi.fn(),
+  loadPublicOffersPageDataMock: vi.fn(),
+}));
 
 vi.mock("@/lib/config/instance", () => ({
   getInstanceIdentity: () => ({
     name: "Studio Ordo",
     domain: "studioordo.com",
-    logoPath: "/ordo-avatar.png",
-    tagline: "Strategic AI Advisory",
-    description: "Test description",
+  }),
+  getInstanceServices: () => ({
+    offerings: [],
+    bookingEnabled: false,
   }),
 }));
 
-import {
-  buildChapterMetadata,
-  buildChapterJsonLd,
-  buildLibraryIndexMetadata,
-  buildLibraryIndexJsonLd,
-} from "@/lib/seo/library-metadata";
+vi.mock("@/lib/auth", () => ({
+  getSessionUser: getSessionUserMock,
+}));
 
-const sampleInput = {
-  chapterTitle: "Why This Moment Matters",
-  bookTitle: "Software Engineering",
-  bookSlug: "software-engineering",
-  chapterSlug: "ch01-why-this-moment-matters",
-  content: "# Chapter 1\n\n## Abstract\n\nLLM systems change how software is built.",
-  chapterNumber: 1,
-  totalChapters: 14,
-};
+vi.mock("@/lib/content/content-campaign-read-model", () => ({
+  loadPublicFeedItems: loadPublicFeedItemsMock,
+  publicFeedHeroHref: (item: { heroAsset?: { id: string } | null }) => (
+    item.heroAsset ? `/api/blog/assets/${item.heroAsset.id}` : null
+  ),
+}));
 
-describe("buildChapterMetadata", () => {
-  it("P5: returns correct title format", () => {
-    const meta = buildChapterMetadata(sampleInput);
-    expect(meta.title).toContain("Why This Moment Matters");
-    expect(meta.title).toContain("Software Engineering");
-    expect(meta.title).toContain("Studio Ordo");
-  });
+vi.mock("@/lib/offers/load-offers-workspace", () => ({
+  loadOwnerOffersWorkspace: loadOwnerOffersWorkspaceMock,
+  loadPublicOffersPageData: loadPublicOffersPageDataMock,
+  buildOwnerOffersHref: (_current: Record<string, unknown>, patch: Record<string, unknown> = {}) => (
+    patch.offerId ? `/offers?offerId=${encodeURIComponent(String(patch.offerId))}` : "/offers"
+  ),
+}));
 
-  it("P6: returns canonical URL using configured domain", () => {
-    const meta = buildChapterMetadata(sampleInput);
-    expect(meta.alternates?.canonical).toBe(
-      "https://studioordo.com/library/software-engineering/ch01-why-this-moment-matters",
-    );
-  });
-
-  it("P7: returns OG tags with article type", () => {
-    const meta = buildChapterMetadata(sampleInput);
-    const openGraph = meta.openGraph as { type?: string; title?: string } | undefined;
-    expect(openGraph?.type).toBe("article");
-    expect(openGraph?.title).toBe("Why This Moment Matters");
-  });
-
-  it("N4: handles empty content gracefully", () => {
-    const meta = buildChapterMetadata({ ...sampleInput, content: "" });
-    expect(meta.title).toBeDefined();
-    expect(meta.openGraph).toBeDefined();
-    expect(typeof meta.description).toBe("string");
-  });
-
-  it("E10: description matches extractDescription output", () => {
-    const meta = buildChapterMetadata(sampleInput);
-    expect(meta.description).toBe("LLM systems change how software is built.");
-  });
-});
-
-describe("buildChapterJsonLd", () => {
-  it("P8: returns Article schema", () => {
-    const ld = buildChapterJsonLd(sampleInput);
-    expect(ld["@type"]).toBe("Article");
-    expect(ld["headline"]).toBe("Why This Moment Matters");
-    expect((ld["isPartOf"] as Record<string, unknown>)["@type"]).toBe("Book");
-  });
-});
-
-describe("buildLibraryIndexMetadata", () => {
-  it("P9: returns correct title with counts", () => {
-    const meta = buildLibraryIndexMetadata(10, 104);
-    expect(meta.title).toContain("10 Books");
-    expect(meta.title).toContain("104 Chapters");
-  });
-
-  it("E11: describes the compact operator system in metadata", () => {
-    const meta = buildLibraryIndexMetadata(10, 104);
-    expect(meta.description).toContain("compact, governed AI operator system");
-  });
-
-  it("E7: includes OG image from identity config", () => {
-    const meta = buildLibraryIndexMetadata(10, 104);
-    const images = meta.openGraph?.images;
-    expect(images).toBeDefined();
-    expect((images as Array<{ url: string }>)[0].url).toBe(
-      "https://studioordo.com/ordo-avatar.png",
-    );
-  });
-});
-
-describe("buildLibraryIndexJsonLd", () => {
-  it("P10: returns CollectionPage schema", () => {
-    const ld = buildLibraryIndexJsonLd(10, 104);
-    expect(ld["@type"]).toBe("CollectionPage");
-    expect(ld["numberOfItems"]).toBe(104);
-  });
-});
-
-// ── §6.3 Page integration and source analysis tests ─────────────────
+import FeedPage from "@/app/feed/page";
+import OffersPage from "@/app/offers/page";
+import { extractDescription } from "@/lib/seo/extract-description";
 
 function readSource(path: string): string {
   return readFileSync(join(process.cwd(), path), "utf-8");
 }
 
-describe("page integration", () => {
-  it("E3: metadata uses identity.domain from config, not hardcoded", () => {
-    // The mock above provides domain "studioordo.com" — verify it flows through
-    const meta = buildChapterMetadata({
-      chapterTitle: "Test",
-      bookTitle: "Test Book",
-      bookSlug: "test-book",
-      chapterSlug: "test-chapter",
-      content: "# T\n\nContent.",
-      chapterNumber: 1,
-      totalChapters: 1,
+beforeEach(() => {
+  vi.clearAllMocks();
+  getSessionUserMock.mockResolvedValue({
+    id: "anon_1",
+    email: "anon@example.com",
+    name: "Anonymous",
+    roles: ["ANONYMOUS"],
+  });
+  loadPublicOffersPageDataMock.mockResolvedValue({
+    identityName: "Studio Ordo",
+    hasDurableOffers: false,
+    offers: [],
+  });
+  loadPublicFeedItemsMock.mockResolvedValue([]);
+});
+
+describe("extractDescription", () => {
+  it("returns first paragraph from markdown", () => {
+    const md = "# Title\n\n## Abstract\n\nFirst paragraph here.\n\nSecond paragraph.";
+    expect(extractDescription(md)).toBe("First paragraph here.");
+  });
+
+  it("strips markdown formatting", () => {
+    const md = "# T\n\n**Bold** and *italic* with [link text](https://example.com).";
+    expect(extractDescription(md)).toBe("Bold and italic with link text.");
+  });
+
+  it("returns empty string when there is no paragraph content", () => {
+    expect(extractDescription("# Title\n## Section")).toBe("");
+  });
+});
+
+describe("public content route contract", () => {
+  it("renders feed empty state with approved public actions", async () => {
+    render(await FeedPage());
+
+    expect(screen.getByRole("heading", { name: "Public feed" })).toBeInTheDocument();
+    expect(screen.getByText("No public feed items yet")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Start chat" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "View offers" })).toHaveAttribute("href", "/offers");
+  });
+
+  it("renders published feed items without exposing private content controls", async () => {
+    loadPublicFeedItemsMock.mockResolvedValue([{
+      post: {
+        id: "blogpost_1",
+        slug: "launch-note",
+        title: "Launch Note",
+        description: "A public launch update.",
+        section: "essay",
+      },
+      heroAsset: { id: "blogasset_1", altText: "Launch hero" },
+      publicHref: "/feed/launch-note",
+    }]);
+
+    render(await FeedPage());
+
+    expect(screen.getByRole("heading", { name: "Public feed" })).toBeInTheDocument();
+    expect(screen.getByText("Launch Note")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Read" })).toHaveAttribute("href", "/feed/launch-note");
+    expect(screen.queryByText("No public feed items yet")).toBeNull();
+    expect(document.body.textContent).not.toContain("tracked_link_events");
+  });
+
+  it("renders offers empty state when no public offers are published", async () => {
+    render(await OffersPage());
+
+    expect(screen.getByRole("heading", { name: "Offers" })).toBeInTheDocument();
+    expect(screen.getByText("No current public offers")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Start chat" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "About Ordo" })).toHaveAttribute("href", "/about");
+  });
+
+  it("renders durable published public offers from the offer read model", async () => {
+    loadPublicOffersPageDataMock.mockResolvedValue({
+      identityName: "Studio Ordo",
+      hasDurableOffers: true,
+      offerings: [
+      ],
+      offers: [
+        {
+          id: "offer_1",
+          slug: "launch-sprint",
+          title: "Launch Sprint",
+          summary: "A focused launch support offer.",
+          description: "A focused launch support offer.",
+          audience: "Solopreneurs",
+          promise: "A cleaner launch process.",
+          priceLabel: "$2,500",
+          ctaLabel: "Start a conversation",
+          detailHref: "/offers/launch-sprint",
+          source: "durable",
+        },
+      ],
     });
-    expect(meta.alternates?.canonical).toContain("studioordo.com");
-    // Verify it's NOT hardcoded by confirming the value comes from the mock
-    expect(meta.alternates?.canonical).toBe(
-      "https://studioordo.com/library/test-book/test-chapter",
+
+    render(await OffersPage());
+
+    expect(screen.getByRole("heading", { name: "Offers" })).toBeInTheDocument();
+    expect(screen.getByText("Launch Sprint")).toBeInTheDocument();
+    expect(screen.getByText("A focused launch support offer.")).toBeInTheDocument();
+    expect(screen.getByText("$2,500")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Start a conversation" })).toHaveAttribute(
+      "href",
+      "/offers/launch-sprint",
     );
+    expect(screen.queryByText("No current public offers")).toBeNull();
   });
 
-  it("E4: chapter page source includes JSON-LD script tag", () => {
-    const src = readSource("src/app/library/[document]/[section]/page.tsx");
-    expect(src).toContain("application/ld+json");
+  it("renders the signed-in owner offers governance surface", async () => {
+    getSessionUserMock.mockResolvedValue({
+      id: "usr_owner",
+      email: "owner@example.com",
+      name: "Keith",
+      roles: ["AUTHENTICATED"],
+    });
+    loadOwnerOffersWorkspaceMock.mockResolvedValue({
+      offers: [],
+      objects: [],
+      filteredObjects: [],
+      selectedOffer: null,
+      cards: [],
+      brief: {
+        id: "offers-brief",
+        sectionId: "offers",
+        status: "limited",
+        title: "Offers Brief",
+        summary: "No governed offers exist yet.",
+        bullets: ["Ask Ordo to create an offer."],
+        recommendedAction: { label: "Create first offer", href: "/offers#create-offer" },
+        evidenceRefs: [],
+        limitations: [],
+      },
+      query: {
+        q: null,
+        state: null,
+        visibility: null,
+        offerId: null,
+        page: 1,
+        limit: 20,
+      },
+      summary: {
+        total: 0,
+        public: 0,
+        private: 0,
+        draft: 0,
+        sent: 0,
+        accepted: 0,
+        purchased: 0,
+        archived: 0,
+        missingPrice: 0,
+      },
+      pageInfo: {
+        page: 1,
+        limit: 20,
+        total: 0,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      },
+    });
+
+    render(await OffersPage());
+
+    expect(loadOwnerOffersWorkspaceMock).toHaveBeenCalledWith(expect.objectContaining({ id: "usr_owner" }), undefined);
+    expect(screen.getByRole("heading", { name: "Offers Brief" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save draft" })).toBeInTheDocument();
   });
 
-  it("E5: library index page source includes JSON-LD script tag", () => {
-    const src = readSource("src/app/library/page.tsx");
-    expect(src).toContain("application/ld+json");
+  it("defines feed and offers public pages with honest empty states", () => {
+    const feed = readSource("src/app/feed/page.tsx");
+    const offers = readSource("src/app/offers/page.tsx");
+
+    expect(feed).toContain("No public feed items yet");
+    expect(feed).toContain('href="/offers"');
+    expect(offers).toContain("loadPublicOffersPageData");
+    expect(offers).toContain("loadOwnerOffersWorkspace");
+    expect(offers).not.toContain("getInstanceServices");
   });
 
-  it("E6: chapter page source includes chat CTA", () => {
-    const src = readSource("src/app/library/[document]/[section]/page.tsx");
-    expect(src).toContain("Ask the AI");
+  it("keeps about page CTAs on approved public routes", () => {
+    const aboutPage = readSource("src/app/about/page.tsx");
+    const aboutSurface = readSource("src/components/about/AboutSurfaces.tsx");
+    const about = `${aboutPage}\n${aboutSurface}`;
+
+    expect(about).toContain('href="/register"');
+    expect(about).toContain('href="/offers"');
+    expect(about).not.toContain('href="/library"');
+    expect(about).not.toContain("publish to your journal");
   });
 
-  it("E9: book redirect page exports generateMetadata", () => {
-    const src = readSource("src/app/library/[document]/page.tsx");
-    expect(src).toContain("generateMetadata");
-  });
+  it("makes retired public routes fail visibly instead of redirecting", () => {
+    const retiredPages = [
+      "src/app/library/page.tsx",
+      "src/app/library/[document]/page.tsx",
+      "src/app/library/[document]/[section]/page.tsx",
+      "src/app/library/section/[slug]/page.tsx",
+      "src/app/journal/page.tsx",
+      "src/app/journal/[slug]/page.tsx",
+      "src/app/blog/page.tsx",
+      "src/app/blog/[slug]/page.tsx",
+    ];
 
-  it("E11: library pages have no auth imports or session checks", () => {
-    const indexSrc = readSource("src/app/library/page.tsx");
-    const chapterSrc = readSource("src/app/library/[document]/[section]/page.tsx");
-    for (const src of [indexSrc, chapterSrc]) {
-      expect(src).not.toContain("getSessionUser");
-      expect(src).not.toContain("getServerSession");
+    for (const pagePath of retiredPages) {
+      const source = readSource(pagePath);
+      expect(source).toContain("notFound");
+      expect(source).not.toContain("redirect(");
     }
+  });
+
+  it("keeps not-found recovery on approved public destinations", () => {
+    const source = readSource("src/app/not-found.tsx");
+
+    expect(source).toContain('href: "/"');
+    expect(source).toContain('href: "/feed"');
+    expect(source).not.toContain("/library");
   });
 });

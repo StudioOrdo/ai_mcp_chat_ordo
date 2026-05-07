@@ -8,7 +8,7 @@
 import { describe, it, expect } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
-import { CAPABILITY_CATALOG } from "./catalog";
+import { CAPABILITY_CATALOG, projectPromptExposure } from "./catalog";
 import type { CapabilityDefinition, CapabilitySchemaFacet } from "./capability-definition";
 import {
   projectAnthropicSchema,
@@ -84,6 +84,41 @@ describe("schema-derivation", () => {
       expect(def.schema).toBeDefined();
       expect(def.schema.inputSchema.type).toBe("object");
       expect(def.schema.outputHint).toBe("test output");
+    });
+  });
+
+  describe("prompt exposure projection", () => {
+    it("defaults missing prompt exposure to default_prompt", () => {
+      const def: CapabilityDefinition = {
+        core: {
+          name: "test",
+          label: "Test",
+          description: "Test tool",
+          category: "system",
+          roles: "ALL",
+        },
+        runtime: {},
+        presentation: {
+          family: "system",
+          cardKind: "fallback",
+          executionMode: "inline",
+        },
+        schema: {
+          inputSchema: {
+            type: "object",
+            properties: {},
+          },
+        },
+      };
+
+      expect(projectPromptExposure(def).exposure).toBe("default_prompt");
+    });
+
+    it("preserves explicit prompt exposure while MCP schemas remain protocol-only", () => {
+      const def = CAPABILITY_CATALOG.inspect_runtime_logs;
+
+      expect(projectPromptExposure(def).exposure).toBe("operator_only");
+      expect(projectMcpSchema(def)).not.toHaveProperty("promptExposure");
     });
   });
 

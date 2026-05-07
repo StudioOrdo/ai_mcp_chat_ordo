@@ -16,6 +16,8 @@ import { JournalEditorialMutationDataMapper } from "./JournalEditorialMutationDa
 import type { JobQueueRepository } from "../core/use-cases/JobQueueRepository";
 import type { JobStatusQuery } from "../core/use-cases/JobStatusQuery";
 import { JobQueueDataMapper } from "./JobQueueDataMapper";
+import type { OperationRepository } from "@/core/use-cases/operations/OperationRepository";
+import { OperationDataMapper } from "./OperationDataMapper";
 import type { PushSubscriptionRepository } from "../core/use-cases/PushSubscriptionRepository";
 import { PushSubscriptionDataMapper } from "./PushSubscriptionDataMapper";
 import { UserDataMapper } from "./UserDataMapper";
@@ -88,6 +90,24 @@ import type { RelationshipMemoryRepository } from "@/core/use-cases/Relationship
 import { MediaWorkflowReadModel } from "@/lib/media/workflows/media-workflow-read-model";
 import { MediaWorkflowOrchestrator } from "@/lib/media/workflows/orchestrator";
 import { SqliteMediaWorkflowRepository } from "@/lib/media/workflows/sqlite-media-workflow-repository";
+import { BackupSystemCommandDataMapper } from "./BackupSystemCommandDataMapper";
+import { BackupSnapshotDataMapper } from "./BackupSnapshotDataMapper";
+import { BackupPolicyDataMapper } from "./BackupPolicyDataMapper";
+import { BackupRestoreAuditDataMapper } from "./BackupRestoreAuditDataMapper";
+import { RestorePlanDataMapper } from "./RestorePlanDataMapper";
+import { BackupSelfService } from "@/lib/appliance/backup/backup-self-service";
+import { BackupScheduledCommandService } from "@/lib/appliance/backup/backup-scheduled-command-service";
+import { BackupScheduleService } from "@/lib/appliance/backup/backup-schedule-service";
+import { BackupScheduleReconciler } from "@/lib/appliance/backup/backup-schedule-reconciler";
+import { BackupRetentionService } from "@/lib/appliance/backup/backup-retention-service";
+import { ActivityReceiptDataMapper } from "./ActivityReceiptDataMapper";
+import { ActivityReadModel } from "@/lib/activity/activity-read-model";
+import { OfferDataMapper } from "./OfferDataMapper";
+import type { OfferRepository } from "@/core/use-cases/OfferRepository";
+import { TrackedLinkDataMapper } from "./TrackedLinkDataMapper";
+import type { TrackedLinkRepository } from "@/core/use-cases/TrackedLinkRepository";
+import { BriefReadModelDataMapper } from "./BriefReadModelDataMapper";
+import { BriefUpdateRequestDataMapper } from "./BriefUpdateRequestDataMapper";
 
 /**
  * Repository Factory — Service Locator
@@ -133,6 +153,8 @@ let blogRevisionRepo: BlogPostRevisionRepository | null = null;
 let journalEditorialMutationRepo: JournalEditorialMutationRepository | null = null;
 let jobQueueRepo: JobQueueRepository | null = null;
 let jobQueueRepoDb: ReturnType<typeof getDb> | null = null;
+let operationRepository: OperationRepository | null = null;
+let operationRepositoryDb: ReturnType<typeof getDb> | null = null;
 let jobStatusQuery: JobStatusQuery | null = null;
 let executionTimelineReader: ExecutionTimelineReader | null = null;
 let revisionReader: RevisionReader | null = null;
@@ -172,6 +194,34 @@ let identityMigrationRepository: IdentityMigrationRepository | null = null;
 let userPreferencesDataMapper: UserPreferencesDataMapper | null = null;
 let userFileDataMapper: UserFileDataMapper | null = null;
 let vectorStore: SQLiteVectorStore | null = null;
+let backupSystemCommandDataMapper: BackupSystemCommandDataMapper | null = null;
+let backupSystemCommandDataMapperDb: ReturnType<typeof getDb> | null = null;
+let backupSnapshotDataMapper: BackupSnapshotDataMapper | null = null;
+let backupSnapshotDataMapperDb: ReturnType<typeof getDb> | null = null;
+let backupPolicyDataMapper: BackupPolicyDataMapper | null = null;
+let backupPolicyDataMapperDb: ReturnType<typeof getDb> | null = null;
+let backupRestoreAuditDataMapper: BackupRestoreAuditDataMapper | null = null;
+let backupRestoreAuditDataMapperDb: ReturnType<typeof getDb> | null = null;
+let restorePlanDataMapper: RestorePlanDataMapper | null = null;
+let restorePlanDataMapperDb: ReturnType<typeof getDb> | null = null;
+let backupSelfService: BackupSelfService | null = null;
+let backupSelfServiceDb: ReturnType<typeof getDb> | null = null;
+let backupScheduleService: BackupScheduleService | null = null;
+let backupScheduleServiceDb: ReturnType<typeof getDb> | null = null;
+let backupScheduleReconciler: BackupScheduleReconciler | null = null;
+let backupScheduleReconcilerDb: ReturnType<typeof getDb> | null = null;
+let activityReceiptDataMapper: ActivityReceiptDataMapper | null = null;
+let activityReceiptDataMapperDb: ReturnType<typeof getDb> | null = null;
+let activityReadModel: ActivityReadModel | null = null;
+let activityReadModelDb: ReturnType<typeof getDb> | null = null;
+let offerRepository: OfferRepository | null = null;
+let offerRepositoryDb: ReturnType<typeof getDb> | null = null;
+let trackedLinkRepository: TrackedLinkRepository | null = null;
+let trackedLinkRepositoryDb: ReturnType<typeof getDb> | null = null;
+let briefReadModelDataMapper: BriefReadModelDataMapper | null = null;
+let briefReadModelDataMapperDb: ReturnType<typeof getDb> | null = null;
+let briefUpdateRequestDataMapper: BriefUpdateRequestDataMapper | null = null;
+let briefUpdateRequestDataMapperDb: ReturnType<typeof getDb> | null = null;
 
 /** @lifetime process-cached singleton */
 export function getBlogPostRepository(): BlogPostRepository {
@@ -179,6 +229,54 @@ export function getBlogPostRepository(): BlogPostRepository {
     blogRepo = new BlogPostDataMapper(getDb());
   }
   return blogRepo;
+}
+
+/** @lifetime process-cached singleton (invalidated on DB handle change) */
+export function getOfferRepository(): OfferRepository {
+  const db = getDb();
+
+  if (!offerRepository || offerRepositoryDb !== db) {
+    offerRepository = new OfferDataMapper(db);
+    offerRepositoryDb = db;
+  }
+
+  return offerRepository;
+}
+
+/** @lifetime process-cached singleton (invalidated on DB handle change) */
+export function getTrackedLinkRepository(): TrackedLinkRepository {
+  const db = getDb();
+
+  if (!trackedLinkRepository || trackedLinkRepositoryDb !== db) {
+    trackedLinkRepository = new TrackedLinkDataMapper(db);
+    trackedLinkRepositoryDb = db;
+  }
+
+  return trackedLinkRepository;
+}
+
+/** @lifetime process-cached singleton (invalidated on DB handle change) */
+export function getBriefReadModelDataMapper(): BriefReadModelDataMapper {
+  const db = getDb();
+
+  if (!briefReadModelDataMapper || briefReadModelDataMapperDb !== db) {
+    briefReadModelDataMapper = new BriefReadModelDataMapper(db);
+    briefReadModelDataMapperDb = db;
+  }
+
+  return briefReadModelDataMapper;
+}
+
+/** @lifetime process-cached singleton (invalidated on DB handle change) */
+export function getBriefUpdateRequestDataMapper(): BriefUpdateRequestDataMapper {
+  const db = getDb();
+
+  if (!briefUpdateRequestDataMapper || briefUpdateRequestDataMapperDb !== db) {
+    briefUpdateRequestDataMapper = new BriefUpdateRequestDataMapper(db);
+    briefUpdateRequestDataMapperDb = db;
+  }
+
+  return briefUpdateRequestDataMapper;
 }
 
 /** @lifetime process-cached singleton */
@@ -249,6 +347,18 @@ export function getJobQueueDataMapper(): JobQueueDataMapper {
 }
 
 /** @lifetime process-cached singleton (invalidated on DB handle change) */
+export function getOperationRepository(): OperationRepository {
+  const db = getDb();
+
+  if (!operationRepository || operationRepositoryDb !== db) {
+    operationRepository = new OperationDataMapper(db);
+    operationRepositoryDb = db;
+  }
+
+  return operationRepository;
+}
+
+/** @lifetime process-cached singleton (invalidated on DB handle change) */
 export function getMaterializationRepository(): MaterializationRepository {
   const db = getDb();
 
@@ -258,6 +368,154 @@ export function getMaterializationRepository(): MaterializationRepository {
   }
 
   return materializationRepository;
+}
+
+/** @lifetime process-cached singleton (invalidated on DB handle change) */
+export function getBackupSystemCommandDataMapper(): BackupSystemCommandDataMapper {
+  const db = getDb();
+
+  if (!backupSystemCommandDataMapper || backupSystemCommandDataMapperDb !== db) {
+    backupSystemCommandDataMapper = new BackupSystemCommandDataMapper(db);
+    backupSystemCommandDataMapperDb = db;
+  }
+
+  return backupSystemCommandDataMapper;
+}
+
+/** @lifetime process-cached singleton (invalidated on DB handle change) */
+export function getBackupSnapshotDataMapper(): BackupSnapshotDataMapper {
+  const db = getDb();
+
+  if (!backupSnapshotDataMapper || backupSnapshotDataMapperDb !== db) {
+    backupSnapshotDataMapper = new BackupSnapshotDataMapper(db);
+    backupSnapshotDataMapperDb = db;
+  }
+
+  return backupSnapshotDataMapper;
+}
+
+/** @lifetime process-cached singleton (invalidated on DB handle change) */
+export function getBackupPolicyDataMapper(): BackupPolicyDataMapper {
+  const db = getDb();
+
+  if (!backupPolicyDataMapper || backupPolicyDataMapperDb !== db) {
+    backupPolicyDataMapper = new BackupPolicyDataMapper(db);
+    backupPolicyDataMapperDb = db;
+  }
+
+  return backupPolicyDataMapper;
+}
+
+/** @lifetime process-cached singleton (invalidated on DB handle change) */
+export function getBackupRestoreAuditDataMapper(): BackupRestoreAuditDataMapper {
+  const db = getDb();
+
+  if (!backupRestoreAuditDataMapper || backupRestoreAuditDataMapperDb !== db) {
+    backupRestoreAuditDataMapper = new BackupRestoreAuditDataMapper(db);
+    backupRestoreAuditDataMapperDb = db;
+  }
+
+  return backupRestoreAuditDataMapper;
+}
+
+/** @lifetime process-cached singleton (invalidated on DB handle change) */
+export function getRestorePlanDataMapper(): RestorePlanDataMapper {
+  const db = getDb();
+
+  if (!restorePlanDataMapper || restorePlanDataMapperDb !== db) {
+    restorePlanDataMapper = new RestorePlanDataMapper(db);
+    restorePlanDataMapperDb = db;
+  }
+
+  return restorePlanDataMapper;
+}
+
+/** @lifetime process-cached singleton (invalidated on DB handle change) */
+export function getBackupSelfService(): BackupSelfService {
+  const db = getDb();
+
+  if (!backupSelfService || backupSelfServiceDb !== db) {
+    backupSelfService = new BackupSelfService({
+      commands: getBackupSystemCommandDataMapper(),
+      snapshots: getBackupSnapshotDataMapper(),
+      plans: getRestorePlanDataMapper(),
+      audit: getBackupRestoreAuditDataMapper(),
+      policy: getBackupPolicyDataMapper(),
+    });
+    backupSelfServiceDb = db;
+  }
+
+  return backupSelfService;
+}
+
+/** @lifetime process-cached singleton (invalidated on DB handle change) */
+export function getBackupScheduleService(): BackupScheduleService {
+  const db = getDb();
+
+  if (!backupScheduleService || backupScheduleServiceDb !== db) {
+    backupScheduleService = new BackupScheduleService({
+      policy: getBackupPolicyDataMapper(),
+      commands: getBackupSystemCommandDataMapper(),
+      plans: getRestorePlanDataMapper(),
+      scheduledCommands: new BackupScheduledCommandService({ db }),
+      audit: getBackupRestoreAuditDataMapper(),
+    });
+    backupScheduleServiceDb = db;
+  }
+
+  return backupScheduleService;
+}
+
+/** @lifetime process-cached singleton (invalidated on DB handle change) */
+export function getBackupScheduleReconciler(): BackupScheduleReconciler {
+  const db = getDb();
+
+  if (!backupScheduleReconciler || backupScheduleReconcilerDb !== db) {
+    backupScheduleReconciler = new BackupScheduleReconciler({
+      policy: getBackupPolicyDataMapper(),
+      commands: getBackupSystemCommandDataMapper(),
+      snapshots: getBackupSnapshotDataMapper(),
+      audit: getBackupRestoreAuditDataMapper(),
+      retention: new BackupRetentionService({
+        snapshots: getBackupSnapshotDataMapper(),
+        audit: getBackupRestoreAuditDataMapper(),
+      }),
+    });
+    backupScheduleReconcilerDb = db;
+  }
+
+  return backupScheduleReconciler;
+}
+
+/** @lifetime process-cached singleton (invalidated on DB handle change) */
+export function getActivityReceiptDataMapper(): ActivityReceiptDataMapper {
+  const db = getDb();
+
+  if (!activityReceiptDataMapper || activityReceiptDataMapperDb !== db) {
+    activityReceiptDataMapper = new ActivityReceiptDataMapper(db);
+    activityReceiptDataMapperDb = db;
+    activityReadModel = null;
+  }
+
+  return activityReceiptDataMapper;
+}
+
+/** @lifetime process-cached singleton (invalidated on DB handle change) */
+export function getActivityReadModel(): ActivityReadModel {
+  const db = getDb();
+
+  if (!activityReadModel || activityReadModelDb !== db) {
+    activityReadModel = new ActivityReadModel({
+      jobStatusQuery: getJobStatusQuery(),
+      mediaWorkflowReadModel: getMediaWorkflowReadModel(),
+      referralAnalytics: createReferralAnalyticsService(db),
+      operationRepository: getOperationRepository(),
+      receiptRepository: getActivityReceiptDataMapper(),
+    });
+    activityReadModelDb = db;
+  }
+
+  return activityReadModel;
 }
 
 /** @lifetime process-cached singleton */
@@ -359,6 +617,7 @@ export function getMediaWorkflowReadModel(): MediaWorkflowReadModel {
     mediaWorkflowReadModel = new MediaWorkflowReadModel({
       workflowRepository: getMediaWorkflowRepository(),
       jobStatusQuery: getJobStatusQuery(),
+      operationRepository: getOperationRepository(),
     });
   }
   return mediaWorkflowReadModel;
@@ -682,6 +941,8 @@ export function _resetRepositorySingletons(): void {
   factoryRepoDb = null;
   jobQueueRepo = null;
   jobQueueRepoDb = null;
+  operationRepository = null;
+  operationRepositoryDb = null;
   jobStatusQuery = null;
   executionTimelineReader = null;
   pushSubscriptionRepo = null;
@@ -716,4 +977,32 @@ export function _resetRepositorySingletons(): void {
   userPreferencesDataMapper = null;
   userFileDataMapper = null;
   vectorStore = null;
+  backupSystemCommandDataMapper = null;
+  backupSystemCommandDataMapperDb = null;
+  backupSnapshotDataMapper = null;
+  backupSnapshotDataMapperDb = null;
+  backupPolicyDataMapper = null;
+  backupPolicyDataMapperDb = null;
+  backupRestoreAuditDataMapper = null;
+  backupRestoreAuditDataMapperDb = null;
+  restorePlanDataMapper = null;
+  restorePlanDataMapperDb = null;
+  backupSelfService = null;
+  backupSelfServiceDb = null;
+  backupScheduleService = null;
+  backupScheduleServiceDb = null;
+  backupScheduleReconciler = null;
+  backupScheduleReconcilerDb = null;
+  activityReceiptDataMapper = null;
+  activityReceiptDataMapperDb = null;
+  activityReadModel = null;
+  activityReadModelDb = null;
+  offerRepository = null;
+  offerRepositoryDb = null;
+  trackedLinkRepository = null;
+  trackedLinkRepositoryDb = null;
+  briefReadModelDataMapper = null;
+  briefReadModelDataMapperDb = null;
+  briefUpdateRequestDataMapper = null;
+  briefUpdateRequestDataMapperDb = null;
 }

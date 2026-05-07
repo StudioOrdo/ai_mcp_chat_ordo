@@ -118,13 +118,26 @@ class DefaultMcpProcessSession implements McpProcessSession {
       args: this.options.args,
       cwd: this.options.cwd ?? null,
     });
-    await this.client.connect(this.transport);
-    await appendRuntimeAuditLog("mcp_process", "session_initialize_succeeded", {
-      targetId: this.options.targetId,
-      command: this.options.command,
-      args: this.options.args,
-      cwd: this.options.cwd ?? null,
-    });
+    try {
+      await this.client.connect(this.transport);
+      await appendRuntimeAuditLog("mcp_process", "session_initialize_succeeded", {
+        targetId: this.options.targetId,
+        command: this.options.command,
+        args: this.options.args,
+        cwd: this.options.cwd ?? null,
+      });
+    } catch (error) {
+      const stderrOutput = this.stderrChunks.join("").trim();
+      await appendRuntimeAuditLog("mcp_process", "session_initialize_failed", {
+        targetId: this.options.targetId,
+        command: this.options.command,
+        args: this.options.args,
+        cwd: this.options.cwd ?? null,
+        stderrOutput: stderrOutput || null,
+        error,
+      });
+      throw error;
+    }
   }
 
   async callTool(request: McpToolCallRequest): Promise<unknown> {
@@ -226,7 +239,17 @@ export class McpProcessSessionPool {
     const entry: SessionEntry = {
       sessionPromise: Promise.resolve()
         .then(() => options.prepareLaunch?.())
-        .then(() => this.factory.createSession(options)),
+        .then(() => this.factory.createSession(options))
+        .catch(async (error) => {
+          await appendRuntimeAuditLog("mcp_process", "session_launch_failed", {
+            targetId: options.targetId,
+            command: options.command,
+            args: options.args,
+            cwd: options.cwd ?? null,
+            error,
+          });
+          throw error;
+        }),
       idleTimer: null,
       activeCalls: 0,
     };

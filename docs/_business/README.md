@@ -30,6 +30,9 @@ and returned to the same thread.
    expertise to durable assets through governed execution.
 7. **[07 Governance and Process](07_governance_and_process.md)**: proof-first,
    contract-driven, reviewable delivery.
+8. **[08 Software Manufacturing Loop](08_software_manufacturing_loop.md)**:
+   GitHub issues as the visible work ledger and pull requests as
+   evidence-bearing manufacturing units.
 
 ## Architecture Index
 
@@ -42,6 +45,16 @@ contracts and sequencing.
 - [Ordo Core Kernel](architecture/02-ordo-core-kernel.md)
 - [Workflow and Recipe Model](architecture/03-workflow-recipe-model.md)
 - [Stage Roadmap](architecture/08-stage-roadmap.md)
+
+## UX Canon
+
+The UX canon translates the business thesis into product language, navigation,
+object surfaces, and interaction rules.
+
+- [UX Canon](ux/README.md)
+- [UX North Star](ux/00-ux-north-star.md)
+- [Code Archaeology Functionality Map](ux/04-code-archaeology-functionality-map.md)
+- [UX Architecture Archeology](ux/architecture/README.md)
 
 ## Versioning Rule
 

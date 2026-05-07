@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 
@@ -8,15 +9,36 @@ import {
   type McpProcessSessionPool,
 } from "./mcp-process-runtime";
 
-const PROJECT_ROOT = path.resolve(__dirname, "../../..");
 const CONTAINER_PROJECT_ROOT = "/app";
-const TSX_BINARY = path.join(
-  PROJECT_ROOT,
-  "node_modules",
-  ".bin",
-  process.platform === "win32" ? "tsx.cmd" : "tsx",
-);
 const execFileAsync = promisify(execFile);
+
+function resolveProjectRoot(): string {
+  const candidates = [
+    process.env.ORDO_PROJECT_ROOT,
+    process.cwd(),
+  ].filter((candidate): candidate is string => typeof candidate === "string" && candidate.trim().length > 0);
+
+  for (const candidate of candidates) {
+    const resolved = path.resolve(candidate);
+    if (existsSync(path.join(resolved, "package.json"))) {
+      return resolved;
+    }
+  }
+
+  throw new Error(
+    "Unable to resolve Ordo project root for local MCP stdio execution. "
+    + "Start the app from the repository root or set ORDO_PROJECT_ROOT.",
+  );
+}
+
+function resolveLocalTsxBinary(projectRoot: string): string {
+  return path.join(
+    projectRoot,
+    "node_modules",
+    ".bin",
+    process.platform === "win32" ? "tsx.cmd" : "tsx",
+  );
+}
 
 export interface LocalMcpStdioToolConfig<TResult = unknown> {
   entrypoint: string;
@@ -166,13 +188,15 @@ export function createManagedMcpProcessExecutionTargetAdapter<
 export function createLocalMcpStdioExecutionTargetAdapter<TResult = unknown>(
   config: LocalMcpStdioToolConfig<TResult>,
 ): ExecutionTargetAdapter<"mcp_stdio", TResult> {
+  const projectRoot = resolveProjectRoot();
+
   return createManagedMcpProcessExecutionTargetAdapter({
     kind: "mcp_stdio",
     targetId: config.targetId ?? `mcp_stdio:${config.toolName}:${config.entrypoint}`,
     toolName: config.toolName,
-    command: TSX_BINARY,
+    command: resolveLocalTsxBinary(projectRoot),
     args: [config.entrypoint],
-    cwd: PROJECT_ROOT,
+    cwd: projectRoot,
     getEnv: createSpawnEnv,
     idleTimeoutMs: config.idleTimeoutMs,
     sessionPool: config.sessionPool,
@@ -183,13 +207,15 @@ export function createLocalMcpStdioExecutionTargetAdapter<TResult = unknown>(
 export function createLocalMcpContainerExecutionTargetAdapter<TResult = unknown>(
   config: LocalMcpContainerToolConfig<TResult>,
 ): ExecutionTargetAdapter<"mcp_container", TResult> {
+  const projectRoot = resolveProjectRoot();
+
   return createManagedMcpProcessExecutionTargetAdapter({
     kind: "mcp_container",
     targetId: config.targetId ?? `mcp_container:${config.serviceName}:${config.toolName}`,
     toolName: config.toolName,
     command: config.command,
     args: config.args,
-    cwd: config.cwd ?? PROJECT_ROOT,
+    cwd: config.cwd ?? projectRoot,
     getEnv: () => createMergedSpawnEnv(config.env),
     idleTimeoutMs: config.idleTimeoutMs,
     sessionPool: config.sessionPool,
@@ -200,7 +226,7 @@ export function createLocalMcpContainerExecutionTargetAdapter<TResult = unknown>
 export function createComposeBackedMcpContainerExecutionTargetAdapter<TResult = unknown>(
   config: ComposeBackedMcpContainerToolConfig<TResult>,
 ): ExecutionTargetAdapter<"mcp_container", TResult> {
-  const composeProjectRoot = config.composeProjectRoot ?? PROJECT_ROOT;
+  const composeProjectRoot = config.composeProjectRoot ?? resolveProjectRoot();
   const containerProjectRoot = config.containerProjectRoot ?? CONTAINER_PROJECT_ROOT;
   const containerTsxBinary = path.posix.join(containerProjectRoot, "node_modules", ".bin", "tsx");
   const containerEntrypoint = path.posix.join(containerProjectRoot, config.entrypoint);

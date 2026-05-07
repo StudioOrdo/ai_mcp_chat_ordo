@@ -93,16 +93,14 @@ describe("adminWebSearch", () => {
     });
   });
 
-  // --- API key check ---
+  // --- Provider configuration boundary ---
 
-  it("returns error when OPENAI_API_KEY is unset", async () => {
+  it("does not read provider keys inside the shared helper", async () => {
     delete process.env.OPENAI_API_KEY;
     const result = await adminWebSearch(mockOpenAI({ output: MOCK_OUTPUT }), {
       query: "test",
     });
-    expect(result).toEqual({
-      error: "OPENAI_API_KEY environment variable is not set",
-    });
+    expect(result).toHaveProperty("answer", "The transistor was invented in 1947.");
   });
 
   it("accepts API__OPENAI_API_KEY as the OpenAI alias", async () => {

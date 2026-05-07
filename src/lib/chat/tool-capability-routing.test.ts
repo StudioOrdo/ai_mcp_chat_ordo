@@ -17,6 +17,20 @@ function createTool(name: string): Anthropic.Tool {
 function createRegistry(tools: Anthropic.Tool[]): ToolRegistry {
   return {
     getSchemasForRole: () => tools,
+    getPromptVisibleSchemasForRole: () => tools,
+  } as unknown as ToolRegistry;
+}
+
+function createPromptAwareRegistry(tools: Anthropic.Tool[]): ToolRegistry {
+  return {
+    getSchemasForRole: () => tools,
+    getPromptVisibleSchemasForRole: () =>
+      tools.filter((tool) => ![
+        "get_current_page",
+        "inspect_runtime_context",
+        "list_available_pages",
+        "navigate_to_page",
+      ].includes(tool.name)),
   } as unknown as ToolRegistry;
 }
 
@@ -45,6 +59,38 @@ describe("getRequestScopedToolSelection", () => {
       "search_corpus",
       "generate_audio",
     ]);
+  });
+
+  it("uses the prompt-visible projection for non-admin chat turns", () => {
+    const selection = getRequestScopedToolSelection(
+      createPromptAwareRegistry([
+        createTool("inspect_runtime_context"),
+        createTool("navigate_to_page"),
+        createTool("search_corpus"),
+      ]),
+      "AUTHENTICATED",
+      createConversationRoutingSnapshot({ lane: "organization", confidence: 0.95 }),
+    );
+
+    expect(selection.prefiltered).toBe(false);
+    expect(selection.tools.map((tool) => tool.name)).toEqual(["search_corpus"]);
+    expect(selection.allowedToolNames).toEqual(["search_corpus"]);
+  });
+
+  it("removes operation-backed backup and restore tools from normal chat exposure", () => {
+    const selection = getRequestScopedToolSelection(
+      createRegistry([
+        createTool("create_appliance_backup"),
+        createTool("list_appliance_backups"),
+        createTool("execute_appliance_restore"),
+        createTool("search_corpus"),
+      ]),
+      "ADMIN",
+      createConversationRoutingSnapshot({ lane: "organization", confidence: 0.95 }),
+    );
+
+    expect(selection.tools.map((tool) => tool.name)).toEqual(["search_corpus"]);
+    expect(selection.allowedToolNames).toEqual(["search_corpus"]);
   });
 
   it("narrows high-confidence admin organization turns to the scoped allowlist", () => {

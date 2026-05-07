@@ -95,6 +95,86 @@ describe("mcp-process-runtime", () => {
     expect(factory.createSession).toHaveBeenCalledTimes(1);
   });
 
+  it("audits managed sidecar launch failures with launch context", async () => {
+    const factory: McpProcessSessionFactory = {
+      createSession: vi.fn(async () => {
+        throw new Error("spawn /ROOT/node_modules/.bin/tsx ENOENT");
+      }),
+    };
+    const pool = new McpProcessSessionPool(factory);
+    const launch: McpProcessLaunchOptions = {
+      targetId: "mcp_stdio:admin_search:mcp/operations-server.ts",
+      command: "/ROOT/node_modules/.bin/tsx",
+      args: ["mcp/operations-server.ts"],
+      cwd: "/ROOT",
+      idleTimeoutMs: 60_000,
+    };
+
+    await expect(
+      pool.callTool(launch, { name: "admin_search", arguments: { query: "*" } }),
+    ).rejects.toThrow("tsx ENOENT");
+
+    expect(factory.createSession).toHaveBeenCalledWith(launch);
+    expect(appendRuntimeAuditLogMock).toHaveBeenCalledWith(
+      "mcp_process",
+      "session_launch_failed",
+      expect.objectContaining({
+        targetId: "mcp_stdio:admin_search:mcp/operations-server.ts",
+        command: "/ROOT/node_modules/.bin/tsx",
+        cwd: "/ROOT",
+      }),
+    );
+  });
+
+  it("resolves local MCP stdio launch paths from the runtime project root", async () => {
+    const previousProjectRoot = process.env.ORDO_PROJECT_ROOT;
+    process.env.ORDO_PROJECT_ROOT = process.cwd();
+    const callTool = vi.fn(async () => ({
+      content: [{ type: "text", text: JSON.stringify({ ok: true }) }],
+    }));
+    const pool = {
+      callTool,
+    } as unknown as McpProcessSessionPool;
+    const { createLocalMcpStdioExecutionTargetAdapter } = await import("./mcp-stdio-adapter");
+
+    try {
+      const adapter = createLocalMcpStdioExecutionTargetAdapter({
+        entrypoint: "mcp/operations-server.ts",
+        toolName: "admin_search",
+        sessionPool: pool,
+      });
+
+      await adapter.invoke({
+        capability: {} as never,
+        input: { query: "*" },
+        context: {
+          userId: "admin-1",
+          role: "ADMIN",
+        },
+        plan: {} as never,
+        target: {
+          kind: "mcp_stdio",
+        } as never,
+      });
+
+      expect(callTool).toHaveBeenCalledWith(
+        expect.objectContaining({
+          command: expect.stringContaining("node_modules/.bin/tsx"),
+          cwd: process.cwd(),
+        }),
+        expect.objectContaining({
+          name: "admin_search",
+        }),
+      );
+    } finally {
+      if (previousProjectRoot === undefined) {
+        delete process.env.ORDO_PROJECT_ROOT;
+      } else {
+        process.env.ORDO_PROJECT_ROOT = previousProjectRoot;
+      }
+    }
+  });
+
   it("drops a failed managed session so the next call relaunches cleanly", async () => {
     const firstCallTool = vi.fn(async () => {
       throw new Error("session_closed");
