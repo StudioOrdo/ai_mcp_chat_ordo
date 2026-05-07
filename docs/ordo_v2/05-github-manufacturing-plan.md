@@ -20,6 +20,10 @@ Create these issues first.
 
 ### 1. Ordo v2 archaeology report
 
+GitHub issue:
+
+- https://github.com/StudioOrdo/ai_mcp_chat_ordo/issues/1
+
 Type:
 
 - `type:architecture`
@@ -35,6 +39,10 @@ Output:
 - accepted small implementation issues.
 
 ### 2. Durable system event log
+
+GitHub issue:
+
+- https://github.com/StudioOrdo/ai_mcp_chat_ordo/issues/2
 
 Type:
 
@@ -55,6 +63,10 @@ Non-goals:
 
 ### 3. User inbox and read state
 
+GitHub issue:
+
+- https://github.com/StudioOrdo/ai_mcp_chat_ordo/issues/3
+
 Type:
 
 - `type:implementation`
@@ -73,6 +85,10 @@ Non-goals:
 
 ### 4. Changes API
 
+GitHub issue:
+
+- https://github.com/StudioOrdo/ai_mcp_chat_ordo/issues/4
+
 Type:
 
 - `type:implementation`
@@ -89,6 +105,10 @@ Non-goals:
 - no full payload streaming.
 
 ### 5. Brief freshness pipeline
+
+GitHub issue:
+
+- https://github.com/StudioOrdo/ai_mcp_chat_ordo/issues/5
 
 Type:
 
@@ -110,6 +130,10 @@ Non-goals:
 - no model integration until deterministic path is proven.
 
 ### 6. Rust realtime broker plan and spike
+
+GitHub issue:
+
+- https://github.com/StudioOrdo/ai_mcp_chat_ordo/issues/6
 
 Type:
 
