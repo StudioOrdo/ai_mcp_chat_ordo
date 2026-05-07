@@ -936,6 +936,39 @@ export function createTables(db: Database.Database): void {
   `);
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS system_events (
+      sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+      id TEXT NOT NULL UNIQUE,
+      event_type TEXT NOT NULL,
+      occurred_at TEXT NOT NULL,
+      actor_user_id TEXT DEFAULT NULL,
+      owner_user_id TEXT DEFAULT NULL,
+      object_kind TEXT DEFAULT NULL,
+      object_id TEXT DEFAULT NULL,
+      object_label TEXT DEFAULT NULL,
+      section_ids_json TEXT NOT NULL DEFAULT '[]',
+      visibility TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      source_refs_json TEXT NOT NULL DEFAULT '[]',
+      payload_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY (owner_user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_system_events_visibility_sequence
+      ON system_events(visibility, sequence);
+    CREATE INDEX IF NOT EXISTS idx_system_events_owner_sequence
+      ON system_events(owner_user_id, sequence);
+    CREATE INDEX IF NOT EXISTS idx_system_events_object_sequence
+      ON system_events(object_kind, object_id, sequence);
+    CREATE INDEX IF NOT EXISTS idx_system_events_type_sequence
+      ON system_events(event_type, sequence);
+    CREATE INDEX IF NOT EXISTS idx_system_events_occurred
+      ON system_events(occurred_at);
+  `);
+
+  db.exec(`
     CREATE TABLE IF NOT EXISTS brief_read_models (
       id TEXT PRIMARY KEY,
       scope_key TEXT NOT NULL,
