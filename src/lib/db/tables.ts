@@ -969,6 +969,42 @@ export function createTables(db: Database.Database): void {
   `);
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS user_section_cursors (
+      user_id TEXT NOT NULL,
+      section_id TEXT NOT NULL,
+      last_read_sequence INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, section_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_user_section_cursors_user_updated
+      ON user_section_cursors(user_id, updated_at DESC);
+
+    CREATE TABLE IF NOT EXISTS user_inbox_items (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      system_event_id TEXT NOT NULL,
+      system_event_sequence INTEGER NOT NULL,
+      section_id TEXT NOT NULL,
+      item_key TEXT NOT NULL,
+      read_at TEXT DEFAULT NULL,
+      dismissed_at TEXT DEFAULT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (system_event_id) REFERENCES system_events(id) ON DELETE CASCADE
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_user_inbox_items_user_event_section
+      ON user_inbox_items(user_id, system_event_id, section_id);
+    CREATE INDEX IF NOT EXISTS idx_user_inbox_items_user_section_sequence
+      ON user_inbox_items(user_id, section_id, system_event_sequence);
+    CREATE INDEX IF NOT EXISTS idx_user_inbox_items_user_updated
+      ON user_inbox_items(user_id, updated_at DESC);
+  `);
+
+  db.exec(`
     CREATE TABLE IF NOT EXISTS brief_read_models (
       id TEXT PRIMARY KEY,
       scope_key TEXT NOT NULL,
