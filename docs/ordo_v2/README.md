@@ -35,6 +35,19 @@ the frontend around that.
 - [04 Archaeology Phase](04-archaeology-phase.md)
 - [05 GitHub Manufacturing Plan](05-github-manufacturing-plan.md)
 
+## Evidence
+
+The first archaeology issue is
+[#1 Ordo v2 archaeology report](https://github.com/StudioOrdo/ai_mcp_chat_ordo/issues/1).
+
+Initial evidence maps:
+
+- [Current Runtime Map](evidence/current-runtime-map.md)
+- [Current Database Map](evidence/current-database-map.md)
+- [Current Read Model Map](evidence/current-read-model-map.md)
+- [Current Realtime Map](evidence/current-realtime-map.md)
+- [Current Briefs Map](evidence/current-briefs-map.md)
+
 ## Working Rule
 
 Do not start another large UI sweep until the data path is clear.
